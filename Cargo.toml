@@ -9,3 +9,4 @@ edition = "2021"
 nostr_rust = "*"
 log = "0.4"
 serde_json = "*"
+secp256k1 = { version = "0.25", features = ["bitcoin_hashes", "global-context", "rand-std"] }
