@@ -1,13 +1,21 @@
 use nostr_rust::bech32::{ToBech32Kind, to_bech32};
+use nostr_rust::events::{Event, EventPrepare};
 use nostr_rust::keys::*;
+use nostr_rust::nips::nip1::NIP1Error;
 use nostr_rust::{nostr_client::Client, Identity,  req::ReqFilter,  Message, events::extract_events_ws};
 use std::{env,
     str::FromStr,
     sync::{Arc, Mutex},
     thread,
 };
+use nostr_rust::utils::get_timestamp;
 extern crate serde_json;
+use bdk::template::Bip84;
+use bdk::{miniscript, Wallet, KeychainKind};
 mod users;
+use bdk::bitcoin::Network;
+use bdk::database::MemoryDatabase;
+use bdk::keys::{DerivableKey, GeneratableKey, GeneratedKey, ExtendedKey, bip39::{Mnemonic, WordCount, Language}};
 
 fn dump_keys(sk_str: String) {
 
@@ -24,6 +32,25 @@ fn dump_keys(sk_str: String) {
     println!("Public Key (bech32): {:?} ", bech32_pub.unwrap());
     println!("Secret Key (bech32): {:?} ", bech32_prv.unwrap());
 
+    let network = Network::Testnet; // Or this can be Network::Bitcoin, Network::Signet or Network::Regtest
+
+    // Generate fresh mnemonic
+    let mnemonic: GeneratedKey<_, miniscript::Segwitv0> = Mnemonic::generate((WordCount::Words12, Language::English)).unwrap();
+
+    // Convert mnemonic to string
+    let mnemonic_words = mnemonic.to_string();
+    println!("Mnemonic: {:?} ", &mnemonic_words);
+
+    // Parse a mnemonic
+    let mnemonic  = Mnemonic::parse(&mnemonic_words).unwrap();
+    
+    // Generate the extended key
+    let xkey: ExtendedKey = mnemonic.into_extended_key().unwrap();
+    // Get xprv from the extended key
+    let xprv = xkey.into_xprv(network).unwrap();
+    println!("Secret Key xprv: {:?} ", xprv);
+
+
 }
 
 fn _random_account() -> (String, String) {
@@ -33,6 +60,39 @@ fn _random_account() -> (String, String) {
     dump_keys(secret_str_1.clone());
     (secret_str_1, public_str_1)
 }
+
+fn publish_psbt(
+    nostr_client: Arc<Mutex<Client>>,
+    identity: &Identity,
+    content: &str,
+    tags: &[Vec<String>],
+    difficulty_target: u16,
+) -> Result<Event, NIP1Error> {
+    let event = EventPrepare {
+        pub_key: identity.public_key_str.clone(),
+        created_at: get_timestamp(),
+        kind: 21,
+        tags: tags.to_vec(),
+        content: content.to_string(),
+    }
+    .to_event(identity, difficulty_target);
+
+    nostr_client.lock().unwrap().publish_event(&event)?;
+    Ok(event)
+}
+
+// fn send_psbt(nostr_client: Arc<Mutex<Client>>, identity: &Identity, psbt: &String) -> Result<(), String> {
+//     let message = psbt;
+
+//     nostr_client
+//        .lock()
+//        .unwrap()
+//        .publish_text_note(&identity, &message, &[], 0)
+//        .unwrap();
+
+//     Ok(())
+// }
+
 
 fn handle_message(message: &Message) -> Result<(), String> {
     let events = extract_events_ws(message);
@@ -84,7 +144,7 @@ fn main()  {
     dbg!(&args);
 
     let nostr_client = Arc::new(Mutex::new(
-        Client::new(vec!["ws://127.0.0.1:8081"]).unwrap(),
+        Client::new(vec!["ws://127.0.0.1:8080"]).unwrap(),
     ));
 
     if &args.len() > &1 && args[1] == "subscribe".to_string() {
@@ -114,6 +174,13 @@ fn main()  {
         dump_keys(users::alice_keys().0);
         dump_keys(users::bob_keys().0);
         dump_keys(users::charlie_keys().0);
+    } 
+    else if args[1] == "psbt".to_string() {
+        let poster_identity = Identity::from_str(&users::alice_keys().0).unwrap();
+        publish_psbt(nostr_client, &poster_identity, "my psbt", &[], 0).ok();
+    }
+    else if args[1] == "random".to_string() {
+        // users::random_account();
     }
  
 }
