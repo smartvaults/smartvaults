@@ -9,5 +9,8 @@ edition = "2021"
 nostr_rust = "*"
 log = "0.4"
 serde_json = "*"
-secp256k1 = { version = "0.26", features = ["bitcoin_hashes", "global-context", "rand-std"] }
-bdk = { version = "0.26.0", default-feature = false, features = ["all-keys"] }
+secp256k1 = { version = "0.25", features = ["bitcoin_hashes", "global-context", "rand-std"] }
+bdk = { version = "0.25.0", default-feature = false, features = ["all-keys"] }
+clap = { features = ["cargo", "derive"], version="4.1.1" }
+rand = "*"
+bitcoin = "0.29.2"

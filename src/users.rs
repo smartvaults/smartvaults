@@ -1,42 +1,12 @@
-use bdk::template::Bip84;
-use bdk::{miniscript, Wallet, KeychainKind};
-use bdk::bitcoin::Network;
-use bdk::database::MemoryDatabase;
-use bdk::keys::{DerivableKey, GeneratableKey, GeneratedKey, ExtendedKey, bip39::{Mnemonic, WordCount, Language}};
-use bdk::bitcoin::secp256k1::SecretKey;
-use bdk::bitcoin::{PrivateKey};
+use std::collections::HashMap;
 
-
-// pub fn random_account() -> (String, String) {
-
-//     let hash = secp256k1::bitcoin_hashes::sha256::Hash(alias.as_bytes());
-
-//     let sk = PrivateKey {
-//         compressed: true,
-//         network: Network::Testnet,
-//         inner: SecretKey::from_slice(&hash).expect("32 bytes, within curve order"),
-//     };
-
-//     let network = Network::Testnet; // Or this can be Network::Bitcoin, Network::Signet or Network::Regtest
-
-//     // Generate fresh mnemonic
-//     let mnemonic: GeneratedKey<_, miniscript::Segwitv0> = Mnemonic::generate((WordCount::Words12, Language::English)).unwrap();
-
-//     // Convert mnemonic to string
-//     let mnemonic_words = mnemonic.to_string();
-//     println!("Mnemonic: {:?} ", &mnemonic_words);
-
-//     // Parse a mnemonic
-//     let mnemonic  = Mnemonic::parse(&mnemonic_words).unwrap();
-    
-//     // Generate the extended key
-//     let xkey: ExtendedKey = mnemonic.into_extended_key().unwrap();
-//     // Get xprv from the extended key
-//     let xprv = xkey.into_xprv(network).unwrap();
-//     println!("Secret Key xprv: {:?} ", xprv);
-
-//     (xprv.to_string(), mnemonic_words)
-// }
+pub fn known_users() -> HashMap<String, String> {
+    let mut users = HashMap::new();
+    users.insert("Alice".to_string().to_ascii_uppercase(), "3bc51062973c458d5a6f2d8d64a023246354ad7e064b1e4e009ec8a0699a3043".to_string());
+    users.insert("Bob".to_string().to_ascii_uppercase(), "cd9fb1e148ccd8442e5aa74904cc73bf6fb54d1d54d333bd596aa9bb4bb4e961".to_string());
+    users.insert("Charlie".to_string().to_ascii_uppercase(), "6e81b1255ad51bb201a2b8afa9b66653297ae0217f833b14b39b5231228bf968".to_string());
+    users
+}
 /*  Alice
 Secret Key (HEX): "3bc51062973c458d5a6f2d8d64a023246354ad7e064b1e4e009ec8a0699a3043" 
 Public Key (HEX): "7e5ccd015578969febb42468f8d0be54c6b39331b7285d88040d5f0ba9606aa4" 
