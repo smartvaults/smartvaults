@@ -1,29 +1,18 @@
+use std::str::FromStr;
 
 use clap::{Parser, Error};
 use nostr_rust::bech32::{to_bech32, ToBech32Kind};
-use std::str::FromStr;
-use bdk::keys::{
-    bip39::{WordCount},
-    GeneratableKey, GeneratedKey,
-};
+// use bdk::keys::bip39::Mnemonic;
+use secp256k1::Secp256k1;
 use bdk::wallet::Wallet;
 use bitcoin::util::bip32;
-use bdk::miniscript;
-use secp256k1::Secp256k1;
-use bip39::{Mnemonic, Language};
+use bip39::Mnemonic;
 
-fn generate(passphrase: &String) {
+fn inspect(mnemonic: &String, passphrase: &String) {
+ 
+    println!("Mnemonic: {:?} ", &mnemonic);
 
-    let mnemonic: GeneratedKey<_, miniscript::Segwitv0> =
-        Mnemonic::generate((WordCount::Words12, Language::English)).unwrap();
-
-    // Convert mnemonic to string
-    let mnemonic_words = mnemonic.to_string();
-    println!("Mnemonic : {:?} ", &mnemonic_words);
-
-    // Parse a mnemonic
-    let mnemonic = Mnemonic::parse(&mnemonic_words).unwrap();
-
+    let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic).unwrap();
     let seed = mnemonic.to_seed_normalized(passphrase);
     println!("seed: {:?}", seed);
 
@@ -31,6 +20,7 @@ fn generate(passphrase: &String) {
 
     let key = (mnemonic, path);
     let (desc, _keys, _networks) = bdk::descriptor!(wpkh(key)).unwrap();
+    println!("Bitcoin Inspection : ");
     println!("Bitcoin Output Descriptor: {}", desc.to_string());
 
     let db = bdk::database::memory::MemoryDatabase::new();
@@ -41,9 +31,9 @@ fn generate(passphrase: &String) {
         .unwrap();
     println!("First Address : {} ", address.to_string());
 
+    println!("\nNostr Inspection : ");
     let secp = Secp256k1::new();
 
-    // mnemonic creates 64-bytes, but we only use the first 32
     let secret_key = secp256k1::SecretKey::from_slice(&seed[0..32]).unwrap();
     let public_key = secp256k1::PublicKey::from_secret_key(&secp, &secret_key);
 
@@ -57,27 +47,26 @@ fn generate(passphrase: &String) {
 
     println!("Nostr Public Key (bech32): {:?} ", bech32_pub.unwrap());
     println!("Nostr Secret Key (bech32): {:?} ", bech32_prv.unwrap());
+
 }
 
-/// The `generate` command
+/// The `inspect` command
 #[derive(Debug, Clone, Parser)]
-#[command(name = "generate", about = "Generate a random account to work with Nostr and Bitcoin")]
-pub struct GenerateCmd {
-    /// The number of random accounts to generate
-    #[arg(short, long, default_value_t = 1)]
-    count: u8,
+#[command(name = "inspect", about = "Inspect a mnemonic for bitcoin and nostr events")]
+pub struct InspectCmd {
+    /// 12 or 24 word bip32 mnemonic
+    #[arg(short, long)]
+    mnemonic: String,
 
+    /// Optional 
     #[arg(short, long, default_value = "")]
     passphrase: String,
 }
 
-impl GenerateCmd {
+impl InspectCmd {
     pub fn run(&self) -> Result<(), Error> {
-        for i in 0..self.count {
-            println!("\nGenerating account {} of {}", i+1, self.count);
-            generate(&self.passphrase);
-            println!();
-        }
+     
+        inspect(&self.mnemonic, &self.passphrase);
 
         Ok(())
     }

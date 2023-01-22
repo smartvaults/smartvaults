@@ -6,6 +6,7 @@ mod generate;
 mod publish;
 mod subscribe;
 mod users;
+mod inspect;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -42,6 +43,9 @@ pub enum Commands {
 
     /// Publish a nostr event
     Publish(publish::PublishCmd),
+
+    /// Inspect a Mnenonic for validity and print bitcoin and nostr keys
+    Inspect(inspect::InspectCmd),
 }
 
 fn main() -> Result<(), clap::Error> {
@@ -50,6 +54,7 @@ fn main() -> Result<(), clap::Error> {
         Commands::Generate(cmd) => cmd.run(),
         Commands::Subscribe(cmd) => cmd.run(),
         Commands::Publish(cmd) => cmd.run(),
+        Commands::Inspect(cmd) => cmd.run(),
     }
 }
 

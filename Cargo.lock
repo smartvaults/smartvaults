@@ -245,11 +245,13 @@ name = "coinstr"
 version = "0.1.0"
 dependencies = [
  "bdk",
+ "bip39",
  "bitcoin",
  "clap",
  "log",
  "nostr_rust",
  "rand",
+ "rand_core 0.4.2",
  "secp256k1 0.25.0",
  "serde_json",
 ]
