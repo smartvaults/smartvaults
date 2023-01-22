@@ -1,10 +1,17 @@
 
-./coinstr account generate
+```
+Manage bitcoin and nostr together
 
-should print: 
-- mnemonic
-- hex private key
-- hex public key
-- bech32 private key
-- bech32 public key
-- schnorr receiving gaddress
+Usage: coinstr <COMMAND>
+
+Commands:
+  generate   Generates random account(s)
+  subscribe  Subscribe to nostr events
+  publish    Publish a nostr event
+  inspect    Inspect a Mnenonic for validity and print bitcoin and nostr keys
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```

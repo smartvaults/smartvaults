@@ -31,7 +31,7 @@ struct Cli {
 #[command(
     name = "coinstr",
     author = "3yekn",
-    about = "Manage bitcoin with nostr",
+    about = "Manage bitcoin and nostr together",
     version
 )]
 pub enum Commands {
