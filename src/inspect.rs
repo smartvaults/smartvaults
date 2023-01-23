@@ -8,18 +8,19 @@ use bdk::wallet::Wallet;
 use bitcoin::util::bip32;
 use bip39::Mnemonic;
 
-fn inspect(mnemonic: &String, passphrase: &String) {
+fn inspect(mnemonic: &String) {
  
     println!("Mnemonic: {:?} ", &mnemonic);
-
+    // util::print_keys(mnemonic);
+    
     let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic).unwrap();
-    let seed = mnemonic.to_seed_normalized(passphrase);
-    println!("seed: {:?}", seed);
+    let seed = mnemonic.to_seed("".to_string());
+    // println!("seed: {:?}", seed);
 
     let path = bip32::DerivationPath::from_str("m/44'/0'/0'/0").unwrap();
 
     let key = (mnemonic, path);
-    let (desc, _keys, _networks) = bdk::descriptor!(wpkh(key)).unwrap();
+    let (desc, _, _) = bdk::descriptor!(wpkh(key)).unwrap();
     println!("Bitcoin Inspection : ");
     println!("Bitcoin Output Descriptor: {}", desc.to_string());
 
@@ -57,16 +58,12 @@ pub struct InspectCmd {
     /// 12 or 24 word bip32 mnemonic
     #[arg(short, long)]
     mnemonic: String,
-
-    /// Optional 
-    #[arg(short, long, default_value = "")]
-    passphrase: String,
 }
 
 impl InspectCmd {
     pub fn run(&self) -> Result<(), Error> {
      
-        inspect(&self.mnemonic, &self.passphrase);
+        inspect(&self.mnemonic);
 
         Ok(())
     }

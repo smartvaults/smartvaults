@@ -7,6 +7,7 @@ mod publish;
 mod subscribe;
 mod users;
 mod inspect;
+mod util;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
