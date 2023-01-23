@@ -15,6 +15,8 @@ pub fn print_nostr (seed: [u8; 32]) {
     let public_key = secp256k1::PublicKey::from_secret_key(&secp, &secret_key);
 
     let secret_key_str = secret_key.display_secret().to_string();
+    // let mut trimmed_public_key: String = public_key.to_string();
+    // trimmed_public_key.replace_range(0..1, "");
 
     println!("\nNostr Configuration");
     println!("  Secret Key (HEX)    : {} ", secret_key_str);

@@ -8,6 +8,7 @@ mod subscribe;
 mod users;
 mod inspect;
 mod util;
+mod convert;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -45,8 +46,11 @@ pub enum Commands {
     /// Publish a nostr event
     Publish(publish::PublishCmd),
 
-    /// Inspect a Mnenonic for validity and print bitcoin and nostr keys
+    /// Inspect a mnenonic for validity and print bitcoin and nostr keys
     Inspect(inspect::InspectCmd),
+
+    /// Convert
+    Convert(convert::ConvertCmd),
 }
 
 fn main() -> Result<(), clap::Error> {
@@ -56,6 +60,7 @@ fn main() -> Result<(), clap::Error> {
         Commands::Subscribe(cmd) => cmd.run(),
         Commands::Publish(cmd) => cmd.run(),
         Commands::Inspect(cmd) => cmd.run(),
+        Commands::Convert(cmd) => cmd.run(),
     }
 }
 
