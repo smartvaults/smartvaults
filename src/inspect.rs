@@ -1,23 +1,20 @@
-use std::str::FromStr;
 use clap::{Parser, Error};
-use bitcoin::util::bip32;
-use bip39::Mnemonic;
+use bdk::keys::bip39::{Mnemonic, Language::English};
 use crate::util;
+use nostr::Result;
 
-fn inspect(mnemonic: &String) {
+fn inspect(mnemonic: &String, passphrase: &String) -> Result<()> {
  
+    let mnemonic = Mnemonic::parse_in_normalized(English, mnemonic).unwrap();
     println!("\nMnemonic : {:?} ", &mnemonic);
     
-    let mnemonic = Mnemonic::parse_in_normalized(bip39::Language::English, mnemonic).unwrap();
-    let path = bip32::DerivationPath::from_str("m/44'/0'/0'/0").unwrap();
-    let key = (mnemonic.clone(), path);
-    util::print_bitcoin(key);
+    println!("\nMnemonic   : \"{}\" ", &mnemonic.to_string());
+    println!("Passphrase : \"{}\" ", &passphrase.to_string());
 
-    // grab the seed to use for the nostr key
-    let seed: [u8; 64];
-    seed = mnemonic.to_seed("".to_string());
+    util::print_nostr(&mnemonic, passphrase)?;
+    util::print_bitcoin(&mnemonic, passphrase)?;
 
-    util::print_nostr(seed[0..32].try_into().expect("seed did not fit"));
+    Ok(())
 }
 
 /// The `inspect` command
@@ -27,12 +24,16 @@ pub struct InspectCmd {
     /// 12 or 24 word bip32 mnemonic
     #[arg(short, long)]
     mnemonic: String,
+
+    /// Optional passphrase
+    #[arg(short, long, default_value = "")]
+    passphrase: String,
 }
 
 impl InspectCmd {
     pub fn run(&self) -> Result<(), Error> {
      
-        inspect(&self.mnemonic);
+        inspect(&self.mnemonic, &self.passphrase);
 
         Ok(())
     }

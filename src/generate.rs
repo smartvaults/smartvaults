@@ -1,16 +1,15 @@
-use bdk::keys::{bip39::WordCount, GeneratableKey, GeneratedKey};
-use bdk::miniscript;
-use bip39::{Language, Mnemonic};
 use clap::{Error, Parser};
+use nostr::nips::nip06::GenerateMnemonic;
+use nostr::{Keys, Result};
 
 use crate::util;
 
-fn generate() {
+fn generate(passphrase: &String) -> Result<()> {
     // generate a random 12 word mnemonic
-    let mnemonic: GeneratedKey<_, miniscript::Segwitv0> =
-        Mnemonic::generate((WordCount::Words12, Language::English)).unwrap();
+    let keys = Keys::generate_mnemonic(12)?;
 
-    util::print_keys(mnemonic);
+    util::print_keys(&keys, passphrase)?;
+    Ok(())
 }
 
 /// The `generate` command
@@ -23,14 +22,18 @@ pub struct GenerateCmd {
     /// The number of random accounts to generate
     #[arg(short, long, default_value_t = 1)]
     count: u8,
+
+    /// Optional passphrase
+    #[arg(short, long, default_value = "")]
+    passphrase: String,
 }
 
 impl GenerateCmd {
     pub fn run(&self) -> Result<(), Error> {
         for i in 0..self.count {
             println!("\nGenerating account {} of {}", i + 1, self.count);
-            generate();
-            println!();
+           generate(&self.passphrase);
+           println!();
         }
 
         Ok(())
