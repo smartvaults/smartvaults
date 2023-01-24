@@ -1,14 +1,16 @@
 use clap::Parser;
 use std::path::PathBuf;
-extern crate serde_json;
+use config::Config;
+use bitcoin::Network;
 
+mod balance;
+mod convert;
 mod generate;
+mod inspect;
 mod publish;
 mod subscribe;
 mod users;
-mod inspect;
 mod util;
-mod convert;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -49,18 +51,36 @@ pub enum Commands {
     /// Inspect a mnenonic for validity and print bitcoin and nostr keys
     Inspect(inspect::InspectCmd),
 
-    /// Convert
+    /// Convert between hex and bech32 format keys
     Convert(convert::ConvertCmd),
+
+    /// Find the balance for a bitcoin descriptor
+    Balance(balance::BalanceCmd),
 }
 
 fn main() -> Result<(), clap::Error> {
 
+    let settings = Config::builder()
+        .add_source(config::File::with_name("config"))
+        .add_source(config::Environment::with_prefix("COINSTR"))
+        .build()
+        .unwrap();
+
+        let mut bitcoin_network: Network = bitcoin::Network::Bitcoin;
+        let bitcoin_network_str = settings.get_string("bitcoin-network").unwrap();
+        if bitcoin_network_str == "testnet" {
+            bitcoin_network = Network::Testnet;
+        }
+        let bitcoin_endpoint = settings.get_string("bitcoin-endpoint").unwrap();
+        let nostr_relay = settings.get_string("nostr-relay").unwrap();
+
     match Commands::parse() {
         Commands::Generate(cmd) => cmd.run(),
-        Commands::Subscribe(cmd) => cmd.run(),
-        Commands::Publish(cmd) => cmd.run(),
+        Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
+        Commands::Publish(cmd) => cmd.run(&nostr_relay),
         Commands::Inspect(cmd) => cmd.run(),
         Commands::Convert(cmd) => cmd.run(),
+        Commands::Balance(cmd) => cmd.run(&bitcoin_endpoint, bitcoin_network),
     }
 }
 

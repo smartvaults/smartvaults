@@ -31,7 +31,7 @@ fn subscribe(nostr_client: Arc<Mutex<Client>>) {
             kinds: None,
             e: None,
             p: None,
-            since: Some(1673908031),
+            since: Some(1673969339),
             until: None,
             limit: Some(10),
         }])
@@ -65,8 +65,8 @@ pub struct SubscribeCmd {
 use clap::Error;
 impl SubscribeCmd {
     /// Run the command
-    pub fn run(&self) -> Result<(), Error> {
-        let nostr_client = Arc::new(Mutex::new(Client::new(vec![&self.relay]).unwrap()));
+    pub fn run(&self, nostr_relay: &String) -> Result<(), Error> {
+        let nostr_client = Arc::new(Mutex::new(Client::new(vec![&nostr_relay]).unwrap()));
 
         subscribe(nostr_client);
         Ok(())

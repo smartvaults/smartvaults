@@ -1,0 +1,3 @@
+bitcoin-endpoint = "https://blockstream.info/testnet/api"
+bitcoin-network = "testnet"
+nostr-relay = "ws://127.0.0.1:8081"

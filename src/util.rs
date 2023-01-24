@@ -1,5 +1,8 @@
+use bdk::blockchain::EsploraBlockchain;
+use bdk::database::MemoryDatabase;
 use bdk::keys::bip39::Mnemonic;
 use bdk::keys::DerivableKey;
+use bdk::wallet::SyncOptions;
 use bdk::wallet::Wallet;
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
 use bitcoin::Network;
@@ -8,7 +11,6 @@ use nostr::{prelude::FromMnemonic, Keys, Result};
 use std::str::FromStr;
 
 pub fn print_nostr(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
-
     let keys = Keys::from_mnemonic(mnemonic.to_string(), Some(passphrase.to_string())).unwrap();
 
     println!("\nNostr Configuration");
@@ -29,7 +31,6 @@ pub fn print_nostr(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
 }
 
 pub fn print_bitcoin(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
-
     let path = DerivationPath::from_str("m/44'/0'/0'/0")?;
     let seed = mnemonic.to_seed_normalized(passphrase);
     let root_key = ExtendedPrivKey::new_master(Network::Testnet, &seed)?;
@@ -66,4 +67,24 @@ pub fn print_keys(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
     print_bitcoin(&mnemonic, passphrase)?;
 
     Ok(())
+}
+
+pub fn get_balance(
+    descriptor: &String,
+    bitcoin_endpoint: &String,
+    bitcoin_network: bitcoin::Network,
+) -> bdk::Balance {
+    let esplora = EsploraBlockchain::new(&bitcoin_endpoint, 20);
+
+    let wallet = Wallet::new(
+        &descriptor.to_string(),
+        None,
+        bitcoin_network,
+        MemoryDatabase::default(),
+    )
+    .unwrap();
+
+    wallet.sync(&esplora, SyncOptions::default()).unwrap();
+
+    return wallet.get_balance().unwrap();
 }

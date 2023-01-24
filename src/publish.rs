@@ -33,10 +33,7 @@ fn publish(
 #[derive(Debug, Clone, clap::Parser)]
 #[command(name = "publish", about = "Publish a nostr events")]
 pub struct PublishCmd {
-    /// The relay to connect to for subscription
-    #[arg(short, long, default_value_t = String::from("ws://127.0.0.1:8081"))]
-    relay: String,
-
+   
     /// Content to post within an event
     #[arg(short, long)]
     content: String,
@@ -49,14 +46,13 @@ pub struct PublishCmd {
 
 impl PublishCmd {
     /// Run the command
-    pub fn run(&self) -> Result<(), Error> {
+    pub fn run(&self, nostr_relay: &String) -> Result<(), Error> {
         let binding = known_users();
         let user_key = binding.get(&self.user.to_ascii_uppercase()).unwrap();
-        //let user_key = known_users().get(&self.user).unwrap();
 
         let poster_identity = Identity::from_str(&user_key).unwrap();
 
-        let nostr_client = Arc::new(Mutex::new(Client::new(vec![&self.relay]).unwrap()));
+        let nostr_client = Arc::new(Mutex::new(Client::new(vec![nostr_relay]).unwrap()));
 
         publish(nostr_client, &poster_identity, &self.content, &[], 0).unwrap();
         Ok(())
