@@ -1,42 +1,47 @@
-use bdk::keys::GeneratedKey;
-use bdk::miniscript;
+use bdk::keys::bip39::Mnemonic;
+use bdk::keys::DerivableKey;
 use bdk::wallet::Wallet;
-use bip39::Mnemonic;
-use bitcoin::util::bip32::DerivationPath;
-use nostr_rust::bech32::{to_bech32, ToBech32Kind};
-use secp256k1::Secp256k1;
+use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
+use bitcoin::Network;
+use nostr::nips::nip19::ToBech32;
+use nostr::{prelude::FromMnemonic, Keys, Result};
 use std::str::FromStr;
 
-pub fn print_nostr (seed: [u8; 32]) {
-    let secp = Secp256k1::new();
+pub fn print_nostr(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
 
-    // mnemonic creates 64-bytes, but we only use the first 32
-    let secret_key = secp256k1::SecretKey::from_slice(&seed).unwrap();
-    let public_key = secp256k1::PublicKey::from_secret_key(&secp, &secret_key);
-
-    let secret_key_str = secret_key.display_secret().to_string();
-    // let mut trimmed_public_key: String = public_key.to_string();
-    // trimmed_public_key.replace_range(0..1, "");
+    let keys = Keys::from_mnemonic(mnemonic.to_string(), Some(passphrase.to_string())).unwrap();
 
     println!("\nNostr Configuration");
-    println!("  Secret Key (HEX)    : {} ", secret_key_str);
-    println!("  Public Key (HEX)    : {} ", public_key.to_string());
-
-    let bech32_pub = to_bech32(ToBech32Kind::PublicKey, &public_key.to_string());
-    let bech32_prv = to_bech32(ToBech32Kind::SecretKey, &secret_key_str);
-
-    println!("  Public Key (bech32) : {} ", bech32_pub.unwrap());
-    println!("  Secret Key (bech32) : {} ", bech32_prv.unwrap());
+    println!(
+        "  Secret Key (HEX)    : {} ",
+        keys.secret_key()?.display_secret().to_string()
+    );
+    println!(
+        "  Secret Key (bech32) : {} ",
+        keys.secret_key()?.to_bech32()?.to_string()
+    );
+    println!("  Public Key (HEX)    : {} ", keys.public_key().to_string());
+    println!(
+        "  Public Key (bech32) : {} ",
+        keys.public_key().to_bech32()?.to_string()
+    );
+    Ok(())
 }
 
-pub fn print_bitcoin (key : (Mnemonic, DerivationPath)) {
-    
-    let (desc, _, _) = bdk::descriptor!(wpkh(key)).unwrap();
+pub fn print_bitcoin(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
+
+    let path = DerivationPath::from_str("m/44'/0'/0'/0")?;
+    let seed = mnemonic.to_seed_normalized(passphrase);
+    let root_key = ExtendedPrivKey::new_master(Network::Testnet, &seed)?;
+    let extended_key = root_key.into_extended_key()?;
+    let xpub = extended_key.into_descriptor_key(None, path).unwrap();
+
+    let (desc, _, _) = bdk::descriptor!(tr(xpub)).unwrap();
     println!("\nBitcoin Configuration");
     println!("  Output Descriptor   : {}", desc.to_string());
 
     let db = bdk::database::memory::MemoryDatabase::new();
-    let wallet = Wallet::new(desc, None, bitcoin::Network::Bitcoin, db);
+    let wallet = Wallet::new(desc, None, Network::Testnet, db);
     let address = wallet
         .as_ref()
         .unwrap()
@@ -49,19 +54,16 @@ pub fn print_bitcoin (key : (Mnemonic, DerivationPath)) {
         .get_address(bdk::wallet::AddressIndex::New)
         .unwrap();
     println!("  Second Address      : {} ", address.to_string());
+
+    Ok(())
 }
 
-pub fn print_keys (mnemonic: GeneratedKey<Mnemonic, miniscript::Segwitv0>) {
-    println!("\nMnemonic : \"{}\" ", &mnemonic.to_string());
+pub fn print_keys(mnemonic: &Mnemonic, passphrase: &String) -> Result<()> {
+    println!("\nMnemonic   : \"{}\" ", &mnemonic.to_string());
+    println!("Passphrase : \"{}\" ", &passphrase.to_string());
 
-    let path = DerivationPath::from_str("m/44'/0'/0'/0").unwrap();
-    let key = (mnemonic.clone().into_key(), path);
+    print_nostr(&mnemonic, passphrase)?;
+    print_bitcoin(&mnemonic, passphrase)?;
 
-    print_bitcoin(key);   
-
-    // grab the seed to use for the nostr key
-    let seed: [u8; 64];
-    seed = mnemonic.to_seed("".to_string());
-
-    print_nostr(seed[0..32].try_into().expect("seed did not fit"));
+    Ok(())
 }
