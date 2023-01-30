@@ -6,9 +6,9 @@ use bitcoin::Network;
 mod balance;
 mod convert;
 mod generate;
-mod inspect;
-mod publish;
-mod subscribe;
+// mod inspect;
+// mod publish;
+// mod subscribe;
 mod users;
 mod util;
 
@@ -42,14 +42,14 @@ pub enum Commands {
     /// Generates random account(s)
     Generate(generate::GenerateCmd),
 
-    /// Subscribe to nostr events
-    Subscribe(subscribe::SubscribeCmd),
+    // /// Subscribe to nostr events
+    // Subscribe(subscribe::SubscribeCmd),
 
-    /// Publish a nostr event
-    Publish(publish::PublishCmd),
+    // /// Publish a nostr event
+    // Publish(publish::PublishCmd),
 
-    /// Inspect a mnenonic for validity and print bitcoin and nostr keys
-    Inspect(inspect::InspectCmd),
+    // /// Inspect a mnenonic for validity and print bitcoin and nostr keys
+    // Inspect(inspect::InspectCmd),
 
     /// Convert between hex and bech32 format keys
     Convert(convert::ConvertCmd),
@@ -76,9 +76,9 @@ fn main() -> Result<(), clap::Error> {
 
     match Commands::parse() {
         Commands::Generate(cmd) => cmd.run(),
-        Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
-        Commands::Publish(cmd) => cmd.run(&nostr_relay),
-        Commands::Inspect(cmd) => cmd.run(),
+        // Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
+        // Commands::Publish(cmd) => cmd.run(&nostr_relay),
+        // Commands::Inspect(cmd) => cmd.run(),
         Commands::Convert(cmd) => cmd.run(),
         Commands::Balance(cmd) => cmd.run(&bitcoin_endpoint, bitcoin_network),
     }

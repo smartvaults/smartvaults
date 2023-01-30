@@ -1,41 +1,224 @@
+use bdk::blockchain::EsploraBlockchain;
+use bdk::database::MemoryDatabase;
+use bdk::keys::bip39::{Language::English, Mnemonic};
+use bdk::keys::{DerivableKey, DescriptorKey};
+use bdk::wallet::SyncOptions;
+use bdk::wallet::Wallet;
+use bitcoin::network::address;
+use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey};
+use bitcoin::Network;
+use miniscript::{ScriptContext, Descriptor, DescriptorPublicKey};
+use nostr::nips::nip19::ToBech32;
+use nostr::{
+    prelude::{FromMnemonic, PublicKey, Secp256k1, SecretKey},
+    Keys, Result,
+};
+// use secp256k1::Secp256k1;
 use std::collections::HashMap;
+use bdk::keys::ExtendedKey;
+use std::error::Error;
+use std::fmt;
+use std::vec;
+use bdk::wallet::AddressInfo;
 
-pub fn known_users() -> HashMap<String, String> {
-    let mut users = HashMap::new();
-    users.insert("Alice".to_string().to_ascii_uppercase(), "3bc51062973c458d5a6f2d8d64a023246354ad7e064b1e4e009ec8a0699a3043".to_string());
-    users.insert("Bob".to_string().to_ascii_uppercase(), "cd9fb1e148ccd8442e5aa74904cc73bf6fb54d1d54d333bd596aa9bb4bb4e961".to_string());
-    users.insert("Charlie".to_string().to_ascii_uppercase(), "6e81b1255ad51bb201a2b8afa9b66653297ae0217f833b14b39b5231228bf968".to_string());
-    users
-}
-/*  Alice
-Secret Key (HEX): "3bc51062973c458d5a6f2d8d64a023246354ad7e064b1e4e009ec8a0699a3043" 
-Public Key (HEX): "7e5ccd015578969febb42468f8d0be54c6b39331b7285d88040d5f0ba9606aa4" 
-Public Key (bech32): "npub10ewv6q240ztfl6a5y35035972nrt8ye3ku59mzqyp40sh2tqd2jqveljzy" 
-Secret Key (bech32): "nsec180z3qc5h83zc6kn09kxkfgpry334ftt7qe93unsqnmy2q6v6xppsv4ck26" 
-*/
-pub fn alice_keys() -> (String, String) {
-    ("3bc51062973c458d5a6f2d8d64a023246354ad7e064b1e4e009ec8a0699a3043".to_string(), // updated
-    "7e5ccd015578969febb42468f8d0be54c6b39331b7285d88040d5f0ba9606aa4".to_string())
-}
+use std::str::FromStr;
 
-/*  Bob 
-Secret Key (HEX): "cd9fb1e148ccd8442e5aa74904cc73bf6fb54d1d54d333bd596aa9bb4bb4e961" 
-Public Key (HEX): "476b018f75b1084e4b2bd652a747a37de9727183bcfe4113fe0b9390767e3543" 
-Public Key (bech32): "npub1ga4srrm4kyyyujet6ef2w3ar0h5hyuvrhnlyzyl7pwfeqan7x4psmtdtkk" 
-Secret Key (bech32): "nsec1ek0mrc2genvygtj65aysfnrnhahm2nga2nfn802ed25mkja5a9sstwpm9k" 
-*/
-pub fn bob_keys() -> (String, String) {
-    ("cd9fb1e148ccd8442e5aa74904cc73bf6fb54d1d54d333bd596aa9bb4bb4e961".to_string(),
-    "476b018f75b1084e4b2bd652a747a37de9727183bcfe4113fe0b9390767e3543".to_string())
+enum KeyType {
+    Nostr,
+    Bech32,
+}
+pub struct User {
+    mnemonic: Mnemonic,
+    passphrase: String,
+
+    nostr_secret_hex: nostr::prelude::SecretKey,
+    nostr_secret_bech32: String,
+
+    nostr_x_only_public_key: nostr::prelude::XOnlyPublicKey,
+    nostr_public_hex: nostr::prelude::PublicKey,
+    nostr_public_bech32: String,
+
+    output_descriptor: Descriptor<DescriptorPublicKey>,
+    addresses: Vec<AddressInfo>,
+
 }
 
-/*  Charlie 
-Secret Key (HEX): "6e81b1255ad51bb201a2b8afa9b66653297ae0217f833b14b39b5231228bf968" 
-Public Key (HEX): "3254bcb92a82208ac8d864f3772c1576eb12dd97f1110d858cedb58251ba5043" 
-Public Key (bech32): "npub1xf2tewf2sgsg4jxcvnehwtq4wm439hvh7ygsmpvvak6cy5d62ppsk84lf4" 
-Secret Key (bech32): "nsec1d6qmzf2665dmyqdzhzh6ndnx2v5h4cpp07pnk99nndfrzg5tl95qwfu7cz" 
-*/
-pub fn charlie_keys() -> (String, String) {
-    ("6e81b1255ad51bb201a2b8afa9b66653297ae0217f833b14b39b5231228bf968".to_string(),
-    "3254bcb92a82208ac8d864f3772c1576eb12dd97f1110d858cedb58251ba5043".to_string())
+impl User
+  {
+
+    pub fn new(mnemonic: &String, passphrase: &String) -> Result<User, Box<dyn Error>> {
+        let keys = Keys::from_mnemonic(mnemonic.clone(), Some(passphrase.to_string())).unwrap();
+
+        // begin nostr key work
+        let seeded_secret_key = keys.secret_key().unwrap();
+        let secp = Secp256k1::new();
+        let x_public_key = &seeded_secret_key.x_only_public_key(&secp);
+        let hex_public_key = PublicKey::from_secret_key(&secp, &seeded_secret_key);
+        // end nostr key work
+
+        let parsed_mnemonic = Mnemonic::parse_in_normalized(English, mnemonic).unwrap();
+        let path = DerivationPath::from_str("m/44'/0'/0'/0").unwrap();
+        let seed = parsed_mnemonic.to_seed_normalized(&passphrase);
+        let root_key = ExtendedPrivKey::new_master(Network::Testnet, &seed)?;
+        let xpub = root_key.into_extended_key()?.into_descriptor_key(None, path).unwrap();
+        let (desc, _, _) = bdk::descriptor!(tr(xpub)).unwrap();
+        
+        let db = bdk::database::memory::MemoryDatabase::new();
+        let wallet = Wallet::new(desc.clone(), None, Network::Testnet, db);
+        let address = wallet
+            .as_ref()
+            .unwrap()
+            .get_address(bdk::wallet::AddressIndex::New)
+            .unwrap();
+        
+        let mut addresses = vec![address];
+        // println!("  First Address       : {} ", address.to_string());
+
+        let address = wallet
+            .unwrap()
+            .get_address(bdk::wallet::AddressIndex::New)
+            .unwrap();
+        addresses.push(address);
+        // println!("  Second Address      : {} ", address.to_string());
+
+        Ok(User {
+            nostr_secret_bech32: seeded_secret_key.to_bech32().unwrap().to_string(),
+            nostr_secret_hex: seeded_secret_key,
+            nostr_public_hex: hex_public_key,
+            nostr_public_bech32: x_public_key.0.to_bech32().unwrap().to_string(),
+            nostr_x_only_public_key: x_public_key.0,
+            mnemonic: parsed_mnemonic,
+            passphrase: passphrase.clone(),
+            output_descriptor: desc,
+            addresses,
+        })
+    }
+
+    pub fn alice() -> Result<User, Box<dyn Error>> {
+        User::new(
+            &"carry surface crater rude auction ritual banana elder shuffle much wonder decrease"
+                .to_string(),
+            &"oy+hB/qeJ1AasCCR".to_string(),
+        )
+    }
+
+    // pub fn bob() -> User {
+    //     User {
+    //         mnemonic:Mnemonic::parse_in_normalized(English, "market museum car noodle cream pool enhance please level price slide process").unwrap(),
+    //         passphrase: "B3Q0YHYYHmF798Jg".to_string(),
+    //     }
+    // }
+
+    // pub fn charlie() -> User {
+    //     User {
+    //         mnemonic: Mnemonic::parse_in_normalized(English, "cry modify gallery home desert tongue immune address bunker bean tone giggle").unwrap(),
+    //         passphrase: "nTVuKiINc5TKMjfV".to_string(),
+    //     }
+    // }
+
+    // pub fn david() -> User {
+    //     User {
+    //         mnemonic: Mnemonic::parse_in_normalized(English, "alone hospital depth worth vapor lazy burst skill apart accuse maze evidence").unwrap(),
+    //         passphrase: "f5upOqUyG0iPY4n+".to_string(),
+    //     }
+    // }
+
+    // pub fn erika() -> User {
+    //     User {
+    //         mnemonic: Mnemonic::parse_in_normalized(English, "confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife").unwrap(),
+    //         passphrase: "JBtdXy+2ut2fxplW".to_string(),
+    //     }
+    // }
+
+    // pub fn print_nostr_keys(&self) -> Result<()> {
+    //     // let keys = Keys::from_mnemonic(&self.mnemonic, Some(&self.passphrase)).unwrap();
+
+    //
+    //     Ok(())
+    // }
+
+    pub fn known_users() -> Vec<User> {
+        vec![
+            User::alice().unwrap(),
+            // User::bob(),
+            // User::charlie(),
+            // User::david(),
+            // User::erika(),
+        ]
+    }
+
+    pub fn get_balance(&self,
+        bitcoin_endpoint: &String,
+        bitcoin_network: bitcoin::Network,
+    ) -> bdk::Balance {
+        let esplora = EsploraBlockchain::new(&bitcoin_endpoint, 20);
+
+        let wallet = Wallet::new(
+            &self.output_descriptor.to_string(),
+            None,
+            bitcoin_network,
+            MemoryDatabase::default(),
+        )
+        .unwrap();
+
+        wallet.sync(&esplora, SyncOptions::default()).unwrap();
+
+        return wallet.get_balance().unwrap();
+    }
+}
+
+impl fmt::Display for User {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // let mut output = String::from("");
+
+        writeln!(f, "\nMnemonic   : {:?} ", &self.mnemonic.to_string())?;
+        writeln!(f, "Passphrase : \"{}\" ", &self.passphrase)?;
+
+        writeln!(f, "\nNostr Configuration")?;
+        writeln!(
+            f,
+            "  Secret Key (HEX)    : {} ",
+            &self.nostr_secret_hex.display_secret().to_string()
+        )?;
+        writeln!(f, "  Secret Key (bech32) : {} ", &self.nostr_secret_bech32)?;
+
+        writeln!(
+            f,
+            "  Public Key (HEX)    : {} ",
+            &self.nostr_public_hex.to_string()
+        )?;
+        writeln!(
+            f,
+            "  X Only Public Key   : {} ",
+            &self.nostr_x_only_public_key.to_string()
+        )?;
+        writeln!(f, "  Public Key (bech32) : {} ", &self.nostr_public_bech32)?;
+
+        writeln!(f, "\nBitcoin Configuration")?;
+        writeln!(f, "  Output Descriptor   : {}", &self.output_descriptor.to_string())?;
+
+        for address in &self.addresses {
+            writeln!(f, "  Address             : {}", address.to_string())?;
+        }
+
+        let balance = self.get_balance(&"https://blockstream.info/testnet/api".to_string(), Network::Testnet);
+        writeln!(f, "\nBitcoin Balances")?;
+        writeln!(f, "  Immature            : {} ", balance.immature)?;
+        writeln!(f, "  Trusted Pending     : {} ", balance.trusted_pending)?;
+        writeln!(f, "  Untrusted Pending   : {} ", balance.untrusted_pending)?;
+        writeln!(f, "  Confirmed           : {} ", balance.confirmed)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn dump_alice() {
+        println!("Alice:\n{}\n", &User::alice().unwrap());
+    }
 }

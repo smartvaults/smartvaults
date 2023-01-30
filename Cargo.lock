@@ -282,7 +282,6 @@ dependencies = [
  "nostr_rust",
  "rand",
  "rand_core 0.6.4",
- "secp256k1 0.25.0",
  "serde_json",
 ]
 

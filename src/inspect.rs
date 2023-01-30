@@ -2,18 +2,10 @@ use crate::util;
 use bdk::keys::bip39::{Language::English, Mnemonic};
 use clap::{Error, Parser};
 use nostr::Result;
+use crate::users::User;
 
 fn inspect(mnemonic: &String, passphrase: &String) -> Result<()> {
-    let mnemonic = Mnemonic::parse_in_normalized(English, mnemonic).unwrap();
-    println!("\nMnemonic : {:?} ", &mnemonic);
-
-    println!("\nMnemonic   : \"{}\" ", &mnemonic.to_string());
-    println!("Passphrase : \"{}\" ", &passphrase.to_string());
-
-    util::print_nostr(&mnemonic, passphrase)?;
-    util::print_bitcoin(&mnemonic, passphrase)?;
-
-    Ok(())
+   
 }
 
 /// The `inspect` command
@@ -30,13 +22,29 @@ pub struct InspectCmd {
     /// Optional passphrase
     #[arg(short, long, default_value = "")]
     passphrase: String,
+
+    /// Optional user
+    #[arg(short, long, default_value = "")]
+    user: String,
 }
 
 impl InspectCmd {
     pub fn run(&self) -> Result<(), Error> {
+
+        match self.user.as_str() {
+            "alice" => println!("{}", User::alice()),
+            "bob" => println!("{}", User::bob()),
+            "charlie" => User::charlie(),
+            "david" => User::david(),
+            "erika" => User::erika(),
+            _ => println!("{}", User {
+                mnemonic: self.mnemonic, 
+                passphrase: self.passphrase,
+            }),
+        }
         
         // TODO: handle result
-        inspect(&self.mnemonic, &self.passphrase);
+        
 
         Ok(())        
     }
