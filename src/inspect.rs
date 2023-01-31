@@ -1,12 +1,7 @@
-use crate::util;
-use bdk::keys::bip39::{Language::English, Mnemonic};
 use clap::{Error, Parser};
 use nostr::Result;
 use crate::users::User;
-
-fn inspect(mnemonic: &String, passphrase: &String) -> Result<()> {
-   
-}
+use bitcoin::Network;
 
 /// The `inspect` command
 #[derive(Debug, Clone, Parser)]
@@ -26,21 +21,22 @@ pub struct InspectCmd {
     /// Optional user
     #[arg(short, long, default_value = "")]
     user: String,
+
+    /// Optional Network, defaults to Bitcoin Testnet
+    #[arg(short, long, default_value = "testnet")]
+    network: String,
 }
 
 impl InspectCmd {
-    pub fn run(&self) -> Result<(), Error> {
+    pub fn run(&self, bitcoin_network: &Network) -> Result<(), Error> {
 
         match self.user.as_str() {
-            "alice" => println!("{}", User::alice()),
-            "bob" => println!("{}", User::bob()),
-            "charlie" => User::charlie(),
-            "david" => User::david(),
-            "erika" => User::erika(),
-            _ => println!("{}", User {
-                mnemonic: self.mnemonic, 
-                passphrase: self.passphrase,
-            }),
+            "alice" => println!("{}", User::alice().unwrap()),
+            "bob" => println!("{}", User::bob().unwrap()),
+            "charlie" => println!("{}", User::charlie().unwrap()),
+            "david" => println!("{}", User::david().unwrap()),
+            "erika" => println!("{}", User::erika().unwrap()),
+            _ => println!("{}", User::new(&self.mnemonic, &self.passphrase, None, bitcoin_network).unwrap()),
         }
         
         // TODO: handle result

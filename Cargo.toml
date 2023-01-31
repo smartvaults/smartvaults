@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-nostr_rust = "*"
+# nostr_rust = "*"
 log = "0.4"
 serde_json = "*"
 # secp256k1 = { version = "0.25", features = ["bitcoin_hashes", "global-context", "rand-std"] }
@@ -16,5 +16,7 @@ bitcoin = "0.29.2"
 # rust-bip39 = "*"
 rand_core = "*"
 miniscript = "*"
+nostr-sdk = "*"
 nostr = "*"
 config = "0.13.3"
+# lazy_static = "*"
