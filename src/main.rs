@@ -1,18 +1,19 @@
-use std::path::PathBuf;
-use config::Config;
 use bitcoin::Network;
-use clap::{Args, Subcommand, Parser};
+use clap::{Args, Parser, Subcommand};
+use config::Config;
+use std::path::PathBuf;
 
 mod balance;
 mod convert;
 mod generate;
+mod get_events;
+mod get_user;
+mod get_users;
 mod inspect;
 mod publish;
 mod subscribe;
 mod users;
 mod util;
-mod get_events;
-mod get_users;
 
 #[derive(Parser)]
 #[command(name = "coinstr")]
@@ -78,23 +79,23 @@ pub struct GetArgs {
 enum GetCommands {
     Events(get_events::GetEventsCmd),
     Users(get_users::GetUsersCmd),
+    User(get_user::GetUserCmd),
 }
 
 fn main() -> Result<(), clap::Error> {
-
     let settings = Config::builder()
         .add_source(config::File::with_name("config"))
         .add_source(config::Environment::with_prefix("COINSTR"))
         .build()
         .unwrap();
 
-        let mut bitcoin_network: Network = bitcoin::Network::Bitcoin;
-        let bitcoin_network_str = settings.get_string("bitcoin-network").unwrap();
-        if bitcoin_network_str == "testnet" {
-            bitcoin_network = Network::Testnet;
-        }
-        let bitcoin_endpoint = settings.get_string("bitcoin-endpoint").unwrap();
-        let nostr_relay = settings.get_string("nostr-relay").unwrap();
+    let mut bitcoin_network: Network = bitcoin::Network::Bitcoin;
+    let bitcoin_network_str = settings.get_string("bitcoin-network").unwrap();
+    if bitcoin_network_str == "testnet" {
+        bitcoin_network = Network::Testnet;
+    }
+    let bitcoin_endpoint = settings.get_string("bitcoin-endpoint").unwrap();
+    let nostr_relay = settings.get_string("nostr-relay").unwrap();
 
     match Commands::parse() {
         Commands::Generate(cmd) => cmd.run(&bitcoin_network),
@@ -108,6 +109,7 @@ fn main() -> Result<(), clap::Error> {
             match get_cmd {
                 GetCommands::Events(get_cmd) => get_cmd.run(&nostr_relay),
                 GetCommands::Users(get_cmd) => get_cmd.run(),
+                GetCommands::User(get_cmd) => get_cmd.run(),
             }
         }
     }

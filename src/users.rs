@@ -13,10 +13,10 @@ use nostr::{
     prelude::{FromMnemonic, PublicKey, Secp256k1},
     Keys, //Result,
 };
+use nostr_sdk::prelude::*;
 use std::error::Error;
 use std::fmt;
 use std::vec;
-use nostr_sdk::prelude::*;
 
 use std::str::FromStr;
 
@@ -36,9 +36,9 @@ pub struct User {
 impl User {
     // pub fn from_xpub(x_only_public_key: &String) {
     //     Ok(User {
-           
+
     //         nostr_x_only_public_key: XOnlyPublicKey::from_str(x_only_public_key.as_str()).expect("Invalid public key")
-           
+
     //     });
     // }
 
@@ -165,7 +165,7 @@ impl User {
             "bob" => User::bob(),
             "charlie" => User::charlie(),
             "david" => User::david(),
-            _ => User::erika(),            
+            _ => User::erika(),
             // _ => return Err(UserNotFoundError),
         }
     }
@@ -193,7 +193,6 @@ impl User {
 
 impl fmt::Display for User {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         if self.name.is_some() {
             writeln!(f, "Name       : {}", &self.name.as_ref().unwrap())?;
         }

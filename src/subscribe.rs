@@ -3,14 +3,12 @@ use nostr_sdk::prelude::*;
 
 use crate::users::User;
 
-fn subscribe(subscriber: &User, publisher: &User)-> Result<()> {
-
+fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
     let subscriber_keys = Keys::new(subscriber.nostr_secret_hex);
     let client = Client::new(&subscriber_keys);
 
-    let subscription = SubscriptionFilter::new()
-        .pubkey(publisher.nostr_x_only_public_key);
-        // .since(Timestamp::now());
+    let subscription = SubscriptionFilter::new().pubkey(publisher.nostr_x_only_public_key);
+    // .since(Timestamp::now());
 
     client.subscribe(vec![subscription]);
 
@@ -58,7 +56,6 @@ use clap::Error;
 impl SubscribeCmd {
     /// Run the command
     pub fn run(&self, _nostr_relay: &String) -> Result<(), Error> {
-
         let subscriber = User::get(&self.subscriber).expect("user not found");
         let publisher = User::get(&self.publisher).expect("User not found");
 
@@ -74,6 +71,7 @@ mod tests {
 
     #[test]
     fn subscribe_alice_to_foobar() {
-        subscribe(&User::alice().unwrap(), &User::bob().unwrap()).expect("Unable to publish from test");
+        subscribe(&User::alice().unwrap(), &User::bob().unwrap())
+            .expect("Unable to publish from test");
     }
 }

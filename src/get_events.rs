@@ -1,6 +1,6 @@
+use crate::util::create_client;
 use nostr_sdk::prelude::*;
 use std::str::FromStr;
-use crate::util::create_client;
 
 /// Get a list of events
 #[derive(Debug, Clone, clap::Parser)]
@@ -42,7 +42,7 @@ impl GetEventsCmd {
         // let publisher = User::get(&self.publisher);
 
         let relays = vec![nostr_relay.clone()];
-     
+
         let client = create_client(&Keys::generate(), relays, 0).expect("cannot create client");
 
         let authors: Option<Vec<XOnlyPublicKey>> = self.authors.as_ref().map(|auths| {
@@ -70,22 +70,24 @@ impl GetEventsCmd {
                 .collect()
         });
 
-        let events: Vec<Event> = client.get_events_of(
-            vec![SubscriptionFilter {
-                ids: self.ids.clone(),
-                authors,
-                kinds,
-                events,
-                pubkeys,
-                hashtags: None,
-                references: None,
-                search: None,
-                since: self.since.map(Timestamp::from),
-                until: self.until.map(Timestamp::from),
-                limit: self.limit,
-            }],
-            None,
-        ).expect("cannot get events of");
+        let events: Vec<Event> = client
+            .get_events_of(
+                vec![SubscriptionFilter {
+                    ids: self.ids.clone(),
+                    authors,
+                    kinds,
+                    events,
+                    pubkeys,
+                    hashtags: None,
+                    references: None,
+                    search: None,
+                    since: self.since.map(Timestamp::from),
+                    until: self.until.map(Timestamp::from),
+                    limit: self.limit,
+                }],
+                None,
+            )
+            .expect("cannot get events of");
 
         for (i, event) in events.iter().enumerate() {
             if let Ok(e) = serde_json::to_string_pretty(event) {
@@ -106,7 +108,9 @@ mod tests {
     fn subscribe_alice_to_foobar() {
         let get_events_cmd = GetEventsCmd {
             ids: None,
-            authors: Some(vec!["30e85095c0e622b73160a30858df7180e07b1faaa49483369cd4d95eeac54d0f".to_string()]),
+            authors: Some(vec![
+                "30e85095c0e622b73160a30858df7180e07b1faaa49483369cd4d95eeac54d0f".to_string(),
+            ]),
             kinds: None,
             e: None,
             p: None,
@@ -114,7 +118,9 @@ mod tests {
             until: None,
             limit: None,
         };
-        get_events_cmd.run(&"ws://127.0.0.1:8081".to_string()).expect("Cannot get events");
+        get_events_cmd
+            .run(&"ws://127.0.0.1:8081".to_string())
+            .expect("Cannot get events");
         // subscribe(&User::alice().unwrap(), &User::bob().unwrap()).expect("Unable to publish from test");
     }
 }

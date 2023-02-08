@@ -1,10 +1,9 @@
-
-use std::str::FromStr;
 use bitcoin::XOnlyPublicKey;
-use clap::{Parser, Error};
-use nostr::prelude::ToBech32;
-use nostr::key::Keys;
+use clap::{Error, Parser};
 use nostr::key::FromSkStr;
+use nostr::key::Keys;
+use nostr::prelude::ToBech32;
+use std::str::FromStr;
 
 /// The `convert` command
 #[derive(Debug, Clone, Parser)]
@@ -25,10 +24,9 @@ pub struct ConvertCmd {
 
 impl ConvertCmd {
     pub fn run(&self) -> Result<(), Error> {
-     
         println!("\nNostr Configuration");
-       
-        let key : Keys;
+
+        let key: Keys;
         if self.secret {
             key = Keys::from_sk_str(&self.input_key).unwrap();
             let secret_key_str = key.secret_key().unwrap().display_secret().to_string();
@@ -42,17 +40,16 @@ impl ConvertCmd {
             println!("  Public Key (HEX)    : {} ", public_key);
             let bech32_pub = public_key.to_bech32().unwrap();
             println!("  Public Key (bech32) : {} ", bech32_pub);
-
         } else {
             println!("Only converting public key");
-           
+
             let public_key = XOnlyPublicKey::from_str(&self.input_key).unwrap();
             println!("  Public Key (HEX)    : {} ", public_key);
 
             let bech32_pub = public_key.to_bech32().unwrap();
             println!("  Public Key (bech32) : {} ", bech32_pub);
         }
-                
+
         Ok(())
     }
 }

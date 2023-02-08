@@ -1,9 +1,9 @@
-use nostr_sdk::client::blocking::Client;
-use nostr_sdk::prelude::*;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::database::MemoryDatabase;
 use bdk::wallet::SyncOptions;
 use bdk::wallet::Wallet;
+use nostr_sdk::client::blocking::Client;
+use nostr_sdk::prelude::*;
 
 pub fn get_balance(
     descriptor: &String,
