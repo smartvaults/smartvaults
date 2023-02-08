@@ -138,6 +138,7 @@ impl User {
         )
     }
 
+    #[allow(dead_code)]
     pub fn known_users() -> Vec<User> {
         vec![
             User::alice().unwrap(),
@@ -156,8 +157,6 @@ impl User {
             "david" => User::david().unwrap(),
             _ => User::erika().unwrap(),            
         }
-        // let user = 
-        // *User::known_users().iter().find(|&x| &x.name.unwrap() == name).unwrap() 
     }
 
     pub fn get_balance(

@@ -16,7 +16,7 @@ bitcoin = "0.29.2"
 # rust-bip39 = "*"
 rand_core = "*"
 miniscript = "*"
-nostr-sdk = "*"
-nostr = "*"
+nostr-sdk = { version = "0.18.0", features = ["blocking", "all-nips"] }
+nostr =  { version = "0.18.0", features = ["blocking", "all-nips"] }
 config = "0.13.3"
 # lazy_static = "*"
