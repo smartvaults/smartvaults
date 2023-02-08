@@ -89,3 +89,11 @@ Bitcoin Balances
   Untrusted Pending   : 0 
   Confirmed           : 0 
 ```
+
+## Setup local nostr relay
+```
+git clone git@github.com:scsibug/nostr-rs-relay.git
+cd nostr-rs-relay
+cargo build --release
+RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay
+```
