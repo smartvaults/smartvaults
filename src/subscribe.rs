@@ -59,8 +59,8 @@ impl SubscribeCmd {
     /// Run the command
     pub fn run(&self, _nostr_relay: &String) -> Result<(), Error> {
 
-        let subscriber = User::get(&self.subscriber);
-        let publisher = User::get(&self.publisher);
+        let subscriber = User::get(&self.subscriber).expect("user not found");
+        let publisher = User::get(&self.publisher).expect("User not found");
 
         subscribe(&subscriber, &publisher).expect("Unable to subscribe");
         Ok(())

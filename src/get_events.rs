@@ -12,6 +12,8 @@ pub struct GetEventsCmd {
     /// Authors
     #[arg(short, long, action = clap::ArgAction::Append)]
     authors: Option<Vec<String>>,
+    // #[arg(long, action = clap::ArgAction::Append)]
+    // users: Option<Vec<String>>,
     /// Kinds
     #[arg(short, long, action = clap::ArgAction::Append)]
     kinds: Option<Vec<u64>>,

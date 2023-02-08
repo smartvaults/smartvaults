@@ -16,6 +16,7 @@ use nostr::{
 use std::error::Error;
 use std::fmt;
 use std::vec;
+use nostr_sdk::prelude::*;
 
 use std::str::FromStr;
 
@@ -33,6 +34,14 @@ pub struct User {
 }
 
 impl User {
+    // pub fn from_xpub(x_only_public_key: &String) {
+    //     Ok(User {
+           
+    //         nostr_x_only_public_key: XOnlyPublicKey::from_str(x_only_public_key.as_str()).expect("Invalid public key")
+           
+    //     });
+    // }
+
     pub fn new(
         mnemonic: &String,
         passphrase: &String,
@@ -149,13 +158,15 @@ impl User {
         ]
     }
 
-    pub fn get(name: &String) -> User {
+    pub fn get(name: &String) -> Result<User, Box<dyn Error>> {
+        // type Err = UserNotFoundError;
         match name.as_str() {
-            "alice" => User::alice().unwrap(),
-            "bob" => User::bob().unwrap(),
-            "charlie" => User::charlie().unwrap(),
-            "david" => User::david().unwrap(),
-            _ => User::erika().unwrap(),            
+            "alice" => User::alice(),
+            "bob" => User::bob(),
+            "charlie" => User::charlie(),
+            "david" => User::david(),
+            _ => User::erika(),            
+            // _ => return Err(UserNotFoundError),
         }
     }
 
