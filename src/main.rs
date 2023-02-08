@@ -15,6 +15,7 @@ mod get_events;
 mod get_users;
 
 #[derive(Parser)]
+#[command(name = "coinstr")]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// Optional name to operate on
@@ -36,7 +37,7 @@ struct Cli {
 #[derive(Debug, Parser)]
 #[command(
     name = "coinstr",
-    about = "Manage bitcoin and nostr together",
+    about = "Using nostr to coordinate Bitcoin spending policy signatures and multi-custody",
     version
 )]
 pub enum Commands {
