@@ -1,3 +1,5 @@
+use nostr_sdk::client::blocking::Client;
+use nostr_sdk::prelude::*;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::database::MemoryDatabase;
 use bdk::wallet::SyncOptions;
@@ -21,4 +23,13 @@ pub fn get_balance(
     wallet.sync(&esplora, SyncOptions::default()).unwrap();
 
     return wallet.get_balance().unwrap();
+}
+
+pub fn create_client(keys: &Keys, relays: Vec<String>, difficulty: u8) -> Result<Client> {
+    let opts = Options::new().wait_for_send(true).difficulty(difficulty);
+    let client = Client::new_with_opts(keys, opts);
+    let relays = relays.iter().map(|url| (url, None)).collect();
+    client.add_relays(relays)?;
+    client.connect();
+    Ok(client)
 }

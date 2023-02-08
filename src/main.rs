@@ -1,7 +1,7 @@
-use clap::Parser;
 use std::path::PathBuf;
 use config::Config;
 use bitcoin::Network;
+use clap::{Args, Subcommand, Parser};
 
 mod balance;
 mod convert;
@@ -11,7 +11,8 @@ mod publish;
 mod subscribe;
 mod users;
 mod util;
-
+mod get_events;
+mod get_users;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -42,7 +43,7 @@ pub enum Commands {
     /// Generates random account(s)
     Generate(generate::GenerateCmd),
 
-    // /// Subscribe to nostr events
+    /// Subscribe to nostr events
     Subscribe(subscribe::SubscribeCmd),
 
     /// Publish a nostr event
@@ -56,6 +57,26 @@ pub enum Commands {
 
     /// Find the balance for a bitcoin descriptor
     Balance(balance::BalanceCmd),
+
+    /// Get things
+    #[command(arg_required_else_help = true)]
+    Get(GetArgs),
+}
+
+#[derive(Debug, Args)]
+#[command(args_conflicts_with_subcommands = true)]
+pub struct GetArgs {
+    #[command(subcommand)]
+    command: Option<GetCommands>,
+
+    #[command(flatten)]
+    events: get_events::GetEventsCmd,
+}
+
+#[derive(Debug, Subcommand)]
+enum GetCommands {
+    Events(get_events::GetEventsCmd),
+    Users(get_users::GetUsersCmd),
 }
 
 fn main() -> Result<(), clap::Error> {
@@ -81,6 +102,13 @@ fn main() -> Result<(), clap::Error> {
         Commands::Inspect(cmd) => cmd.run(&bitcoin_network),
         Commands::Convert(cmd) => cmd.run(),
         Commands::Balance(cmd) => cmd.run(&bitcoin_endpoint, bitcoin_network),
+        Commands::Get(cmd) => {
+            let get_cmd = cmd.command.unwrap();
+            match get_cmd {
+                GetCommands::Events(get_cmd) => get_cmd.run(&nostr_relay),
+                GetCommands::Users(get_cmd) => get_cmd.run(),
+            }
+        }
     }
 }
 

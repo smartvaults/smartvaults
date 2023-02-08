@@ -20,7 +20,7 @@ use std::vec;
 use std::str::FromStr;
 
 pub struct User {
-    name: Option<String>,
+    pub name: Option<String>,
     mnemonic: Mnemonic,
     passphrase: String,
     pub nostr_secret_hex: nostr::prelude::SecretKey,

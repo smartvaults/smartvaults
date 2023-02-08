@@ -1,7 +1,8 @@
-use nostr_sdk::client::blocking::Client;
+// use nostr_sdk::client::blocking::Client;
 use nostr_sdk::prelude::*;
 
 use crate::users::User;
+use crate::util::create_client;
 use clap::Error;
 
 fn publish(
@@ -10,10 +11,11 @@ fn publish(
     _tags: &[Vec<String>]) -> Result<()> {
     
     let my_keys = Keys::new(user.nostr_secret_hex);
-    let client = Client::new(&my_keys);
+    let relays: Vec<String> = vec!["ws://127.0.0.1:8081".to_string()];
+    let client = create_client (&my_keys, relays, 0)?;
 
-    client.add_relay("ws://127.0.0.1:8081", None)?;
-    client.connect();
+    // client.add_relay(, None)?;
+    // client.connect();
 
     // TODO: support for tags
     client.publish_text_note(content, &[])?;
