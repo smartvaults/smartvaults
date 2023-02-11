@@ -1,0 +1,181 @@
+use anyhow::Result;
+use bdk::{
+	bitcoin::Network,
+	blockchain::EsploraBlockchain,
+	database::MemoryDatabase,
+	keys::{
+		bip39::{Language::English, Mnemonic},
+		DerivableKey,
+	},
+	wallet::{AddressIndex::New, SyncOptions, Wallet},
+};
+use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey};
+use miniscript::{Descriptor, DescriptorPublicKey};
+use nostr::prelude::Secp256k1;
+use nostr_sdk::prelude::*;
+use std::{fmt, str::FromStr};
+
+pub struct BitcoinUser {
+	pub bitcoin_network: bitcoin::Network,
+	pub output_descriptor: Descriptor<DescriptorPublicKey>,
+	pub root_priv: Option<ExtendedPrivKey>,
+	pub root_pub: ExtendedPubKey,
+	pub wallet: Wallet<MemoryDatabase>,
+}
+
+impl BitcoinUser {
+	pub fn new(
+		mnemonic: String,
+		passphrase: Option<String>,
+		bitcoin_network: &Network,
+	) -> Result<BitcoinUser> {
+		let secp = Secp256k1::new();
+		let parsed_mnemonic = Mnemonic::parse_in_normalized(English, &mnemonic).unwrap();
+
+		let seed =
+			parsed_mnemonic.to_seed_normalized(&passphrase.clone().unwrap_or("".to_string()));
+		let root_priv = ExtendedPrivKey::new_master(*bitcoin_network, &seed)?;
+
+		let root_pub = ExtendedPubKey::from_priv(&secp, &root_priv);
+		let path = DerivationPath::from_str("m/86'/0'/0'/0").unwrap();
+		let xpub = root_priv.into_extended_key()?.into_descriptor_key(None, path).unwrap();
+
+		let (desc, _, _) = bdk::descriptor!(tr(xpub)).unwrap();
+		let db = bdk::database::memory::MemoryDatabase::new();
+		let wallet = Wallet::new(desc.clone(), None, *bitcoin_network, db);
+
+		Ok(BitcoinUser {
+			output_descriptor: desc,
+			root_priv: Some(root_priv),
+			root_pub,
+			bitcoin_network: *bitcoin_network,
+			wallet: wallet.unwrap(),
+		})
+	}
+
+	// pub fn get_address(&self) -> Result<AddressInfo, bdk::Error> {
+	// 	self.wallet.get_address(bdk::wallet::AddressIndex::New)
+	// }
+
+	pub fn get_balance(&self, mut bitcoin_endpoint: Option<&str>) -> bdk::Balance {
+		const DEFAULT_TESTNET_ENDPOINT: &str = "https://blockstream.info/testnet/api";
+		const DEFAULT_BITCOIN_ENDPOINT: &str = "https://blockstream.info/api";
+		if bitcoin_endpoint.is_none() {
+			if &self.bitcoin_network == &bitcoin::network::constants::Network::Testnet {
+				bitcoin_endpoint = Some(DEFAULT_TESTNET_ENDPOINT);
+			} else {
+				bitcoin_endpoint = Some(DEFAULT_BITCOIN_ENDPOINT);
+			}
+		}
+
+		let esplora = EsploraBlockchain::new(&bitcoin_endpoint.unwrap(), 20);
+
+		let wallet = Wallet::new(
+			&self.output_descriptor.to_string(),
+			None,
+			self.bitcoin_network,
+			MemoryDatabase::default(),
+		)
+		.unwrap();
+
+		wallet.sync(&esplora, SyncOptions::default()).unwrap();
+
+		return wallet.get_balance().unwrap()
+	}
+}
+
+impl fmt::Display for BitcoinUser {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		writeln!(f, "\nBitcoin Configuration")?;
+		writeln!(f, "  Root Private Key	: {}", &self.root_priv.unwrap().to_string())?;
+		writeln!(f, "  Root Public Key	: {}", &self.root_pub.to_string())?;
+		writeln!(f, "  Output Descriptor	: {}", &self.output_descriptor.to_string())?;
+
+		writeln!(f, "  Address		: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "  Address		: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "  Address		: {}", &self.wallet.get_address(New).unwrap())?;
+
+		let balance = self.get_balance(None);
+
+		writeln!(f, "\nBitcoin Balances")?;
+		writeln!(f, "  Immature            	: {} ", balance.immature)?;
+		writeln!(f, "  Trusted Pending     	: {} ", balance.trusted_pending)?;
+		writeln!(f, "  Untrusted Pending   	: {} ", balance.untrusted_pending)?;
+		writeln!(f, "  Confirmed           	: {} ", balance.confirmed)?;
+
+		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+
+	use super::*;
+	use crate::user::constants::user_constants;
+
+	#[test]
+	fn test_alice_keys() {
+		let user_constants = user_constants();
+		let alice_constants = user_constants.get(&String::from("Alice")).unwrap();
+		let alice_bitcoin = BitcoinUser::new(
+			alice_constants.mnemonic.to_string(),
+			Some(alice_constants.passphrase.to_string()),
+			&bitcoin::network::constants::Network::Testnet,
+		)
+		.unwrap();
+
+		assert_eq!(format!("{}", alice_bitcoin.root_priv.unwrap()), "tprv8ZgxMBicQKsPeFd9cajKjGekZW5wDXq2e1vpKToJvZMqjyNkMqmr7exPFUbJ92YxSkqL4w19HpuzYkVYvc4n4pvySBmJfsawS7Seb8FzuNJ".to_string());
+		assert_eq!(format!("{}", alice_bitcoin.root_pub), "tpubD6NzVbkrYhZ4XiewWEPv8gJs8XbsNs1wDKXbbyqcLqAEaTdWzEbSJ9aFRamjrj3RQKyZ2Q848BkMxyt6J6e36Y14ga6Et7suFXk3RKFqEaA".to_string());
+		assert_eq!(format!("{}", alice_bitcoin.output_descriptor), "tr([9b5d4149/86'/0'/0']tpubDDfNLjZpqGcbyjiSzxxbvTRqvySNkCQKKDJHXkJPZCKQPVsVX9fcuvkd65MU3oyRmqgzpzvuEUxe6zstCCDP2ogHn5ModwnrxP4cdWLFdc3/0/*)#2azlv5fk".to_string());
+		
+		println!("Alice {} ", alice_bitcoin);
+	}
+
+	#[test]
+	fn test_key_derivation_for_single_key_p2tr_outputs() -> Result<()> {
+		// Test data from:
+		// https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki#test-vectors
+		const MNEMONIC: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+		const EXPECTED_ROOT_PRIV: &str = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu";
+		const EXPECTED_ROOT_PUB: &str = "xpub661MyMwAqRbcFkPHucMnrGNzDwb6teAX1RbKQmqtEF8kK3Z7LZ59qafCjB9eCRLiTVG3uxBxgKvRgbubRhqSKXnGGb1aoaqLrpMBDrVxga8";
+
+		let bip86_user = BitcoinUser::new(
+			MNEMONIC.to_string(),
+			None,
+			&bitcoin::network::constants::Network::Bitcoin,
+		)?;
+
+		assert_eq!(format!("{}", bip86_user.root_priv.unwrap()), EXPECTED_ROOT_PRIV.to_string());
+		assert_eq!(format!("{}", bip86_user.root_pub), EXPECTED_ROOT_PUB.to_string());
+
+		// check that first 3 addresses match
+		assert_eq!(
+			"bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+			format!("{}", bip86_user.wallet.get_address(bdk::wallet::AddressIndex::New)?)
+		);
+
+		assert_eq!(
+			"bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh",
+			format!("{}", bip86_user.wallet.get_address(bdk::wallet::AddressIndex::New)?)
+		);
+
+		// assert_eq!(
+		// 	"bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
+		// 	format!("{}", bip86_user.wallet.get_internal_address(bdk::wallet::AddressIndex::New)?)
+		// );
+
+		// @TODO: Add test for first change address
+		// Account 0, first change address = m/86'/0'/0'/1/0
+		// xprv         =
+		// xprvA3Ln3Gt3aphvUgzgEDT8vE2cYqb4PjFfpmbiFKphxLg1FjXQpkAk5M1ZKDY15bmCAHA35jTiawbFuwGtbDZogKF1WfjwxML4gK7WfYW5JRP
+		// xpub         =
+		// xpub6GL8SnQwRCGDhB59LEz9HMyM6sRYoByXBzXK3iEKWgCz8XrZNHUzd9L3AUBELW5NzA7dEFvMas1F84TuPH3xqdUA5tumaGWFgihJzWytXe3
+		// internal_key = 399f1b2f4393f29a18c937859c5dd8a77350103157eb880f02e8c08214277cef
+		// output_key   = 882d74e5d0572d5a816cef0041a96b6c1de832f6f9676d9605c44d5e9a97d3dc
+		// scriptPubKey = 5120882d74e5d0572d5a816cef0041a96b6c1de832f6f9676d9605c44d5e9a97d3dc
+		// address      = bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7
+
+		println!("bip86 user {}", bip86_user);
+		Ok(())
+	}
+}
