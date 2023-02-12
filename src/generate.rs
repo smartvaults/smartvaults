@@ -1,22 +1,19 @@
-use crate::user::users::User;
+use crate::user::User;
 use bitcoin::Network;
 use clap::Parser;
 use nostr::nips::nip06::GenerateMnemonic;
 use nostr::Keys;
 // use std::error::Error;
 use anyhow::Result;
-use anyhow::bail;
 
 fn generate(
-    passphrase: &String,
+    passphrase: Option<String>,
     name: Option<String>,
     network: &bitcoin::Network,
 ) -> Result<User> {
     // generate a random 12 word mnemonic
-    // let mnemonic = Keys::generate_mnemonic(12)?.to_string();
-    // User::new(&mnemonic, passphrase, name, network)
-    // Ok(())
-    bail!("broken for now")
+    let mnemonic = Keys::generate_mnemonic(12)?.to_string();
+    User::new(mnemonic, passphrase, name, network)
 }
 
 /// The `generate` command
@@ -39,7 +36,7 @@ impl GenerateCmd {
     pub fn run(&self, bitcoin_network: &Network) -> Result<(), clap::Error> {
         for i in 0..self.count {
             println!("\nGenerating account {} of {}", i + 1, self.count);
-            let user = generate(&self.passphrase, None, bitcoin_network);
+            let user = generate(Some(self.passphrase.clone()), None, bitcoin_network);
             if user.is_ok() {
                 println! {"{}", user.unwrap()};
             }

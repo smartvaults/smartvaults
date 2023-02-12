@@ -20,7 +20,6 @@ use bdk::{
 	KeychainKind,
 };
 use std::fmt;
-// use ptree::{print_tree, TreeBuilder};
 use crate::user::User;
 use termtree::Tree;
 

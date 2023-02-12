@@ -1,4 +1,4 @@
-use crate::users::User;
+use crate::user::User;
 
 #[derive(Debug, Clone, clap::Parser)]
 #[command(name = "users", about = "Get a list of known users")]
