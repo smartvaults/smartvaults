@@ -1,18 +1,22 @@
-use crate::users::User;
+use crate::user::users::User;
 use bitcoin::Network;
 use clap::Parser;
 use nostr::nips::nip06::GenerateMnemonic;
-use nostr::{Keys, Result};
-use std::error::Error;
+use nostr::Keys;
+// use std::error::Error;
+use anyhow::Result;
+use anyhow::bail;
 
 fn generate(
     passphrase: &String,
     name: Option<String>,
     network: &bitcoin::Network,
-) -> Result<User, Box<dyn Error>> {
+) -> Result<User> {
     // generate a random 12 word mnemonic
-    let mnemonic = Keys::generate_mnemonic(12)?.to_string();
-    User::new(&mnemonic, passphrase, name, network)
+    // let mnemonic = Keys::generate_mnemonic(12)?.to_string();
+    // User::new(&mnemonic, passphrase, name, network)
+    // Ok(())
+    bail!("broken for now")
 }
 
 /// The `generate` command

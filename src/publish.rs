@@ -22,7 +22,7 @@ impl PublishCmd {
     /// Run the command
     pub fn run(&self, nostr_relay: &String) -> Result<(), Error> {
         let user = User::get(&self.user).unwrap();
-        let my_keys = Keys::new(user.nostr_secret_hex);
+        let my_keys = Keys::new(user.nostr_keys().secret_key().unwrap());
         let relays: Vec<String> = vec![nostr_relay.clone()];
         let client = create_client(&my_keys, relays, 0).expect("cannot create client");
 

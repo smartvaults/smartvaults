@@ -3,21 +3,28 @@ use bdk::{
 	bitcoin::Network,
 	blockchain::EsploraBlockchain,
 	database::MemoryDatabase,
+	descriptor::IntoWalletDescriptor,
 	keys::{
 		bip39::{Language::English, Mnemonic},
-		DerivableKey,
+		DerivableKey, DescriptorKey,
 	},
 	wallet::{AddressIndex::New, SyncOptions, Wallet},
+	KeychainKind,
 };
-use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey};
+use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
 use miniscript::{Descriptor, DescriptorPublicKey};
 use nostr::prelude::Secp256k1;
 use nostr_sdk::prelude::*;
 use std::{fmt, str::FromStr};
+use miniscript::ScriptContext;
+use bdk::keys::IntoDescriptorKey;
+
+const BIP86_DERIVATION_PATH: &str = "m/86'/0'/0'/0";
+const BIP86_DERIVATION_INTERNAL_PATH: &str = "m/86'/0'/0'/1";
+const ALICE_BOB_PATH: &str = "m/0'";
 
 pub struct BitcoinUser {
 	pub bitcoin_network: bitcoin::Network,
-	pub output_descriptor: Descriptor<DescriptorPublicKey>,
 	pub root_priv: Option<ExtendedPrivKey>,
 	pub root_pub: ExtendedPubKey,
 	pub wallet: Wallet<MemoryDatabase>,
@@ -37,15 +44,19 @@ impl BitcoinUser {
 		let root_priv = ExtendedPrivKey::new_master(*bitcoin_network, &seed)?;
 
 		let root_pub = ExtendedPubKey::from_priv(&secp, &root_priv);
-		let path = DerivationPath::from_str("m/86'/0'/0'/0").unwrap();
-		let xpub = root_priv.into_extended_key()?.into_descriptor_key(None, path).unwrap();
+		let ext_path = DerivationPath::from_str(BIP86_DERIVATION_PATH).unwrap();
+		let int_path = DerivationPath::from_str(BIP86_DERIVATION_INTERNAL_PATH).unwrap();
 
-		let (desc, _, _) = bdk::descriptor!(tr(xpub)).unwrap();
+		let xpub = root_priv.into_extended_key()?.into_descriptor_key(None, ext_path).unwrap();
+		let int_xpub = root_priv.into_extended_key()?.into_descriptor_key(None, int_path).unwrap();
+
+		let (ext_desc, _, _) = bdk::descriptor!(tr(xpub)).unwrap();
+		let (int_desc, _, _) = bdk::descriptor!(tr(int_xpub)).unwrap();
+
 		let db = bdk::database::memory::MemoryDatabase::new();
-		let wallet = Wallet::new(desc.clone(), None, *bitcoin_network, db);
+		let wallet = Wallet::new(ext_desc.clone(), Some(int_desc), *bitcoin_network, db);
 
 		Ok(BitcoinUser {
-			output_descriptor: desc,
 			root_priv: Some(root_priv),
 			root_pub,
 			bitcoin_network: *bitcoin_network,
@@ -53,9 +64,44 @@ impl BitcoinUser {
 		})
 	}
 
-	// pub fn get_address(&self) -> Result<AddressInfo, bdk::Error> {
-	// 	self.wallet.get_address(bdk::wallet::AddressIndex::New)
-	// }
+    pub fn setup_keys<Ctx: ScriptContext>(&self) -> (DescriptorKey<Ctx>, DescriptorKey<Ctx>, Fingerprint){
+        let secp = Secp256k1::new();
+
+        let path = DerivationPath::from_str(ALICE_BOB_PATH).unwrap();
+		let tprv = self.root_priv.unwrap().derive_priv(&secp, &path).unwrap();
+		let tpub = ExtendedPubKey::from_priv(&secp, &tprv);
+		let fingerprint = tprv.fingerprint(&secp);
+		let prvkey = (tprv, path.clone()).into_descriptor_key().unwrap();
+		let pubkey = (tpub, path).into_descriptor_key().unwrap();
+
+		(prvkey, pubkey, fingerprint)
+    }
+
+	pub fn get_descriptor(&self) -> Descriptor<DescriptorPublicKey> {
+		let secp = Secp256k1::new();
+		let desc = self
+			.wallet
+			.public_descriptor(KeychainKind::External)
+			.unwrap()
+			.unwrap()
+			.into_wallet_descriptor(&secp, self.bitcoin_network)
+			.unwrap()
+			.0;
+		desc
+	}
+
+	pub fn get_change_descriptor(&self) -> Descriptor<DescriptorPublicKey> {
+		let secp = Secp256k1::new();
+		let desc = self
+			.wallet
+			.public_descriptor(KeychainKind::Internal)
+			.unwrap()
+			.unwrap()
+			.into_wallet_descriptor(&secp, self.bitcoin_network)
+			.unwrap()
+			.0;
+		desc
+	}
 
 	pub fn get_balance(&self, mut bitcoin_endpoint: Option<&str>) -> bdk::Balance {
 		const DEFAULT_TESTNET_ENDPOINT: &str = "https://blockstream.info/testnet/api";
@@ -70,17 +116,14 @@ impl BitcoinUser {
 
 		let esplora = EsploraBlockchain::new(&bitcoin_endpoint.unwrap(), 20);
 
-		let wallet = Wallet::new(
-			&self.output_descriptor.to_string(),
-			None,
-			self.bitcoin_network,
-			MemoryDatabase::default(),
-		)
-		.unwrap();
+		// let descriptor: Descriptor<DescriptorPublicKey> = self.get_descriptor();
 
-		wallet.sync(&esplora, SyncOptions::default()).unwrap();
+		// let wallet =
+		// 	Wallet::new(descriptor, None, self.bitcoin_network, MemoryDatabase::default()).unwrap();
 
-		return wallet.get_balance().unwrap()
+		self.wallet.sync(&esplora, SyncOptions::default()).unwrap();
+
+		return self.wallet.get_balance().unwrap()
 	}
 }
 
@@ -89,11 +132,11 @@ impl fmt::Display for BitcoinUser {
 		writeln!(f, "\nBitcoin Configuration")?;
 		writeln!(f, "  Root Private Key	: {}", &self.root_priv.unwrap().to_string())?;
 		writeln!(f, "  Root Public Key	: {}", &self.root_pub.to_string())?;
-		writeln!(f, "  Output Descriptor	: {}", &self.output_descriptor.to_string())?;
-
-		writeln!(f, "  Address		: {}", &self.wallet.get_address(New).unwrap())?;
-		writeln!(f, "  Address		: {}", &self.wallet.get_address(New).unwrap())?;
-		writeln!(f, "  Address		: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "  Output Descriptor	: {}", &self.get_descriptor().to_string())?;
+		writeln!(f, "  Change Descriptor	: {}", &self.get_change_descriptor().to_string())?;
+		writeln!(f, "  Ext Address 1		: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "  Ext Address 2		: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "  Change Address	: {}", &self.wallet.get_internal_address(New).unwrap())?;
 
 		let balance = self.get_balance(None);
 
@@ -126,8 +169,8 @@ mod tests {
 
 		assert_eq!(format!("{}", alice_bitcoin.root_priv.unwrap()), "tprv8ZgxMBicQKsPeFd9cajKjGekZW5wDXq2e1vpKToJvZMqjyNkMqmr7exPFUbJ92YxSkqL4w19HpuzYkVYvc4n4pvySBmJfsawS7Seb8FzuNJ".to_string());
 		assert_eq!(format!("{}", alice_bitcoin.root_pub), "tpubD6NzVbkrYhZ4XiewWEPv8gJs8XbsNs1wDKXbbyqcLqAEaTdWzEbSJ9aFRamjrj3RQKyZ2Q848BkMxyt6J6e36Y14ga6Et7suFXk3RKFqEaA".to_string());
-		assert_eq!(format!("{}", alice_bitcoin.output_descriptor), "tr([9b5d4149/86'/0'/0']tpubDDfNLjZpqGcbyjiSzxxbvTRqvySNkCQKKDJHXkJPZCKQPVsVX9fcuvkd65MU3oyRmqgzpzvuEUxe6zstCCDP2ogHn5ModwnrxP4cdWLFdc3/0/*)#2azlv5fk".to_string());
-		
+		assert_eq!(format!("{}", alice_bitcoin.get_descriptor()), "tr([9b5d4149/86'/0'/0']tpubDDfNLjZpqGcbyjiSzxxbvTRqvySNkCQKKDJHXkJPZCKQPVsVX9fcuvkd65MU3oyRmqgzpzvuEUxe6zstCCDP2ogHn5ModwnrxP4cdWLFdc3/0/*)#2azlv5fk".to_string());
+
 		println!("Alice {} ", alice_bitcoin);
 	}
 
@@ -159,21 +202,10 @@ mod tests {
 			format!("{}", bip86_user.wallet.get_address(bdk::wallet::AddressIndex::New)?)
 		);
 
-		// assert_eq!(
-		// 	"bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
-		// 	format!("{}", bip86_user.wallet.get_internal_address(bdk::wallet::AddressIndex::New)?)
-		// );
-
-		// @TODO: Add test for first change address
-		// Account 0, first change address = m/86'/0'/0'/1/0
-		// xprv         =
-		// xprvA3Ln3Gt3aphvUgzgEDT8vE2cYqb4PjFfpmbiFKphxLg1FjXQpkAk5M1ZKDY15bmCAHA35jTiawbFuwGtbDZogKF1WfjwxML4gK7WfYW5JRP
-		// xpub         =
-		// xpub6GL8SnQwRCGDhB59LEz9HMyM6sRYoByXBzXK3iEKWgCz8XrZNHUzd9L3AUBELW5NzA7dEFvMas1F84TuPH3xqdUA5tumaGWFgihJzWytXe3
-		// internal_key = 399f1b2f4393f29a18c937859c5dd8a77350103157eb880f02e8c08214277cef
-		// output_key   = 882d74e5d0572d5a816cef0041a96b6c1de832f6f9676d9605c44d5e9a97d3dc
-		// scriptPubKey = 5120882d74e5d0572d5a816cef0041a96b6c1de832f6f9676d9605c44d5e9a97d3dc
-		// address      = bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7
+		assert_eq!(
+			"bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
+			format!("{}", bip86_user.wallet.get_internal_address(bdk::wallet::AddressIndex::New)?)
+		);
 
 		println!("bip86 user {}", bip86_user);
 		Ok(())

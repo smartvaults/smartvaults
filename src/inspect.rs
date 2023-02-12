@@ -23,23 +23,23 @@ pub struct InspectCmd {
     user: String,
 
     /// Optional Network, defaults to Bitcoin Testnet
-    #[arg(short, long, default_value = "testnet")]
+    #[arg(short, long, default_value = "mainnet")]
     network: String,
 }
 
 impl InspectCmd {
     pub fn run(&self, bitcoin_network: &Network) -> Result<(), Error> {
-        match self.user.as_str() {
-            "alice" => println!("{}", User::alice().unwrap()),
-            "bob" => println!("{}", User::bob().unwrap()),
-            "charlie" => println!("{}", User::charlie().unwrap()),
-            "david" => println!("{}", User::david().unwrap()),
-            "erika" => println!("{}", User::erika().unwrap()),
-            _ => println!(
-                "{}",
-                User::new(&self.mnemonic, &self.passphrase, None, bitcoin_network).unwrap()
-            ),
-        }
+        // match self.user.as_str() {
+        //     "alice" => println!("{}", User::alice().unwrap()),
+        //     "bob" => println!("{}", User::bob().unwrap()),
+        //     "charlie" => println!("{}", User::charlie().unwrap()),
+        //     "david" => println!("{}", User::david().unwrap()),
+        //     "erika" => println!("{}", User::erika().unwrap()),
+        //     _ => println!(
+        //         "{}",
+        //         User::new(&self.mnemonic, &self.passphrase, None, bitcoin_network).unwrap()
+        //     ),
+        // }
 
         // TODO: handle result
 
