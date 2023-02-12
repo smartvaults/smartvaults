@@ -4,10 +4,10 @@ use nostr_sdk::prelude::*;
 use crate::users::User;
 
 fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
-    let subscriber_keys = Keys::new(subscriber.nostr_secret_hex);
+    let subscriber_keys = Keys::new(subscriber.nostr_keys().secret_key().unwrap());
     let client = Client::new(&subscriber_keys);
 
-    let subscription = SubscriptionFilter::new().pubkey(publisher.nostr_x_only_public_key);
+    let subscription = SubscriptionFilter::new().pubkey(publisher.nostr_keys().secret_key().unwrap().x_only_public_key(&Secp256k1::new()).0);
     // .since(Timestamp::now());
 
     client.subscribe(vec![subscription]);

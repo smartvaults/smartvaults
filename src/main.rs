@@ -11,9 +11,10 @@ mod get_user;
 mod get_users;
 mod inspect;
 mod publish;
-mod subscribe;
-mod users;
+// mod subscribe;
+mod user;
 mod util;
+mod policy;
 
 #[derive(Parser)]
 #[command(name = "coinstr")]
@@ -46,7 +47,7 @@ pub enum Commands {
     Generate(generate::GenerateCmd),
 
     /// Subscribe to nostr events
-    Subscribe(subscribe::SubscribeCmd),
+    // Subscribe(subscribe::SubscribeCmd),
 
     /// Publish a nostr event
     Publish(publish::PublishCmd),
@@ -89,17 +90,17 @@ fn main() -> Result<(), clap::Error> {
         .build()
         .unwrap();
 
-    let mut bitcoin_network: Network = bitcoin::Network::Bitcoin;
+    let mut bitcoin_network: Network = bitcoin::network::constants::Network::Bitcoin;
     let bitcoin_network_str = settings.get_string("bitcoin-network").unwrap();
     if bitcoin_network_str == "testnet" {
-        bitcoin_network = Network::Testnet;
-    }
+        bitcoin_network = bitcoin::network::constants::Network::Testnet;
+    } 
     let bitcoin_endpoint = settings.get_string("bitcoin-endpoint").unwrap();
     let nostr_relay = settings.get_string("nostr-relay").unwrap();
 
     match Commands::parse() {
         Commands::Generate(cmd) => cmd.run(&bitcoin_network),
-        Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
+        // Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
         Commands::Publish(cmd) => cmd.run(&nostr_relay),
         Commands::Inspect(cmd) => cmd.run(&bitcoin_network),
         Commands::Convert(cmd) => cmd.run(),

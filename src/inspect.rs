@@ -1,4 +1,4 @@
-use crate::users::User;
+use crate::user::User;
 use bitcoin::Network;
 use clap::{Error, Parser};
 use nostr::Result;
@@ -23,7 +23,7 @@ pub struct InspectCmd {
     user: String,
 
     /// Optional Network, defaults to Bitcoin Testnet
-    #[arg(short, long, default_value = "testnet")]
+    #[arg(short, long, default_value = "mainnet")]
     network: String,
 }
 
@@ -37,12 +37,9 @@ impl InspectCmd {
             "erika" => println!("{}", User::erika().unwrap()),
             _ => println!(
                 "{}",
-                User::new(&self.mnemonic, &self.passphrase, None, bitcoin_network).unwrap()
+                User::new(self.mnemonic.clone(), Some(self.passphrase.clone()), None, bitcoin_network).unwrap()
             ),
         }
-
-        // TODO: handle result
-
         Ok(())
     }
 }
