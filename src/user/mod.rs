@@ -1,7 +1,7 @@
 mod bitcoin_user;
 pub mod constants;
 mod nostr_user;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bdk::bitcoin::Network;
 use std::fmt;
 use bitcoin::util::bip32::Fingerprint;
@@ -43,20 +43,20 @@ impl User {
 		]
 	}
 
-    #[allow(unused_must_use)]
-    pub fn from_fingerprint(f: &Fingerprint) -> Result<&User> {
+    pub fn from_fingerprint(f: &Fingerprint) -> String {
     
         let known_users = Self::known_users();
         let maybe_user = known_users.iter().find(|u| &u.bitcoin_user.setup_keys::<miniscript::Tap>().2 == f);
 
-        // gotta be a better way to handle errors
+        // WTF- gotta be a better way to do this
         if maybe_user.is_some() {
-            let user= maybe_user.unwrap();
-            return Ok(user);
-            // let user: &User = &maybe_user.unwrap().clone();
-            // return Ok(user); //::<&User, anyhow::Error>(user);
+            let user: &User = maybe_user.unwrap();
+            let another_user = user.clone();
+            let user_name = another_user.name.as_ref().unwrap();
+
+            return format!("<known-user:{} from fingerprint {}>", user_name, f.to_string());
         }
-        Err(anyhow!("Fingerprint not found in known users: {}", f.to_string()))
+        format!("<fingerprint:{}>", f.to_string())
     }
 
 	pub fn alice() -> Result<User> {
@@ -147,7 +147,7 @@ mod tests {
 	use bdk::{
 		descriptor::{policy::*, ExtractPolicy, IntoWalletDescriptor},
 		keys::{DescriptorKey, IntoDescriptorKey},
-		wallet::signer::SignersContainer,
+		wallet::{signer::SignersContainer},
 	};
 	use bitcoin::util::{bip32, bip32::Fingerprint};
 	use miniscript::ScriptContext;
@@ -249,6 +249,7 @@ mod tests {
 		let desc = bdk::descriptor!(tr(bob_pub, pk(alice_prv))).unwrap();
 		let (wallet_desc, keymap) = desc.into_wallet_descriptor(&secp, Network::Testnet).unwrap();
 		let signers_container = Arc::new(SignersContainer::build(keymap, &wallet_desc, &secp));
+        println!("Script descriptor : {:#?} ", &wallet_desc.to_string());
 
 		let policy = wallet_desc
 			.extract_policy(&signers_container, BuildSatisfaction::None, &secp)

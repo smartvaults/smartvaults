@@ -3,31 +3,29 @@ use bdk::{
 	bitcoin::Network,
 	blockchain::EsploraBlockchain,
 	database::MemoryDatabase,
+	descriptor,
 	descriptor::IntoWalletDescriptor,
 	keys::{
 		bip39::{Language::English, Mnemonic},
-		DerivableKey, DescriptorKey,
+		DescriptorKey, IntoDescriptorKey,
 	},
 	wallet::{AddressIndex::New, SyncOptions, Wallet},
 	KeychainKind,
 };
 use bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
-use miniscript::{Descriptor, DescriptorPublicKey};
+use miniscript::{Descriptor, DescriptorPublicKey, ScriptContext};
 use nostr::prelude::Secp256k1;
 use nostr_sdk::prelude::*;
 use std::{fmt, str::FromStr};
-use miniscript::ScriptContext;
-use bdk::keys::IntoDescriptorKey;
 
 const BIP86_DERIVATION_PATH: &str = "m/86'/0'/0'/0";
 const BIP86_DERIVATION_INTERNAL_PATH: &str = "m/86'/0'/0'/1";
-const ALICE_BOB_PATH: &str = "m/0'";
 
 pub struct BitcoinUser {
 	pub bitcoin_network: bitcoin::Network,
 	pub root_priv: Option<ExtendedPrivKey>,
-	pub root_pub: ExtendedPubKey,
 	pub wallet: Wallet<MemoryDatabase>,
+	pub private_key: bitcoin::util::key::PrivateKey,
 }
 
 impl BitcoinUser {
@@ -43,31 +41,46 @@ impl BitcoinUser {
 			parsed_mnemonic.to_seed_normalized(&passphrase.clone().unwrap_or("".to_string()));
 		let root_priv = ExtendedPrivKey::new_master(*bitcoin_network, &seed)?;
 
-		let root_pub = ExtendedPubKey::from_priv(&secp, &root_priv);
-		let ext_path = DerivationPath::from_str(BIP86_DERIVATION_PATH).unwrap();
-		let int_path = DerivationPath::from_str(BIP86_DERIVATION_INTERNAL_PATH).unwrap();
+		let private_key = bitcoin::util::key::PrivateKey::new(
+			SecretKey::from_slice(&seed[0..32]).unwrap(),
+			*bitcoin_network,
+		);
 
-		let xpub = root_priv.into_extended_key()?.into_descriptor_key(None, ext_path).unwrap();
-		let int_xpub = root_priv.into_extended_key()?.into_descriptor_key(None, int_path).unwrap();
-
-		let (ext_desc, _, _) = bdk::descriptor!(tr(xpub)).unwrap();
-		let (int_desc, _, _) = bdk::descriptor!(tr(int_xpub)).unwrap();
+		// generate external and internal descriptor from mnemonic
+		let (external_descriptor, _ext_keymap) = descriptor!(tr((
+			seed.clone(),
+			DerivationPath::from_str(BIP86_DERIVATION_PATH).unwrap()
+		)))?
+		.into_wallet_descriptor(&secp, *bitcoin_network)?;
+		let (internal_descriptor, _int_keymap) = descriptor!(tr((
+			seed,
+			DerivationPath::from_str(BIP86_DERIVATION_INTERNAL_PATH).unwrap()
+		)))?
+		.into_wallet_descriptor(&secp, *bitcoin_network)?;
 
 		let db = bdk::database::memory::MemoryDatabase::new();
-		let wallet = Wallet::new(ext_desc.clone(), Some(int_desc), *bitcoin_network, db);
+
+		// not sure that we need to save the wallet, but doing it for now
+		let wallet = Wallet::new(
+			external_descriptor.clone(),
+			Some(internal_descriptor.clone()),
+			*bitcoin_network,
+			db,
+		);
 
 		Ok(BitcoinUser {
 			root_priv: Some(root_priv),
-			root_pub,
+			private_key,
 			bitcoin_network: *bitcoin_network,
 			wallet: wallet.unwrap(),
 		})
 	}
 
-    pub fn setup_keys<Ctx: ScriptContext>(&self) -> (DescriptorKey<Ctx>, DescriptorKey<Ctx>, Fingerprint){
-        let secp = Secp256k1::new();
-
-        let path = DerivationPath::from_str(ALICE_BOB_PATH).unwrap();
+	pub fn setup_keys<Ctx: ScriptContext>(
+		&self,
+	) -> (DescriptorKey<Ctx>, DescriptorKey<Ctx>, Fingerprint) {
+		let secp = Secp256k1::new();
+		let path = DerivationPath::from_str(BIP86_DERIVATION_PATH).unwrap();
 		let tprv = self.root_priv.unwrap().derive_priv(&secp, &path).unwrap();
 		let tpub = ExtendedPubKey::from_priv(&secp, &tprv);
 		let fingerprint = tprv.fingerprint(&secp);
@@ -75,7 +88,7 @@ impl BitcoinUser {
 		let pubkey = (tpub, path).into_descriptor_key().unwrap();
 
 		(prvkey, pubkey, fingerprint)
-    }
+	}
 
 	pub fn get_descriptor(&self) -> Descriptor<DescriptorPublicKey> {
 		let secp = Secp256k1::new();
@@ -124,17 +137,27 @@ impl BitcoinUser {
 
 impl fmt::Display for BitcoinUser {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		writeln!(f, "\nBitcoin Configuration")?;
-		writeln!(f, "  Root Private Key	: {}", &self.root_priv.unwrap().to_string())?;
-		writeln!(f, "  Root Public Key	: {}", &self.root_pub.to_string())?;
-		writeln!(f, "  Output Descriptor	: {}", &self.get_descriptor().to_string())?;
-		writeln!(f, "  Change Descriptor	: {}", &self.get_change_descriptor().to_string())?;
-		writeln!(f, "  Ext Address 1		: {}", &self.wallet.get_address(New).unwrap())?;
-		writeln!(f, "  Ext Address 2		: {}", &self.wallet.get_address(New).unwrap())?;
-		writeln!(f, "  Change Address	: {}", &self.wallet.get_internal_address(New).unwrap())?;
+		let secp = Secp256k1::new();
+
+		writeln!(f, "\nBitcoin User Configuration")?;
+		writeln!(f, "  Saved Data")?;
+		writeln!(f, "    Root Private Key	: {}", &self.root_priv.unwrap().to_string())?;
+		writeln!(f, "    Private Key		: {}", &self.private_key.to_string())?;
+		// writeln!(f, "    Wallet Object		: {:?}", &self.wallet)?;
+		writeln!(f)?;
+		writeln!(f, "  Derived Data")?;
+		writeln!(
+			f,
+			"    Extended Pub Key	: {}",
+			ExtendedPubKey::from_priv(&secp, &self.root_priv.unwrap())
+		)?;
+		writeln!(f, "    Output Descriptor	: {}", &self.get_descriptor().to_string())?;
+		writeln!(f, "    Change Descriptor	: {}", &self.get_change_descriptor().to_string())?;
+		writeln!(f, "    Ext Address 1	: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "    Ext Address 2	: {}", &self.wallet.get_address(New).unwrap())?;
+		writeln!(f, "    Change Address	: {}", &self.wallet.get_internal_address(New).unwrap())?;
 
 		let balance = self.get_balance(None);
-
 		writeln!(f, "\nBitcoin Balances")?;
 		writeln!(f, "  Immature            	: {} ", balance.immature)?;
 		writeln!(f, "  Trusted Pending     	: {} ", balance.trusted_pending)?;
@@ -153,6 +176,7 @@ mod tests {
 
 	#[test]
 	fn test_alice_keys() {
+		let secp = Secp256k1::new();
 		let user_constants = user_constants();
 		let alice_constants = user_constants.get(&String::from("Alice")).unwrap();
 		let alice_bitcoin = BitcoinUser::new(
@@ -163,7 +187,9 @@ mod tests {
 		.unwrap();
 
 		assert_eq!(format!("{}", alice_bitcoin.root_priv.unwrap()), "tprv8ZgxMBicQKsPeFd9cajKjGekZW5wDXq2e1vpKToJvZMqjyNkMqmr7exPFUbJ92YxSkqL4w19HpuzYkVYvc4n4pvySBmJfsawS7Seb8FzuNJ".to_string());
-		assert_eq!(format!("{}", alice_bitcoin.root_pub), "tpubD6NzVbkrYhZ4XiewWEPv8gJs8XbsNs1wDKXbbyqcLqAEaTdWzEbSJ9aFRamjrj3RQKyZ2Q848BkMxyt6J6e36Y14ga6Et7suFXk3RKFqEaA".to_string());
+		assert_eq!(format!("{}", ExtendedPubKey::from_priv(&secp, &alice_bitcoin.root_priv.unwrap())),
+		"tpubD6NzVbkrYhZ4XiewWEPv8gJs8XbsNs1wDKXbbyqcLqAEaTdWzEbSJ9aFRamjrj3RQKyZ2Q848BkMxyt6J6e36Y14ga6Et7suFXk3RKFqEaA"
+		.to_string());
 		assert_eq!(format!("{}", alice_bitcoin.get_descriptor()), "tr([9b5d4149/86'/0'/0']tpubDDfNLjZpqGcbyjiSzxxbvTRqvySNkCQKKDJHXkJPZCKQPVsVX9fcuvkd65MU3oyRmqgzpzvuEUxe6zstCCDP2ogHn5ModwnrxP4cdWLFdc3/0/*)#2azlv5fk".to_string());
 
 		println!("Alice {} ", alice_bitcoin);
@@ -171,6 +197,8 @@ mod tests {
 
 	#[test]
 	fn test_key_derivation_for_single_key_p2tr_outputs() -> Result<()> {
+		let secp = Secp256k1::new();
+
 		// Test data from:
 		// https://github.com/bitcoin/bips/blob/master/bip-0086.mediawiki#test-vectors
 		const MNEMONIC: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -184,7 +212,10 @@ mod tests {
 		)?;
 
 		assert_eq!(format!("{}", bip86_user.root_priv.unwrap()), EXPECTED_ROOT_PRIV.to_string());
-		assert_eq!(format!("{}", bip86_user.root_pub), EXPECTED_ROOT_PUB.to_string());
+		assert_eq!(
+			format!("{}", ExtendedPubKey::from_priv(&secp, &bip86_user.root_priv.unwrap())),
+			EXPECTED_ROOT_PUB.to_string()
+		);
 
 		// check that first 3 addresses match
 		assert_eq!(
