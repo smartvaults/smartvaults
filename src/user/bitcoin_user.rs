@@ -116,11 +116,6 @@ impl BitcoinUser {
 
 		let esplora = EsploraBlockchain::new(&bitcoin_endpoint.unwrap(), 20);
 
-		// let descriptor: Descriptor<DescriptorPublicKey> = self.get_descriptor();
-
-		// let wallet =
-		// 	Wallet::new(descriptor, None, self.bitcoin_network, MemoryDatabase::default()).unwrap();
-
 		self.wallet.sync(&esplora, SyncOptions::default()).unwrap();
 
 		return self.wallet.get_balance().unwrap()
