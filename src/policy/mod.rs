@@ -82,7 +82,14 @@ fn display_key(key: &PkOrF) -> String {
 	match key {
 		PkOrF::Pubkey(pk) => format!("<pk:{}>", pk.to_string()),
 		PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{}>", pk.to_string()),
-		PkOrF::Fingerprint(f) => format!("<fingerprint:{}>", f.to_string()),
+		PkOrF::Fingerprint(f) => {
+            let maybe_user = User::from_fingerprint(f);        
+            if maybe_user.is_ok() {
+                return format!("<known-user:{} from fingerprint {}>", maybe_user.unwrap().name.unwrap(), f.to_string());
+            } else {
+                format!("<fingerprint:{}>", f.to_string())
+            }            
+        }
 	}
 }
 

@@ -1,11 +1,10 @@
 mod bitcoin_user;
 pub mod constants;
 mod nostr_user;
-
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bdk::bitcoin::Network;
 use std::fmt;
-
+use bitcoin::util::bip32::Fingerprint;
 use crate::user::{bitcoin_user::BitcoinUser, nostr_user::NostrUser};
 
 pub struct User {
@@ -32,6 +31,33 @@ impl User {
 				.unwrap(),
 		})
 	}
+
+    #[allow(dead_code)]
+	pub fn known_users() -> Vec<User> {
+		vec![
+			User::alice().unwrap(),
+			User::bob().unwrap(),
+			User::charlie().unwrap(),
+			User::david().unwrap(),
+			User::erika().unwrap(),
+		]
+	}
+
+    #[allow(unused_must_use)]
+    pub fn from_fingerprint(f: &Fingerprint) -> Result<&User> {
+    
+        let known_users = Self::known_users();
+        let maybe_user = known_users.iter().find(|u| &u.bitcoin_user.setup_keys::<miniscript::Tap>().2 == f);
+
+        // gotta be a better way to handle errors
+        if maybe_user.is_some() {
+            let user= maybe_user.unwrap();
+            return Ok(user);
+            // let user: &User = &maybe_user.unwrap().clone();
+            // return Ok(user); //::<&User, anyhow::Error>(user);
+        }
+        Err(anyhow!("Fingerprint not found in known users: {}", f.to_string()))
+    }
 
 	pub fn alice() -> Result<User> {
 		User::new(
@@ -81,17 +107,6 @@ impl User {
 			Some("Erika".to_string()),
 			&Network::Testnet,
 		)
-	}
-
-	#[allow(dead_code)]
-	pub fn known_users() -> Vec<User> {
-		vec![
-			User::alice().unwrap(),
-			User::bob().unwrap(),
-			User::charlie().unwrap(),
-			User::david().unwrap(),
-			User::erika().unwrap(),
-		]
 	}
 
 	#[allow(dead_code)]
