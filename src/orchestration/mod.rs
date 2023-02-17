@@ -1,7 +1,12 @@
 
+#[allow(dead_code)]
+pub struct Maestro;
 
-pub struct Maestro {
-
+#[allow(dead_code)]
+impl Maestro {
+    pub fn what_is () {
+        println!("Maestro orchestrates signature requests, either as a bot or a relay. To be developed.");
+    }
 }
 
 #[cfg(test)]
@@ -14,28 +19,23 @@ mod tests {
     
     use nostr::prelude::Secp256k1;
     use bdk::{
-        bitcoin::Network,
         blockchain::EsploraBlockchain,
-        database::MemoryDatabase,
-        descriptor::{
-            policy::{Policy, *},
-            IntoWalletDescriptor,
-        },
-        wallet::{SyncOptions, Wallet, AddressIndex::New},
-        KeychainKind,
+        wallet::{SyncOptions, AddressIndex::New},
+        SignOptions,
     };
 
+    #[allow(unused)]
     #[test]
     fn test_tx_builder_on_policy() {
 		let alice = User::get(&"alice".to_string()).unwrap();
 		let bob = User::get(&"bob".to_string()).unwrap();
 
-		let secp = Secp256k1::new();
+		let _secp = Secp256k1::new();
 
 		let alice_address = alice.bitcoin_user.wallet.get_address(New).unwrap();
 		println!("Alice address	: {}", alice_address);
 
-		let mut policy = CoinstrPolicy::new_one_of_two_taptree(
+		let policy = CoinstrPolicy::new_one_of_two_taptree(
 			"💸 My TapTree policy".to_string(),
 			"A 1 of 2 Taptree policy".to_string(),
 			&alice,
@@ -68,8 +68,8 @@ mod tests {
             .publish_text_note(psbt.to_string(), &[bob_tag])
             .expect("cannot publish note");
 
-		// let finalized = policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
-		// println!("\nSigned the PSBT: \n{}\n", psbt);
+		let finalized = policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
+		println!("\nSigned the PSBT: \n{}\n", psbt);
 
 		// assert!(finalized, "The PSBT was not finalized!");
         // println!("The PSBT has been signed and finalized.");
