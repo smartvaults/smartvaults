@@ -6,7 +6,7 @@ use bdk::{
 	descriptor,
 	descriptor::IntoWalletDescriptor,
 	keys::{
-		bip39::{Language::English, Mnemonic},
+		bip39::{Language::English, Mnemonic, MnemonicWithPassphrase},
 		DescriptorKey, IntoDescriptorKey,
 	},
 	wallet::{AddressIndex::New, SyncOptions, Wallet},
@@ -34,11 +34,9 @@ impl BitcoinUser {
 		passphrase: Option<String>,
 		bitcoin_network: &Network,
 	) -> Result<BitcoinUser> {
-		let secp = Secp256k1::new();
-		let parsed_mnemonic = Mnemonic::parse_in_normalized(English, &mnemonic).unwrap();
 
-		let seed =
-			parsed_mnemonic.to_seed_normalized(&passphrase.clone().unwrap_or("".to_string()));
+		let parsed_mnemonic = Mnemonic::parse_in_normalized(English, &mnemonic).unwrap();
+		let seed = parsed_mnemonic.clone().to_seed_normalized(&passphrase.clone().unwrap_or("".to_string()));
 		let root_priv = ExtendedPrivKey::new_master(*bitcoin_network, &seed)?;
 
 		let private_key = bitcoin::util::key::PrivateKey::new(
@@ -46,24 +44,27 @@ impl BitcoinUser {
 			*bitcoin_network,
 		);
 
+		let secp = Secp256k1::new();
+
+		let mnemonic_with_passphrase: MnemonicWithPassphrase = (parsed_mnemonic.clone(), passphrase);
+		let external_path = DerivationPath::from_str(BIP86_DERIVATION_PATH).unwrap();
+		let internal_path = DerivationPath::from_str(BIP86_DERIVATION_INTERNAL_PATH).unwrap();
+
 		// generate external and internal descriptor from mnemonic
-		let (external_descriptor, _ext_keymap) = descriptor!(tr((
-			seed.clone(),
-			DerivationPath::from_str(BIP86_DERIVATION_PATH).unwrap()
-		)))?
-		.into_wallet_descriptor(&secp, *bitcoin_network)?;
-		let (internal_descriptor, _int_keymap) = descriptor!(tr((
-			seed,
-			DerivationPath::from_str(BIP86_DERIVATION_INTERNAL_PATH).unwrap()
-		)))?
-		.into_wallet_descriptor(&secp, *bitcoin_network)?;
+		let external_descriptor =
+			descriptor!(tr((mnemonic_with_passphrase.clone(), external_path)))?
+				.into_wallet_descriptor(&secp, *bitcoin_network)?;
+
+		let internal_descriptor=
+			descriptor!(tr((mnemonic_with_passphrase, internal_path)))?
+				.into_wallet_descriptor(&secp, *bitcoin_network)?;
 
 		let db = bdk::database::memory::MemoryDatabase::new();
 
 		// not sure that we need to save the wallet, but doing it for now
 		let wallet = Wallet::new(
-			external_descriptor.clone(),
-			Some(internal_descriptor.clone()),
+			external_descriptor,
+			Some(internal_descriptor),
 			*bitcoin_network,
 			db,
 		);
@@ -233,7 +234,6 @@ mod tests {
 			format!("{}", bip86_user.wallet.get_internal_address(bdk::wallet::AddressIndex::New)?)
 		);
 
-		println!("bip86 user {}", bip86_user);
 		Ok(())
 	}
 }
