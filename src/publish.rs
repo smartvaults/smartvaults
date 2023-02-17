@@ -46,7 +46,7 @@ mod tests {
             content: "foobar".to_string(),
         };
         publish_cmd
-            .run(&"ws://127.0.0.1:8081".to_string())
+            .run(&"wss://nostr.hashed.systems".to_string())
             .expect("Unable to publish from test");
     }
 }

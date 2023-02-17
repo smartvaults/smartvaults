@@ -26,9 +26,9 @@ impl NostrUser {
 		self.keys.secret_key().unwrap().to_bech32().unwrap().to_string()
 	}
 
-	pub fn pub_key_hex(&self) -> String {
+	pub fn pub_key_hex(&self) -> XOnlyPublicKey {
 		let secp = Secp256k1::new();
-		self.keys.secret_key().unwrap().x_only_public_key(&secp).0.to_string()
+		self.keys.secret_key().unwrap().x_only_public_key(&secp).0
 	}
 
 	pub fn prv_key_hex(&self) -> String {
@@ -81,7 +81,7 @@ mod tests {
 			"0e1db7418df1c6453ce42e7f4507b8823fc23e86e1f4f33d7fafc83d366e6e97"
 		);
 		assert_eq!(
-			alice_nostr.pub_key_hex(),
+			alice_nostr.pub_key_hex().to_string(),
 			"30e85095c0e622b73160a30858df7180e07b1faaa49483369cd4d95eeac54d0f"
 		);
 
