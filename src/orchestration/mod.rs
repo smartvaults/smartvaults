@@ -1,32 +1,32 @@
-
 #[allow(dead_code)]
 pub struct Maestro;
 
 #[allow(dead_code)]
 impl Maestro {
-    pub fn what_is () {
-        println!("Maestro orchestrates signature requests, either as a bot or a relay. To be developed.");
-    }
+	pub fn what_is() {
+		println!(
+			"Maestro orchestrates signature requests, either as a bot or a relay. To be developed."
+		);
+	}
 }
 
 #[cfg(test)]
 mod tests {
 
-    const NOSTR_RELAY: &str = "wss://nostr.hashed.systems";
+	const NOSTR_RELAY: &str = "wss://nostr.hashed.systems";
 
-    use crate::user::User;
-    use crate::policy::CoinstrPolicy;
-    
-    use nostr::prelude::Secp256k1;
-    use bdk::{
-        blockchain::EsploraBlockchain,
-        wallet::{SyncOptions, AddressIndex::New},
-        SignOptions,
-    };
+	use crate::{policy::CoinstrPolicy, user::User};
 
-    #[allow(unused)]
-    #[test]
-    fn test_tx_builder_on_policy() {
+	use bdk::{
+		blockchain::EsploraBlockchain,
+		wallet::{AddressIndex::New, SyncOptions},
+		SignOptions,
+	};
+	use nostr::prelude::Secp256k1;
+
+	#[allow(unused)]
+	#[test]
+	fn test_tx_builder_on_policy() {
 		let alice = User::get(&"alice".to_string()).unwrap();
 		let bob = User::get(&"bob".to_string()).unwrap();
 
@@ -56,27 +56,44 @@ mod tests {
 			builder.finish().unwrap()
 		};
 
-		println!("\nNumber of signers in policy wallet   {}", policy.as_ref().unwrap().wallet.get_signers(bdk::KeychainKind::External).signers().len());
+		println!(
+			"\nNumber of signers in policy wallet   {}",
+			policy
+				.as_ref()
+				.unwrap()
+				.wallet
+				.get_signers(bdk::KeychainKind::External)
+				.signers()
+				.len()
+		);
 		println!("\nUnsigned PSBT: \n{}", psbt);
 
-        let relays: Vec<String> = vec![NOSTR_RELAY.to_string()];
-        let client = crate::util::create_client(&alice.nostr_user.keys, relays, 0).expect("cannot create client");
+		let relays: Vec<String> = vec![NOSTR_RELAY.to_string()];
+		let client = crate::util::create_client(&alice.nostr_user.keys, relays, 0)
+			.expect("cannot create client");
 
-        // TODO: support for tags
-        let bob_tag = nostr_sdk::prelude::Tag::PubKey(bob.nostr_user.pub_key_hex(), Some("New spending request; memo: this is for the final milestone deliverable, thx".to_string()));
-        client
-            .publish_text_note(psbt.to_string(), &[bob_tag])
-            .expect("cannot publish note");
+		// TODO: support for tags
+		let bob_tag = nostr_sdk::prelude::Tag::PubKey(
+			bob.nostr_user.pub_key_hex(),
+			Some(
+				"New spending request; memo: this is for the final milestone deliverable, thx"
+					.to_string(),
+			),
+		);
+		client
+			.publish_text_note(psbt.to_string(), &[bob_tag])
+			.expect("cannot publish note");
 
-		let finalized = policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
+		let finalized =
+			policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
 		println!("\nSigned the PSBT: \n{}\n", psbt);
 
 		// assert!(finalized, "The PSBT was not finalized!");
-        // println!("The PSBT has been signed and finalized.");
+		// println!("The PSBT has been signed and finalized.");
 
 		// let raw_transaction = psbt.extract_tx();
 		// let txid = raw_transaction.txid();
-	
+
 		println!("Not sending unless below is uncommented");
 		// esplora.broadcast(&raw_transaction);
 		// println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
