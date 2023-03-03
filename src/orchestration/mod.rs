@@ -13,7 +13,7 @@ impl Maestro {
 #[cfg(test)]
 mod tests {
 
-	const NOSTR_RELAY: &str = "wss://nostr.hashed.systems";
+	const NOSTR_RELAY: &str = "wss://relay.house";
 
 	use crate::{policy::CoinstrPolicy, user::User};
 
@@ -88,17 +88,24 @@ mod tests {
 			policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
 		println!("\nSigned the PSBT: \n{}\n", psbt);
 
-		// assert!(finalized, "The PSBT was not finalized!");
-		// println!("The PSBT has been signed and finalized.");
+		assert!(finalized, "The PSBT was not finalized!");
+		println!("The PSBT has been signed and finalized.");
 
-		// let raw_transaction = psbt.extract_tx();
-		// let txid = raw_transaction.txid();
+		let raw_transaction = psbt.extract_tx();
+		let txid = raw_transaction.txid();
 
-		println!("Not sending unless below is uncommented");
-		// esplora.broadcast(&raw_transaction);
-		// println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
+		esplora.broadcast(&raw_transaction);
+		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
 
-		let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
+		// let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		// println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
 	}
+
+    #[test]
+    pub fn basic_payload_signature_send_and_reply () {
+        let alice = User::get(&"alice".to_string()).unwrap();
+		let bob = User::get(&"bob".to_string()).unwrap();
+
+        
+    }
 }

@@ -348,27 +348,27 @@ mod tests {
 		let balance = policy.as_ref().unwrap().wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
 
-		// let (mut psbt, tx_details) = {
-		// 	let mut builder = policy.as_ref().unwrap().wallet.build_tx();
-		// 	builder.add_recipient(alice_address.script_pubkey(), 500);
-		// 	builder.finish().unwrap()
-		// };
+		let (mut psbt, tx_details) = {
+			let mut builder = policy.as_ref().unwrap().wallet.build_tx();
+			builder.add_recipient(alice_address.script_pubkey(), 500);
+			builder.finish().unwrap()
+		};
 
-		// println!("\nNumber of signers in policy wallet   {}", policy.as_ref().unwrap().wallet.get_signers(bdk::KeychainKind::External).signers().len());
-		// println!("\nUnsigned PSBT: \n{}", psbt);
+		println!("\nNumber of signers in policy wallet   {}", policy.as_ref().unwrap().wallet.get_signers(bdk::KeychainKind::External).signers().len());
+		println!("\nUnsigned PSBT: \n{}", psbt);
 
-		// let finalized = policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
-		// println!("\nSigned the PSBT: \n{}\n", psbt);
+		let finalized = policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
+		println!("\nSigned the PSBT: \n{}\n", psbt);
 
-		// assert!(finalized, "The PSBT was not finalized!");
-        // println!("The PSBT has been signed and finalized.");
+		assert!(finalized, "The PSBT was not finalized!");
+        println!("The PSBT has been signed and finalized.");
 
-		// let raw_transaction = psbt.extract_tx();
-		// let txid = raw_transaction.txid();
+		let raw_transaction = psbt.extract_tx();
+		let txid = raw_transaction.txid();
 	
 		println!("Not sending unless below is uncommented");
-		// esplora.broadcast(&raw_transaction);
-		// println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
+		esplora.broadcast(&raw_transaction);
+		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
 
 		let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 		println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");

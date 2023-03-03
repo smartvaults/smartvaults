@@ -1,6 +1,7 @@
 mod bitcoin_user;
 pub mod constants;
 mod nostr_user;
+// mod hashed_user;
 use anyhow::Result;
 use bdk::bitcoin::Network;
 use std::fmt;
