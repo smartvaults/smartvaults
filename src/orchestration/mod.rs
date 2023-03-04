@@ -12,25 +12,23 @@ impl Maestro {
 
 #[cfg(test)]
 mod tests {
-
-	const NOSTR_RELAY: &str = "wss://relay.house";
-
-	use crate::{policy::CoinstrPolicy, user::User};
-
+	use bdk::blockchain::{Blockchain, ElectrumBlockchain};
+	use bdk::electrum_client::Client;
 	use bdk::{
-		blockchain::EsploraBlockchain,
 		wallet::{AddressIndex::New, SyncOptions},
 		SignOptions,
 	};
-	use nostr::prelude::Secp256k1;
+
+	use crate::DEFAULT_TESTNET_ENDPOINT;
+	use crate::{policy::CoinstrPolicy, user::User};
+
+	const NOSTR_RELAY: &str = "wss://relay.house";
 
 	#[allow(unused)]
 	#[test]
 	fn test_tx_builder_on_policy() {
 		let alice = User::get(&"alice".to_string()).unwrap();
 		let bob = User::get(&"bob".to_string()).unwrap();
-
-		let _secp = Secp256k1::new();
 
 		let alice_address = alice.bitcoin_user.wallet.get_address(New).unwrap();
 		println!("Alice address	: {}", alice_address);
@@ -44,8 +42,13 @@ mod tests {
 		println!("{}", &policy.as_ref().unwrap());
 
 		println!("Syncing policy wallet.");
-		let esplora = EsploraBlockchain::new("https://blockstream.info/testnet/api", 20);
-		policy.as_ref().unwrap().wallet.sync(&esplora, SyncOptions::default()).unwrap();
+		let blockchain = ElectrumBlockchain::from(Client::new(DEFAULT_TESTNET_ENDPOINT).unwrap());
+		policy
+			.as_ref()
+			.unwrap()
+			.wallet
+			.sync(&blockchain, SyncOptions::default())
+			.unwrap();
 
 		let balance = policy.as_ref().unwrap().wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
@@ -94,18 +97,16 @@ mod tests {
 		let raw_transaction = psbt.extract_tx();
 		let txid = raw_transaction.txid();
 
-		esplora.broadcast(&raw_transaction);
+		blockchain.broadcast(&raw_transaction);
 		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
 
 		// let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 		// println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
 	}
 
-    #[test]
-    pub fn basic_payload_signature_send_and_reply () {
-        let alice = User::get(&"alice".to_string()).unwrap();
-		let bob = User::get(&"bob".to_string()).unwrap();
-
-        
-    }
+	#[test]
+	pub fn basic_payload_signature_send_and_reply() {
+		let _alice = User::get(&"alice".to_string()).unwrap();
+		let _bob = User::get(&"bob".to_string()).unwrap();
+	}
 }

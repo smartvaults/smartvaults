@@ -1,45 +1,50 @@
+use std::str::FromStr;
+
+use clap::Parser;
+use keechain_core::bip39::Mnemonic;
+use keechain_core::bitcoin::Network;
+use keechain_core::types::Seed;
+use nostr_sdk::Result;
+
 use crate::user::User;
-use bitcoin::Network;
-use clap::{Error, Parser};
-use nostr::Result;
 
 /// The `inspect` command
 #[derive(Debug, Clone, Parser)]
-#[command(
-    name = "inspect",
-    about = "Inspect a mnemonic for bitcoin and nostr events"
-)]
+#[command(name = "inspect", about = "Inspect a mnemonic for bitcoin and nostr events")]
 pub struct InspectCmd {
-    /// 12 or 24 word bip32 mnemonic
-    #[arg(short, long)]
-    mnemonic: String,
+	/// 12 or 24 word bip32 mnemonic
+	#[arg(short, long)]
+	mnemonic: String,
 
-    /// Optional passphrase
-    #[arg(short, long, default_value = "")]
-    passphrase: String,
+	/// Optional passphrase
+	#[arg(short, long)]
+	passphrase: Option<String>,
 
-    /// Optional user
-    #[arg(short, long, default_value = "")]
-    user: String,
+	/// Optional user
+	#[arg(short, long, default_value = "")]
+	user: String,
 
-    /// Optional Network, defaults to Bitcoin Testnet
-    #[arg(short, long, default_value = "mainnet")]
-    network: String,
+	/// Optional Network, defaults to Bitcoin Testnet
+	#[arg(short, long, default_value = "mainnet")]
+	network: String,
 }
 
 impl InspectCmd {
-    pub fn run(&self, bitcoin_network: &Network) -> Result<(), Error> {
-        match self.user.as_str() {
-            "alice" => println!("{}", User::alice().unwrap()),
-            "bob" => println!("{}", User::bob().unwrap()),
-            "charlie" => println!("{}", User::charlie().unwrap()),
-            "david" => println!("{}", User::david().unwrap()),
-            "erika" => println!("{}", User::erika().unwrap()),
-            _ => println!(
-                "{}",
-                User::new(self.mnemonic.clone(), Some(self.passphrase.clone()), None, bitcoin_network).unwrap()
-            ),
-        }
-        Ok(())
-    }
+	pub fn run(&self, bitcoin_network: Network) -> Result<()> {
+		match self.user.as_str() {
+			"alice" => println!("{}", User::alice()?),
+			"bob" => println!("{}", User::bob()?),
+			"charlie" => println!("{}", User::charlie()?),
+			"david" => println!("{}", User::david()?),
+			"erika" => println!("{}", User::erika()?),
+			_ => {
+				let mnemonic = Mnemonic::from_str(&self.mnemonic)?;
+				println!(
+					"{}",
+					User::new(Seed::new(mnemonic, self.passphrase.clone()), None, bitcoin_network)?
+				)
+			},
+		}
+		Ok(())
+	}
 }

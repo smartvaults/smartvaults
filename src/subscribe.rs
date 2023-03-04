@@ -7,8 +7,7 @@ fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
     let subscriber_keys = Keys::new(subscriber.nostr_keys().secret_key().unwrap());
     let client = Client::new(&subscriber_keys);
 
-    let subscription = SubscriptionFilter::new().pubkey(publisher.nostr_keys().secret_key().unwrap().x_only_public_key(&Secp256k1::new()).0);
-    // .since(Timestamp::now());
+    let subscription = SubscriptionFilter::new().pubkey(publisher.nostr_keys().public_key());
 
     client.subscribe(vec![subscription]);
 
@@ -22,7 +21,7 @@ fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
                 ) {
                     println!("New DM: {}", msg);
                 } else {
-                    log::error!("Impossible to decrypt direct message");
+                    eprintln!("Impossible to decrypt direct message");
                 }
             } else {
                 println!("{:#?}", event);
@@ -52,10 +51,10 @@ pub struct SubscribeCmd {
     subscriber: String,
 }
 
-use clap::Error;
+
 impl SubscribeCmd {
     /// Run the command
-    pub fn run(&self, _nostr_relay: &String) -> Result<(), Error> {
+    pub fn run(&self, _nostr_relay: &String) -> Result<()> {
         let subscriber = User::get(&self.subscriber).expect("user not found");
         let publisher = User::get(&self.publisher).expect("User not found");
 
@@ -66,7 +65,6 @@ impl SubscribeCmd {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]

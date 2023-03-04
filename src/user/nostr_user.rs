@@ -1,38 +1,31 @@
-use anyhow::Result;
-use nostr::{
-	nips::nip19::ToBech32,
-	prelude::{FromMnemonic, Secp256k1},
-	Keys,
-};
-use nostr_sdk::prelude::*;
 use std::fmt;
 
+use keechain_core::types::Seed;
+use nostr_sdk::prelude::*;
+
 pub struct NostrUser {
-	pub keys: nostr::key::Keys,
+	pub keys: Keys,
 }
 
 impl NostrUser {
-	pub fn new(mnemonic: String, passphrase: Option<String>) -> Result<NostrUser> {
-		let keys = Keys::from_mnemonic(mnemonic.clone(), passphrase.clone()).unwrap();
-		Ok(NostrUser { keys })
+	pub fn new(seed: Seed) -> Result<Self> {
+		let keys = Keys::from_mnemonic(seed.mnemonic().to_string(), seed.passphrase())?;
+		Ok(Self { keys })
 	}
 
-	pub fn pub_key(&self) -> String {
-		let secp = Secp256k1::new();
-
-		self.keys.secret_key().unwrap().x_only_public_key(&secp).0.to_bech32().unwrap()
+	pub fn pub_key(&self) -> Result<String> {
+		Ok(self.keys.public_key().to_bech32()?)
 	}
-	pub fn prv_key(&self) -> String {
-		self.keys.secret_key().unwrap().to_bech32().unwrap().to_string()
+	pub fn prv_key(&self) -> Result<String> {
+		Ok(self.keys.secret_key()?.to_bech32()?)
 	}
 
 	pub fn pub_key_hex(&self) -> XOnlyPublicKey {
-		let secp = Secp256k1::new();
-		self.keys.secret_key().unwrap().x_only_public_key(&secp).0
+		self.keys.public_key()
 	}
 
-	pub fn prv_key_hex(&self) -> String {
-		self.keys.secret_key().unwrap().display_secret().to_string()
+	pub fn prv_key_hex(&self) -> Result<String> {
+		Ok(self.keys.secret_key()?.display_secret().to_string())
 	}
 }
 
@@ -41,12 +34,12 @@ impl fmt::Display for NostrUser {
 		writeln!(f, "\nNostr Configuration")?;
 
 		writeln!(f, " Bech32 Keys")?;
-		writeln!(f, "  Public   : {} ", &self.pub_key())?;
-		writeln!(f, "  Private  : {} ", &self.prv_key())?;
+		writeln!(f, "  Public   : {} ", &self.pub_key().unwrap())?;
+		writeln!(f, "  Private  : {} ", &self.prv_key().unwrap())?;
 
 		writeln!(f, " Hex Keys")?;
 		writeln!(f, "  Public   : {} ", &self.pub_key_hex())?;
-		writeln!(f, "  Private  : {} ", &self.prv_key_hex())?;
+		writeln!(f, "  Private  : {} ", &self.prv_key_hex().unwrap())?;
 
 		Ok(())
 	}
@@ -54,6 +47,7 @@ impl fmt::Display for NostrUser {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 
 	use super::*;
 	use crate::user::constants::user_constants;
@@ -62,22 +56,20 @@ mod tests {
 	fn test_alice_keys() {
 		let user_constants = user_constants();
 		let alice_constants = user_constants.get(&String::from("Alice")).unwrap();
-		let alice_nostr = NostrUser::new(
-			alice_constants.mnemonic.to_string(),
-			Some(alice_constants.passphrase.to_string()),
-		)
-		.unwrap();
+		let mnemonic = Mnemonic::from_str(alice_constants.mnemonic).unwrap();
+		let seed = Seed::new(mnemonic, Some(alice_constants.passphrase));
+		let alice_nostr = NostrUser::new(seed).unwrap();
 
 		assert_eq!(
-			alice_nostr.prv_key(),
+			alice_nostr.prv_key().unwrap(),
 			"nsec1pcwmwsvd78ry208y9el52pacsgluy05xu860x0tl4lyr6dnwd6tsdak7nt"
 		);
 		assert_eq!(
-			alice_nostr.pub_key(),
+			alice_nostr.pub_key().unwrap(),
 			"npub1xr59p9wquc3twvtq5vy93hm3srs8k8a25j2gxd5u6nv4a6k9f58schcx7v"
 		);
 		assert_eq!(
-			alice_nostr.prv_key_hex(),
+			alice_nostr.prv_key_hex().unwrap(),
 			"0e1db7418df1c6453ce42e7f4507b8823fc23e86e1f4f33d7fafc83d366e6e97"
 		);
 		assert_eq!(

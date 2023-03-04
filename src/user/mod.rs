@@ -1,39 +1,37 @@
+use std::fmt;
+use std::str::FromStr;
+
+use keechain_core::bip39::Mnemonic;
+use keechain_core::bitcoin::util::bip32::Fingerprint;
+use keechain_core::bitcoin::Network;
+use keechain_core::types::Seed;
+use nostr_sdk::Result;
+
 mod bitcoin_user;
 pub mod constants;
 mod nostr_user;
-// mod hashed_user;
-use anyhow::Result;
-use bdk::bitcoin::Network;
-use std::fmt;
-use bitcoin::util::bip32::Fingerprint;
-use crate::user::{bitcoin_user::BitcoinUser, nostr_user::NostrUser};
+
+use crate::user::bitcoin_user::BitcoinUser;
+use crate::user::nostr_user::NostrUser;
 
 pub struct User {
 	pub name: Option<String>,
 	pub nostr_user: NostrUser,
 	pub bitcoin_user: BitcoinUser,
-	mnemonic: String,
-	passphrase: Option<String>,
+	seed: Seed,
 }
 
 impl User {
-	pub fn new(
-		mnemonic: String,
-		passphrase: Option<String>,
-		name: Option<String>,
-		bitcoin_network: &Network,
-	) -> Result<User> {
-		Ok(User {
+	pub fn new(seed: Seed, name: Option<String>, bitcoin_network: Network) -> Result<Self> {
+		Ok(Self {
 			name,
-			mnemonic: mnemonic.clone(),
-			passphrase: passphrase.clone(),
-			nostr_user: NostrUser::new(mnemonic.clone(), passphrase.clone()).unwrap(),
-			bitcoin_user: BitcoinUser::new(mnemonic.clone(), passphrase.clone(), bitcoin_network)
-				.unwrap(),
+			nostr_user: NostrUser::new(seed.clone()).unwrap(),
+			bitcoin_user: BitcoinUser::new(seed.clone(), bitcoin_network).unwrap(),
+			seed,
 		})
 	}
 
-    #[allow(dead_code)]
+	#[allow(dead_code)]
 	pub fn known_users() -> Vec<User> {
 		vec![
 			User::alice().unwrap(),
@@ -44,93 +42,78 @@ impl User {
 		]
 	}
 
-    pub fn from_fingerprint(f: &Fingerprint) -> String {
-    
-        let known_users = Self::known_users();
-        let maybe_user = known_users.iter().find(|u| &u.bitcoin_user.setup_keys::<miniscript::Tap>().2 == f);
+	pub fn from_fingerprint(f: &Fingerprint) -> String {
+		let known_users = Self::known_users();
+		let maybe_user = known_users
+			.iter()
+			.find(|u| &u.bitcoin_user.setup_keys::<bdk::miniscript::Tap>().2 == f);
 
-        // WTF- gotta be a better way to do this
-        if maybe_user.is_some() {
-            let user: &User = maybe_user.unwrap();
-            let another_user = user.clone();
-            let user_name = another_user.name.as_ref().unwrap();
-
-            return format!("<known-user:{} from fingerprint {}>", user_name, f.to_string());
-        }
-        format!("<fingerprint:{}>", f.to_string())
-    }
+		if let Some(user) = maybe_user {
+			let user_name = user.name.as_ref().unwrap();
+			return format!("<known-user:{user_name} from fingerprint {f}>");
+		}
+		format!("<fingerprint:{f}>")
+	}
 
 	pub fn alice() -> Result<User> {
-		User::new(
-			"carry surface crater rude auction ritual banana elder shuffle much wonder decrease"
-				.to_string(),
-			Some("oy+hB/qeJ1AasCCR".to_string()),
-			Some("Alice".to_string()),
-			&Network::Testnet,
-		)
+		let mnemonic = Mnemonic::from_str(
+			"carry surface crater rude auction ritual banana elder shuffle much wonder decrease",
+		)?;
+		let seed = Seed::new(mnemonic, Some("oy+hB/qeJ1AasCCR"));
+		User::new(seed, Some("Alice".to_string()), Network::Testnet)
 	}
 
 	pub fn bob() -> Result<User> {
-		User::new(
-			"market museum car noodle cream pool enhance please level price slide process"
-				.to_string(),
-			Some("B3Q0YHYYHmF798Jg".to_string()),
-			Some("Bob".to_string()),
-			&Network::Testnet,
-		)
+		let mnemonic = Mnemonic::from_str(
+			"market museum car noodle cream pool enhance please level price slide process",
+		)?;
+		let seed = Seed::new(mnemonic, Some("B3Q0YHYYHmF798Jg"));
+		User::new(seed, Some("Bob".to_string()), Network::Testnet)
 	}
 
 	pub fn charlie() -> Result<User> {
-		User::new(
-			"cry modify gallery home desert tongue immune address bunker bean tone giggle"
-				.to_string(),
-			Some("nTVuKiINc5TKMjfV".to_string()),
-			Some("Charlie".to_string()),
-			&Network::Testnet,
-		)
+		let mnemonic = Mnemonic::from_str(
+			"cry modify gallery home desert tongue immune address bunker bean tone giggle",
+		)?;
+		let seed = Seed::new(mnemonic, Some("nTVuKiINc5TKMjfV"));
+		User::new(seed, Some("Charlie".to_string()), Network::Testnet)
 	}
 
 	pub fn david() -> Result<User> {
-		User::new(
-			"alone hospital depth worth vapor lazy burst skill apart accuse maze evidence"
-				.to_string(),
-			Some("f5upOqUyG0iPY4n+".to_string()),
-			Some("David".to_string()),
-			&Network::Testnet,
-		)
+		let mnemonic = Mnemonic::from_str(
+			"alone hospital depth worth vapor lazy burst skill apart accuse maze evidence",
+		)?;
+		let seed = Seed::new(mnemonic, Some("f5upOqUyG0iPY4n+"));
+		User::new(seed, Some("David".to_string()), Network::Testnet)
 	}
 
 	pub fn erika() -> Result<User> {
-		User::new(
-			"confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife"
-				.to_string(),
-			Some("JBtdXy+2ut2fxplW".to_string()),
-			Some("Erika".to_string()),
-			&Network::Testnet,
-		)
+		let mnemonic = Mnemonic::from_str(
+			"confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife",
+		)?;
+		let seed = Seed::new(mnemonic, Some("JBtdXy+2ut2fxplW"));
+		User::new(seed, Some("Erika".to_string()), Network::Testnet)
 	}
 
 	#[allow(dead_code)]
-	pub fn get(name: &String) -> Result<User> {
-		// type Err = UserNotFoundError;
-		match name.as_str() {
+	pub fn get(name: &str) -> Result<User> {
+		match name {
 			"alice" => User::alice(),
 			"bob" => User::bob(),
 			"charlie" => User::charlie(),
 			"david" => User::david(),
 			_ => User::erika(),
-			// _ => return Err(UserNotFoundError),
 		}
 	}
 }
 
 impl fmt::Display for User {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		if self.name.is_some() {
-			writeln!(f, "Name       : {}", &self.name.as_ref().unwrap())?;
+		if let Some(name) = self.name.as_ref() {
+			writeln!(f, "Name       : {name}")?;
 		}
-		writeln!(f, "\nMnemonic   : {:?} ", &self.mnemonic.to_string())?;
-		writeln!(f, "Passphrase : \"{}\" ", &self.passphrase.clone().unwrap_or("".to_string()))?;
+		writeln!(f, "\nMnemonic   : {} ", &self.seed.mnemonic())?;
+		writeln!(f, "Passphrase : \"{}\" ", &self.seed.passphrase().unwrap_or_default())?;
 
 		writeln!(f, "{}", &self.nostr_user)?;
 		writeln!(f, "{}", &self.bitcoin_user)?;
@@ -145,28 +128,25 @@ mod tests {
 	use super::*;
 	use crate::user::constants::user_constants;
 
+	use assert_matches::assert_matches;
+	use bdk::miniscript::ScriptContext;
 	use bdk::{
 		descriptor::{policy::*, ExtractPolicy, IntoWalletDescriptor},
 		keys::{DescriptorKey, IntoDescriptorKey},
-		wallet::{signer::SignersContainer},
+		wallet::signer::SignersContainer,
 	};
-	use bitcoin::util::{bip32, bip32::Fingerprint};
-	use miniscript::ScriptContext;
-	use nostr::prelude::{All, Secp256k1};
+	use keechain_core::bitcoin::util::bip32::{self, Fingerprint};
+	use nostr_sdk::bitcoin::Network;
+	use nostr_sdk::SECP256K1;
 	use std::{str::FromStr, sync::Arc};
-    use assert_matches::assert_matches;
 
 	#[test]
 	fn test_alice() {
 		let user_constants = user_constants();
 		let alice_constants = user_constants.get(&String::from("Alice")).unwrap();
-		let alice_user = User::new(
-			alice_constants.mnemonic.to_string(),
-			Some(alice_constants.passphrase.to_string()),
-			Some("Alice".to_string()),
-			&bitcoin::network::constants::Network::Testnet,
-		)
-		.unwrap();
+		let mnemonic = Mnemonic::from_str(alice_constants.mnemonic).unwrap();
+		let seed = Seed::new(mnemonic, Some(alice_constants.passphrase));
+		let alice_user = User::new(seed, Some("Alice".to_string()), Network::Testnet).unwrap();
 		println!("{}", alice_user);
 	}
 
@@ -181,12 +161,11 @@ mod tests {
 	fn setup_keys<Ctx: ScriptContext>(
 		tprv: &bip32::ExtendedPrivKey,
 		path: &str,
-		secp: &Secp256k1<All>,
 	) -> (DescriptorKey<Ctx>, DescriptorKey<Ctx>, Fingerprint) {
 		let path = bip32::DerivationPath::from_str(path).unwrap();
-		let tprv = tprv.derive_priv(secp, &path).unwrap();
-		let tpub = bip32::ExtendedPubKey::from_priv(secp, &tprv);
-		let fingerprint = tprv.fingerprint(secp);
+		let tprv = tprv.derive_priv(SECP256K1, &path).unwrap();
+		let tpub = bip32::ExtendedPubKey::from_priv(SECP256K1, &tprv);
+		let fingerprint = tprv.fingerprint(SECP256K1);
 		let prvkey = (tprv, path.clone()).into_descriptor_key().unwrap();
 		let pubkey = (tpub, path).into_descriptor_key().unwrap();
 
@@ -240,26 +219,26 @@ mod tests {
 	fn test_extract_tr_script_spend() {
 		let alice = User::get(&"alice".to_string()).unwrap();
 		let bob = User::get(&"bob".to_string()).unwrap();
-		let secp = Secp256k1::new();
 
 		let (alice_prv, _, alice_fing) =
-			setup_keys(&alice.bitcoin_user.root_priv.unwrap(), ALICE_BOB_PATH, &secp);
+			setup_keys(&alice.bitcoin_user.root_priv.unwrap(), ALICE_BOB_PATH);
 		let (_, bob_pub, bob_fing) =
-			setup_keys(&bob.bitcoin_user.root_priv.unwrap(), ALICE_BOB_PATH, &secp);
+			setup_keys(&bob.bitcoin_user.root_priv.unwrap(), ALICE_BOB_PATH);
 
 		let desc = bdk::descriptor!(tr(bob_pub, pk(alice_prv))).unwrap();
-		let (wallet_desc, keymap) = desc.into_wallet_descriptor(&secp, Network::Testnet).unwrap();
-		let signers_container = Arc::new(SignersContainer::build(keymap, &wallet_desc, &secp));
-        println!("Script descriptor : {:#?} ", &wallet_desc.to_string());
+		let (wallet_desc, keymap) =
+			desc.into_wallet_descriptor(SECP256K1, Network::Testnet).unwrap();
+		let signers_container = Arc::new(SignersContainer::build(keymap, &wallet_desc, SECP256K1));
+		println!("Script descriptor : {:#?} ", &wallet_desc.to_string());
 
 		let policy = wallet_desc
-			.extract_policy(&signers_container, BuildSatisfaction::None, &secp)
+			.extract_policy(&signers_container, BuildSatisfaction::None, SECP256K1)
 			.unwrap()
 			.unwrap();
 
 		println!("Policy    : {:?}", policy);
-		assert_matches!(policy.item, SatisfiableItem::Thresh { ref items, threshold: 1 } if	items.len() == 2); 
-        assert_matches!(policy.contribution, Satisfaction::PartialComplete {n: 2, m: 1, items, .. } if items == vec![1]);
+		assert_matches!(policy.item, SatisfiableItem::Thresh { ref items, threshold: 1 } if	items.len() == 2);
+		assert_matches!(policy.contribution, Satisfaction::PartialComplete {n: 2, m: 1, items, .. } if items == vec![1]);
 
 		let alice_sig = SatisfiableItem::SchnorrSignature(PkOrF::Fingerprint(alice_fing));
 		let bob_sig = SatisfiableItem::SchnorrSignature(PkOrF::Fingerprint(bob_fing));
@@ -281,7 +260,7 @@ mod tests {
 	// fn test_multisig_2() {
 	// 	let alice = User::get(&"alice".to_string()).unwrap();
 	// 	let bob = User::get(&"bob".to_string()).unwrap();
-	// 	let secp = Secp256k1::new();
+	//
 
 	// 	let (alice_prv, _, alice_fing) =
 	// 		setup_keys(&alice.extended_private_key.unwrap(), ALICE_BOB_PATH, &secp);

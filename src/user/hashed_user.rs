@@ -1,3 +1,4 @@
+use std::fmt;
 
 use sp_core::crypto::Pair;
 use subxt::{
@@ -5,7 +6,6 @@ use subxt::{
     OnlineClient,
     PolkadotConfig,
 };
-use std::fmt;
 
 #[subxt::subxt(runtime_metadata_url = "wss://c1.hashed.network:443")]
 pub mod polkadot {}
