@@ -9,12 +9,13 @@ use nostr_sdk::Result;
 mod balance;
 mod convert;
 mod generate;
+mod get_event;
 mod get_events;
 mod get_user;
 mod get_users;
 mod inspect;
 mod publish;
-// mod subscribe;
+mod subscribe;
 mod orchestration;
 mod policy;
 mod user;
@@ -56,7 +57,7 @@ pub enum Commands {
 	Generate(generate::GenerateCmd),
 
 	/// Subscribe to nostr events
-	// Subscribe(subscribe::SubscribeCmd),
+	Subscribe(subscribe::SubscribeCmd),
 
 	/// Publish a nostr event
 	Publish(publish::PublishCmd),
@@ -70,7 +71,7 @@ pub enum Commands {
 	/// Find the balance for a bitcoin descriptor
 	Balance(balance::BalanceCmd),
 
-	/// Get things
+	/// Get data about events and users
 	#[command(arg_required_else_help = true)]
 	Get(Box<GetArgs>),
 }
@@ -87,6 +88,7 @@ pub struct GetArgs {
 
 #[derive(Debug, Subcommand)]
 enum GetCommands {
+	Event(get_event::GetEventCmd),
 	Events(get_events::GetEventsCmd),
 	Users(get_users::GetUsersCmd),
 	User(get_user::GetUserCmd),
@@ -105,12 +107,13 @@ fn main() -> Result<()> {
 
 	match Commands::parse() {
 		Commands::Generate(cmd) => cmd.run(bitcoin_network),
-		// Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
+		Commands::Subscribe(cmd) => cmd.run(&nostr_relay),
 		Commands::Publish(cmd) => cmd.run(nostr_relay),
 		Commands::Inspect(cmd) => cmd.run(bitcoin_network),
 		Commands::Convert(cmd) => cmd.run(),
 		Commands::Balance(cmd) => cmd.run(bitcoin_endpoint, bitcoin_network),
 		Commands::Get(cmd) => match cmd.command.unwrap() {
+			GetCommands::Event(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Events(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Users(get_cmd) => get_cmd.run(),
 			GetCommands::User(get_cmd) => get_cmd.run(),

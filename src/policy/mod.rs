@@ -363,8 +363,7 @@ mod tests {
 		let raw_transaction = psbt.extract_tx();
 		let txid = raw_transaction.txid();
 	
-		// println!("Not sending unless below is uncommented");
-		// blockchain.broadcast(&raw_transaction);
+		blockchain.broadcast(&raw_transaction);
 		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
 	}
 
@@ -421,7 +420,6 @@ mod tests {
 
         let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 		println!("{}", receiving_address);
-
 	}
 
 	// or(pk(cPuK7a4dmU1eF5ZkiF22ABBWWxeaQyXND2oanNc58VMb2ZzJsee5),
