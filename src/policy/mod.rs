@@ -338,6 +338,13 @@ mod tests {
 		let balance = policy.as_ref().unwrap().wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
 
+		const TEST_NUM_SATS: u64 = 500;
+		if balance.confirmed < TEST_NUM_SATS {
+			let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+			println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
+			return;
+		}
+
 		let (mut psbt, tx_details) = {
 			let mut builder = policy.as_ref().unwrap().wallet.build_tx();
 			builder.add_recipient(alice_address.script_pubkey(), 500);
@@ -356,12 +363,9 @@ mod tests {
 		let raw_transaction = psbt.extract_tx();
 		let txid = raw_transaction.txid();
 	
-		println!("Not sending unless below is uncommented");
-		blockchain.broadcast(&raw_transaction);
+		// println!("Not sending unless below is uncommented");
+		// blockchain.broadcast(&raw_transaction);
 		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
-
-		let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
 	}
 
 	// @todo: FIX ME - miniscript fails with duplicated pubkeys in the descriptor
