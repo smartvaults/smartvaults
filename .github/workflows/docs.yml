@@ -1,0 +1,37 @@
+name: Publish Rust Docs
+
+on:
+  push:
+    branches:
+      - main
+      
+jobs:
+  deploy-docs:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Rust versions
+        run:  rustup show
+
+      - name: Set-Up
+        run: sudo apt install -y git clang curl libssl-dev llvm libudev-dev protobuf-compiler
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v1
+
+      - name: Build rustdocs
+        run:  SKIP_WASM_BUILD=1 cargo doc --all --no-deps
+
+      - name: Make index.html
+        run:  echo "<meta http-equiv=refresh content=0;url=coinstr/index.html>" > ./target/doc/index.html
+
+      - name: Deploy documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./target/doc
