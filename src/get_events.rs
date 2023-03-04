@@ -101,25 +101,24 @@ impl GetEventsCmd {
 #[cfg(test)]
 mod tests {
 
+	use crate::DEFAULT_RELAY;
+	use crate::user::User;
 	use super::*;
 
 	#[test]
 	fn subscribe_alice_to_foobar() {
 		let get_events_cmd = GetEventsCmd {
 			ids: None,
-			authors: Some(vec![
-				"30e85095c0e622b73160a30858df7180e07b1faaa49483369cd4d95eeac54d0f".to_string()
-			]),
+			authors: Some(vec![User::alice().unwrap().nostr_user.pub_key().unwrap()]),
 			kinds: None,
-			e: None,
+			e: None, 
 			p: None,
 			since: None,
 			until: None,
 			limit: None,
 		};
-		get_events_cmd
-			.run("ws://127.0.0.1:8081".to_string())
-			.expect("Cannot get events");
-		// subscribe(&User::alice().unwrap(), &User::bob().unwrap()).expect("Unable to publish from test");
+		get_events_cmd.run(DEFAULT_RELAY.to_string()).expect("Cannot get events");
+		// subscribe(&User::alice().unwrap(), &User::bob().unwrap()).expect("Unable to publish from
+		// test");
 	}
 }
