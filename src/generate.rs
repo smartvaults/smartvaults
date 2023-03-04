@@ -1,7 +1,9 @@
 use clap::Parser;
-use keechain_core::bitcoin::Network;
-use keechain_core::types::{Seed, WordCount};
-use keechain_core::util::bip::bip39::{self, Mnemonic};
+use keechain_core::{
+	bitcoin::Network,
+	types::{Seed, WordCount},
+	util::bip::bip39::{self, Mnemonic},
+};
 use nostr_sdk::Result;
 
 use crate::user::User;

@@ -37,7 +37,6 @@ pub struct GetEventsCmd {
 impl GetEventsCmd {
 	/// Run the command
 	pub fn run(&self, nostr_relay: String) -> Result<()> {
-		
 		let relays = vec![nostr_relay];
 
 		let client = create_client(&Keys::generate(), relays, 0).expect("cannot create client");
@@ -97,9 +96,8 @@ impl GetEventsCmd {
 #[cfg(test)]
 mod tests {
 
-	use crate::DEFAULT_RELAY;
-	use crate::user::User;
 	use super::*;
+	use crate::{user::User, DEFAULT_RELAY};
 
 	#[test]
 	fn subscribe_alice_to_foobar() {
@@ -107,7 +105,7 @@ mod tests {
 			ids: None,
 			authors: Some(vec![User::alice().unwrap().nostr_user.keys.public_key().to_string()]),
 			kinds: None,
-			e: None, 
+			e: None,
 			p: None,
 			since: None,
 			until: None,

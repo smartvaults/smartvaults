@@ -13,7 +13,10 @@ fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
 	client.handle_notifications(|notification| {
 		if let RelayPoolNotification::Event(_url, event) = notification {
 			if event.kind == Kind::EncryptedDirectMessage {
-				if let Ok(msg) = decrypt(subscriber_keys.secret_key().unwrap().as_ref(), &event.content.as_bytes()) {
+				if let Ok(msg) = decrypt(
+					subscriber_keys.secret_key().unwrap().as_ref(),
+					event.content.as_bytes(),
+				) {
 					println!("New DM: {:?}", msg);
 				} else {
 					eprintln!("Impossible to decrypt direct message");
@@ -48,7 +51,7 @@ pub struct SubscribeCmd {
 
 impl SubscribeCmd {
 	/// Run the command
-	pub fn run(&self, _nostr_relay: &String) -> Result<()> {
+	pub fn run(&self, _nostr_relay: &str) -> Result<()> {
 		let subscriber = User::get(&self.subscriber).expect("user not found");
 		let publisher = User::get(&self.publisher).expect("User not found");
 
@@ -63,7 +66,7 @@ mod tests {
 
 	#[test]
 	fn subscribe_alice_to_foobar() {
-        // how to test subscribe? must use async? 
+		// how to test subscribe? must use async?
 		// subscribe(&User::alice().unwrap(), &User::bob().unwrap())
 		// 	.expect("Unable to publish from test");
 	}

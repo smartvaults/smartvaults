@@ -1,18 +1,17 @@
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
-use keechain_core::bip39::Mnemonic;
-use keechain_core::bitcoin::util::bip32::Fingerprint;
-use keechain_core::bitcoin::Network;
-use keechain_core::types::Seed;
+use keechain_core::{
+	bip39::Mnemonic,
+	bitcoin::{util::bip32::Fingerprint, Network},
+	types::Seed,
+};
 use nostr_sdk::Result;
 
 mod bitcoin_user;
 pub mod constants;
 mod nostr_user;
 
-use crate::user::bitcoin_user::BitcoinUser;
-use crate::user::nostr_user::NostrUser;
+use crate::user::{bitcoin_user::BitcoinUser, nostr_user::NostrUser};
 
 pub struct User {
 	pub name: Option<String>,
@@ -50,7 +49,7 @@ impl User {
 
 		if let Some(user) = maybe_user {
 			let user_name = user.name.as_ref().unwrap();
-			return format!("<known-user:{user_name} from fingerprint {f}>");
+			return format!("<known-user:{user_name} from fingerprint {f}>")
 		}
 		format!("<fingerprint:{f}>")
 	}
@@ -129,15 +128,14 @@ mod tests {
 	use crate::user::constants::user_constants;
 
 	use assert_matches::assert_matches;
-	use bdk::miniscript::ScriptContext;
 	use bdk::{
 		descriptor::{policy::*, ExtractPolicy, IntoWalletDescriptor},
 		keys::{DescriptorKey, IntoDescriptorKey},
+		miniscript::ScriptContext,
 		wallet::signer::SignersContainer,
 	};
 	use keechain_core::bitcoin::util::bip32::{self, Fingerprint};
-	use nostr_sdk::bitcoin::Network;
-	use nostr_sdk::SECP256K1;
+	use nostr_sdk::{bitcoin::Network, SECP256K1};
 	use std::{str::FromStr, sync::Arc};
 
 	#[test]

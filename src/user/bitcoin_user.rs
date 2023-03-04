@@ -1,20 +1,23 @@
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
-use bdk::blockchain::ElectrumBlockchain;
-use bdk::database::MemoryDatabase;
-use bdk::descriptor::IntoWalletDescriptor;
-use bdk::electrum_client::Client;
-use bdk::keys::{DescriptorKey, IntoDescriptorKey};
-use bdk::miniscript::{Descriptor, DescriptorPublicKey, ScriptContext};
-use bdk::wallet::{AddressIndex, SyncOptions, Wallet};
-use bdk::KeychainKind;
-use keechain_core::bitcoin::util::bip32::{
-	DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
+use bdk::{
+	blockchain::ElectrumBlockchain,
+	database::MemoryDatabase,
+	descriptor::IntoWalletDescriptor,
+	electrum_client::Client,
+	keys::{DescriptorKey, IntoDescriptorKey},
+	miniscript::{Descriptor, DescriptorPublicKey, ScriptContext},
+	wallet::{AddressIndex, SyncOptions, Wallet},
+	KeychainKind,
 };
-use keechain_core::bitcoin::util::key::PrivateKey;
-use keechain_core::types::{Descriptors, Purpose, Seed};
-use keechain_core::util::bip::bip32::Bip32RootKey;
+use keechain_core::{
+	bitcoin::util::{
+		bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint},
+		key::PrivateKey,
+	},
+	types::{Descriptors, Purpose, Seed},
+	util::bip::bip32::Bip32RootKey,
+};
 use nostr_sdk::prelude::*;
 
 use crate::{DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
@@ -82,13 +85,12 @@ impl BitcoinUser {
 	pub fn get_balance(&self, bitcoin_endpoint: Option<&str>) -> Result<bdk::Balance> {
 		let endpoint = match bitcoin_endpoint {
 			Some(e) => e,
-			None => {
+			None =>
 				if self.bitcoin_network == Network::Testnet {
 					DEFAULT_TESTNET_ENDPOINT
 				} else {
 					DEFAULT_BITCOIN_ENDPOINT
-				}
-			},
+				},
 		};
 		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 		self.wallet.sync(&blockchain, SyncOptions::default())?;

@@ -1,9 +1,7 @@
 use std::str::FromStr;
 
 use clap::Parser;
-use keechain_core::bip39::Mnemonic;
-use keechain_core::bitcoin::Network;
-use keechain_core::types::Seed;
+use keechain_core::{bip39::Mnemonic, bitcoin::Network, types::Seed};
 use nostr_sdk::Result;
 
 use crate::user::User;
