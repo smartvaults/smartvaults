@@ -1,6 +1,6 @@
 use nostr_sdk::client::blocking::Client;
 use nostr_sdk::prelude::*;
-
+use crate::DEFAULT_RELAY;
 use crate::users::User;
 
 fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
@@ -39,7 +39,7 @@ fn subscribe(subscriber: &User, publisher: &User) -> Result<()> {
 #[command(name = "subscribe", about = "Subscribe to nostr events")]
 pub struct SubscribeCmd {
     /// The relay to request subscription from
-    #[arg(short, long, default_value_t = String::from("ws://127.0.0.1:8081"))]
+    #[arg(short, long, default_value_t = String::from(DEFAULT_RELAY))]
     relay: String,
 
     /// user to subscribe from
