@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 use clap::{Args, Parser, Subcommand};
 use config::Config;
@@ -14,10 +13,10 @@ mod get_events;
 mod get_user;
 mod get_users;
 mod inspect;
-mod publish;
-mod subscribe;
 mod orchestration;
 mod policy;
+mod publish;
+mod subscribe;
 mod user;
 mod util;
 

@@ -2,8 +2,10 @@ use std::str::FromStr;
 
 use clap::Parser;
 use keechain_core::bitcoin::XOnlyPublicKey;
-use nostr_sdk::key::{FromSkStr, Keys};
-use nostr_sdk::prelude::{Result, ToBech32};
+use nostr_sdk::{
+	key::{FromSkStr, Keys},
+	prelude::{Result, ToBech32},
+};
 
 /// The `convert` command
 #[derive(Debug, Clone, Parser)]

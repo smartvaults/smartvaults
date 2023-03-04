@@ -1,10 +1,11 @@
-use bdk::blockchain::ElectrumBlockchain;
-use bdk::database::MemoryDatabase;
-use bdk::electrum_client::Client as ElectrumClient;
-use bdk::miniscript::{Descriptor, DescriptorPublicKey};
-use bdk::wallet::{SyncOptions, Wallet};
-use nostr_sdk::client::blocking::Client;
-use nostr_sdk::prelude::*;
+use bdk::{
+	blockchain::ElectrumBlockchain,
+	database::MemoryDatabase,
+	electrum_client::Client as ElectrumClient,
+	miniscript::{Descriptor, DescriptorPublicKey},
+	wallet::{SyncOptions, Wallet},
+};
+use nostr_sdk::{client::blocking::Client, prelude::*};
 
 pub fn get_balance(
 	descriptor: Descriptor<DescriptorPublicKey>,

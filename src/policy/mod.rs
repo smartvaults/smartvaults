@@ -1,18 +1,16 @@
 #![allow(unused, dead_code)]
 
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
-use bdk::blockchain::{Blockchain, ElectrumBlockchain};
-use bdk::electrum_client::Client;
-use bdk::miniscript::descriptor::Descriptor;
-use bdk::miniscript::policy::Concrete;
 use bdk::{
+	blockchain::{Blockchain, ElectrumBlockchain},
 	database::MemoryDatabase,
 	descriptor::{
 		policy::{Policy, *},
 		IntoWalletDescriptor,
 	},
+	electrum_client::Client,
+	miniscript::{descriptor::Descriptor, policy::Concrete},
 	wallet::{SyncOptions, Wallet},
 	KeychainKind,
 };
@@ -29,8 +27,7 @@ use owo_colors::{
 };
 use termtree::Tree;
 
-use crate::user::User;
-use crate::{DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
+use crate::{user::User, DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
 pub struct CoinstrPolicy {
 	pub name: String,
 	pub description: String,
@@ -151,13 +148,12 @@ impl CoinstrPolicy {
 	) -> Result<bdk::Balance> {
 		let endpoint = match bitcoin_endpoint {
 			Some(e) => e,
-			None => {
+			None =>
 				if bitcoin_network == Network::Testnet {
 					DEFAULT_TESTNET_ENDPOINT
 				} else {
 					DEFAULT_BITCOIN_ENDPOINT
-				}
-			},
+				},
 		};
 		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 		self.wallet.sync(&blockchain, SyncOptions::default())?;
