@@ -25,7 +25,6 @@ jobs:
         rust:
           - version: stable
           - version: 1.64.0 #MSRV
-        build-args:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -42,8 +41,8 @@ jobs:
     - name: Set profile
       run: rustup set profile minimal && rustup component add clippy
     - name: Build
-      run: cargo build ${{ matrix.build-args }}
+      run: cargo build 
     - name: Tests
-      run: cargo test ${{ matrix.build-args }}
+      run: cargo test 
     - name: Clippy
-      run: cargo clippy ${{ matrix.build-args }} -- -D warnings
+      run: cargo clippy -- -D warnings
