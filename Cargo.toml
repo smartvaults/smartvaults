@@ -4,28 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# nostr_rust = "*"
-log = "0.4"
-serde_json = "*"
-# secp256k1 = { version = "0.25", features = ["bitcoin_hashes", "global-context", "rand-std"] }
-bdk = { version = "^0.27.1", default-features = false, features = ["compiler", "all-keys", "use-esplora-reqwest", "esplora"] }
-clap = { features = ["cargo", "derive"], version="4.1.1" }
-rand = "*"
-bitcoin = "0.29.2"
-# bip39 = "1.0.1"
-# rust-bip39 = "*"
-rand_core = "*"
-miniscript = { version = "9.0", features = ["serde"] }
-nostr-sdk = { version = "0.18.0", features = ["blocking", "all-nips"] }
-nostr =  { version = "0.18.0", features = ["blocking", "all-nips"] }
+bdk = { version = "^0.27.1", default-features = false, features = ["compiler", "electrum"] }
+clap = { version = "4.1.1", features = ["cargo", "derive"] }
 config = "0.13.3"
-anyhow = "1.0.69"
-owo-colors = "3.5.0"
-termtree = "*"
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "9b767459967bd83b88f860929b4154ba1453cfec" }
+nostr-sdk = { version = "0.19", default-features = false, features = ["blocking", "nip06", "nip19"] }
 num-format = "*"
-# subxt = "*"
-# sp-core = { version = "^18.0.0", default-features = false }
-# sp-runtime = "^20.0.0"
+owo-colors = "3.5.0"
+serde_json = "*"
+termtree = "*"
 
 [dev-dependencies]
 assert_matches = "1.5.0"

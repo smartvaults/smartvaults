@@ -1,11 +1,13 @@
 #![allow(unused, dead_code)]
-use crate::user::User;
-use anyhow::Result;
-use bdk::blockchain::Blockchain;
-// use electrum_client::Client;
+
+use std::fmt;
+use std::str::FromStr;
+
+use bdk::blockchain::{Blockchain, ElectrumBlockchain};
+use bdk::electrum_client::Client;
+use bdk::miniscript::descriptor::Descriptor;
+use bdk::miniscript::policy::Concrete;
 use bdk::{
-	bitcoin::Network,
-	blockchain::EsploraBlockchain,
 	database::MemoryDatabase,
 	descriptor::{
 		policy::{Policy, *},
@@ -14,8 +16,7 @@ use bdk::{
 	wallet::{SyncOptions, Wallet},
 	KeychainKind,
 };
-use miniscript::{descriptor::Descriptor, policy::Concrete};
-use nostr::prelude::Secp256k1;
+use nostr_sdk::prelude::*;
 use num_format::{Locale, ToFormattedString};
 use owo_colors::{
 	colors::{
@@ -26,9 +27,10 @@ use owo_colors::{
 	},
 	OwoColorize,
 };
-use std::{fmt, str::FromStr};
 use termtree::Tree;
 
+use crate::user::User;
+use crate::{DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
 pub struct CoinstrPolicy {
 	pub name: String,
 	pub description: String,
@@ -43,9 +45,8 @@ impl CoinstrPolicy {
 		description: String,
 		descriptor: String,
 	) -> Result<CoinstrPolicy> {
-		let secp = bitcoin::secp256k1::Secp256k1::new();
-
-		let (wallet_desc, _keymap) = descriptor.into_wallet_descriptor(&secp, Network::Testnet)?;
+		let (wallet_desc, _keymap) =
+			descriptor.into_wallet_descriptor(SECP256K1, Network::Testnet)?;
 		let database = MemoryDatabase::new();
 
 		// Create a new wallet from this descriptor
@@ -99,9 +100,9 @@ impl CoinstrPolicy {
 		signer: &User,
 		other_signer: &User,
 	) -> Result<CoinstrPolicy> {
-		let secp = Secp256k1::new();
 		let signer_wif = signer.bitcoin_user.private_key.to_wif();
-		let other_signer_pub = other_signer.bitcoin_user.private_key.public_key(&secp).to_string();
+		let other_signer_pub =
+			other_signer.bitcoin_user.private_key.public_key(SECP256K1).to_string();
 
 		let policy_str = format!("or(pk({}),pk({}))", signer_wif, other_signer_pub);
 		// println!("Policy string	<new_one_of_two_taptree>	: {}", &policy_str);
@@ -134,9 +135,9 @@ impl CoinstrPolicy {
 		signer: &User,
 		other_signer: &User,
 	) -> Result<CoinstrPolicy> {
-		let secp = Secp256k1::new();
 		let signer_wif = signer.bitcoin_user.private_key.to_wif();
-		let other_signer_pub = other_signer.bitcoin_user.private_key.public_key(&secp).to_string();
+		let other_signer_pub =
+			other_signer.bitcoin_user.private_key.public_key(SECP256K1).to_string();
 
 		let policy_str = format!("thresh(1,pk({}),pk({}))", signer_wif, other_signer_pub);
 
@@ -145,24 +146,22 @@ impl CoinstrPolicy {
 
 	pub fn get_balance(
 		&self,
-		bitcoin_network: &Network,
-		mut bitcoin_endpoint: Option<&str>,
-	) -> bdk::Balance {
-		const DEFAULT_TESTNET_ENDPOINT: &str = "https://blockstream.info/testnet/api";
-		const DEFAULT_BITCOIN_ENDPOINT: &str = "https://blockstream.info/api";
-		if bitcoin_endpoint.is_none() {
-			if bitcoin_network == &bitcoin::network::constants::Network::Testnet {
-				bitcoin_endpoint = Some(DEFAULT_TESTNET_ENDPOINT);
-			} else {
-				bitcoin_endpoint = Some(DEFAULT_BITCOIN_ENDPOINT);
-			}
-		}
-
-		let esplora = EsploraBlockchain::new(&bitcoin_endpoint.unwrap(), 20);
-
-		self.wallet.sync(&esplora, SyncOptions::default()).unwrap();
-
-		return self.wallet.get_balance().unwrap()
+		bitcoin_network: Network,
+		bitcoin_endpoint: Option<&str>,
+	) -> Result<bdk::Balance> {
+		let endpoint = match bitcoin_endpoint {
+			Some(e) => e,
+			None => {
+				if bitcoin_network == Network::Testnet {
+					DEFAULT_TESTNET_ENDPOINT
+				} else {
+					DEFAULT_BITCOIN_ENDPOINT
+				}
+			},
+		};
+		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
+		self.wallet.sync(&blockchain, SyncOptions::default())?;
+		Ok(self.wallet.get_balance()?)
 	}
 }
 
@@ -170,7 +169,7 @@ fn display_key(key: &PkOrF) -> String {
 	// TODO: Use aliases
 	match key {
 		PkOrF::Pubkey(pk) => format!("<pk:{}>", pk.to_string().fg::<MineShaft>()),
-		PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{}>", pk.to_string()),
+		PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{pk}>"),
 		PkOrF::Fingerprint(f) => User::from_fingerprint(f),
 	}
 }
@@ -191,30 +190,22 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
 			));
 		},
 		SatisfiableItem::Sha256Preimage { hash } => {
-			si_tree.push(format!("SHA256 Preimage of {}", hash.to_string()));
+			si_tree.push(format!("SHA256 Preimage of {hash}"));
 		},
 		SatisfiableItem::Hash256Preimage { hash } => {
-			si_tree.push(format!("Double-SHA256 Preimage of {}", hash.to_string()));
+			si_tree.push(format!("Double-SHA256 Preimage of {hash}"));
 		},
 		SatisfiableItem::Ripemd160Preimage { hash } => {
-			si_tree.push(format!("RIPEMD160 Preimage of {}", hash.to_string()));
+			si_tree.push(format!("RIPEMD160 Preimage of {hash}"));
 		},
 		SatisfiableItem::Hash160Preimage { hash } => {
-			si_tree.push(format!("Double-RIPEMD160 Preimage of {}", hash.to_string()));
+			si_tree.push(format!("Double-RIPEMD160 Preimage of {hash}"));
 		},
 		SatisfiableItem::AbsoluteTimelock { value } => {
-			si_tree.push(format!(
-				"⏰ {} {}",
-				"Absolute Timelock of ".fg::<Lime>(),
-				value.to_string()
-			));
+			si_tree.push(format!("⏰ {} {value}", "Absolute Timelock of ".fg::<Lime>()));
 		},
 		SatisfiableItem::RelativeTimelock { value } => {
-			si_tree.push(format!(
-				"⏳ {} {}",
-				"Relative Timelock of".fg::<Lime>(),
-				value.to_string()
-			));
+			si_tree.push(format!("⏳ {} {value}", "Relative Timelock of".fg::<Lime>(),));
 		},
 		SatisfiableItem::Multisig { keys, threshold } => {
 			// si_tree.push(format!("🎚️ {} of {} MultiSig:", threshold, keys.len()));
@@ -261,8 +252,7 @@ impl fmt::Display for CoinstrPolicy {
 		tree.push(add_node(&self.policy.item));
 		writeln!(f, "{}", tree)?;
 
-		let balance = self.get_balance(&bitcoin::network::constants::Network::Testnet, None);
-
+		let balance = self.get_balance(Network::Testnet, None).unwrap();
 		writeln!(f, "{}", "\nBitcoin Balances (sats)".fg::<UserBrightWhite>().underline())?;
 		writeln!(f, "  Immature            	: {} ", balance.immature)?;
 		writeln!(f, "  Trusted Pending     	: {} ", balance.trusted_pending)?;
@@ -342,8 +332,8 @@ mod tests {
 		println!("{}", &policy.as_ref().unwrap());
 
 		println!("Syncing policy wallet.");
-		let esplora = EsploraBlockchain::new("https://blockstream.info/testnet/api", 20);
-		policy.as_ref().unwrap().wallet.sync(&esplora, SyncOptions::default()).unwrap();
+		let blockchain = ElectrumBlockchain::from(Client::new(DEFAULT_TESTNET_ENDPOINT).unwrap());
+		policy.as_ref().unwrap().wallet.sync(&blockchain, SyncOptions::default()).unwrap();
 
 		let balance = policy.as_ref().unwrap().wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
@@ -367,7 +357,7 @@ mod tests {
 		let txid = raw_transaction.txid();
 	
 		println!("Not sending unless below is uncommented");
-		esplora.broadcast(&raw_transaction);
+		blockchain.broadcast(&raw_transaction);
 		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
 
 		let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
@@ -376,12 +366,12 @@ mod tests {
 
 	// @todo: FIX ME - miniscript fails with duplicated pubkeys in the descriptor
 	// #[test]
-    // #[rustfmt::skip]
+	// #[rustfmt::skip]
 	// fn build_with_descriptor() {
 	// 	let policy = CoinstrPolicy::from_descriptor(
 	// 		"💸 My testing policy".to_string(),
 	// 		"A policy with an ECDSA sig and threshold with Relative Timelock".to_string(),
-    //         "wsh(multi(2,tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/1/*,tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/1/*))#7ke34793".to_string()
+	//         "wsh(multi(2,tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/1/*,tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/1/*))#7ke34793".to_string()
 	// 	);
 	// 	println!("{}", &policy.as_ref().unwrap());
 
@@ -403,7 +393,7 @@ mod tests {
 		println!("{}", receiving_address);
 	}
 
-	use miniscript::{descriptor::Tr, Miniscript, Tap};
+	use bdk::miniscript::{descriptor::Tr, Miniscript, Tap};
 
 	#[test]
     #[rustfmt::skip]
@@ -459,7 +449,7 @@ mod tests {
 
 	// FAILING - need to update the Liana policy string; miniscript fails on repeated pubkeys
 	// #[test]
-    // #[rustfmt::skip]
+	// #[rustfmt::skip]
 	// fn build_with_liana_descriptor() {
 	// 	let policy = CoinstrPolicy::from_descriptor(
 	// 		"💸 Policy from Liana".to_string(),
@@ -468,7 +458,7 @@ mod tests {
 	// 	);
 	// 	println!("{}", &policy.as_ref().unwrap());
 
-    //     let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+	//     let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 	// 	println!("{}", receiving_address);
 	// }
 }

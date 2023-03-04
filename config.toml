@@ -1,3 +1,3 @@
-bitcoin-endpoint = "https://blockstream.info/testnet/api"
+bitcoin-endpoint = "ssl://blockstream.info:700"
 bitcoin-network = "bitcoin"
 nostr-relay = "wss://nostr.hashed.systems"

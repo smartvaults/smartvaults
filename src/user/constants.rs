@@ -36,7 +36,7 @@ static DAVID: (&str, &str, &str) = (
 );
 
 #[allow(dead_code)]
-static ERIKA: (&'static str, &str, &str) = (
+static ERIKA: (&str, &str, &str) = (
 	"Erika",
 	"confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife",
 	"JBtdXy+2ut2fxplW",
@@ -70,7 +70,7 @@ pub fn user_constants() -> HashMap<String, UserConstants> {
 
 #[allow(dead_code)]
 pub fn known_user_names() -> Vec<String> {
-    user_constants().into_keys().collect::<Vec<String>>()
+	user_constants().into_keys().collect::<Vec<String>>()
 }
 
 #[cfg(test)]
