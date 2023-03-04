@@ -25,6 +25,11 @@ Options:
 cargo build --release
 ```
 
+## Get Event
+```bash 
+./target/release/coinstr get event --id d3a421ae9cde2a530429867db0923fcfd5812dde84bb789169cd99b1d53d236a
+```
+
 ## Show spending policy (from test for now)
 ```bash
 → cargo test policy -- --nocapture
@@ -135,6 +140,7 @@ Bitcoin Balances
 ```
 
 ## Setup local nostr relay
+> WARNING: `nostr-rs-relay` has some known issues; recommend to use `strfry` or `wss://relay.house`
 ```
 git clone git@github.com:scsibug/nostr-rs-relay.git
 cd nostr-rs-relay

@@ -12,21 +12,19 @@ impl Maestro {
 
 #[cfg(test)]
 mod tests {
-	use bdk::blockchain::{Blockchain, ElectrumBlockchain};
-	use bdk::electrum_client::Client;
 	use bdk::{
+		blockchain::ElectrumBlockchain,
+		electrum_client::Client,
 		wallet::{AddressIndex::New, SyncOptions},
-		SignOptions,
 	};
 
-	use crate::DEFAULT_TESTNET_ENDPOINT;
-	use crate::{policy::CoinstrPolicy, user::User};
+	use crate::{policy::CoinstrPolicy, user::User, DEFAULT_RELAY, DEFAULT_TESTNET_ENDPOINT};
 
 	const NOSTR_RELAY: &str = "wss://relay.house";
 
 	#[allow(unused)]
 	#[test]
-	fn test_tx_builder_on_policy() {
+	fn test_tagging_bob_on_psbt() {
 		let alice = User::get(&"alice".to_string()).unwrap();
 		let bob = User::get(&"bob".to_string()).unwrap();
 
@@ -53,55 +51,34 @@ mod tests {
 		let balance = policy.as_ref().unwrap().wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
 
+		const TEST_NUM_SATS: u64 = 500;
+		if balance.confirmed < TEST_NUM_SATS {
+			let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+			println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
+			return
+		}
+
 		let (mut psbt, tx_details) = {
 			let mut builder = policy.as_ref().unwrap().wallet.build_tx();
-			builder.add_recipient(alice_address.script_pubkey(), 500);
+			builder.add_recipient(alice_address.script_pubkey(), TEST_NUM_SATS);
 			builder.finish().unwrap()
 		};
-
-		println!(
-			"\nNumber of signers in policy wallet   {}",
-			policy
-				.as_ref()
-				.unwrap()
-				.wallet
-				.get_signers(bdk::KeychainKind::External)
-				.signers()
-				.len()
-		);
-		println!("\nUnsigned PSBT: \n{}", psbt);
 
 		let relays: Vec<String> = vec![NOSTR_RELAY.to_string()];
 		let client = crate::util::create_client(&alice.nostr_user.keys, relays, 0)
 			.expect("cannot create client");
 
-		// TODO: support for tags
 		let bob_tag = nostr_sdk::prelude::Tag::PubKey(
 			bob.nostr_user.pub_key_hex(),
-			Some(
-				"New spending request; memo: this is for the final milestone deliverable, thx"
-					.to_string(),
-			),
+			Some(DEFAULT_RELAY.to_string()),
 		);
+
 		client
 			.publish_text_note(psbt.to_string(), &[bob_tag])
 			.expect("cannot publish note");
 
-		let finalized =
-			policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
-		println!("\nSigned the PSBT: \n{}\n", psbt);
-
-		assert!(finalized, "The PSBT was not finalized!");
-		println!("The PSBT has been signed and finalized.");
-
-		let raw_transaction = psbt.extract_tx();
-		let txid = raw_transaction.txid();
-
-		blockchain.broadcast(&raw_transaction);
-		println!("Transaction broadcast! TXID: {txid}.\nExplorer URL: https://mempool.space/testnet/tx/{txid}", txid = txid);
-
-		// let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		// println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
+		let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
 	}
 
 	#[test]

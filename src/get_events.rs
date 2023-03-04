@@ -14,8 +14,6 @@ pub struct GetEventsCmd {
 	/// Authors
 	#[arg(short, long, action = clap::ArgAction::Append)]
 	authors: Option<Vec<String>>,
-	// #[arg(long, action = clap::ArgAction::Append)]
-	// users: Option<Vec<String>>,
 	/// Kinds
 	#[arg(short, long, action = clap::ArgAction::Append)]
 	kinds: Option<Vec<u64>>,
@@ -39,9 +37,7 @@ pub struct GetEventsCmd {
 impl GetEventsCmd {
 	/// Run the command
 	pub fn run(&self, nostr_relay: String) -> Result<()> {
-		// let subscriber = User::get(&self.subscriber);
-		// let publisher = User::get(&self.publisher);
-
+		
 		let relays = vec![nostr_relay];
 
 		let client = create_client(&Keys::generate(), relays, 0).expect("cannot create client");
@@ -109,7 +105,7 @@ mod tests {
 	fn subscribe_alice_to_foobar() {
 		let get_events_cmd = GetEventsCmd {
 			ids: None,
-			authors: Some(vec![User::alice().unwrap().nostr_user.pub_key().unwrap()]),
+			authors: Some(vec![User::alice().unwrap().nostr_user.keys.public_key().to_string()]),
 			kinds: None,
 			e: None, 
 			p: None,
@@ -118,7 +114,5 @@ mod tests {
 			limit: None,
 		};
 		get_events_cmd.run(DEFAULT_RELAY.to_string()).expect("Cannot get events");
-		// subscribe(&User::alice().unwrap(), &User::bob().unwrap()).expect("Unable to publish from
-		// test");
 	}
 }
