@@ -6,7 +6,7 @@ use crate::user::User;
 #[command(name = "user", about = "Print data about a known user by name")]
 pub struct GetUserCmd {
 	/// name of the user to show data for
-	#[arg(short, long)]
+	#[arg(required = true)]
 	user: String,
 }
 

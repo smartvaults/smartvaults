@@ -7,7 +7,7 @@ use crate::util::create_client;
 #[command(name = "event", about = "Get an event")]
 pub struct GetEventCmd {
 	/// Id
-	#[arg(short, long)]
+	#[arg(required = true)]
 	id: String,
 }
 

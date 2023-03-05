@@ -21,7 +21,7 @@ fn balance(
 #[command(name = "balance", about = "Query the balance of a bitcoin descriptor")]
 pub struct BalanceCmd {
 	/// output descriptor
-	#[arg(short, long)]
+	#[arg(required = true)]
 	descriptor: String,
 }
 
