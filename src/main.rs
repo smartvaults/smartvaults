@@ -94,6 +94,8 @@ enum GetCommands {
 }
 
 fn main() -> Result<()> {
+	env_logger::init();
+
 	let settings = Config::builder()
 		.add_source(config::File::with_name("config"))
 		.add_source(config::Environment::with_prefix("COINSTR"))

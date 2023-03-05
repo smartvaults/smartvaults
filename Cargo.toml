@@ -7,6 +7,7 @@ edition = "2021"
 bdk = { version = "^0.27.1", default-features = false, features = ["compiler", "electrum"] }
 clap = { version = "4.1.1", features = ["cargo", "derive"] }
 config = "0.13.3"
+env_logger = "0.9"
 keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "9b767459967bd83b88f860929b4154ba1453cfec" }
 nostr-sdk = { version = "0.19", default-features = false, features = ["blocking", "nip06", "nip19"] }
 num-format = "*"
