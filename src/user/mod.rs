@@ -49,7 +49,7 @@ impl User {
 
 		if let Some(user) = maybe_user {
 			let user_name = user.name.as_ref().unwrap();
-			return format!("<known-user:{user_name} from fingerprint {f}>")
+			return format!("<known-user:{user_name} from fingerprint {f}>");
 		}
 		format!("<fingerprint:{f}>")
 	}

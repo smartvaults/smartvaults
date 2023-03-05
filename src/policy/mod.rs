@@ -148,12 +148,13 @@ impl CoinstrPolicy {
 	) -> Result<bdk::Balance> {
 		let endpoint = match bitcoin_endpoint {
 			Some(e) => e,
-			None =>
+			None => {
 				if bitcoin_network == Network::Testnet {
 					DEFAULT_TESTNET_ENDPOINT
 				} else {
 					DEFAULT_BITCOIN_ENDPOINT
-				},
+				}
+			},
 		};
 		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 		self.wallet.sync(&blockchain, SyncOptions::default())?;
