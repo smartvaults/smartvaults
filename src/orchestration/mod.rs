@@ -55,7 +55,7 @@ mod tests {
 		if balance.confirmed < TEST_NUM_SATS {
 			let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 			println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
-			return;
+			return
 		}
 
 		let (mut psbt, tx_details) = {

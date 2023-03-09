@@ -57,7 +57,7 @@ impl User {
 
 		if let Some(user) = maybe_user {
 			let user_name = user.name.as_ref().unwrap();
-			return format!("<known-user:{user_name} from fingerprint {f}>");
+			return format!("<known-user:{user_name} from fingerprint {f}>")
 		}
 		format!("<fingerprint:{f}>")
 	}
@@ -84,7 +84,6 @@ impl User {
 
 	pub fn erika() -> Result<User> {
 		constants::get_known_user(constants::ERIKA)
-	
 	}
 
 	#[allow(dead_code)]
@@ -137,8 +136,10 @@ mod tests {
 		miniscript::ScriptContext,
 		wallet::signer::SignersContainer,
 	};
-	use keechain_core::bitcoin::util::bip32::{self, Fingerprint};
-	use keechain_core::bip39::Mnemonic;
+	use keechain_core::{
+		bip39::Mnemonic,
+		bitcoin::util::bip32::{self, Fingerprint},
+	};
 	use nostr_sdk::{bitcoin::Network, SECP256K1};
 	use std::{str::FromStr, sync::Arc};
 

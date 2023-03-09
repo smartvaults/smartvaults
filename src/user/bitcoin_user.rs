@@ -85,13 +85,12 @@ impl BitcoinUser {
 	pub fn get_balance(&self, bitcoin_endpoint: Option<&str>) -> Result<bdk::Balance> {
 		let endpoint = match bitcoin_endpoint {
 			Some(e) => e,
-			None => {
+			None =>
 				if self.bitcoin_network == Network::Testnet {
 					DEFAULT_TESTNET_ENDPOINT
 				} else {
 					DEFAULT_BITCOIN_ENDPOINT
-				}
-			},
+				},
 		};
 		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 		self.wallet.sync(&blockchain, SyncOptions::default())?;
