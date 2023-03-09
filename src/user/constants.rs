@@ -1,4 +1,19 @@
 use std::collections::HashMap;
+use nostr_sdk::Result;
+use std::{str::FromStr};
+
+use keechain_core::{
+	bip39::Mnemonic,
+	bitcoin::{Network},
+	types::Seed,
+};
+use super::User;
+
+pub fn get_known_user (user_info: (&str, &str, &str)) -> Result<User> {
+	let mnemonic = Mnemonic::from_str(user_info.1)?;
+	let seed = Seed::new(mnemonic, Some(user_info.2));
+	User::new(seed, Some(user_info.0.to_string()), Network::Testnet)
+}
 
 #[allow(dead_code)]
 pub struct UserConstants {
@@ -8,35 +23,35 @@ pub struct UserConstants {
 }
 
 #[allow(dead_code)]
-static ALICE: (&str, &str, &str) = (
+pub static ALICE: (&str, &str, &str) = (
 	"Alice",
 	"carry surface crater rude auction ritual banana elder shuffle much wonder decrease",
 	"oy+hB/qeJ1AasCCR",
 );
 
 #[allow(dead_code)]
-static BOB: (&str, &str, &str) = (
+pub static BOB: (&str, &str, &str) = (
 	"Bob",
 	"market museum car noodle cream pool enhance please level price slide process",
 	"B3Q0YHYYHmF798Jg",
 );
 
 #[allow(dead_code)]
-static CHARLIE: (&str, &str, &str) = (
-	"Chalie",
+pub static CHARLIE: (&str, &str, &str) = (
+	"Charlie",
 	"cry modify gallery home desert tongue immune address bunker bean tone giggle",
 	"nTVuKiINc5TKMjfV",
 );
 
 #[allow(dead_code)]
-static DAVID: (&str, &str, &str) = (
+pub static DAVID: (&str, &str, &str) = (
 	"David",
 	"alone hospital depth worth vapor lazy burst skill apart accuse maze evidence",
 	"f5upOqUyG0iPY4n+",
 );
 
 #[allow(dead_code)]
-static ERIKA: (&str, &str, &str) = (
+pub static ERIKA: (&str, &str, &str) = (
 	"Erika",
 	"confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife",
 	"JBtdXy+2ut2fxplW",

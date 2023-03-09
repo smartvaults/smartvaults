@@ -55,43 +55,28 @@ impl User {
 	}
 
 	pub fn alice() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"carry surface crater rude auction ritual banana elder shuffle much wonder decrease",
-		)?;
-		let seed = Seed::new(mnemonic, Some("oy+hB/qeJ1AasCCR"));
-		User::new(seed, Some("Alice".to_string()), Network::Testnet)
+		constants::get_known_user(constants::ALICE)
+
+		// let mnemonic = Mnemonic::from_str(constants::ALICE.1)?;
+		// let seed = Seed::new(mnemonic, Some(constants::ALICE.2));
+		// User::new(seed, Some(constants::ALICE.0.to_string()), Network::Testnet)
 	}
 
 	pub fn bob() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"market museum car noodle cream pool enhance please level price slide process",
-		)?;
-		let seed = Seed::new(mnemonic, Some("B3Q0YHYYHmF798Jg"));
-		User::new(seed, Some("Bob".to_string()), Network::Testnet)
+		constants::get_known_user(constants::BOB)
 	}
 
 	pub fn charlie() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"cry modify gallery home desert tongue immune address bunker bean tone giggle",
-		)?;
-		let seed = Seed::new(mnemonic, Some("nTVuKiINc5TKMjfV"));
-		User::new(seed, Some("Charlie".to_string()), Network::Testnet)
+		constants::get_known_user(constants::CHARLIE)
 	}
 
 	pub fn david() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"alone hospital depth worth vapor lazy burst skill apart accuse maze evidence",
-		)?;
-		let seed = Seed::new(mnemonic, Some("f5upOqUyG0iPY4n+"));
-		User::new(seed, Some("David".to_string()), Network::Testnet)
+		constants::get_known_user(constants::DAVID)
 	}
 
 	pub fn erika() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife",
-		)?;
-		let seed = Seed::new(mnemonic, Some("JBtdXy+2ut2fxplW"));
-		User::new(seed, Some("Erika".to_string()), Network::Testnet)
+		constants::get_known_user(constants::ERIKA)
+	
 	}
 
 	#[allow(dead_code)]
