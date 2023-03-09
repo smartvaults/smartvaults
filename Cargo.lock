@@ -278,6 +278,7 @@ dependencies = [
  "nostr-sdk",
  "num-format",
  "owo-colors",
+ "serde",
  "serde_json",
  "termtree",
 ]
