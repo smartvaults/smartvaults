@@ -1,7 +1,6 @@
 #![allow(unused, dead_code)]
 
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use bdk::{
 	blockchain::{Blockchain, ElectrumBlockchain},
@@ -120,13 +119,12 @@ fn get_balance(
 ) -> Result<bdk::Balance> {
 	let endpoint = match bitcoin_endpoint {
 		Some(e) => e,
-		None => {
+		None =>
 			if bitcoin_network == Network::Testnet {
 				DEFAULT_TESTNET_ENDPOINT
 			} else {
 				DEFAULT_BITCOIN_ENDPOINT
-			}
-		},
+			},
 	};
 	let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 	wallet.sync(&blockchain, SyncOptions::default())?;
