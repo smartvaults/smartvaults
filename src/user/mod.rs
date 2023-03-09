@@ -1,7 +1,6 @@
-use std::{fmt, str::FromStr};
+use std::fmt;
 
 use keechain_core::{
-	bip39::Mnemonic,
 	bitcoin::{util::bip32::Fingerprint, Network},
 	types::Seed,
 };
@@ -38,6 +37,15 @@ impl User {
 			User::charlie().unwrap(),
 			User::david().unwrap(),
 			User::erika().unwrap(),
+			constants::get_known_user(constants::SARAH).unwrap(),
+			constants::get_known_user(constants::JOHN).unwrap(),
+			constants::get_known_user(constants::MARIA).unwrap(),
+			constants::get_known_user(constants::LEE).unwrap(),
+			constants::get_known_user(constants::RACHEL).unwrap(),
+			constants::get_known_user(constants::JAMES).unwrap(),
+			constants::get_known_user(constants::KAREN).unwrap(),
+			constants::get_known_user(constants::MARK).unwrap(),
+			constants::get_known_user(constants::AMANDA).unwrap(),
 		]
 	}
 
@@ -49,49 +57,29 @@ impl User {
 
 		if let Some(user) = maybe_user {
 			let user_name = user.name.as_ref().unwrap();
-			return format!("<known-user:{user_name} from fingerprint {f}>");
+			return format!("<known-user:{user_name} from fingerprint {f}>")
 		}
 		format!("<fingerprint:{f}>")
 	}
 
 	pub fn alice() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"carry surface crater rude auction ritual banana elder shuffle much wonder decrease",
-		)?;
-		let seed = Seed::new(mnemonic, Some("oy+hB/qeJ1AasCCR"));
-		User::new(seed, Some("Alice".to_string()), Network::Testnet)
+		constants::get_known_user(constants::ALICE)
 	}
 
 	pub fn bob() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"market museum car noodle cream pool enhance please level price slide process",
-		)?;
-		let seed = Seed::new(mnemonic, Some("B3Q0YHYYHmF798Jg"));
-		User::new(seed, Some("Bob".to_string()), Network::Testnet)
+		constants::get_known_user(constants::BOB)
 	}
 
 	pub fn charlie() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"cry modify gallery home desert tongue immune address bunker bean tone giggle",
-		)?;
-		let seed = Seed::new(mnemonic, Some("nTVuKiINc5TKMjfV"));
-		User::new(seed, Some("Charlie".to_string()), Network::Testnet)
+		constants::get_known_user(constants::CHARLIE)
 	}
 
 	pub fn david() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"alone hospital depth worth vapor lazy burst skill apart accuse maze evidence",
-		)?;
-		let seed = Seed::new(mnemonic, Some("f5upOqUyG0iPY4n+"));
-		User::new(seed, Some("David".to_string()), Network::Testnet)
+		constants::get_known_user(constants::DAVID)
 	}
 
 	pub fn erika() -> Result<User> {
-		let mnemonic = Mnemonic::from_str(
-			"confirm rifle kit warrior aware clump shallow eternal real shift puzzle wife",
-		)?;
-		let seed = Seed::new(mnemonic, Some("JBtdXy+2ut2fxplW"));
-		User::new(seed, Some("Erika".to_string()), Network::Testnet)
+		constants::get_known_user(constants::ERIKA)
 	}
 
 	#[allow(dead_code)]
@@ -101,7 +89,17 @@ impl User {
 			"bob" => User::bob(),
 			"charlie" => User::charlie(),
 			"david" => User::david(),
-			_ => User::erika(),
+			"erika" => User::erika(),
+			"sarah" => constants::get_known_user(constants::SARAH),
+			"john" => constants::get_known_user(constants::JOHN),
+			"maria" => constants::get_known_user(constants::MARIA),
+			"lee" => constants::get_known_user(constants::LEE),
+			"rachel" => constants::get_known_user(constants::RACHEL),
+			"james" => constants::get_known_user(constants::JAMES),
+			"karen" => constants::get_known_user(constants::KAREN),
+			"mark" => constants::get_known_user(constants::MARK),
+			"amanda" => constants::get_known_user(constants::AMANDA),
+			_ => User::alice(), // todo: should raise an error if not found rather than return alice
 		}
 	}
 }
@@ -134,7 +132,10 @@ mod tests {
 		miniscript::ScriptContext,
 		wallet::signer::SignersContainer,
 	};
-	use keechain_core::bitcoin::util::bip32::{self, Fingerprint};
+	use keechain_core::{
+		bip39::Mnemonic,
+		bitcoin::util::bip32::{self, Fingerprint},
+	};
 	use nostr_sdk::{bitcoin::Network, SECP256K1};
 	use std::{str::FromStr, sync::Arc};
 
@@ -146,6 +147,12 @@ mod tests {
 		let seed = Seed::new(mnemonic, Some(alice_constants.passphrase));
 		let alice_user = User::new(seed, Some("Alice".to_string()), Network::Testnet).unwrap();
 		println!("{}", alice_user);
+	}
+
+	#[test]
+	fn test_sarah() {
+		let sarah = User::get("sarah").unwrap();
+		println!("{}", sarah);
 	}
 
 	#[test]
