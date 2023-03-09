@@ -1,7 +1,6 @@
-use std::{fmt, str::FromStr};
+use std::fmt;
 
 use keechain_core::{
-	bip39::Mnemonic,
 	bitcoin::{util::bip32::Fingerprint, Network},
 	types::Seed,
 };
@@ -38,6 +37,15 @@ impl User {
 			User::charlie().unwrap(),
 			User::david().unwrap(),
 			User::erika().unwrap(),
+			constants::get_known_user(constants::SARAH).unwrap(),
+			constants::get_known_user(constants::JOHN).unwrap(),
+			constants::get_known_user(constants::MARIA).unwrap(),
+			constants::get_known_user(constants::LEE).unwrap(),
+			constants::get_known_user(constants::RACHEL).unwrap(),
+			constants::get_known_user(constants::JAMES).unwrap(),
+			constants::get_known_user(constants::KAREN).unwrap(),
+			constants::get_known_user(constants::MARK).unwrap(),
+			constants::get_known_user(constants::AMANDA).unwrap(),
 		]
 	}
 
@@ -86,7 +94,17 @@ impl User {
 			"bob" => User::bob(),
 			"charlie" => User::charlie(),
 			"david" => User::david(),
-			_ => User::erika(),
+			"erika" => User::erika(),
+			"sarah" => constants::get_known_user(constants::SARAH),
+			"john" => constants::get_known_user(constants::JOHN),
+			"maria" => constants::get_known_user(constants::MARIA),
+			"lee" => constants::get_known_user(constants::LEE),
+			"rachel" => constants::get_known_user(constants::RACHEL),
+			"james" => constants::get_known_user(constants::JAMES),
+			"karen" => constants::get_known_user(constants::KAREN),
+			"mark" => constants::get_known_user(constants::MARK),
+			"amanda" => constants::get_known_user(constants::AMANDA),
+			_ => User::alice(), // todo: should raise an error if not found rather than return alice
 		}
 	}
 }
@@ -120,6 +138,7 @@ mod tests {
 		wallet::signer::SignersContainer,
 	};
 	use keechain_core::bitcoin::util::bip32::{self, Fingerprint};
+	use keechain_core::bip39::Mnemonic;
 	use nostr_sdk::{bitcoin::Network, SECP256K1};
 	use std::{str::FromStr, sync::Arc};
 
@@ -131,6 +150,12 @@ mod tests {
 		let seed = Seed::new(mnemonic, Some(alice_constants.passphrase));
 		let alice_user = User::new(seed, Some("Alice".to_string()), Network::Testnet).unwrap();
 		println!("{}", alice_user);
+	}
+
+	#[test]
+	fn test_sarah() {
+		let sarah = User::get("sarah").unwrap();
+		println!("{}", sarah);
 	}
 
 	#[test]
