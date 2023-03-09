@@ -35,7 +35,7 @@ impl SavePolicyCmd {
 
 		let content =
 			nips::nip04::encrypt(&keys.secret_key()?, &keys.public_key(), policy.as_json())?;
-		let event = EventBuilder::new(Kind::Custom(11289), content, &[]).to_event(&keys)?;
+		let event = EventBuilder::new(Kind::Custom(9289), content, &[]).to_event(&keys)?;
 		let event_id = client.send_event(event)?;
 
 		println!("Saved policy at event {}", event_id.to_bech32()?);
