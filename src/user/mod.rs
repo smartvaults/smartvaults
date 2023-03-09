@@ -64,10 +64,6 @@ impl User {
 
 	pub fn alice() -> Result<User> {
 		constants::get_known_user(constants::ALICE)
-
-		// let mnemonic = Mnemonic::from_str(constants::ALICE.1)?;
-		// let seed = Seed::new(mnemonic, Some(constants::ALICE.2));
-		// User::new(seed, Some(constants::ALICE.0.to_string()), Network::Testnet)
 	}
 
 	pub fn bob() -> Result<User> {
