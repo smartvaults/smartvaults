@@ -8,6 +8,7 @@ use nostr_sdk::Result;
 mod balance;
 mod convert;
 mod generate;
+mod get_contacts;
 mod get_event;
 mod get_events;
 mod get_user;
@@ -91,6 +92,7 @@ enum GetCommands {
 	Events(get_events::GetEventsCmd),
 	Users(get_users::GetUsersCmd),
 	User(get_user::GetUserCmd),
+	Contacts(get_contacts::GetContactsCmd),
 }
 
 fn main() -> Result<()> {
@@ -118,6 +120,7 @@ fn main() -> Result<()> {
 			GetCommands::Events(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Users(get_cmd) => get_cmd.run(),
 			GetCommands::User(get_cmd) => get_cmd.run(),
+			GetCommands::Contacts(get_cmd) => get_cmd.run(nostr_relay),
 		},
 	}
 }

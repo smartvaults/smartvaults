@@ -805,7 +805,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=9b767459967bd83b88f860929b4154ba1453cfec#9b767459967bd83b88f860929b4154ba1453cfec"
+source = "git+https://github.com/yukibtc/keechain?rev=2e113f5bd2cab03772aaefe89f19f5c4d46bd2cd#2e113f5bd2cab03772aaefe89f19f5c4d46bd2cd"
 dependencies = [
  "aes",
  "base64 0.21.0",
@@ -925,9 +925,8 @@ dependencies = [
 
 [[package]]
 name = "nostr"
-version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a75c1aa60b04441c05220a3b338b8b5b983b979478744e9905c0b1bcfce4b84e"
+version = "0.19.5"
+source = "git+https://github.com/rust-nostr/nostr?rev=d01db574742be10c405bd541637c0365d6d9cf6d#d01db574742be10c405bd541637c0365d6d9cf6d"
 dependencies = [
  "bech32",
  "bip39",
@@ -947,8 +946,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "481d934879674b590de88216cc809bf60293bce4c89c092b6121e83371ad7d73"
+source = "git+https://github.com/rust-nostr/nostr?rev=d01db574742be10c405bd541637c0365d6d9cf6d#d01db574742be10c405bd541637c0365d6d9cf6d"
 dependencies = [
  "futures-util",
  "log",
@@ -1748,9 +1746,9 @@ checksum = "9e79c4d996edb816c91e4308506774452e55e95c3c9de07b6729e17e15a5ef81"
 
 [[package]]
 name = "unicode-bidi"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d54675592c1dbefd78cbd98db9bacd89886e1ca50692a0692baefffdeb92dd58"
+checksum = "524b68aca1d05e03fdf03fcdce2c6c94b6daf6d16861ddaa7e4f2b6638a9052c"
 
 [[package]]
 name = "unicode-ident"
