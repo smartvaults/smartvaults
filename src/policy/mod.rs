@@ -1,6 +1,7 @@
 #![allow(unused, dead_code)]
 
-use std::{fmt, str::FromStr};
+use std::fmt;
+use std::str::FromStr;
 
 use bdk::{
 	blockchain::{Blockchain, ElectrumBlockchain},
@@ -25,48 +26,31 @@ use owo_colors::{
 	},
 	OwoColorize,
 };
+use serde::{Deserialize, Serialize};
 use termtree::Tree;
 
 use crate::{user::User, DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoinstrPolicy {
 	pub name: String,
 	pub description: String,
-	pub wallet: Wallet<MemoryDatabase>,
-	// pub descriptor: Descriptor<String>,
-	pub policy: Policy,
+	pub descriptor: Descriptor<String>,
 }
 
 impl CoinstrPolicy {
-	pub fn from_descriptor(
-		name: String,
-		description: String,
-		descriptor: String,
-	) -> Result<CoinstrPolicy> {
-		let (wallet_desc, _keymap) =
-			descriptor.into_wallet_descriptor(SECP256K1, Network::Testnet)?;
-		let database = MemoryDatabase::new();
-
-		// Create a new wallet from this descriptor
-		let wallet = Wallet::new(&format!("{}", wallet_desc), None, Network::Testnet, database)?;
-
-		// BDK also has it's own `Policy` structure to represent the spending condition in a more
-		// human readable json format.
-		let spending_policy = wallet.policies(KeychainKind::External)?;
-
-		Ok(CoinstrPolicy {
-			name,
-			description,
-			// descriptor: "".to_string(), //wallet_desc.into_wallet_descriptor(),
-			policy: spending_policy.unwrap(),
-			wallet,
+	pub fn from_descriptor<S>(name: S, description: S, descriptor: S) -> Result<Self>
+	where
+		S: Into<String>,
+	{
+		Ok(Self {
+			name: name.into(),
+			description: description.into(),
+			descriptor: Descriptor::from_str(&descriptor.into())?,
 		})
 	}
 
-	pub fn from_policy_str(
-		name: String,
-		description: String,
-		policy_str: String,
-	) -> Result<CoinstrPolicy> {
+	pub fn from_policy_str(name: String, description: String, policy_str: String) -> Result<Self> {
 		// Parse the string as a [`Concrete`] type miniscript policy.
 		let policy = Concrete::<String>::from_str(policy_str.as_str())?;
 
@@ -75,20 +59,7 @@ impl CoinstrPolicy {
 		let descriptor = Descriptor::new_wsh(policy.compile()?)?;
 		let database = MemoryDatabase::new();
 
-		// Create a new wallet from this descriptor
-		let wallet = Wallet::new(&format!("{}", descriptor), None, Network::Testnet, database)?;
-
-		// BDK also has it's own `Policy` structure to represent the spending condition in a more
-		// human readable json format.
-		let spending_policy = wallet.policies(KeychainKind::External)?;
-
-		Ok(CoinstrPolicy {
-			name,
-			description,
-			// descriptor:	descriptor,
-			policy: spending_policy.unwrap(),
-			wallet,
-		})
+		Ok(Self { name, description, descriptor })
 	}
 
 	pub fn new_one_of_two_taptree(
@@ -96,7 +67,7 @@ impl CoinstrPolicy {
 		description: String,
 		signer: &User,
 		other_signer: &User,
-	) -> Result<CoinstrPolicy> {
+	) -> Result<Self> {
 		let signer_wif = signer.bitcoin_user.private_key.to_wif();
 		let other_signer_pub =
 			other_signer.bitcoin_user.private_key.public_key(SECP256K1).to_string();
@@ -110,20 +81,7 @@ impl CoinstrPolicy {
 		let desc = pol.compile_tr(Some("UNSPENDABLE_KEY".to_string())).unwrap();
 		// println!("Descriptor    : {}", desc.to_string());
 
-		let database = MemoryDatabase::new();
-		let wallet = Wallet::new(&format!("{}", desc), None, Network::Testnet, database).unwrap();
-
-		let spending_policy = wallet.policies(KeychainKind::External)?;
-
-		Ok(CoinstrPolicy {
-			name,
-			description,
-			// descriptor:	desc,
-			policy: spending_policy.unwrap(),
-			wallet,
-		})
-
-		// Self::from_descriptor(name, description, desc.to_string())
+		Ok(Self { name, description, descriptor: desc })
 	}
 
 	pub fn new_one_of_two(
@@ -141,24 +99,38 @@ impl CoinstrPolicy {
 		Self::from_policy_str(name, description, policy_str)
 	}
 
-	pub fn get_balance(
-		&self,
-		bitcoin_network: Network,
-		bitcoin_endpoint: Option<&str>,
-	) -> Result<bdk::Balance> {
-		let endpoint = match bitcoin_endpoint {
-			Some(e) => e,
-			None =>
-				if bitcoin_network == Network::Testnet {
-					DEFAULT_TESTNET_ENDPOINT
-				} else {
-					DEFAULT_BITCOIN_ENDPOINT
-				},
-		};
-		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
-		self.wallet.sync(&blockchain, SyncOptions::default())?;
-		Ok(self.wallet.get_balance()?)
+	/// Deserialize from `JSON` string
+	pub fn from_json<S>(json: S) -> Result<Self>
+	where
+		S: Into<String>,
+	{
+		Ok(serde_json::from_str(&json.into())?)
 	}
+
+	/// Serialize to `JSON` string
+	pub fn as_json(&self) -> String {
+		serde_json::json!(self).to_string()
+	}
+}
+
+fn get_balance(
+	wallet: Wallet<MemoryDatabase>,
+	bitcoin_network: Network,
+	bitcoin_endpoint: Option<&str>,
+) -> Result<bdk::Balance> {
+	let endpoint = match bitcoin_endpoint {
+		Some(e) => e,
+		None => {
+			if bitcoin_network == Network::Testnet {
+				DEFAULT_TESTNET_ENDPOINT
+			} else {
+				DEFAULT_BITCOIN_ENDPOINT
+			}
+		},
+	};
+	let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
+	wallet.sync(&blockchain, SyncOptions::default())?;
+	Ok(wallet.get_balance()?)
 }
 
 fn display_key(key: &PkOrF) -> String {
@@ -244,11 +216,16 @@ impl fmt::Display for CoinstrPolicy {
 		// writeln!(f, "Descriptor     : {}", &self.descriptor.as_ref().unwrap())?;
 		writeln!(f)?;
 
+		let database = MemoryDatabase::new();
+		let wallet =
+			Wallet::new(&self.descriptor.to_string(), None, Network::Testnet, database).unwrap();
+		let spending_policy: Policy = wallet.policies(KeychainKind::External).unwrap().unwrap();
+
 		let mut tree: Tree<String> = Tree::new(self.name.clone());
-		tree.push(add_node(&self.policy.item));
+		tree.push(add_node(&spending_policy.item));
 		writeln!(f, "{}", tree)?;
 
-		let balance = self.get_balance(Network::Testnet, None).unwrap();
+		let balance = get_balance(wallet, Network::Testnet, None).unwrap();
 		writeln!(f, "{}", "\nBitcoin Balances (sats)".fg::<UserBrightWhite>().underline())?;
 		writeln!(f, "  Immature            	: {} ", balance.immature)?;
 		writeln!(f, "  Trusted Pending     	: {} ", balance.trusted_pending)?;
@@ -282,11 +259,12 @@ mod tests {
 			"A policy for testing Alice and Bob multisig".to_string(),
 			&alice,
 			&bob,
-		);
-		println!("{}", &policy.as_ref().unwrap());
+		)
+		.unwrap();
+		println!("{policy}");
 
-		let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		println!("{}", receiving_address);
+		/* let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		println!("{}", receiving_address); */
 	}
 
 	#[test]
@@ -300,11 +278,11 @@ mod tests {
 			"A 1 of 2 Taptree policy".to_string(),
 			&alice,
 			&bob,
-		);
-		println!("{}", &policy.as_ref().unwrap());
+		).unwrap();
+		println!("{policy}");
 
-        let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		println!("{}", receiving_address);
+        /* let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		println!("{}", receiving_address); */
 	}
 
 	use bdk::SignOptions;
@@ -324,33 +302,35 @@ mod tests {
 			"A 1 of 2 Taptree policy".to_string(),
 			&alice,
 			&bob,
-		);
-		println!("{}", &policy.as_ref().unwrap());
+		).unwrap();
+		println!("{policy}");
 
 		println!("Syncing policy wallet.");
+		let database = MemoryDatabase::new();
 		let blockchain = ElectrumBlockchain::from(Client::new(DEFAULT_TESTNET_ENDPOINT).unwrap());
-		policy.as_ref().unwrap().wallet.sync(&blockchain, SyncOptions::default()).unwrap();
+		let wallet = Wallet::new(&policy.descriptor.to_string(), None, Network::Testnet, database).unwrap();
+		wallet.sync(&blockchain, SyncOptions::default()).unwrap();
 
-		let balance = policy.as_ref().unwrap().wallet.get_balance().unwrap();
+		let balance = wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
 
 		const TEST_NUM_SATS: u64 = 500;
 		if balance.confirmed < TEST_NUM_SATS {
-			let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+			let receiving_address = &wallet.get_address(New).unwrap();
 			println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
 			return;
 		}
 
 		let (mut psbt, tx_details) = {
-			let mut builder = policy.as_ref().unwrap().wallet.build_tx();
+			let mut builder = wallet.build_tx();
 			builder.add_recipient(alice_address.script_pubkey(), 500);
 			builder.finish().unwrap()
 		};
 
-		println!("\nNumber of signers in policy wallet   {}", policy.as_ref().unwrap().wallet.get_signers(bdk::KeychainKind::External).signers().len());
+		println!("\nNumber of signers in policy wallet   {}", wallet.get_signers(bdk::KeychainKind::External).signers().len());
 		println!("\nUnsigned PSBT: \n{}", psbt);
 
-		let finalized = policy.as_ref().unwrap().wallet.sign(&mut psbt, SignOptions::default()).unwrap();
+		let finalized = wallet.sign(&mut psbt, SignOptions::default()).unwrap();
 		println!("\nSigned the PSBT: \n{}\n", psbt);
 
 		assert!(finalized, "The PSBT was not finalized!");
@@ -372,7 +352,7 @@ mod tests {
 	// 		"A policy with an ECDSA sig and threshold with Relative Timelock".to_string(),
 	//         "wsh(multi(2,tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/1/*,tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/1/*))#7ke34793".to_string()
 	// 	);
-	// 	println!("{}", &policy.as_ref().unwrap());
+	// 	println!("{policy}");
 
 	// 	let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 	// 	println!("{}", receiving_address);
@@ -385,10 +365,12 @@ mod tests {
 			"💸 Complex policy".to_string(),
 			"Nested thresholds and multisig with relative timelock".to_string(),
 			"or(10@thresh(4,pk(029ffbe722b147f3035c87cb1c60b9a5947dd49c774cc31e94773478711a929ac0),pk(025f05815e3a1a8a83bfbb03ce016c9a2ee31066b98f567f6227df1d76ec4bd143),pk(025625f41e4a065efc06d5019cbbd56fe8c07595af1231e7cbc03fafb87ebb71ec),pk(02a27c8b850a00f67da3499b60562673dcf5fdfb82b7e17652a7ac54416812aefd),pk(03e618ec5f384d6e19ca9ebdb8e2119e5bef978285076828ce054e55c4daf473e2)),1@and(older(4209713),thresh(2,pk(03deae92101c790b12653231439f27b8897264125ecb2f46f48278603102573165),pk(033841045a531e1adf9910a6ec279589a90b3b8a904ee64ffd692bd08a8996c1aa),pk(02aebf2d10b040eb936a6f02f44ee82f8b34f5c1ccb20ff3949c2b28206b7c1068))))".to_string(),
-		);
-		println!("{}", &policy.as_ref().unwrap());
+		).unwrap();
+		println!("{policy}");
 
-        let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		let database = MemoryDatabase::new();
+		let wallet = Wallet::new(&policy.descriptor.to_string(), None, Network::Testnet, database).unwrap();
+        let receiving_address = &wallet.get_address(New).unwrap();
 		println!("{}", receiving_address);
 	}
 
@@ -411,11 +393,11 @@ mod tests {
 			"💸 Taproot Policy".to_string(),
 			"1 of 2 taproot policy".to_string(),
 			pol_str,
-		);
-		println!("{}", &policy.as_ref().unwrap());
+		).unwrap();
+		println!("{policy}");
 
-        let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		println!("{}", receiving_address);
+        /* let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		println!("{}", receiving_address); */
 	}
 
 	// or(pk(cPuK7a4dmU1eF5ZkiF22ABBWWxeaQyXND2oanNc58VMb2ZzJsee5),
@@ -438,11 +420,11 @@ mod tests {
 			"💸 Policy with two signers and a weight".to_string(),
 			"1 signature or 2nd signature plus 6 block wait".to_string(),
 			pol_str,
-		);
-		println!("{}", &policy.as_ref().unwrap());
+		).unwrap();
+		println!("{policy}");
 
-        let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
-		println!("{}", receiving_address);
+       /*  let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		println!("{}", receiving_address); */
 	}
 
 	// FAILING - need to update the Liana policy string; miniscript fails on repeated pubkeys
@@ -454,7 +436,7 @@ mod tests {
 	// 		"2 of 2 with a time lock from Liana".to_string(),
 	// 		"wsh(or_d(multi(2,[edbae63f/48'/1'/0'/2']tpubDFPMc78w6HNq3sQHucnvaXFvV4bog3PY9Z6BnvLEW2zgw1mx1Hjtgok9ZJAg4CkyzHh9GzhFZ1HEEUXPfL2G8sxh5MSgX1KZf4mgWyyzrn7/1/*,[edbae63f/48'/1'/1'/2']tpubDEm8zCbdTzY3sgMKs4aWHft5f3rL4XuiqKEpeWKo3MEm3nzj5vyxeFMPK2cK4nZM8wK9quscmXyKnSmZh7YWP5aYGSNuiyQ4YczrNqNuBst/1/*),and_v(v:pkh([edbae63f/48'/1'/2'/2']tpubDEpvmURAxnX64rppaThzE99GAfiABkJP3MvoGoFFwexyyt18prYqVFJrDFZSFMdexUo6RhEwezrWQQMVzdi5EcAZVoxYyfhbrqM2VgTn5jV/1/*),older(6))))".to_string(),
 	// 	);
-	// 	println!("{}", &policy.as_ref().unwrap());
+	// 	println!("{policy}");
 
 	//     let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
 	// 	println!("{}", receiving_address);

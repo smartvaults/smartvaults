@@ -5,19 +5,9 @@ use config::Config;
 use keechain_core::bitcoin::Network;
 use nostr_sdk::Result;
 
-mod balance;
-mod convert;
-mod generate;
-mod get_contacts;
-mod get_event;
-mod get_events;
-mod get_user;
-mod get_users;
-mod inspect;
+mod command;
 mod orchestration;
 mod policy;
-mod publish;
-mod subscribe;
 mod user;
 mod util;
 
@@ -54,22 +44,25 @@ struct Cli {
 )]
 pub enum Commands {
 	/// Generates random account(s)
-	Generate(generate::GenerateCmd),
+	Generate(command::generate::GenerateCmd),
 
 	/// Subscribe to nostr events
-	Subscribe(subscribe::SubscribeCmd),
+	Subscribe(command::subscribe::SubscribeCmd),
 
 	/// Publish a nostr event
-	Publish(publish::PublishCmd),
+	Publish(command::publish::PublishCmd),
 
 	/// Inspect a mnenonic for validity and print bitcoin and nostr keys
-	Inspect(inspect::InspectCmd),
+	Inspect(command::inspect::InspectCmd),
 
 	/// Convert between hex and bech32 format keys
-	Convert(convert::ConvertCmd),
+	Convert(command::convert::ConvertCmd),
 
 	/// Find the balance for a bitcoin descriptor
-	Balance(balance::BalanceCmd),
+	Balance(command::balance::BalanceCmd),
+
+	/// Save policy
+	SavePolicy(command::save_policy::SavePolicyCmd),
 
 	/// Get data about events and users
 	#[command(arg_required_else_help = true)]
@@ -83,16 +76,17 @@ pub struct GetArgs {
 	command: Option<GetCommands>,
 
 	#[command(flatten)]
-	events: get_events::GetEventsCmd,
+	events: command::get_events::GetEventsCmd,
 }
 
 #[derive(Debug, Subcommand)]
 enum GetCommands {
-	Event(get_event::GetEventCmd),
-	Events(get_events::GetEventsCmd),
-	Users(get_users::GetUsersCmd),
-	User(get_user::GetUserCmd),
-	Contacts(get_contacts::GetContactsCmd),
+	Event(command::get_event::GetEventCmd),
+	Events(command::get_events::GetEventsCmd),
+	Users(command::get_users::GetUsersCmd),
+	User(command::get_user::GetUserCmd),
+	Contacts(command::get_contacts::GetContactsCmd),
+	Policies(command::get_policies::GetPoliciesCmd),
 }
 
 fn main() -> Result<()> {
@@ -115,12 +109,14 @@ fn main() -> Result<()> {
 		Commands::Inspect(cmd) => cmd.run(bitcoin_network),
 		Commands::Convert(cmd) => cmd.run(),
 		Commands::Balance(cmd) => cmd.run(bitcoin_endpoint, bitcoin_network),
+		Commands::SavePolicy(cmd) => cmd.run(nostr_relay),
 		Commands::Get(cmd) => match cmd.command.unwrap() {
 			GetCommands::Event(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Events(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Users(get_cmd) => get_cmd.run(),
 			GetCommands::User(get_cmd) => get_cmd.run(),
 			GetCommands::Contacts(get_cmd) => get_cmd.run(nostr_relay),
+			GetCommands::Policies(get_cmd) => get_cmd.run(nostr_relay),
 		},
 	}
 }
