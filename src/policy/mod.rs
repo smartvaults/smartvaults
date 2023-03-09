@@ -39,8 +39,15 @@ pub struct CoinstrPolicy {
 }
 
 impl CoinstrPolicy {
-	pub fn from_descriptor(name: String, description: String, descriptor: String) -> Result<Self> {
-		Ok(Self { name, description, descriptor: Descriptor::from_str(&descriptor)? })
+	pub fn from_descriptor<S>(name: S, description: S, descriptor: S) -> Result<Self>
+	where
+		S: Into<String>,
+	{
+		Ok(Self {
+			name: name.into(),
+			description: description.into(),
+			descriptor: Descriptor::from_str(&descriptor.into())?,
+		})
 	}
 
 	pub fn from_policy_str(name: String, description: String, policy_str: String) -> Result<Self> {

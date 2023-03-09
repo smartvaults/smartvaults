@@ -929,10 +929,13 @@ name = "nostr"
 version = "0.19.5"
 source = "git+https://github.com/rust-nostr/nostr?rev=d01db574742be10c405bd541637c0365d6d9cf6d#d01db574742be10c405bd541637c0365d6d9cf6d"
 dependencies = [
+ "aes",
+ "base64 0.21.0",
  "bech32",
  "bip39",
  "bitcoin",
  "bitcoin_hashes",
+ "cbc",
  "getrandom",
  "instant",
  "log",
