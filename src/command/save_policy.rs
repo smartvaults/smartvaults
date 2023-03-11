@@ -30,8 +30,13 @@ impl SavePolicyCmd {
 		let keys = Keys::from_sk_str(&self.secret_key)?;
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
-		let policy =
-			CoinstrPolicy::from_descriptor(&self.name, &self.description, &self.descriptor)?;
+		let policy = match CoinstrPolicy::from_descriptor(&self.name, &self.description, &self.descriptor) {
+			Ok(policy) => policy,
+			Err(_) => match CoinstrPolicy::from_policy_str(&self.name, &self.description, &self.descriptor) {
+				Ok(policy) => policy,
+				Err(e) => return Err(e),
+			}
+		};
 
 		let content =
 			nips::nip04::encrypt(&keys.secret_key()?, &keys.public_key(), policy.as_json())?;

@@ -49,16 +49,23 @@ impl CoinstrPolicy {
 		})
 	}
 
-	pub fn from_policy_str(name: String, description: String, policy_str: String) -> Result<Self> {
+	pub fn from_policy_str<S>(name: S, description: S, policy_str: S) -> Result<Self> 
+	where
+		S: Into<String>,
+	{
 		// Parse the string as a [`Concrete`] type miniscript policy.
-		let policy = Concrete::<String>::from_str(policy_str.as_str())?;
+		let policy = Concrete::<String>::from_str(&policy_str.into())?;
 
 		// Create a `wsh` type descriptor from the policy.
 		// `policy.compile()` returns the resulting miniscript from the policy.
 		let descriptor = Descriptor::new_wsh(policy.compile()?)?;
 		let database = MemoryDatabase::new();
 
-		Ok(Self { name, description, descriptor })
+		Ok(Self {
+			name: name.into(),
+			description: description.into(),
+			descriptor,
+		})
 	}
 
 	pub fn new_one_of_two_taptree(
