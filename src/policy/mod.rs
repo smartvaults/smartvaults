@@ -20,8 +20,8 @@ use owo_colors::{
 	colors::{
 		css::Lime,
 		xterm,
-		xterm::{DarkTundora, MineShaft, Pistachio, ScorpionGray, UserBrightWhite},
-		BrightCyan,
+		xterm::{DarkTundora, MineShaft, Pistachio, ScorpionGray, UserBrightWhite, BrightElectricViolet},
+		BrightCyan, Magenta,
 	},
 	OwoColorize,
 };
@@ -141,7 +141,7 @@ fn get_balance(
 fn display_key(key: &PkOrF) -> String {
 	// TODO: Use aliases
 	match key {
-		PkOrF::Pubkey(pk) => format!("<pk:{}>", pk.to_string().fg::<MineShaft>()),
+		PkOrF::Pubkey(pk) => format!("<pk:{}>", pk.to_string().fg::<Magenta>()),
 		PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{pk}>"),
 		PkOrF::Fingerprint(f) => User::from_fingerprint(f),
 	}
@@ -149,11 +149,11 @@ fn display_key(key: &PkOrF) -> String {
 
 fn add_node(item: &SatisfiableItem) -> Tree<String> {
 	let mut si_tree: Tree<String> =
-		Tree::new(format!("{}{}", "id -> ".fg::<MineShaft>(), item.id().fg::<MineShaft>()));
+		Tree::new(format!("{}{}", "id -> ".fg::<Pistachio>(), item.id().fg::<Pistachio>()));
 
 	match &item {
 		SatisfiableItem::EcdsaSignature(key) => {
-			si_tree.push(format!("🗝️ {} {}", "ECDSA Sig of ".fg::<Pistachio>(), display_key(key)));
+			si_tree.push(format!("🗝️ {} {}", "ECDSA Sig of ".fg::<BrightElectricViolet>(), display_key(key)));
 		},
 		SatisfiableItem::SchnorrSignature(key) => {
 			si_tree.push(format!(
@@ -316,6 +316,7 @@ mod tests {
 		let wallet = Wallet::new(&policy.descriptor.to_string(), None, Network::Testnet, database).unwrap();
 		wallet.sync(&blockchain, SyncOptions::default()).unwrap();
 
+		println!("Descriptor: {}", &policy.descriptor.to_string());
 		let balance = wallet.get_balance().unwrap();
 		println!("Wallet balances in SATs: {}", balance);
 

@@ -23,7 +23,7 @@ mod tests {
 
 	use crate::{policy::CoinstrPolicy, user::User, DEFAULT_RELAY, DEFAULT_TESTNET_ENDPOINT};
 
-	const NOSTR_RELAY: &str = "wss://relay.house";
+	const NOSTR_RELAY: &str = "wss://relay.rip";
 
 	#[allow(unused)]
 	#[test]

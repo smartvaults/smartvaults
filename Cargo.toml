@@ -15,6 +15,7 @@ owo-colors = "3.5.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "*"
 termtree = "*"
+cli-table = "0.4"
 
 [dev-dependencies]
 assert_matches = "1.5.0"

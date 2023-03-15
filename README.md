@@ -1,3 +1,9 @@
+## Quick start
+
+```
+cargo build --release
+./target/release/coinstr
+```
 
 ```
 Using nostr to coordinate Bitcoin spending policy signatures and multi-custody
@@ -5,32 +11,27 @@ Using nostr to coordinate Bitcoin spending policy signatures and multi-custody
 Usage: coinstr <COMMAND>
 
 Commands:
-  generate   Generates random account(s)
-  subscribe  Subscribe to nostr events
-  publish    Publish a nostr event
-  inspect    Inspect a mnenonic for validity and print bitcoin and nostr keys
-  convert    Convert between hex and bech32 format keys
-  balance    Find the balance for a bitcoin descriptor
-  get        Get things
-  help       Print this message or the help of the given subcommand(s)
+  generate     Generates random account(s)
+  subscribe    Subscribe to nostr events
+  publish      Publish a nostr event
+  inspect      Inspect a mnenonic for validity and print bitcoin and nostr keys
+  convert      Convert between hex and bech32 format keys
+  balance      Find the balance for a bitcoin descriptor
+  save-policy  Save policy
+  get          Get data about events and users
+  help         Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
   -V, --version  Print version
 ```
 
-## Quick start
-
-```
-cargo build --release
-```
-
 ## Get Event
 ```bash 
-./target/release/coinstr get event --id d3a421ae9cde2a530429867db0923fcfd5812dde84bb789169cd99b1d53d236a
+./target/release/coinstr get event d3a421ae9cde2a530429867db0923fcfd5812dde84bb789169cd99b1d53d236a
 ```
 
-## Show spending policy (from test for now)
+## Show spending policies
 ```bash
 → cargo test policy -- --nocapture
 running 2 tests
@@ -140,7 +141,7 @@ Bitcoin Balances
 ```
 
 ## Setup local nostr relay
-> WARNING: `nostr-rs-relay` has some known issues; recommend to use `strfry` or `wss://relay.house`
+> WARNING: `nostr-rs-relay` has some known issues; recommend to use `strfry` or `wss://relay.rip`
 ```
 git clone git@github.com:scsibug/nostr-rs-relay.git
 cd nostr-rs-relay
