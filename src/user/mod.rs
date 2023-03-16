@@ -1,5 +1,6 @@
 use std::fmt;
 
+use bdk::bitcoin::PublicKey;
 use keechain_core::{
 	bitcoin::{util::bip32::Fingerprint, Network},
 	types::Seed,
@@ -46,7 +47,23 @@ impl User {
 			constants::get_known_user(constants::KAREN).unwrap(),
 			constants::get_known_user(constants::MARK).unwrap(),
 			constants::get_known_user(constants::AMANDA).unwrap(),
+			constants::get_known_user(constants::TREY).unwrap(),
+			constants::get_known_user(constants::SAAS_1).unwrap(),
+			constants::get_known_user(constants::SAAS_2).unwrap(),
 		]
+	}
+
+	pub fn from_public_key(pk: &PublicKey) -> String {
+		let known_users = Self::known_users();
+		let maybe_user = known_users
+			.iter()
+			.find(|u| u.nostr_user.pub_key_btc().unwrap() == pk.to_string());
+
+		if let Some(user) = maybe_user {
+			let user_name = user.name.as_ref().unwrap();
+			return format!("<known-user: {user_name}>")
+		}
+		format!("<pk:{pk}>")
 	}
 
 	pub fn from_fingerprint(f: &Fingerprint) -> String {
@@ -99,6 +116,9 @@ impl User {
 			"karen" => constants::get_known_user(constants::KAREN),
 			"mark" => constants::get_known_user(constants::MARK),
 			"amanda" => constants::get_known_user(constants::AMANDA),
+			"trey" => constants::get_known_user(constants::TREY),
+			"saas1" => constants::get_known_user(constants::SAAS_1),
+			"saas2" => constants::get_known_user(constants::SAAS_2),
 			_ => panic!("User not exists"), // todo: should raise an error if not found rather than return alice
 		}
 	}
@@ -147,6 +167,22 @@ mod tests {
 		let seed = Seed::new(mnemonic, Some(alice_constants.passphrase));
 		let alice_user = User::new(seed, Some("Alice".to_string()), Network::Testnet).unwrap();
 		println!("{}", alice_user);
+	}
+
+	#[test]
+	fn test_alice_pubs() {
+		let user_constants = user_constants();
+		let alice_constants = user_constants.get(&String::from("Alice")).unwrap();
+		let mnemonic = Mnemonic::from_str(alice_constants.mnemonic).unwrap();
+		let seed = Seed::new(mnemonic, Some(alice_constants.passphrase));
+		let alice_user = User::new(seed, Some("Alice".to_string()), Network::Testnet).unwrap();
+
+		let alice_pub_1 = alice_user.nostr_user.keys.secret_key().unwrap().public_key(SECP256K1).to_string();
+		let alice_pub_2 = alice_user.bitcoin_user.private_key.public_key(SECP256K1).to_string();
+
+		println!("alice_pub_1	: {}", alice_pub_1);
+		println!("alice_pub_2	: {}", alice_pub_2);
+		assert_eq!(alice_pub_1, alice_pub_2);
 	}
 
 	#[test]
