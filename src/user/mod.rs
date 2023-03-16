@@ -1,5 +1,6 @@
 use std::fmt;
 
+use bdk::bitcoin::PublicKey;
 use keechain_core::{
 	bitcoin::{util::bip32::Fingerprint, Network},
 	types::Seed,
@@ -46,7 +47,23 @@ impl User {
 			constants::get_known_user(constants::KAREN).unwrap(),
 			constants::get_known_user(constants::MARK).unwrap(),
 			constants::get_known_user(constants::AMANDA).unwrap(),
+			constants::get_known_user(constants::TREY).unwrap(),
+			constants::get_known_user(constants::SAAS_1).unwrap(),
+			constants::get_known_user(constants::SAAS_2).unwrap(),
 		]
+	}
+
+	pub fn from_public_key(pk: &PublicKey) -> String {
+		let known_users = Self::known_users();
+		let maybe_user = known_users
+			.iter()
+			.find(|u| u.nostr_user.pub_key_btc().unwrap() == pk.to_string());
+
+		if let Some(user) = maybe_user {
+			let user_name = user.name.as_ref().unwrap();
+			return format!("<known-user: {user_name}>")
+		}
+		format!("<pk:{pk}>")
 	}
 
 	pub fn from_fingerprint(f: &Fingerprint) -> String {
@@ -100,6 +117,8 @@ impl User {
 			"mark" => constants::get_known_user(constants::MARK),
 			"amanda" => constants::get_known_user(constants::AMANDA),
 			"trey" => constants::get_known_user(constants::TREY),
+			"saas1" => constants::get_known_user(constants::SAAS_1),
+			"saas2" => constants::get_known_user(constants::SAAS_2),
 			_ => User::alice(), // todo: should raise an error if not found rather than return alice
 		}
 	}

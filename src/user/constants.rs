@@ -100,6 +100,15 @@ pub static TREY: (&str, &str, &str) =
 	("Trey", "isolate assist curve wing dial october hen tree radar canyon charge local", "");
 
 #[allow(dead_code)]
+pub static SAAS_1: (&str, &str, &str) =
+	("SaaS-1", "tunnel onion atom faculty visual sudden capital grit melody tribe zoo decrease", "");
+
+#[allow(dead_code)]
+pub static SAAS_2: (&str, &str, &str) =
+	("SaaS-2", "evoke math plate initial comfort conduct hire moon patrol summer apology frown", "");
+
+
+#[allow(dead_code)]
 pub fn user_constants() -> HashMap<String, UserConstants> {
 	let mut users = HashMap::new();
 	users.insert(

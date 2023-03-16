@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use termtree::Tree;
 
 use crate::{user::User, DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
-
+mod demo;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoinstrPolicy {
 	pub name: String,
@@ -141,7 +141,7 @@ fn get_balance(
 fn display_key(key: &PkOrF) -> String {
 	// TODO: Use aliases
 	match key {
-		PkOrF::Pubkey(pk) => format!("<pk:{}>", pk.to_string().fg::<Magenta>()),
+		PkOrF::Pubkey(pk) => User::from_public_key(pk), //format!("<pk:{}>", pk.to_string().fg::<Magenta>()),
 		PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{pk}>"),
 		PkOrF::Fingerprint(f) => User::from_fingerprint(f),
 	}
@@ -190,7 +190,7 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
 			));
 
 			keys.iter().for_each(|x| {
-				child_tree.push(display_key(x));
+				child_tree.push(format!("🔑 {}", display_key(x).fg::<Magenta>()));
 			});
 			si_tree.push(child_tree);
 		},
