@@ -21,7 +21,8 @@ mod tests {
 		Wallet,
 	};
 
-	use crate::{policy::CoinstrPolicy, user::User, DEFAULT_RELAY, DEFAULT_TESTNET_ENDPOINT};
+	use crate::constants::{DEFAULT_RELAY, DEFAULT_TESTNET_ENDPOINT};
+	use crate::{policy::CoinstrPolicy, user::User};
 
 	const NOSTR_RELAY: &str = "wss://relay.rip";
 
@@ -57,7 +58,7 @@ mod tests {
 		if balance.confirmed < TEST_NUM_SATS {
 			let receiving_address = wallet.get_address(New).unwrap();
 			println!("Refill this testnet wallet from the faucet: 	https://bitcoinfaucet.uo1.net/?to={receiving_address}");
-			return
+			return;
 		}
 
 		let (mut psbt, tx_details) = {

@@ -1,4 +1,5 @@
-use crate::{user::User, DEFAULT_RELAY};
+use crate::constants::DEFAULT_RELAY;
+use crate::user::User;
 use keechain_core::crypto::aes::decrypt;
 use nostr_sdk::{client::blocking::Client, prelude::*};
 

@@ -20,7 +20,9 @@ use owo_colors::{
 	colors::{
 		css::Lime,
 		xterm,
-		xterm::{DarkTundora, MineShaft, Pistachio, ScorpionGray, UserBrightWhite, BrightElectricViolet},
+		xterm::{
+			BrightElectricViolet, DarkTundora, MineShaft, Pistachio, ScorpionGray, UserBrightWhite,
+		},
 		BrightCyan, Magenta,
 	},
 	OwoColorize,
@@ -28,7 +30,8 @@ use owo_colors::{
 use serde::{Deserialize, Serialize};
 use termtree::Tree;
 
-use crate::{user::User, DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
+use crate::constants::{DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
+use crate::user::User;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoinstrPolicy {
@@ -49,7 +52,7 @@ impl CoinstrPolicy {
 		})
 	}
 
-	pub fn from_policy_str<S>(name: S, description: S, policy_str: S) -> Result<Self> 
+	pub fn from_policy_str<S>(name: S, description: S, policy_str: S) -> Result<Self>
 	where
 		S: Into<String>,
 	{
@@ -61,11 +64,7 @@ impl CoinstrPolicy {
 		let descriptor = Descriptor::new_wsh(policy.compile()?)?;
 		let database = MemoryDatabase::new();
 
-		Ok(Self {
-			name: name.into(),
-			description: description.into(),
-			descriptor,
-		})
+		Ok(Self { name: name.into(), description: description.into(), descriptor })
 	}
 
 	pub fn new_one_of_two_taptree(
@@ -126,12 +125,13 @@ fn get_balance(
 ) -> Result<bdk::Balance> {
 	let endpoint = match bitcoin_endpoint {
 		Some(e) => e,
-		None =>
+		None => {
 			if bitcoin_network == Network::Testnet {
 				DEFAULT_TESTNET_ENDPOINT
 			} else {
 				DEFAULT_BITCOIN_ENDPOINT
-			},
+			}
+		},
 	};
 	let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 	wallet.sync(&blockchain, SyncOptions::default())?;
@@ -153,7 +153,11 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
 
 	match &item {
 		SatisfiableItem::EcdsaSignature(key) => {
-			si_tree.push(format!("🗝️ {} {}", "ECDSA Sig of ".fg::<BrightElectricViolet>(), display_key(key)));
+			si_tree.push(format!(
+				"🗝️ {} {}",
+				"ECDSA Sig of ".fg::<BrightElectricViolet>(),
+				display_key(key)
+			));
 		},
 		SatisfiableItem::SchnorrSignature(key) => {
 			si_tree.push(format!(

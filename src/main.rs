@@ -6,15 +6,11 @@ use keechain_core::bitcoin::Network;
 use nostr_sdk::Result;
 
 mod command;
+mod constants;
 mod orchestration;
 mod policy;
 mod user;
 mod util;
-
-const DEFAULT_TESTNET_ENDPOINT: &str = "ssl://blockstream.info:993"; // or ssl://electrum.blockstream.info:60002
-const DEFAULT_BITCOIN_ENDPOINT: &str = "ssl://blockstream.info:700"; // or ssl://electrum.blockstream.info:50002
-#[allow(unused)]
-const DEFAULT_RELAY: &str = "wss://relay.rip";
 
 #[derive(Parser)]
 #[command(name = "coinstr")]

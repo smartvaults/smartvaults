@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use nostr_sdk::prelude::*;
 
+use crate::constants::POLICY_KIND;
 use crate::{policy::CoinstrPolicy, util::create_client};
 
 #[derive(Debug, Clone, clap::Parser)]
@@ -21,7 +22,7 @@ impl GetPoliciesCmd {
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
 		let timeout = Some(Duration::from_secs(300));
-		let filter = Filter::new().author(keys.public_key()).kind(Kind::Custom(9289));
+		let filter = Filter::new().author(keys.public_key()).kind(POLICY_KIND);
 		let events: Vec<Event> = client.get_events_of(vec![filter], timeout)?;
 
 		for event in events.into_iter() {
