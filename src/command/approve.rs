@@ -11,7 +11,7 @@ use crate::util::create_client;
 pub struct ApproveCmd {
 	/// User name
 	#[arg(required = true)]
-	user_name: String,
+	user: String,
 
 	/// Proposal id
 	#[arg(required = true)]
@@ -21,10 +21,8 @@ pub struct ApproveCmd {
 impl ApproveCmd {
 	/// Run the command
 	pub fn run(&self, nostr_relay: String, bitcoin_network: Network) -> Result<()> {
-		let user = User::get(&self.user_name)?;
-
 		let relays = vec![nostr_relay];
-
+		let user = User::get(&self.user)?;
 		let keys = user.nostr_user.keys;
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 

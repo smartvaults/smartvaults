@@ -4,22 +4,23 @@ use nostr_sdk::prelude::*;
 
 use crate::constants::SPENDING_PROPOSAL_KIND;
 use crate::proposal::SpendingProposal;
+use crate::user::User;
 use crate::util::create_client;
 
 #[derive(Debug, Clone, clap::Parser)]
 #[command(name = "proposals", about = "Get proposals list from nostr")]
 pub struct GetProposalsCmd {
-	/// Secret Key
+	// User name
 	#[arg(required = true)]
-	secret_key: String,
+	user: String,
 }
 
 impl GetProposalsCmd {
 	/// Run the command
 	pub fn run(&self, nostr_relay: String) -> Result<()> {
 		let relays = vec![nostr_relay];
-
-		let keys = Keys::from_sk_str(&self.secret_key)?;
+		let user = User::get(&self.user)?;
+		let keys = user.nostr_user.keys;
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
 		let timeout = Some(Duration::from_secs(300));

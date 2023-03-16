@@ -8,14 +8,15 @@ use nostr_sdk::prelude::*;
 use crate::constants::SPENDING_PROPOSAL_KIND;
 use crate::policy::CoinstrPolicy;
 use crate::proposal::SpendingProposal;
+use crate::user::User;
 use crate::util::create_client;
 
 #[derive(Debug, Clone, clap::Parser)]
 #[command(name = "spend", about = "Proposing a send on a policy")]
 pub struct SpendCmd {
-	/// Secret Key
+	// User name
 	#[arg(required = true)]
-	secret_key: String,
+	user: String,
 
 	/// Policy id
 	#[arg(required = true)]
@@ -43,8 +44,8 @@ impl SpendCmd {
 		bitcoin_network: Network,
 	) -> Result<()> {
 		let relays = vec![nostr_relay];
-
-		let keys = Keys::from_sk_str(&self.secret_key)?;
+		let user = User::get(&self.user)?;
+		let keys = user.nostr_user.keys;
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
 		let filter = Filter::new().id(self.policy_id);

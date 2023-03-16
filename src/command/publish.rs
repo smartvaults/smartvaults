@@ -7,21 +7,22 @@ use crate::{user::User, util::create_client};
 #[derive(Debug, Clone, clap::Parser)]
 #[command(name = "publish", about = "Publish a nostr events")]
 pub struct PublishCmd {
+	// User name
+	#[arg(required = true)]
+	user: String,
+
 	/// Content to post within an event
 	#[arg(short, long)]
 	content: String,
-
-	/// user to publish from
-	#[arg(short, long)]
-	user: String,
 }
 
 impl PublishCmd {
 	/// Run the command
 	pub fn run(&self, nostr_relay: String) -> Result<()> {
-		let user = User::get(&self.user).unwrap();
-		let relays: Vec<String> = vec![nostr_relay];
-		let client = create_client(&user.nostr_user.keys, relays, 0).expect("cannot create client");
+		let relays = vec![nostr_relay];
+		let user = User::get(&self.user)?;
+		let keys = user.nostr_user.keys;
+		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
 		// TODO: support for tags
 		client.publish_text_note(&self.content, &[]).expect("cannot publish note");
