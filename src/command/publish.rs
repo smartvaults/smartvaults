@@ -33,7 +33,7 @@ impl PublishCmd {
 #[cfg(test)]
 mod tests {
 
-	use crate::DEFAULT_RELAY;
+	use crate::constants::DEFAULT_RELAY;
 
 	use super::*;
 
