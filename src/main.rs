@@ -91,6 +91,7 @@ enum GetCommands {
 	Contacts(command::get_contacts::GetContactsCmd),
 	Policies(command::get_policies::GetPoliciesCmd),
 	Proposals(command::get_proposals::GetProposalsCmd),
+	Proposal(command::get_proposal::GetProposalCmd),
 }
 
 fn main() -> Result<()> {
@@ -124,6 +125,7 @@ fn main() -> Result<()> {
 			GetCommands::Contacts(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Policies(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Proposals(get_cmd) => get_cmd.run(nostr_relay),
+			GetCommands::Proposal(get_cmd) => get_cmd.run(nostr_relay),
 		},
 	}
 }
