@@ -2,19 +2,20 @@ use std::time::Duration;
 
 use nostr_sdk::prelude::*;
 
-use crate::constants::POLICY_KIND;
+use crate::constants::SPENDING_PROPOSAL_KIND;
+use crate::proposal::SpendingProposal;
 use crate::user::User;
-use crate::{policy::CoinstrPolicy, util::create_client};
+use crate::util::create_client;
 
 #[derive(Debug, Clone, clap::Parser)]
-#[command(name = "policies", about = "Get policies list from nostr")]
-pub struct GetPoliciesCmd {
+#[command(name = "proposals", about = "Get proposals list from nostr")]
+pub struct GetProposalsCmd {
 	// User name
 	#[arg(required = true)]
 	user: String,
 }
 
-impl GetPoliciesCmd {
+impl GetProposalsCmd {
 	/// Run the command
 	pub fn run(&self, nostr_relay: String) -> Result<()> {
 		let relays = vec![nostr_relay];
@@ -23,22 +24,19 @@ impl GetPoliciesCmd {
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
 		let timeout = Some(Duration::from_secs(300));
-		let filter = Filter::new().author(keys.public_key()).kind(POLICY_KIND);
+		let filter = Filter::new().author(keys.public_key()).kind(SPENDING_PROPOSAL_KIND);
 		let events: Vec<Event> = client.get_events_of(vec![filter], timeout)?;
 
 		for event in events.into_iter() {
 			let content =
 				nips::nip04::decrypt(&keys.secret_key()?, &keys.public_key(), &event.content)?;
-
-			let policy = CoinstrPolicy::from_json(&content)?;
-			println!("Policy:");
-			println!("- ID: {}", &event.id);
-			println!("- Name: {}", &policy.name);
-			println!("- Description: {}", &policy.description);
-			println!("- Descriptor: {}", policy.descriptor);
+			let proposal = SpendingProposal::from_json(&content)?;
 			println!();
-
-			println!("{}", policy);
+			println!("- Proposal id: {}", &event.id);
+			println!("- Memo: {}", &proposal.memo);
+			println!("- To address: {}", &proposal.to_address);
+			println!("- Amount: {}", &proposal.amount);
+			println!();
 		}
 
 		Ok(())

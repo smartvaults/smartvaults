@@ -1,3 +1,4 @@
+pub mod approve;
 pub mod balance;
 pub mod convert;
 pub mod generate;
@@ -5,9 +6,12 @@ pub mod get_contacts;
 pub mod get_event;
 pub mod get_events;
 pub mod get_policies;
+pub mod get_proposal;
+pub mod get_proposals;
 pub mod get_user;
 pub mod get_users;
 pub mod inspect;
 pub mod publish;
 pub mod save_policy;
+pub mod spend;
 pub mod subscribe;

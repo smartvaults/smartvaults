@@ -1,3 +1,3 @@
-bitcoin-endpoint = "ssl://blockstream.info:700"
-bitcoin-network = "bitcoin"
+bitcoin-endpoint = "ssl://blockstream.info:993"
+bitcoin-network = "testnet"
 nostr-relay = "wss://relay.rip"

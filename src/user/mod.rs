@@ -17,7 +17,7 @@ pub struct User {
 	pub name: Option<String>,
 	pub nostr_user: NostrUser,
 	pub bitcoin_user: BitcoinUser,
-	seed: Seed,
+	pub seed: Seed,
 }
 
 impl User {
@@ -74,7 +74,7 @@ impl User {
 
 		if let Some(user) = maybe_user {
 			let user_name = user.name.as_ref().unwrap();
-			return format!("<known-user:{user_name} from fingerprint {f}>")
+			return format!("<known-user:{user_name} from fingerprint {f}>");
 		}
 		format!("<fingerprint:{f}>")
 	}
@@ -101,7 +101,7 @@ impl User {
 
 	#[allow(dead_code)]
 	pub fn get(name: &str) -> Result<User> {
-		match name {
+		match name.to_lowercase().as_str() {
 			"alice" => User::alice(),
 			"bob" => User::bob(),
 			"charlie" => User::charlie(),
@@ -119,7 +119,7 @@ impl User {
 			"trey" => constants::get_known_user(constants::TREY),
 			"saas1" => constants::get_known_user(constants::SAAS_1),
 			"saas2" => constants::get_known_user(constants::SAAS_2),
-			_ => User::alice(), // todo: should raise an error if not found rather than return alice
+			_ => panic!("User not exists"), // todo: should raise an error if not found rather than return alice
 		}
 	}
 }

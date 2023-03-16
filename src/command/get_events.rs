@@ -78,6 +78,7 @@ impl GetEventsCmd {
 					since: self.since.map(Timestamp::from),
 					until: self.until.map(Timestamp::from),
 					limit: self.limit,
+					custom: Map::new(),
 				}],
 				None,
 			)
@@ -97,7 +98,8 @@ impl GetEventsCmd {
 mod tests {
 
 	use super::*;
-	use crate::{user::User, DEFAULT_RELAY};
+	use crate::constants::DEFAULT_RELAY;
+	use crate::user::User;
 
 	#[test]
 	fn subscribe_alice_to_foobar() {

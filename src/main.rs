@@ -6,15 +6,12 @@ use keechain_core::bitcoin::Network;
 use nostr_sdk::Result;
 
 mod command;
+mod constants;
 mod orchestration;
 mod policy;
+mod proposal;
 mod user;
 mod util;
-
-const DEFAULT_TESTNET_ENDPOINT: &str = "ssl://blockstream.info:993"; // or ssl://electrum.blockstream.info:60002
-const DEFAULT_BITCOIN_ENDPOINT: &str = "ssl://blockstream.info:700"; // or ssl://electrum.blockstream.info:50002
-#[allow(unused)]
-const DEFAULT_RELAY: &str = "wss://relay.rip";
 
 #[derive(Parser)]
 #[command(name = "coinstr")]
@@ -64,6 +61,12 @@ pub enum Commands {
 	/// Save policy
 	SavePolicy(command::save_policy::SavePolicyCmd),
 
+	/// Spend
+	Spend(command::spend::SpendCmd),
+
+	/// Approve
+	Approve(command::approve::ApproveCmd),
+
 	/// Get data about events and users
 	#[command(arg_required_else_help = true)]
 	Get(Box<GetArgs>),
@@ -87,6 +90,8 @@ enum GetCommands {
 	User(command::get_user::GetUserCmd),
 	Contacts(command::get_contacts::GetContactsCmd),
 	Policies(command::get_policies::GetPoliciesCmd),
+	Proposals(command::get_proposals::GetProposalsCmd),
+	Proposal(command::get_proposal::GetProposalCmd),
 }
 
 fn main() -> Result<()> {
@@ -110,6 +115,8 @@ fn main() -> Result<()> {
 		Commands::Convert(cmd) => cmd.run(),
 		Commands::Balance(cmd) => cmd.run(bitcoin_endpoint, bitcoin_network),
 		Commands::SavePolicy(cmd) => cmd.run(nostr_relay),
+		Commands::Spend(cmd) => cmd.run(nostr_relay, bitcoin_endpoint, bitcoin_network),
+		Commands::Approve(cmd) => cmd.run(nostr_relay, bitcoin_network),
 		Commands::Get(cmd) => match cmd.command.unwrap() {
 			GetCommands::Event(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Events(get_cmd) => get_cmd.run(nostr_relay),
@@ -117,6 +124,8 @@ fn main() -> Result<()> {
 			GetCommands::User(get_cmd) => get_cmd.run(),
 			GetCommands::Contacts(get_cmd) => get_cmd.run(nostr_relay),
 			GetCommands::Policies(get_cmd) => get_cmd.run(nostr_relay),
+			GetCommands::Proposals(get_cmd) => get_cmd.run(nostr_relay),
+			GetCommands::Proposal(get_cmd) => get_cmd.run(nostr_relay),
 		},
 	}
 }

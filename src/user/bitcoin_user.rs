@@ -20,7 +20,7 @@ use keechain_core::{
 };
 use nostr_sdk::prelude::*;
 
-use crate::{DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
+use crate::constants::{DEFAULT_BITCOIN_ENDPOINT, DEFAULT_TESTNET_ENDPOINT};
 
 const BIP86_DERIVATION_PATH: &str = "m/86'/0'/0'/0";
 
@@ -85,12 +85,13 @@ impl BitcoinUser {
 	pub fn get_balance(&self, bitcoin_endpoint: Option<&str>) -> Result<bdk::Balance> {
 		let endpoint = match bitcoin_endpoint {
 			Some(e) => e,
-			None =>
+			None => {
 				if self.bitcoin_network == Network::Testnet {
 					DEFAULT_TESTNET_ENDPOINT
 				} else {
 					DEFAULT_BITCOIN_ENDPOINT
-				},
+				}
+			},
 		};
 		let blockchain = ElectrumBlockchain::from(Client::new(endpoint)?);
 		self.wallet.sync(&blockchain, SyncOptions::default())?;

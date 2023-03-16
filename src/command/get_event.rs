@@ -18,22 +18,7 @@ impl GetEventCmd {
 		let client = create_client(&Keys::generate(), relays, 0).expect("cannot create client");
 
 		let events: Vec<Event> = client
-			.get_events_of(
-				vec![Filter {
-					ids: Some(vec![self.id.clone()]),
-					authors: None,
-					kinds: None,
-					events: None,
-					pubkeys: None,
-					hashtags: None,
-					references: None,
-					search: None,
-					since: None,
-					until: None,
-					limit: None,
-				}],
-				None,
-			)
+			.get_events_of(vec![Filter::new().id(&self.id)], None)
 			.expect("cannot get event");
 
 		for (i, event) in events.iter().enumerate() {
@@ -50,7 +35,7 @@ impl GetEventCmd {
 mod tests {
 
 	use super::*;
-	use crate::DEFAULT_RELAY;
+	use crate::constants::DEFAULT_RELAY;
 
 	#[test]
 	fn subscribe_alice_to_foobar() {
