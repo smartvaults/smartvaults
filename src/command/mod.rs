@@ -1,3 +1,4 @@
+pub mod approve;
 pub mod balance;
 pub mod convert;
 pub mod generate;

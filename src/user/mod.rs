@@ -16,7 +16,7 @@ pub struct User {
 	pub name: Option<String>,
 	pub nostr_user: NostrUser,
 	pub bitcoin_user: BitcoinUser,
-	seed: Seed,
+	pub seed: Seed,
 }
 
 impl User {
