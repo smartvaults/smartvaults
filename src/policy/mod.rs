@@ -290,6 +290,34 @@ mod tests {
 		println!("{}", receiving_address); */
 	}
 
+	#[test]
+    #[rustfmt::skip]
+	fn test_taptree_nosigners() {
+		let alice = User::get(&"alice".to_string()).unwrap();
+		let bob = User::get(&"bob".to_string()).unwrap();
+
+		// let alice_pub = alice.nostr_user.pub_key_btc().unwrap().to_string();
+		
+		let alice_pub = alice.nostr_user.keys.secret_key().unwrap().public_key(SECP256K1).to_string();
+		let alice_pub = alice.bitcoin_user.private_key.public_key(SECP256K1).to_string();
+		
+		let bob_pub = bob.bitcoin_user.private_key.public_key(SECP256K1).to_string();
+
+		let policy_str = format!("or(pk({}),pk({}))", alice_pub, bob_pub);
+		println!("Policy string	<new_one_of_two_taptree>	: {}", &policy_str);
+
+		let pol: Concrete<String> = Concrete::from_str(&policy_str).unwrap();
+		// In case we can't find an internal key for the given policy, we set the internal key to
+		// a random pubkey as specified by BIP341 (which are *unspendable* by any party :p)
+		let desc = pol.compile_tr(Some("UNSPENDABLE_KEY".to_string())).unwrap();
+		println!("Descriptor    : {}", desc.to_string());
+
+		// println!("{policy}");
+
+        /* let receiving_address = &policy.unwrap().wallet.get_address(New).unwrap();
+		println!("{}", receiving_address); */
+	}
+
 	use bdk::SignOptions;
 	#[test]
     #[rustfmt::skip]

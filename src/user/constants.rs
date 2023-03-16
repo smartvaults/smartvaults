@@ -96,6 +96,10 @@ pub static AMANDA: (&str, &str, &str) = (
 );
 
 #[allow(dead_code)]
+pub static TREY: (&str, &str, &str) =
+	("Trey", "isolate assist curve wing dial october hen tree radar canyon charge local", "");
+
+#[allow(dead_code)]
 pub fn user_constants() -> HashMap<String, UserConstants> {
 	let mut users = HashMap::new();
 	users.insert(

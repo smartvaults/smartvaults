@@ -16,6 +16,7 @@ impl NostrUser {
 	pub fn pub_key(&self) -> Result<String> {
 		Ok(self.keys.public_key().to_bech32()?)
 	}
+
 	pub fn prv_key(&self) -> Result<String> {
 		Ok(self.keys.secret_key()?.to_bech32()?)
 	}
@@ -27,6 +28,11 @@ impl NostrUser {
 	pub fn prv_key_hex(&self) -> Result<String> {
 		Ok(self.keys.secret_key()?.display_secret().to_string())
 	}
+
+	pub fn pub_key_btc(&self) -> Result<String> {
+		Ok(self.keys.secret_key()?.public_key(SECP256K1).to_string())
+	}
+
 }
 
 impl fmt::Display for NostrUser {
@@ -40,6 +46,8 @@ impl fmt::Display for NostrUser {
 		writeln!(f, " Hex Keys")?;
 		writeln!(f, "  Public   : {} ", &self.pub_key_hex())?;
 		writeln!(f, "  Private  : {} ", &self.prv_key_hex().unwrap())?;
+		
+		writeln!(f, "\n  Public (BTC): {} ", &self.pub_key_btc().unwrap())?;
 
 		Ok(())
 	}

@@ -112,6 +112,7 @@ impl fmt::Display for BitcoinUser {
 			"    Extended Pub Key	: {}",
 			ExtendedPubKey::from_priv(SECP256K1, &self.root_priv.unwrap())
 		)?;
+		writeln!(f, "    Public Key (TR)	: {}", &self.private_key.public_key(SECP256K1).to_string())?;
 		writeln!(f, "    Output Descriptor	: {}", &self.get_descriptor().to_string())?;
 		writeln!(f, "    Change Descriptor	: {}", &self.get_change_descriptor().to_string())?;
 		writeln!(f, "    Ext Address 1	: {}", &self.wallet.get_address(AddressIndex::New).unwrap())?;
