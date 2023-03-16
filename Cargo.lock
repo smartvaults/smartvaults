@@ -972,7 +972,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.19.5"
-source = "git+https://github.com/rust-nostr/nostr?rev=d01db574742be10c405bd541637c0365d6d9cf6d#d01db574742be10c405bd541637c0365d6d9cf6d"
+source = "git+https://github.com/rust-nostr/nostr?rev=d2bb6c6e1030129550a864232a31b4d7e1a4f6dd#d2bb6c6e1030129550a864232a31b4d7e1a4f6dd"
 dependencies = [
  "aes",
  "base64 0.21.0",
@@ -995,7 +995,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.19.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=d01db574742be10c405bd541637c0365d6d9cf6d#d01db574742be10c405bd541637c0365d6d9cf6d"
+source = "git+https://github.com/rust-nostr/nostr?rev=d2bb6c6e1030129550a864232a31b4d7e1a4f6dd#d2bb6c6e1030129550a864232a31b4d7e1a4f6dd"
 dependencies = [
  "futures-util",
  "log",

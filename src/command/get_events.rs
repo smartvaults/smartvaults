@@ -78,6 +78,7 @@ impl GetEventsCmd {
 					since: self.since.map(Timestamp::from),
 					until: self.until.map(Timestamp::from),
 					limit: self.limit,
+					custom: Map::new(),
 				}],
 				None,
 			)

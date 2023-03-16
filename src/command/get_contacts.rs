@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use nostr_sdk::prelude::*;
 
@@ -21,7 +21,7 @@ impl GetContactsCmd {
 		let client = create_client(&keys, relays, 0).expect("cannot create client");
 
 		let timeout = Some(Duration::from_secs(60));
-		let contacts: Vec<(XOnlyPublicKey, Metadata)> =
+		let contacts: HashMap<XOnlyPublicKey, Metadata> =
 			client.get_contact_list_metadata(timeout)?;
 
 		for (pubkey, metadata) in contacts.into_iter() {

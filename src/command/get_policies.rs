@@ -28,7 +28,7 @@ impl GetPoliciesCmd {
 		for event in events.into_iter() {
 			let content =
 				nips::nip04::decrypt(&keys.secret_key()?, &keys.public_key(), &event.content)?;
-			
+
 			let policy = CoinstrPolicy::from_json(&content)?;
 			println!("Policy:");
 			println!("- ID: {}", &event.id);

@@ -9,7 +9,7 @@ clap = { version = "4.1.1", features = ["cargo", "derive"] }
 config = "0.13.3"
 env_logger = "0.9"
 keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "2e113f5bd2cab03772aaefe89f19f5c4d46bd2cd" }
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "d01db574742be10c405bd541637c0365d6d9cf6d", default-features = false, features = ["blocking", "nip04", "nip06", "nip19"] }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "d2bb6c6e1030129550a864232a31b4d7e1a4f6dd", default-features = false, features = ["blocking", "nip04", "nip06", "nip19"] }
 num-format = "*"
 owo-colors = "3.5.0"
 serde = { version = "1.0", features = ["derive"] }
