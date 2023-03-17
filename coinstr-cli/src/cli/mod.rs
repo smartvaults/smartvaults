@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use coinstr_core::bitcoin::Address;
 use coinstr_core::nostr_sdk::EventId;
 
 pub mod io;
@@ -58,6 +59,24 @@ pub enum Command {
         /// Policy descriptor
         #[arg(required = true)]
         policy_descriptor: String,
+    },
+    /// Create a spending proposal
+    Spend {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Policy id
+        #[arg(required = true)]
+        policy_id: EventId,
+        /// Memo
+        #[arg(required = true)]
+        memo: String,
+        /// To address
+        #[arg(required = true)]
+        to_address: Address,
+        /// Amount in sats
+        #[arg(required = true)]
+        amount: u64,
     },
     /// Get data about events and users
     #[command(arg_required_else_help = true)]

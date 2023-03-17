@@ -4,10 +4,13 @@ use std::time::Duration;
 
 use clap::Parser;
 use cli::GetCommand;
+use coinstr_core::bdk::blockchain::ElectrumBlockchain;
+use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_core::bdk::SyncOptions;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::{POLICY_KIND, SPENDING_PROPOSAL_KIND};
-use coinstr_core::nostr_sdk::{nips, EventBuilder, Filter};
+use coinstr_core::nostr_sdk::{nips, EventBuilder, Filter, Tag};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util::dir;
@@ -26,6 +29,12 @@ fn main() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
     let keychains: PathBuf = Path::new("./keychains").to_path_buf();
+
+    let bitcoin_endpoint: &str = match network {
+        Network::Bitcoin => "ssl://blockstream.info:700",
+        Network::Testnet => "ssl://blockstream.info:993",
+        _ => panic!("Endpoints nnot availabe for this network"),
+    };
 
     // Create path
     std::fs::create_dir_all(keychains.as_path())?;
@@ -104,6 +113,66 @@ fn main() -> Result<()> {
             println!("Policy saved: {event_id}");
             Ok(())
         }
+        Command::Spend {
+            name,
+            policy_id,
+            memo,
+            to_address,
+            amount,
+        } => {
+            let path = dir::get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+            let keys = coinstr.keychain().nostr_keys()?;
+
+            // Get policy
+            let filter = Filter::new().id(policy_id);
+            let events = client.get_events_of(vec![filter], None)?;
+            let event = events.first().expect("Policy not found");
+            let content =
+                nips::nip04::decrypt(&keys.secret_key()?, &keys.public_key(), &event.content)?;
+            let policy = Policy::from_json(&content)?;
+
+            // Sync balance
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+            let wallet = coinstr.wallet(&policy.descriptor.to_string())?;
+            wallet.sync(&blockchain, SyncOptions::default())?;
+
+            // Compose PSBT
+            let (psbt, _details) = {
+                let mut builder = wallet.build_tx();
+                builder
+                    .add_recipient(to_address.script_pubkey(), amount)
+                    .enable_rbf();
+                builder.finish()?
+            };
+
+            // Create spending proposal
+            let proposal = SpendingProposal::new(memo, to_address, amount, psbt);
+
+            // Send spending proposal to every public key included into the descriptor
+            let public_keys =
+                coinstr_core::util::extract_public_keys(policy.descriptor.to_string())?;
+            //let policy_hash = coinstr_core::crypto::hash::sha256(policy.descriptor.to_string());
+            for public_key in public_keys.into_iter() {
+                let content =
+                    nips::nip04::encrypt(&keys.secret_key()?, &public_key, proposal.as_json())?;
+                // Tag::Generic(TagKind::Custom("policy-hash".to_string()), vec![policy_hash.to_string()])
+                let event = EventBuilder::new(
+                    SPENDING_PROPOSAL_KIND,
+                    content,
+                    &[
+                        Tag::Event(policy_id, None, None),
+                        Tag::PubKey(public_key, None),
+                    ],
+                )
+                .to_event(&keys)?;
+                let proposal_id = client.send_event(event)?;
+                println!("Spending proposal {proposal_id} sent to {public_key}");
+            }
+
+            Ok(())
+        }
         Command::Get { command } => match command {
             GetCommand::Contacts { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
@@ -163,6 +232,8 @@ fn main() -> Result<()> {
 
                 println!();
 
+                // TODO: improve printed output
+
                 let policy = Policy::from_json(content)?;
                 println!("- Policy id: {}", &event.id);
                 println!("- Name: {}", &policy.name);
@@ -185,6 +256,8 @@ fn main() -> Result<()> {
                     .author(keys.public_key())
                     .kind(SPENDING_PROPOSAL_KIND);
                 let events = client.get_events_of(vec![filter], timeout)?;
+
+                // TODO: improve printed output
 
                 for event in events.into_iter() {
                     let content = nips::nip04::decrypt(
@@ -215,6 +288,8 @@ fn main() -> Result<()> {
                 let event = events.first().expect("Proposal not found");
                 let content =
                     nips::nip04::decrypt(&keys.secret_key()?, &keys.public_key(), &event.content)?;
+
+                // TODO: improve printed output
 
                 let proposal = SpendingProposal::from_json(content)?;
                 println!();

@@ -6,7 +6,6 @@ pub extern crate nostr_sdk;
 use std::path::Path;
 
 use bdk::database::MemoryDatabase;
-use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::Wallet;
 use keechain_core::bip39::Mnemonic;
 use keechain_core::bitcoin::Network;
@@ -142,12 +141,12 @@ impl Coinstr {
         self.network
     }
 
-    pub fn wallet(
-        &self,
-        descriptor: Descriptor<DescriptorPublicKey>,
-    ) -> Result<Wallet<MemoryDatabase>, Error> {
+    pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
+    where
+        S: Into<String>,
+    {
         let db = MemoryDatabase::new();
-        Ok(Wallet::new(descriptor, None, self.network, db)?)
+        Ok(Wallet::new(&descriptor.into(), None, self.network, db)?)
     }
 
     pub fn nostr_client(&self, relays: Vec<String>) -> Result<Client, Error> {
