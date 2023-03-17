@@ -20,6 +20,7 @@ use nostr_sdk::{Keys, Options};
 pub mod constants;
 pub mod policy;
 pub mod proposal;
+pub mod util;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
