@@ -111,20 +111,7 @@ fn main() -> Result<()> {
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
                 let timeout = Some(Duration::from_secs(60));
                 let contacts = client.get_contact_list_metadata(timeout)?;
-
-                println!();
-
-                for (pubkey, metadata) in contacts.into_iter() {
-                    println!("Public key: {pubkey}");
-                    println!(
-                        "Display name: {}",
-                        metadata.display_name.unwrap_or_default()
-                    );
-                    println!("Avatar URL: {}", metadata.picture.unwrap_or_default());
-                    println!("NIP-05: {}", metadata.nip05.unwrap_or_default());
-                    println!();
-                }
-
+                util::print_contacts(contacts);
                 Ok(())
             }
             GetCommand::Policies { name } => {

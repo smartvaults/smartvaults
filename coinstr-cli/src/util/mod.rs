@@ -1,13 +1,16 @@
+use std::collections::HashMap;
+
 use coinstr_core::bdk::database::MemoryDatabase;
 use coinstr_core::bdk::wallet::AddressIndex;
 use coinstr_core::bdk::Wallet;
 use coinstr_core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::nostr_sdk::prelude::ToBech32;
-use coinstr_core::nostr_sdk::SECP256K1;
+use coinstr_core::nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
+use coinstr_core::nostr_sdk::{Metadata, SECP256K1};
 use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
 use coinstr_core::{Keychain, Result};
+use prettytable::{row, Table};
 
 pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     let mnemonic = keychain.seed.mnemonic();
@@ -64,4 +67,28 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     );
 
     Ok(())
+}
+
+pub fn print_contacts(contacts: HashMap<XOnlyPublicKey, Metadata>) {
+    let mut table = Table::new();
+
+    table.set_titles(row![
+        "#",
+        "Public key",
+        "Username",
+        "Display name",
+        "NIP-05",
+    ]);
+
+    for (index, (public_key, metadata)) in contacts.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            public_key,
+            metadata.name.unwrap_or_default(),
+            metadata.display_name.unwrap_or_default(),
+            metadata.nip05.unwrap_or_default()
+        ]);
+    }
+
+    table.printstd();
 }
