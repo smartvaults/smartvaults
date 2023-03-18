@@ -11,6 +11,7 @@ use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Metadata, SECP256K1};
 use coinstr_core::policy::Policy;
+use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
 use coinstr_core::{Keychain, Result};
@@ -243,7 +244,25 @@ pub fn print_policies(policies: Vec<(EventId, Policy)>) {
     table.set_titles(row!["#", "ID", "Name", "Description"]);
 
     for (index, (policy_id, policy)) in policies.into_iter().enumerate() {
-        table.add_row(row![index + 1, policy_id, policy.name, policy.description,]);
+        table.add_row(row![index + 1, policy_id, policy.name, policy.description]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal)>) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "ID", "Memo", "Address", "Amount"]);
+
+    for (index, (proposal_id, proposal)) in proposals.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            proposal_id,
+            proposal.memo,
+            proposal.to_address,
+            format!("{} sats", format::number(proposal.amount))
+        ]);
     }
 
     table.printstd();

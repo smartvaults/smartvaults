@@ -391,7 +391,7 @@ fn main() -> Result<()> {
                     }
                 }
 
-                println!();
+                let mut proposals: Vec<(EventId, SpendingProposal)> = Vec::new();
 
                 for event in proposals_events.into_iter() {
                     let policy_id = extract_first_event_id(&event).expect("Policy id not found");
@@ -404,14 +404,10 @@ fn main() -> Result<()> {
                         &event.content,
                     )?;
 
-                    let proposal = SpendingProposal::from_json(&content)?;
-                    println!();
-                    println!("- Proposal id: {}", &event.id);
-                    println!("- Memo: {}", &proposal.memo);
-                    println!("- To address: {}", &proposal.to_address);
-                    println!("- Amount: {}", &proposal.amount);
-                    println!();
+                    proposals.push((event.id, SpendingProposal::from_json(&content)?));
                 }
+
+                util::print_proposals(proposals);
 
                 Ok(())
             }
