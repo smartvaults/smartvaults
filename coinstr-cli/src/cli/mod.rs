@@ -68,15 +68,15 @@ pub enum Command {
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
-        /// Memo
-        #[arg(required = true)]
-        memo: String,
         /// To address
         #[arg(required = true)]
         to_address: Address,
         /// Amount in sats
         #[arg(required = true)]
         amount: u64,
+        /// Memo
+        #[arg(required = true)]
+        memo: String,
     },
     /// Approve a spending proposal
     Approve {

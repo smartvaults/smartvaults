@@ -155,9 +155,9 @@ fn main() -> Result<()> {
         Command::Spend {
             name,
             policy_id,
-            memo,
             to_address,
             amount,
+            memo,
         } => {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
