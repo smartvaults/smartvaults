@@ -1,16 +1,27 @@
 use std::collections::HashMap;
 
+use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::database::MemoryDatabase;
+use coinstr_core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
+use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bdk::wallet::AddressIndex;
-use coinstr_core::bdk::Wallet;
+use coinstr_core::bdk::{KeychainKind, SyncOptions, Wallet};
 use coinstr_core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
-use coinstr_core::nostr_sdk::{Metadata, SECP256K1};
+use coinstr_core::nostr_sdk::{EventId, Metadata, SECP256K1};
+use coinstr_core::policy::Policy;
 use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
 use coinstr_core::{Keychain, Result};
+use owo_colors::colors::css::Lime;
+use owo_colors::colors::xterm::{BrightElectricViolet, Pistachio, UserBrightWhite};
+use owo_colors::colors::{BrightCyan, Magenta};
+use owo_colors::OwoColorize;
 use prettytable::{row, Table};
+use termtree::Tree;
+
+mod format;
 
 pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     let mnemonic = keychain.seed.mnemonic();
@@ -92,6 +103,147 @@ pub fn print_contacts(contacts: HashMap<XOnlyPublicKey, Metadata>) {
             metadata.display_name.unwrap_or_default(),
             metadata.nip05.unwrap_or_default()
         ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_policy<S>(
+    policy: Policy,
+    policy_id: EventId,
+    wallet: Wallet<MemoryDatabase>,
+    endpoint: S,
+) -> Result<()>
+where
+    S: Into<String>,
+{
+    println!("{}", "\nPolicy".fg::<UserBrightWhite>().underline());
+    println!("- ID: {policy_id}");
+    println!("- Name: {}", &policy.name);
+    println!("- Description: {}", policy.description);
+
+    let spending_policy = wallet.policies(KeychainKind::External)?.unwrap();
+
+    let mut tree: Tree<String> = Tree::new("- Descriptor".to_string());
+    tree.push(add_node(&spending_policy.item));
+    println!("{tree}");
+
+    let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint.into())?);
+    wallet.sync(&blockchain, SyncOptions::default())?;
+    let balance = wallet.get_balance()?;
+    println!("{}", "Balances".fg::<UserBrightWhite>().underline());
+    println!(
+        "- Immature            	: {} sats",
+        format::number(balance.immature)
+    );
+    println!(
+        "- Trusted pending     	: {} sats",
+        format::number(balance.trusted_pending)
+    );
+    println!(
+        "- Untrusted pending   	: {} sats",
+        format::number(balance.untrusted_pending)
+    );
+    println!(
+        "- Confirmed           	: {} sats",
+        format::number(balance.confirmed)
+    );
+
+    Ok(())
+}
+
+fn display_key(key: &PkOrF) -> String {
+    match key {
+        PkOrF::Pubkey(pk) => format!("<pk:{pk}>"),
+        PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{pk}>"),
+        PkOrF::Fingerprint(f) => format!("<fingerprint:{f}>"),
+    }
+}
+
+fn add_node(item: &SatisfiableItem) -> Tree<String> {
+    let mut si_tree: Tree<String> = Tree::new(format!(
+        "{}{}",
+        "id -> ".fg::<Pistachio>(),
+        item.id().fg::<Pistachio>()
+    ));
+
+    match &item {
+        SatisfiableItem::EcdsaSignature(key) => {
+            si_tree.push(format!(
+                "🗝️ {} {}",
+                "ECDSA Sig of ".fg::<BrightElectricViolet>(),
+                display_key(key)
+            ));
+        }
+        SatisfiableItem::SchnorrSignature(key) => {
+            si_tree.push(format!(
+                "🔑 {} {}",
+                "Schnorr Sig of ".fg::<Pistachio>(),
+                display_key(key)
+            ));
+        }
+        SatisfiableItem::Sha256Preimage { hash } => {
+            si_tree.push(format!("SHA256 Preimage of {hash}"));
+        }
+        SatisfiableItem::Hash256Preimage { hash } => {
+            si_tree.push(format!("Double-SHA256 Preimage of {hash}"));
+        }
+        SatisfiableItem::Ripemd160Preimage { hash } => {
+            si_tree.push(format!("RIPEMD160 Preimage of {hash}"));
+        }
+        SatisfiableItem::Hash160Preimage { hash } => {
+            si_tree.push(format!("Double-RIPEMD160 Preimage of {hash}"));
+        }
+        SatisfiableItem::AbsoluteTimelock { value } => {
+            si_tree.push(format!(
+                "⏰ {} {value}",
+                "Absolute Timelock of ".fg::<Lime>()
+            ));
+        }
+        SatisfiableItem::RelativeTimelock { value } => {
+            si_tree.push(format!(
+                "⏳ {} {value}",
+                "Relative Timelock of".fg::<Lime>(),
+            ));
+        }
+        SatisfiableItem::Multisig { keys, threshold } => {
+            // si_tree.push(format!("🎚️ {} of {} MultiSig:", threshold, keys.len()));
+            let mut child_tree: Tree<String> = Tree::new(format!(
+                "🤝 {}{} of {}",
+                "MultiSig  :  ".fg::<BrightCyan>(),
+                threshold,
+                keys.len()
+            ));
+
+            keys.iter().for_each(|x| {
+                child_tree.push(format!("🔑 {}", display_key(x).fg::<Magenta>()));
+            });
+            si_tree.push(child_tree);
+        }
+        SatisfiableItem::Thresh { items, threshold } => {
+            let mut child_tree: Tree<String> = Tree::new(format!(
+                "👑{}{} of {} ",
+                " Threshold Condition   : ".fg::<BrightCyan>(),
+                threshold,
+                items.len()
+            ));
+
+            items.iter().for_each(|x| {
+                child_tree.push(add_node(&x.item));
+            });
+            si_tree.push(child_tree);
+        }
+    }
+    si_tree
+}
+
+pub fn print_policies(policies: Vec<(EventId, Policy)>) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "ID", "Name", "Description"]);
+
+    for (index, (policy_id, policy)) in policies.into_iter().enumerate() {
+        table.add_row(row![index + 1, policy_id, policy.name, policy.description,]);
     }
 
     table.printstd();

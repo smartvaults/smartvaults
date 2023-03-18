@@ -323,7 +323,7 @@ fn main() -> Result<()> {
                     }
                 }
 
-                println!();
+                let mut policies: Vec<(EventId, Policy)> = Vec::new();
 
                 for event in policies_events.into_iter() {
                     let global_key = global_keys.get(&event.id).expect("Global key not found");
@@ -332,14 +332,10 @@ fn main() -> Result<()> {
                         &global_key.public_key(),
                         &event.content,
                     )?;
-
-                    let policy = Policy::from_json(&content)?;
-                    println!("- Policy id: {}", &event.id);
-                    println!("- Name: {}", &policy.name);
-                    println!("- Description: {}", &policy.description);
-                    println!("- Descriptor: {}", policy.descriptor);
-                    println!();
+                    policies.push((event.id, Policy::from_json(&content)?));
                 }
+
+                util::print_policies(policies);
 
                 Ok(())
             }
@@ -352,15 +348,11 @@ fn main() -> Result<()> {
                 let timeout = Some(Duration::from_secs(300));
                 let (policy, _global_keys) = get_policy_by_id(&client, policy_id, timeout)?;
 
-                // TODO: improve printed output
-                println!();
-                println!("- Policy id: {}", policy_id);
-                println!("- Name: {}", policy.name);
-                println!("- Description: {}", policy.description);
-                println!("- Descriptor: {}", policy.descriptor);
-                println!();
+                // Open wallet
+                let wallet = coinstr.wallet(policy.descriptor.to_string())?;
 
-                Ok(())
+                // Print result
+                util::print_policy(policy, policy_id, wallet, bitcoin_endpoint)
             }
             GetCommand::Proposals { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;

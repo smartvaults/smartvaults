@@ -15,4 +15,6 @@ clap = { version = "4.1", features = ["derive"] }
 coinstr-core = { version = "0.1", path = "../coinstr-core" }
 dialoguer = "0.10"
 env_logger = "0.10"
+owo-colors = "3.5"
 prettytable-rs = "0.10"
+termtree = "0.4"
