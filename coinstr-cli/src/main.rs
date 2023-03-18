@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::GetCommand;
+use cli::{DeleteCommand, GetCommand};
 use coinstr_core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bdk::miniscript::psbt::PsbtExt;
@@ -430,10 +430,18 @@ fn main() -> Result<()> {
                 println!("- Amount: {}", proposal.amount);
                 println!();
 
-                println!("{:#?}", proposal.psbt);
-
                 Ok(())
             }
+        },
+        Command::Delete { command } => match command {
+            DeleteCommand::Policy {
+                name: _,
+                policy_id: _,
+            } => todo!(),
+            DeleteCommand::Proposal {
+                name: _,
+                proposal_id: _,
+            } => todo!(),
         },
         Command::Setting { command } => match command {
             SettingCommand::Rename { name, new_name } => {

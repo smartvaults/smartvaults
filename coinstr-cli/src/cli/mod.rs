@@ -96,11 +96,17 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: EventId,
     },
-    /// Get data about events and users
+    /// Get data about policies and proposals
     #[command(arg_required_else_help = true)]
     Get {
         #[command(subcommand)]
         command: GetCommand,
+    },
+    /// Delete
+    #[command(arg_required_else_help = true)]
+    Delete {
+        #[command(subcommand)]
+        command: DeleteCommand,
     },
     /// Setting
     Setting {
@@ -139,6 +145,28 @@ pub enum GetCommand {
         name: String,
     },
     /// Get proposal by id
+    Proposal {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum DeleteCommand {
+    /// Delete policy by id
+    Policy {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Policy id
+        #[arg(required = true)]
+        policy_id: EventId,
+    },
+    /// Delete proposal by id
     Proposal {
         /// Keychain name
         #[arg(required = true)]
