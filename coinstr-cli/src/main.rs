@@ -176,9 +176,7 @@ fn main() -> Result<()> {
             // Compose PSBT
             let (psbt, _details) = {
                 let mut builder = wallet.build_tx();
-                builder
-                    .add_recipient(to_address.script_pubkey(), amount)
-                    .enable_rbf();
+                builder.add_recipient(to_address.script_pubkey(), amount);
                 builder.finish()?
             };
 
@@ -267,13 +265,15 @@ fn main() -> Result<()> {
             }
 
             // Finalize and broadcast the transaction
-            if let Ok(psbt) = base_psbt.finalize(SECP256K1) {
-                let finalized_tx = psbt.extract_tx();
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                blockchain.broadcast(&finalized_tx)?;
-                println!("Transaction {} broadcasted", finalized_tx.txid());
-            } else {
-                eprintln!("PSBT not finalized, missing some singatures");
+            match base_psbt.finalize_mut(SECP256K1) {
+                Ok(_) => {
+                    let finalized_tx = base_psbt.extract_tx();
+                    let blockchain =
+                        ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+                    blockchain.broadcast(&finalized_tx)?;
+                    println!("Transaction {} broadcasted", finalized_tx.txid());
+                }
+                Err(e) => eprintln!("PSBT not finalized: {e:?}"),
             }
 
             Ok(())
