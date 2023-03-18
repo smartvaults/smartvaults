@@ -13,8 +13,7 @@ use keechain_core::types::WordCount;
 pub use keechain_core::Result;
 pub use keechain_core::*;
 use nostr_sdk::blocking::Client;
-use nostr_sdk::prelude::FromMnemonic;
-use nostr_sdk::{Keys, Options};
+use nostr_sdk::Options;
 
 pub mod constants;
 pub mod policy;
@@ -150,10 +149,8 @@ impl Coinstr {
     }
 
     pub fn nostr_client(&self, relays: Vec<String>) -> Result<Client, Error> {
-        let mnemonic = self.keechain.keychain.seed.mnemonic();
-        let passphrase = self.keechain.keychain.seed.passphrase();
         let opts = Options::new().wait_for_send(true);
-        let keys = Keys::from_mnemonic(mnemonic.to_string(), passphrase)?;
+        let keys = self.keechain.keychain.nostr_keys()?;
         let client = Client::new_with_opts(&keys, opts);
         let relays = relays.iter().map(|url| (url, None)).collect();
         client.add_relays(relays)?;
