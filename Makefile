@@ -19,6 +19,9 @@ help:
 cli:
 	$(Q)cargo build -p coinstr-cli --release --all-features
 
+dev: precommit
+	$(Q)cargo build
+
 precommit: test
 	$(Q)cargo fmt --all
 	$(Q)cargo clippy --all
