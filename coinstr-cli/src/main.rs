@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
@@ -9,8 +10,9 @@ use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bdk::SyncOptions;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::constants::{POLICY_KIND, SPENDING_PROPOSAL_KIND};
-use coinstr_core::nostr_sdk::{nips, EventBuilder, Filter, Tag};
+use coinstr_core::constants::{POLICY_KIND, SHARED_GLOBAL_KEY_KIND, SPENDING_PROPOSAL_KIND};
+use coinstr_core::nostr_sdk::secp256k1::SecretKey;
+use coinstr_core::nostr_sdk::{nips, EventBuilder, EventId, Filter, Keys, Tag};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util::dir;
@@ -104,13 +106,43 @@ fn main() -> Result<()> {
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
             let keys = coinstr.keychain().nostr_keys()?;
+
+            let extracted_pubkeys = coinstr_core::util::extract_public_keys(&policy_descriptor)?;
+
+            // Generate a shared secret key and encrypt the policy with it
+            let global_key = Keys::generate();
             let policy =
                 Policy::from_desc_or_policy(policy_name, policy_description, policy_descriptor)?;
-            let content =
-                nips::nip04::encrypt(&keys.secret_key()?, &keys.public_key(), policy.as_json())?;
-            let event = EventBuilder::new(POLICY_KIND, content, &[]).to_event(&keys)?;
-            let event_id = client.send_event(event)?;
-            println!("Policy saved: {event_id}");
+            let content = nips::nip04::encrypt(
+                &global_key.secret_key()?,
+                &global_key.public_key(),
+                policy.as_json(),
+            )?;
+            let tags: Vec<Tag> = extracted_pubkeys
+                .iter()
+                .map(|p| Tag::PubKey(*p, None))
+                .collect();
+            let policy_event = EventBuilder::new(POLICY_KIND, content, &tags).to_event(&keys)?;
+            let policy_id = client.send_event(policy_event)?;
+
+            // Publish the global shared key
+            for pubkey in extracted_pubkeys.into_iter() {
+                let encrypted_global_key = nips::nip04::encrypt(
+                    &keys.secret_key()?,
+                    &pubkey,
+                    global_key.secret_key()?.display_secret().to_string(),
+                )?;
+                let event = EventBuilder::new(
+                    SHARED_GLOBAL_KEY_KIND,
+                    encrypted_global_key,
+                    &[Tag::Event(policy_id, None, None), Tag::PubKey(pubkey, None)],
+                )
+                .to_event(&keys)?;
+                let event_id = client.send_event(event)?;
+                println!("Published global shared key for {pubkey} at event {event_id}");
+            }
+
+            println!("Policy saved: {policy_id}");
             Ok(())
         }
         Command::Spend {
@@ -190,15 +222,41 @@ fn main() -> Result<()> {
 
                 let keys = coinstr.keychain().nostr_keys()?;
                 let timeout = Some(Duration::from_secs(300));
-                let filter = Filter::new().author(keys.public_key()).kind(POLICY_KIND);
-                let events = client.get_events_of(vec![filter], timeout)?;
+
+                // Get policies
+                let filter = Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND);
+                let policies_events = client.get_events_of(vec![filter], timeout)?;
+
+                // Get global shared keys
+                let filter = Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(SHARED_GLOBAL_KEY_KIND);
+                let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
+
+                // Index global keys by policy id
+                let mut global_keys: HashMap<EventId, Keys> = HashMap::new();
+                for event in global_shared_key_events.into_iter() {
+                    for tag in event.tags {
+                        if let Tag::Event(event_id, ..) = tag {
+                            let content = nips::nip04::decrypt(
+                                &keys.secret_key()?,
+                                &event.pubkey,
+                                &event.content,
+                            )?;
+                            let sk = SecretKey::from_str(&content)?;
+                            let keys = Keys::new(sk);
+                            global_keys.insert(event_id, keys);
+                        }
+                    }
+                }
 
                 println!();
 
-                for event in events.into_iter() {
+                for event in policies_events.into_iter() {
+                    let global_key = global_keys.get(&event.id).expect("Global key not found");
                     let content = nips::nip04::decrypt(
-                        &keys.secret_key()?,
-                        &keys.public_key(),
+                        &global_key.secret_key()?,
+                        &global_key.public_key(),
                         &event.content,
                     )?;
 
