@@ -197,6 +197,7 @@ fn main() -> Result<()> {
 
             Ok(())
         }
+
         Command::Get { command } => match command {
             GetCommand::Contacts { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
@@ -212,7 +213,7 @@ fn main() -> Result<()> {
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
-                let keys = coinstr.keychain().nostr_keys()?;
+                let keys = client.keys();
                 let timeout = Some(Duration::from_secs(300));
 
                 // Get policies
@@ -286,21 +287,59 @@ fn main() -> Result<()> {
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
-                let keys = coinstr.keychain().nostr_keys()?;
+                let keys = client.keys();
                 let timeout = Some(Duration::from_secs(300));
+
+                // Get proposals
                 let filter = Filter::new()
-                    .author(keys.public_key())
+                    .pubkey(keys.public_key())
                     .kind(SPENDING_PROPOSAL_KIND);
-                let events = client.get_events_of(vec![filter], timeout)?;
+                let proposals_events = client.get_events_of(vec![filter], timeout)?;
 
-                // TODO: improve printed output
+                // Get global shared keys
+                let filter = Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(SHARED_GLOBAL_KEY_KIND);
+                let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
 
-                for event in events.into_iter() {
+                // Index global keys by policy id
+                let mut global_keys: HashMap<EventId, Keys> = HashMap::new();
+                for event in global_shared_key_events.into_iter() {
+                    for tag in event.tags {
+                        if let Tag::Event(event_id, ..) = tag {
+                            let content = nips::nip04::decrypt(
+                                &keys.secret_key()?,
+                                &event.pubkey,
+                                &event.content,
+                            )?;
+                            let sk = SecretKey::from_str(&content)?;
+                            let keys = Keys::new(sk);
+                            global_keys.insert(event_id, keys);
+                        }
+                    }
+                }
+
+                println!();
+
+                for event in proposals_events.into_iter() {
+                    let global_key: &Keys = {
+                        let mut key = None;
+                        for tag in event.tags {
+                            if let Tag::Event(event_id, ..) = tag {
+                                key =
+                                    Some(global_keys.get(&event_id).expect("Global key not found"));
+                            }
+                        }
+                        key
+                    }
+                    .unwrap();
+
                     let content = nips::nip04::decrypt(
-                        &keys.secret_key()?,
-                        &keys.public_key(),
+                        &global_key.secret_key()?,
+                        &global_key.public_key(),
                         &event.content,
                     )?;
+
                     let proposal = SpendingProposal::from_json(&content)?;
                     println!();
                     println!("- Proposal id: {}", &event.id);
@@ -312,8 +351,12 @@ fn main() -> Result<()> {
 
                 Ok(())
             }
-            GetCommand::Proposal { name, proposal_id } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+            GetCommand::Proposal {
+                name: _,
+                proposal_id: _,
+            } => {
+                todo!()
+                /* let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
@@ -335,7 +378,7 @@ fn main() -> Result<()> {
                 println!("- Amount: {}", &proposal.amount);
                 println!();
 
-                Ok(())
+                Ok(()) */
             }
         },
         Command::Setting { command } => match command {
