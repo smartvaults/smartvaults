@@ -54,7 +54,7 @@ mod test {
 
     #[test]
     fn test_policy_extractor() {
-        let descriptor = "thresh(2,pk(02e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc),pk(02101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df),pk(02ea527e059759d368a55253270454e58e9d6e4fe2e98d302d6e01821fa973259d))";
+        let descriptor = "thresh(2,pk(03e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc),pk(03101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df),pk(027b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff))";
         let pubkeys = extract_public_keys(descriptor).unwrap();
 
         assert_eq!(
@@ -69,7 +69,7 @@ mod test {
                 )
                 .unwrap(),
                 XOnlyPublicKey::from_str(
-                    "ea527e059759d368a55253270454e58e9d6e4fe2e98d302d6e01821fa973259d"
+                    "7b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff"
                 )
                 .unwrap(),
             ]
@@ -78,7 +78,7 @@ mod test {
 
     #[test]
     fn test_descriptor_extractor() {
-        let descriptor = "wsh(multi(2,02e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc,02101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df,027b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff))#lrsyq0eg";
+        let descriptor = "wsh(multi(2,03e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc,03101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df,027b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff))#lrsyq0eg";
         let pubkeys = extract_public_keys(descriptor).unwrap();
 
         assert_eq!(
