@@ -6,18 +6,20 @@ use std::time::Duration;
 
 use clap::Parser;
 use cli::GetCommand;
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
+use coinstr_core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_core::bdk::miniscript::psbt::PsbtExt;
 use coinstr_core::bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use coinstr_core::bdk::{KeychainKind, SignOptions, SyncOptions};
 use coinstr_core::bip39::Mnemonic;
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Network, PrivateKey};
 use coinstr_core::constants::{
     POLICY_KIND, SHARED_GLOBAL_KEY_KIND, SPENDING_PROPOSAL_APPROVED_KIND, SPENDING_PROPOSAL_KIND,
 };
 use coinstr_core::nostr_sdk::blocking::Client;
 use coinstr_core::nostr_sdk::secp256k1::SecretKey;
-use coinstr_core::nostr_sdk::{nips, Event, EventBuilder, EventId, Filter, Keys, Tag};
+use coinstr_core::nostr_sdk::{nips, Event, EventBuilder, EventId, Filter, Keys, Tag, SECP256K1};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util::dir;
@@ -249,6 +251,33 @@ fn main() -> Result<()> {
 
             Ok(())
         }
+        Command::Broadcast { name, proposal_id } => {
+            let path = dir::get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+
+            // Get PSBTs
+            let timeout = Some(Duration::from_secs(300));
+            let (mut base_psbt, psbts) =
+                get_signed_psbts_by_proposal_id(&client, proposal_id, timeout)?;
+
+            // Combine PSBTs
+            for psbt in psbts {
+                base_psbt.combine(psbt)?;
+            }
+
+            // Finalize and broadcast the transaction
+            if let Ok(psbt) = base_psbt.finalize(SECP256K1) {
+                let finalized_tx = psbt.extract_tx();
+                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+                blockchain.broadcast(&finalized_tx)?;
+                println!("Transaction {} broadcasted", finalized_tx.txid());
+            } else {
+                eprintln!("PSBT not finalized, missing some singatures");
+            }
+
+            Ok(())
+        }
         Command::Get { command } => match command {
             GetCommand::Contacts { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
@@ -373,8 +402,7 @@ fn main() -> Result<()> {
                 println!();
 
                 for event in proposals_events.into_iter() {
-                    let policy_id =
-                        extract_policy_id_from_proposal_event(&event).expect("Policy id not found");
+                    let policy_id = extract_first_event_id(&event).expect("Policy id not found");
                     let global_key: &Keys =
                         global_keys.get(&policy_id).expect("Global key not found");
 
@@ -479,14 +507,10 @@ fn get_proposal_by_id(
     let keys = client.keys();
 
     // Get proposal event
-    let filter = Filter::new()
-        .id(proposal_id)
-        .author(keys.public_key())
-        .kind(SPENDING_PROPOSAL_KIND);
+    let filter = Filter::new().id(proposal_id).kind(SPENDING_PROPOSAL_KIND);
     let events = client.get_events_of(vec![filter], timeout)?;
     let proposal_event = events.first().expect("Spending proposal not found");
-    let policy_id =
-        extract_policy_id_from_proposal_event(proposal_event).expect("Policy id not found");
+    let policy_id = extract_first_event_id(proposal_event).expect("Policy id not found");
 
     // Get global shared key
     let filter = Filter::new()
@@ -516,7 +540,37 @@ fn get_proposal_by_id(
     ))
 }
 
-fn extract_policy_id_from_proposal_event(event: &Event) -> Option<EventId> {
+fn get_signed_psbts_by_proposal_id(
+    client: &Client,
+    proposal_id: EventId,
+    timeout: Option<Duration>,
+) -> Result<(PartiallySignedTransaction, Vec<PartiallySignedTransaction>)> {
+    // Get approved proposals
+    let filter = Filter::new()
+        .event(proposal_id)
+        .kind(SPENDING_PROPOSAL_APPROVED_KIND);
+    let proposals_events = client.get_events_of(vec![filter], timeout)?;
+    let first_event = proposals_events.first().expect("Proposals not found");
+    let proposal_id = extract_first_event_id(first_event).expect("Proposal id not found");
+
+    // Get global shared key
+    let (proposal, _, global_keys) = get_proposal_by_id(client, proposal_id, timeout)?;
+
+    let mut psbts: Vec<PartiallySignedTransaction> = Vec::new();
+
+    for event in proposals_events.into_iter() {
+        let content = nips::nip04::decrypt(
+            &global_keys.secret_key()?,
+            &global_keys.public_key(),
+            &event.content,
+        )?;
+        psbts.push(PartiallySignedTransaction::from_str(&content)?);
+    }
+
+    Ok((proposal.psbt, psbts))
+}
+
+fn extract_first_event_id(event: &Event) -> Option<EventId> {
     for tag in event.tags.iter() {
         if let Tag::Event(event_id, ..) = tag {
             return Some(*event_id);

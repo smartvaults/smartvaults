@@ -87,6 +87,15 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: EventId,
     },
+    /// Combine and broadcast the transaction
+    Broadcast {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
+    },
     /// Get data about events and users
     #[command(arg_required_else_help = true)]
     Get {
