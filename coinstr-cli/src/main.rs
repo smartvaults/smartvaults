@@ -13,7 +13,7 @@ use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::{POLICY_KIND, SHARED_GLOBAL_KEY_KIND, SPENDING_PROPOSAL_KIND};
 use coinstr_core::nostr_sdk::blocking::Client;
 use coinstr_core::nostr_sdk::secp256k1::SecretKey;
-use coinstr_core::nostr_sdk::{nips, EventBuilder, EventId, Filter, Keys, Tag};
+use coinstr_core::nostr_sdk::{nips, Event, EventBuilder, EventId, Filter, Keys, Tag};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util::dir;
@@ -322,17 +322,10 @@ fn main() -> Result<()> {
                 println!();
 
                 for event in proposals_events.into_iter() {
-                    let global_key: &Keys = {
-                        let mut key = None;
-                        for tag in event.tags {
-                            if let Tag::Event(event_id, ..) = tag {
-                                key =
-                                    Some(global_keys.get(&event_id).expect("Global key not found"));
-                            }
-                        }
-                        key
-                    }
-                    .unwrap();
+                    let policy_id =
+                        extract_policy_id_from_proposal_event(&event).expect("Policy id not found");
+                    let global_key: &Keys =
+                        global_keys.get(&policy_id).expect("Global key not found");
 
                     let content = nips::nip04::decrypt(
                         &global_key.secret_key()?,
@@ -351,34 +344,24 @@ fn main() -> Result<()> {
 
                 Ok(())
             }
-            GetCommand::Proposal {
-                name: _,
-                proposal_id: _,
-            } => {
-                todo!()
-                /* let path = dir::get_keychain_file(keychains, name)?;
+            GetCommand::Proposal { name, proposal_id } => {
+                let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
-                let keys = coinstr.keychain().nostr_keys()?;
                 let timeout = Some(Duration::from_secs(300));
-                let filter = Filter::new().id(proposal_id).kind(SPENDING_PROPOSAL_KIND);
-                let events = client.get_events_of(vec![filter], timeout)?;
-                let event = events.first().expect("Proposal not found");
-                let content =
-                    nips::nip04::decrypt(&keys.secret_key()?, &keys.public_key(), &event.content)?;
+                let (proposal, _global_keys) = get_proposal_by_id(&client, proposal_id, timeout)?;
 
                 // TODO: improve printed output
 
-                let proposal = SpendingProposal::from_json(content)?;
                 println!();
-                println!("- Proposal id: {}", &event.id);
-                println!("- Memo: {}", &proposal.memo);
-                println!("- To address: {}", &proposal.to_address);
-                println!("- Amount: {}", &proposal.amount);
+                println!("- Proposal id: {}", proposal_id);
+                println!("- Memo: {}", proposal.memo);
+                println!("- To address: {}", proposal.to_address);
+                println!("- Amount: {}", proposal.amount);
                 println!();
 
-                Ok(()) */
+                Ok(())
             }
         },
         Command::Setting { command } => match command {
@@ -434,4 +417,54 @@ fn get_policy_by_id(
         &policy_event.content,
     )?;
     Ok((Policy::from_json(content)?, global_keys))
+}
+
+fn get_proposal_by_id(
+    client: &Client,
+    proposal_id: EventId,
+    timeout: Option<Duration>,
+) -> Result<(SpendingProposal, Keys)> {
+    let keys = client.keys();
+
+    // Get proposal event
+    let filter = Filter::new()
+        .id(proposal_id)
+        .author(keys.public_key())
+        .kind(SPENDING_PROPOSAL_KIND);
+    let events = client.get_events_of(vec![filter], timeout)?;
+    let proposal_event = events.first().expect("Spending proposal not found");
+    let policy_id =
+        extract_policy_id_from_proposal_event(proposal_event).expect("Policy id not found");
+
+    // Get global shared key
+    let filter = Filter::new()
+        .pubkey(keys.public_key())
+        .event(policy_id)
+        .kind(SHARED_GLOBAL_KEY_KIND);
+    let events = client.get_events_of(vec![filter], timeout)?;
+    let global_shared_key_event = events.first().expect("Shared key not found");
+    let content = nips::nip04::decrypt(
+        &keys.secret_key()?,
+        &global_shared_key_event.pubkey,
+        &global_shared_key_event.content,
+    )?;
+    let sk = SecretKey::from_str(&content)?;
+    let global_keys = Keys::new(sk);
+
+    // Decrypt and deserialize the spending proposal
+    let content = nips::nip04::decrypt(
+        &global_keys.secret_key()?,
+        &global_keys.public_key(),
+        &proposal_event.content,
+    )?;
+    Ok((SpendingProposal::from_json(content)?, global_keys))
+}
+
+fn extract_policy_id_from_proposal_event(event: &Event) -> Option<EventId> {
+    for tag in event.tags.iter() {
+        if let Tag::Event(event_id, ..) = tag {
+            return Some(*event_id);
+        }
+    }
+    None
 }
