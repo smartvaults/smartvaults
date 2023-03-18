@@ -1,16 +1,20 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
 use cli::GetCommand;
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
-use coinstr_core::bdk::SyncOptions;
+use coinstr_core::bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
+use coinstr_core::bdk::{KeychainKind, SignOptions, SyncOptions};
 use coinstr_core::bip39::Mnemonic;
-use coinstr_core::bitcoin::Network;
-use coinstr_core::constants::{POLICY_KIND, SHARED_GLOBAL_KEY_KIND, SPENDING_PROPOSAL_KIND};
+use coinstr_core::bitcoin::{Network, PrivateKey};
+use coinstr_core::constants::{
+    POLICY_KIND, SHARED_GLOBAL_KEY_KIND, SPENDING_PROPOSAL_APPROVED_KIND, SPENDING_PROPOSAL_KIND,
+};
 use coinstr_core::nostr_sdk::blocking::Client;
 use coinstr_core::nostr_sdk::secp256k1::SecretKey;
 use coinstr_core::nostr_sdk::{nips, Event, EventBuilder, EventId, Filter, Keys, Tag};
@@ -197,7 +201,54 @@ fn main() -> Result<()> {
 
             Ok(())
         }
+        Command::Approve { name, proposal_id } => {
+            let path = dir::get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
+            let keys = client.keys();
+            let timeout = Some(Duration::from_secs(300));
+
+            // Get proposal
+            let (proposal, policy_id, global_keys) =
+                get_proposal_by_id(&client, proposal_id, timeout)?;
+
+            // Get policy id
+            let (policy, _global_keys) = get_policy_by_id(&client, policy_id, timeout)?;
+
+            // Create a BDK wallet
+            let mut wallet = coinstr.wallet(policy.descriptor.to_string())?;
+
+            // Add the BDK signer
+            let private_key = PrivateKey::new(keys.secret_key()?, network);
+            // TODO: replace `SignerContext::Segwitv0` with `SignerContext::Tap { ... }`
+            let signer = SignerWrapper::new(private_key, SignerContext::Segwitv0);
+
+            wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
+
+            // Sign the transaction
+            let mut psbt = proposal.psbt.clone();
+            let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
+            if psbt != proposal.psbt {
+                let content = nips::nip04::encrypt(
+                    &global_keys.secret_key()?,
+                    &global_keys.public_key(),
+                    psbt.to_string(),
+                )?;
+                let event = EventBuilder::new(
+                    SPENDING_PROPOSAL_APPROVED_KIND,
+                    content,
+                    &[Tag::Event(proposal_id, None, None)],
+                )
+                .to_event(&keys)?;
+                let event_id = client.send_event(event)?;
+                println!("Spending proposal {proposal_id} approved: {event_id}");
+            } else {
+                println!("PSBT not signed")
+            }
+
+            Ok(())
+        }
         Command::Get { command } => match command {
             GetCommand::Contacts { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
@@ -350,16 +401,20 @@ fn main() -> Result<()> {
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
                 let timeout = Some(Duration::from_secs(300));
-                let (proposal, _global_keys) = get_proposal_by_id(&client, proposal_id, timeout)?;
+                let (proposal, policy_id, _global_keys) =
+                    get_proposal_by_id(&client, proposal_id, timeout)?;
 
                 // TODO: improve printed output
 
                 println!();
-                println!("- Proposal id: {}", proposal_id);
+                println!("- Proposal id: {proposal_id}");
+                println!("- Policy id: {policy_id}");
                 println!("- Memo: {}", proposal.memo);
                 println!("- To address: {}", proposal.to_address);
                 println!("- Amount: {}", proposal.amount);
                 println!();
+
+                println!("{:#?}", proposal.psbt);
 
                 Ok(())
             }
@@ -388,10 +443,7 @@ fn get_policy_by_id(
     let keys = client.keys();
 
     // Get policy event
-    let filter = Filter::new()
-        .id(policy_id)
-        .author(keys.public_key())
-        .kind(POLICY_KIND);
+    let filter = Filter::new().id(policy_id).kind(POLICY_KIND);
     let events = client.get_events_of(vec![filter], timeout)?;
     let policy_event = events.first().expect("Policy not found");
 
@@ -423,7 +475,7 @@ fn get_proposal_by_id(
     client: &Client,
     proposal_id: EventId,
     timeout: Option<Duration>,
-) -> Result<(SpendingProposal, Keys)> {
+) -> Result<(SpendingProposal, EventId, Keys)> {
     let keys = client.keys();
 
     // Get proposal event
@@ -457,7 +509,11 @@ fn get_proposal_by_id(
         &global_keys.public_key(),
         &proposal_event.content,
     )?;
-    Ok((SpendingProposal::from_json(content)?, global_keys))
+    Ok((
+        SpendingProposal::from_json(content)?,
+        policy_id,
+        global_keys,
+    ))
 }
 
 fn extract_policy_id_from_proposal_event(event: &Event) -> Option<EventId> {

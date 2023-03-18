@@ -78,6 +78,15 @@ pub enum Command {
         #[arg(required = true)]
         amount: u64,
     },
+    /// Approve a spending proposal
+    Approve {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
+    },
     /// Get data about events and users
     #[command(arg_required_else_help = true)]
     Get {
