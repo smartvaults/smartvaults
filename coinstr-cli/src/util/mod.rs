@@ -16,7 +16,7 @@ use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
 use coinstr_core::{Keychain, Result};
 use owo_colors::colors::css::Lime;
-use owo_colors::colors::xterm::{BrightElectricViolet, Pistachio, UserBrightWhite};
+use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
 use owo_colors::colors::{BrightCyan, Magenta};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
@@ -118,7 +118,7 @@ pub fn print_policy<S>(
 where
     S: Into<String>,
 {
-    println!("{}", "\nPolicy".fg::<UserBrightWhite>().underline());
+    println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
     println!("- ID: {policy_id}");
     println!("- Name: {}", &policy.name);
     println!("- Description: {}", policy.description);
@@ -133,7 +133,7 @@ where
     wallet.sync(&blockchain, SyncOptions::default())?;
 
     let balance = wallet.get_balance()?;
-    println!("{}", "Balances".fg::<UserBrightWhite>().underline());
+    println!("{}", "Balances".fg::<BlazeOrange>().underline());
     println!(
         "- Immature            	: {} sats",
         format::number(balance.immature)
@@ -153,7 +153,7 @@ where
 
     println!(
         "\n{}: {}\n",
-        "Deposit address".fg::<UserBrightWhite>().underline(),
+        "Deposit address".fg::<BlazeOrange>().underline(),
         wallet.get_address(AddressIndex::New)?
     );
 
