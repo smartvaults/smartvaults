@@ -131,6 +131,7 @@ where
 
     let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint.into())?);
     wallet.sync(&blockchain, SyncOptions::default())?;
+
     let balance = wallet.get_balance()?;
     println!("{}", "Balances".fg::<UserBrightWhite>().underline());
     println!(
@@ -148,6 +149,11 @@ where
     println!(
         "- Confirmed           	: {} sats",
         format::number(balance.confirmed)
+    );
+
+    println!(
+        "\nDeposit address: {}\n",
+        wallet.get_address(AddressIndex::New)?
     );
 
     Ok(())
@@ -250,15 +256,16 @@ pub fn print_policies(policies: Vec<(EventId, Policy)>) {
     table.printstd();
 }
 
-pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal)>) {
+pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal, EventId)>) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "ID", "Memo", "Address", "Amount"]);
+    table.set_titles(row!["#", "ID", "Policy ID", "Memo", "Address", "Amount"]);
 
-    for (index, (proposal_id, proposal)) in proposals.into_iter().enumerate() {
+    for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
             proposal_id,
+            policy_id.to_hex()[..9],
             proposal.memo,
             proposal.to_address,
             format!("{} sats", format::number(proposal.amount))

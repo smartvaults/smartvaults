@@ -1,7 +1,12 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
+use bdk::bitcoin::XOnlyPublicKey;
+use bdk::miniscript::descriptor::{DescriptorType, TapTree};
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
+
+use crate::util::Unspendable;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -13,6 +18,8 @@ pub enum Error {
     Policy(#[from] bdk::miniscript::policy::compiler::CompilerError),
     #[error("{0}, {1}")]
     DescOrPolicy(Box<Self>, Box<Self>),
+    #[error("must be a taproot descriptor")]
+    NotTaprootDescriptor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,14 +30,18 @@ pub struct Policy {
 }
 
 impl Policy {
-    pub fn new<S>(name: S, description: S, descriptor: Descriptor<String>) -> Self
+    pub fn new<S>(name: S, description: S, descriptor: Descriptor<String>) -> Result<Self, Error>
     where
         S: Into<String>,
     {
-        Self {
-            name: name.into(),
-            description: description.into(),
-            descriptor,
+        if let DescriptorType::Tr = descriptor.desc_type() {
+            Ok(Self {
+                name: name.into(),
+                description: description.into(),
+                descriptor,
+            })
+        } else {
+            Err(Error::NotTaprootDescriptor)
         }
     }
 
@@ -39,16 +50,18 @@ impl Policy {
         S: Into<String>,
     {
         let descriptor = Descriptor::from_str(&descriptor.into())?;
-        Ok(Self::new(name, description, descriptor))
+        Self::new(name, description, descriptor)
     }
 
     pub fn from_miniscript_policy<S>(name: S, description: S, policy: S) -> Result<Self, Error>
     where
         S: Into<String>,
     {
-        let policy = Concrete::<String>::from_str(&policy.into())?;
-        let descriptor = Descriptor::new_wsh(policy.compile()?)?;
-        Ok(Self::new(name, description, descriptor))
+        let policy = Concrete::<String>::from_str(&policy.into())?.compile()?;
+        let tap_tree = TapTree::Leaf(Arc::new(policy));
+        let unspendable_key = XOnlyPublicKey::unspendable();
+        let descriptor = Descriptor::new_tr(unspendable_key.to_string(), Some(tap_tree))?;
+        Self::new(name, description, descriptor)
     }
 
     pub fn from_desc_or_policy<S>(name: S, description: S, desc_or_policy: S) -> Result<Self, Error>

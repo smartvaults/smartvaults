@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -146,7 +146,7 @@ fn main() -> Result<()> {
                 )
                 .to_event(&keys)?;
                 let event_id = client.send_event(event)?;
-                println!("Published global shared key for {pubkey} at event {event_id}");
+                println!("Published shared key for {pubkey} at event {event_id}");
             }
 
             println!("Policy saved: {policy_id}");
@@ -173,12 +173,19 @@ fn main() -> Result<()> {
             let wallet = coinstr.wallet(policy.descriptor.to_string())?;
             wallet.sync(&blockchain, SyncOptions::default())?;
 
-            // Compose PSBT
-            let (psbt, _details) = {
-                let mut builder = wallet.build_tx();
-                builder.add_recipient(to_address.script_pubkey(), amount);
-                builder.finish()?
-            };
+            // Get policies and specify which ones to use
+            let wallet_policy = wallet.policies(KeychainKind::External)?.unwrap();
+            let mut path = BTreeMap::new();
+            path.insert(wallet_policy.id, vec![1]);
+
+            // Build the transaction
+            let mut builder = wallet.build_tx();
+            builder
+                .add_recipient(to_address.script_pubkey(), amount)
+                .policy_path(path, KeychainKind::External);
+
+            // Build the PSBT
+            let (psbt, _details) = builder.finish()?;
 
             // Create spending proposal
             let proposal = SpendingProposal::new(memo, to_address, amount, psbt);
@@ -221,8 +228,12 @@ fn main() -> Result<()> {
 
             // Add the BDK signer
             let private_key = PrivateKey::new(keys.secret_key()?, network);
-            // TODO: replace `SignerContext::Segwitv0` with `SignerContext::Tap { ... }`
-            let signer = SignerWrapper::new(private_key, SignerContext::Segwitv0);
+            let signer = SignerWrapper::new(
+                private_key,
+                SignerContext::Tap {
+                    is_internal_key: false,
+                },
+            );
 
             wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
 
@@ -391,7 +402,7 @@ fn main() -> Result<()> {
                     }
                 }
 
-                let mut proposals: Vec<(EventId, SpendingProposal)> = Vec::new();
+                let mut proposals: Vec<(EventId, SpendingProposal, EventId)> = Vec::new();
 
                 for event in proposals_events.into_iter() {
                     let policy_id = extract_first_event_id(&event).expect("Policy id not found");
@@ -404,7 +415,7 @@ fn main() -> Result<()> {
                         &event.content,
                     )?;
 
-                    proposals.push((event.id, SpendingProposal::from_json(&content)?));
+                    proposals.push((event.id, SpendingProposal::from_json(&content)?, policy_id));
                 }
 
                 util::print_proposals(proposals);
@@ -546,7 +557,9 @@ fn get_signed_psbts_by_proposal_id(
         .event(proposal_id)
         .kind(SPENDING_PROPOSAL_APPROVED_KIND);
     let proposals_events = client.get_events_of(vec![filter], timeout)?;
-    let first_event = proposals_events.first().expect("Proposals not found");
+    let first_event = proposals_events
+        .first()
+        .expect("Approved proposals not found");
     let proposal_id = extract_first_event_id(first_event).expect("Proposal id not found");
 
     // Get global shared key
