@@ -152,7 +152,8 @@ where
     );
 
     println!(
-        "\nDeposit address: {}\n",
+        "\n{}: {}\n",
+        "Deposit address".fg::<UserBrightWhite>().underline(),
         wallet.get_address(AddressIndex::New)?
     );
 

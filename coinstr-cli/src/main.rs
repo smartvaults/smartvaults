@@ -15,7 +15,7 @@ use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Network, PrivateKey};
 use coinstr_core::constants::{
-    POLICY_KIND, SHARED_GLOBAL_KEY_KIND, SPENDING_PROPOSAL_APPROVED_KIND, SPENDING_PROPOSAL_KIND,
+    APPROVED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
 };
 use coinstr_core::nostr_sdk::blocking::Client;
 use coinstr_core::nostr_sdk::secp256k1::SecretKey;
@@ -42,7 +42,7 @@ fn main() -> Result<()> {
     let bitcoin_endpoint: &str = match network {
         Network::Bitcoin => "ssl://blockstream.info:700",
         Network::Testnet => "ssl://blockstream.info:993",
-        _ => panic!("Endpoints nnot availabe for this network"),
+        _ => panic!("Endpoints not availabe for this network"),
     };
 
     // Create path
@@ -66,7 +66,7 @@ fn main() -> Result<()> {
             )?;
             let keychain: Keychain = coinstr.keychain();
 
-            println!("\n!!! WRITE DOWN YOUT SEED PHRASE !!!");
+            println!("\n!!! WRITE DOWN YOUT MNEMONIC !!!");
             println!("\n################################################################\n");
             println!("{}", keychain.seed.mnemonic());
             println!("\n################################################################\n");
@@ -116,32 +116,34 @@ fn main() -> Result<()> {
 
             let extracted_pubkeys = coinstr_core::util::extract_public_keys(&policy_descriptor)?;
 
-            // Generate a shared secret key and encrypt the policy with it
-            let global_key = Keys::generate();
+            // Generate a shared key
+            let shared_key = Keys::generate();
             let policy =
                 Policy::from_desc_or_policy(policy_name, policy_description, policy_descriptor)?;
             let content = nips::nip04::encrypt(
-                &global_key.secret_key()?,
-                &global_key.public_key(),
+                &shared_key.secret_key()?,
+                &shared_key.public_key(),
                 policy.as_json(),
             )?;
             let tags: Vec<Tag> = extracted_pubkeys
                 .iter()
                 .map(|p| Tag::PubKey(*p, None))
                 .collect();
-            let policy_event = EventBuilder::new(POLICY_KIND, content, &tags).to_event(&keys)?;
+            // Publish policy with `shared_key` so every owner can delete it
+            let policy_event =
+                EventBuilder::new(POLICY_KIND, content, &tags).to_event(&shared_key)?;
             let policy_id = client.send_event(policy_event)?;
 
-            // Publish the global shared key
+            // Publish the shared key
             for pubkey in extracted_pubkeys.into_iter() {
-                let encrypted_global_key = nips::nip04::encrypt(
+                let encrypted_shared_key = nips::nip04::encrypt(
                     &keys.secret_key()?,
                     &pubkey,
-                    global_key.secret_key()?.display_secret().to_string(),
+                    shared_key.secret_key()?.display_secret().to_string(),
                 )?;
                 let event = EventBuilder::new(
-                    SHARED_GLOBAL_KEY_KIND,
-                    encrypted_global_key,
+                    SHARED_KEY_KIND,
+                    encrypted_shared_key,
                     &[Tag::Event(policy_id, None, None), Tag::PubKey(pubkey, None)],
                 )
                 .to_event(&keys)?;
@@ -162,11 +164,10 @@ fn main() -> Result<()> {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
-            let keys = client.keys();
 
             // Get policy
             let timeout = Some(Duration::from_secs(300));
-            let (policy, global_keys) = get_policy_by_id(&client, policy_id, timeout)?;
+            let (policy, shared_keys) = get_policy_by_id(&client, policy_id, timeout)?;
 
             // Sync balance
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
@@ -197,12 +198,13 @@ fn main() -> Result<()> {
                 .collect();
             tags.push(Tag::Event(policy_id, None, None));
             let content = nips::nip04::encrypt(
-                &global_keys.secret_key()?,
-                &global_keys.public_key(),
+                &shared_keys.secret_key()?,
+                &shared_keys.public_key(),
                 proposal.as_json(),
             )?;
+            // Publish proposal with `shared_key` so every owner can delete it
             let event =
-                EventBuilder::new(SPENDING_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+                EventBuilder::new(SPENDING_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
             let proposal_id = client.send_event(event)?;
             println!("Spending proposal {proposal_id} sent");
 
@@ -217,11 +219,11 @@ fn main() -> Result<()> {
             let timeout = Some(Duration::from_secs(300));
 
             // Get proposal
-            let (proposal, policy_id, global_keys) =
+            let (proposal, policy_id, shared_keys) =
                 get_proposal_by_id(&client, proposal_id, timeout)?;
 
             // Get policy id
-            let (policy, _global_keys) = get_policy_by_id(&client, policy_id, timeout)?;
+            let (policy, _shared_keys) = get_policy_by_id(&client, policy_id, timeout)?;
 
             // Create a BDK wallet
             let mut wallet = coinstr.wallet(policy.descriptor.to_string())?;
@@ -242,14 +244,17 @@ fn main() -> Result<()> {
             let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
             if psbt != proposal.psbt {
                 let content = nips::nip04::encrypt(
-                    &global_keys.secret_key()?,
-                    &global_keys.public_key(),
+                    &shared_keys.secret_key()?,
+                    &shared_keys.public_key(),
                     psbt.to_string(),
                 )?;
                 let event = EventBuilder::new(
-                    SPENDING_PROPOSAL_APPROVED_KIND,
+                    APPROVED_PROPOSAL_KIND,
                     content,
-                    &[Tag::Event(proposal_id, None, None)],
+                    &[
+                        Tag::Event(proposal_id, None, None),
+                        Tag::Event(policy_id, None, None),
+                    ],
                 )
                 .to_event(&keys)?;
                 let event_id = client.send_event(event)?;
@@ -283,6 +288,8 @@ fn main() -> Result<()> {
                         ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
                     blockchain.broadcast(&finalized_tx)?;
                     println!("Transaction {} broadcasted", finalized_tx.txid());
+
+                    // TODO: delete the proposal?
                 }
                 Err(e) => eprintln!("PSBT not finalized: {e:?}"),
             }
@@ -314,11 +321,11 @@ fn main() -> Result<()> {
                 // Get global shared keys
                 let filter = Filter::new()
                     .pubkey(keys.public_key())
-                    .kind(SHARED_GLOBAL_KEY_KIND);
+                    .kind(SHARED_KEY_KIND);
                 let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
 
                 // Index global keys by policy id
-                let mut global_keys: HashMap<EventId, Keys> = HashMap::new();
+                let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
                 for event in global_shared_key_events.into_iter() {
                     for tag in event.tags {
                         if let Tag::Event(event_id, ..) = tag {
@@ -329,7 +336,7 @@ fn main() -> Result<()> {
                             )?;
                             let sk = SecretKey::from_str(&content)?;
                             let keys = Keys::new(sk);
-                            global_keys.insert(event_id, keys);
+                            shared_keys.insert(event_id, keys);
                         }
                     }
                 }
@@ -337,7 +344,7 @@ fn main() -> Result<()> {
                 let mut policies: Vec<(EventId, Policy)> = Vec::new();
 
                 for event in policies_events.into_iter() {
-                    let global_key = global_keys.get(&event.id).expect("Global key not found");
+                    let global_key = shared_keys.get(&event.id).expect("Global key not found");
                     let content = nips::nip04::decrypt(
                         &global_key.secret_key()?,
                         &global_key.public_key(),
@@ -350,20 +357,29 @@ fn main() -> Result<()> {
 
                 Ok(())
             }
-            GetCommand::Policy { name, policy_id } => {
+            GetCommand::Policy {
+                name,
+                policy_id,
+                export,
+            } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
                 // Get policy
                 let timeout = Some(Duration::from_secs(300));
-                let (policy, _global_keys) = get_policy_by_id(&client, policy_id, timeout)?;
+                let (policy, _shared_keys) = get_policy_by_id(&client, policy_id, timeout)?;
 
                 // Open wallet
                 let wallet = coinstr.wallet(policy.descriptor.to_string())?;
 
                 // Print result
-                util::print_policy(policy, policy_id, wallet, bitcoin_endpoint)
+                if export {
+                    println!("\n{}\n", policy.descriptor);
+                    Ok(())
+                } else {
+                    util::print_policy(policy, policy_id, wallet, bitcoin_endpoint)
+                }
             }
             GetCommand::Proposals { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
@@ -382,11 +398,11 @@ fn main() -> Result<()> {
                 // Get global shared keys
                 let filter = Filter::new()
                     .pubkey(keys.public_key())
-                    .kind(SHARED_GLOBAL_KEY_KIND);
+                    .kind(SHARED_KEY_KIND);
                 let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
 
                 // Index global keys by policy id
-                let mut global_keys: HashMap<EventId, Keys> = HashMap::new();
+                let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
                 for event in global_shared_key_events.into_iter() {
                     for tag in event.tags {
                         if let Tag::Event(event_id, ..) = tag {
@@ -397,7 +413,7 @@ fn main() -> Result<()> {
                             )?;
                             let sk = SecretKey::from_str(&content)?;
                             let keys = Keys::new(sk);
-                            global_keys.insert(event_id, keys);
+                            shared_keys.insert(event_id, keys);
                         }
                     }
                 }
@@ -407,7 +423,7 @@ fn main() -> Result<()> {
                 for event in proposals_events.into_iter() {
                     let policy_id = extract_first_event_id(&event).expect("Policy id not found");
                     let global_key: &Keys =
-                        global_keys.get(&policy_id).expect("Global key not found");
+                        shared_keys.get(&policy_id).expect("Global key not found");
 
                     let content = nips::nip04::decrypt(
                         &global_key.secret_key()?,
@@ -428,7 +444,7 @@ fn main() -> Result<()> {
                 let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
 
                 let timeout = Some(Duration::from_secs(300));
-                let (proposal, policy_id, _global_keys) =
+                let (proposal, policy_id, _shared_keys) =
                     get_proposal_by_id(&client, proposal_id, timeout)?;
 
                 // TODO: improve printed output
@@ -445,14 +461,20 @@ fn main() -> Result<()> {
             }
         },
         Command::Delete { command } => match command {
-            DeleteCommand::Policy {
-                name: _,
-                policy_id: _,
-            } => todo!(),
-            DeleteCommand::Proposal {
-                name: _,
-                proposal_id: _,
-            } => todo!(),
+            DeleteCommand::Policy { name, policy_id } => {
+                let path = dir::get_keychain_file(keychains, name)?;
+                let coinstr = Coinstr::open(path, io::get_password, network)?;
+                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let timeout = Some(Duration::from_secs(300));
+                delete_policy_by_id(&client, policy_id, timeout)
+            }
+            DeleteCommand::Proposal { name, proposal_id } => {
+                let path = dir::get_keychain_file(keychains, name)?;
+                let coinstr = Coinstr::open(path, io::get_password, network)?;
+                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let timeout = Some(Duration::from_secs(300));
+                delete_proposal_by_id(&client, proposal_id, timeout)
+            }
         },
         Command::Setting { command } => match command {
             SettingCommand::Rename { name, new_name } => {
@@ -486,7 +508,7 @@ fn get_policy_by_id(
     let filter = Filter::new()
         .pubkey(keys.public_key())
         .event(policy_id)
-        .kind(SHARED_GLOBAL_KEY_KIND);
+        .kind(SHARED_KEY_KIND);
     let events = client.get_events_of(vec![filter], timeout)?;
     let global_shared_key_event = events.first().expect("Shared key not found");
     let content = nips::nip04::decrypt(
@@ -495,15 +517,15 @@ fn get_policy_by_id(
         &global_shared_key_event.content,
     )?;
     let sk = SecretKey::from_str(&content)?;
-    let global_keys = Keys::new(sk);
+    let shared_keys = Keys::new(sk);
 
     // Decrypt and deserialize the policy
     let content = nips::nip04::decrypt(
-        &global_keys.secret_key()?,
-        &global_keys.public_key(),
+        &shared_keys.secret_key()?,
+        &shared_keys.public_key(),
         &policy_event.content,
     )?;
-    Ok((Policy::from_json(content)?, global_keys))
+    Ok((Policy::from_json(content)?, shared_keys))
 }
 
 fn get_proposal_by_id(
@@ -523,7 +545,7 @@ fn get_proposal_by_id(
     let filter = Filter::new()
         .pubkey(keys.public_key())
         .event(policy_id)
-        .kind(SHARED_GLOBAL_KEY_KIND);
+        .kind(SHARED_KEY_KIND);
     let events = client.get_events_of(vec![filter], timeout)?;
     let global_shared_key_event = events.first().expect("Shared key not found");
     let content = nips::nip04::decrypt(
@@ -532,18 +554,18 @@ fn get_proposal_by_id(
         &global_shared_key_event.content,
     )?;
     let sk = SecretKey::from_str(&content)?;
-    let global_keys = Keys::new(sk);
+    let shared_keys = Keys::new(sk);
 
     // Decrypt and deserialize the spending proposal
     let content = nips::nip04::decrypt(
-        &global_keys.secret_key()?,
-        &global_keys.public_key(),
+        &shared_keys.secret_key()?,
+        &shared_keys.public_key(),
         &proposal_event.content,
     )?;
     Ok((
         SpendingProposal::from_json(content)?,
         policy_id,
-        global_keys,
+        shared_keys,
     ))
 }
 
@@ -555,7 +577,7 @@ fn get_signed_psbts_by_proposal_id(
     // Get approved proposals
     let filter = Filter::new()
         .event(proposal_id)
-        .kind(SPENDING_PROPOSAL_APPROVED_KIND);
+        .kind(APPROVED_PROPOSAL_KIND);
     let proposals_events = client.get_events_of(vec![filter], timeout)?;
     let first_event = proposals_events
         .first()
@@ -563,14 +585,14 @@ fn get_signed_psbts_by_proposal_id(
     let proposal_id = extract_first_event_id(first_event).expect("Proposal id not found");
 
     // Get global shared key
-    let (proposal, _, global_keys) = get_proposal_by_id(client, proposal_id, timeout)?;
+    let (proposal, _, shared_keys) = get_proposal_by_id(client, proposal_id, timeout)?;
 
     let mut psbts: Vec<PartiallySignedTransaction> = Vec::new();
 
     for event in proposals_events.into_iter() {
         let content = nips::nip04::decrypt(
-            &global_keys.secret_key()?,
-            &global_keys.public_key(),
+            &shared_keys.secret_key()?,
+            &shared_keys.public_key(),
             &event.content,
         )?;
         psbts.push(PartiallySignedTransaction::from_str(&content)?);
@@ -586,4 +608,80 @@ fn extract_first_event_id(event: &Event) -> Option<EventId> {
         }
     }
     None
+}
+
+fn delete_policy_by_id(
+    client: &Client,
+    policy_id: EventId,
+    timeout: Option<Duration>,
+) -> Result<()> {
+    let keys = client.keys();
+
+    // Get global shared key
+    let filter = Filter::new()
+        .pubkey(keys.public_key())
+        .event(policy_id)
+        .kind(SHARED_KEY_KIND);
+    let events = client.get_events_of(vec![filter], timeout)?;
+    let global_shared_key_event = events.first().expect("Shared key not found");
+    let content = nips::nip04::decrypt(
+        &keys.secret_key()?,
+        &global_shared_key_event.pubkey,
+        &global_shared_key_event.content,
+    )?;
+    let sk = SecretKey::from_str(&content)?;
+    let shared_keys = Keys::new(sk);
+
+    // Get all events linked to the policy
+    let filter = Filter::new().event(policy_id);
+    let events = client.get_events_of(vec![filter], timeout)?;
+
+    let mut ids: Vec<EventId> = events.iter().map(|e| e.id).collect();
+    ids.push(policy_id);
+
+    let event = EventBuilder::delete::<String>(ids, None).to_event(&shared_keys)?;
+    client.send_event(event)?;
+
+    Ok(())
+}
+
+fn delete_proposal_by_id(
+    client: &Client,
+    proposal_id: EventId,
+    timeout: Option<Duration>,
+) -> Result<()> {
+    let keys = client.keys();
+
+    // Get the proposal
+    let filter = Filter::new().id(proposal_id);
+    let events = client.get_events_of(vec![filter], timeout)?;
+    let proposal_event = events.first().expect("Spending proposal not found");
+    let policy_id = extract_first_event_id(proposal_event).expect("Policy id not found");
+
+    // Get global shared key
+    let filter = Filter::new()
+        .pubkey(keys.public_key())
+        .event(policy_id)
+        .kind(SHARED_KEY_KIND);
+    let events = client.get_events_of(vec![filter], timeout)?;
+    let global_shared_key_event = events.first().expect("Shared key not found");
+    let content = nips::nip04::decrypt(
+        &keys.secret_key()?,
+        &global_shared_key_event.pubkey,
+        &global_shared_key_event.content,
+    )?;
+    let sk = SecretKey::from_str(&content)?;
+    let shared_keys = Keys::new(sk);
+
+    // Get all events linked to the proposal
+    let filter = Filter::new().event(proposal_id);
+    let events = client.get_events_of(vec![filter], timeout)?;
+
+    let mut ids: Vec<EventId> = events.iter().map(|e| e.id).collect();
+    ids.push(proposal_id);
+
+    let event = EventBuilder::delete::<String>(ids, None).to_event(&shared_keys)?;
+    client.send_event(event)?;
+
+    Ok(())
 }

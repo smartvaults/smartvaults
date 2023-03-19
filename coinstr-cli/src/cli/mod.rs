@@ -137,6 +137,9 @@ pub enum GetCommand {
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
+        /// Export descriptor
+        #[arg(long)]
+        export: bool,
     },
     /// Get proposals list from nostr
     Proposals {
