@@ -249,6 +249,8 @@ fn main() -> Result<()> {
                     &shared_keys.public_key(),
                     psbt.to_string(),
                 )?;
+                // Publish approved proposal with `shared_key` so after the broadcast
+                // of the transaction it can be deleted
                 let event = EventBuilder::new(
                     APPROVED_PROPOSAL_KIND,
                     content,
@@ -257,7 +259,7 @@ fn main() -> Result<()> {
                         Tag::Event(policy_id, None, None),
                     ],
                 )
-                .to_event(&keys)?;
+                .to_event(&shared_keys)?;
                 let event_id = client.send_event(event)?;
                 println!("Spending proposal {proposal_id} approved: {event_id}");
             } else {
@@ -290,7 +292,8 @@ fn main() -> Result<()> {
                     blockchain.broadcast(&finalized_tx)?;
                     println!("Transaction {} broadcasted", finalized_tx.txid());
 
-                    // TODO: delete the proposal?
+                    // Delete the proposal
+                    delete_proposal_by_id(&client, proposal_id, timeout)?;
                 }
                 Err(e) => eprintln!("PSBT not finalized: {e:?}"),
             }
