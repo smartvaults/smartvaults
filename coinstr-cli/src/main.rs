@@ -37,6 +37,7 @@ fn main() -> Result<()> {
 
     let args = Cli::parse();
     let network: Network = args.network.into();
+    let relays: Vec<String> = vec![args.relay];
     let keychains: PathBuf = Path::new("./keychains").to_path_buf();
 
     let bitcoin_endpoint: &str = match network {
@@ -111,7 +112,7 @@ fn main() -> Result<()> {
         } => {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+            let client = coinstr.nostr_client(relays)?;
             let keys = coinstr.keychain().nostr_keys()?;
 
             let extracted_pubkeys = coinstr_core::util::extract_public_keys(&policy_descriptor)?;
@@ -163,7 +164,7 @@ fn main() -> Result<()> {
         } => {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+            let client = coinstr.nostr_client(relays)?;
 
             // Get policy
             let timeout = Some(Duration::from_secs(300));
@@ -213,7 +214,7 @@ fn main() -> Result<()> {
         Command::Approve { name, proposal_id } => {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+            let client = coinstr.nostr_client(relays)?;
 
             let keys = client.keys();
             let timeout = Some(Duration::from_secs(300));
@@ -268,7 +269,7 @@ fn main() -> Result<()> {
         Command::Broadcast { name, proposal_id } => {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+            let client = coinstr.nostr_client(relays)?;
 
             // Get PSBTs
             let timeout = Some(Duration::from_secs(300));
@@ -300,7 +301,7 @@ fn main() -> Result<()> {
             GetCommand::Contacts { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
                 let timeout = Some(Duration::from_secs(60));
                 let contacts = client.get_contact_list_metadata(timeout)?;
                 util::print_contacts(contacts);
@@ -309,7 +310,7 @@ fn main() -> Result<()> {
             GetCommand::Policies { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
 
                 let keys = client.keys();
                 let timeout = Some(Duration::from_secs(300));
@@ -364,7 +365,7 @@ fn main() -> Result<()> {
             } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
 
                 // Get policy
                 let timeout = Some(Duration::from_secs(300));
@@ -384,7 +385,7 @@ fn main() -> Result<()> {
             GetCommand::Proposals { name } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
 
                 let keys = client.keys();
                 let timeout = Some(Duration::from_secs(300));
@@ -441,7 +442,7 @@ fn main() -> Result<()> {
             GetCommand::Proposal { name, proposal_id } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
 
                 let timeout = Some(Duration::from_secs(300));
                 let (proposal, policy_id, _shared_keys) =
@@ -464,14 +465,14 @@ fn main() -> Result<()> {
             DeleteCommand::Policy { name, policy_id } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
                 let timeout = Some(Duration::from_secs(300));
                 delete_policy_by_id(&client, policy_id, timeout)
             }
             DeleteCommand::Proposal { name, proposal_id } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.nostr_client(vec![DEFAULT_RELAY.to_string()])?;
+                let client = coinstr.nostr_client(relays)?;
                 let timeout = Some(Duration::from_secs(300));
                 delete_proposal_by_id(&client, proposal_id, timeout)
             }

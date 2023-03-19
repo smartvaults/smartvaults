@@ -6,6 +6,7 @@ pub mod io;
 mod types;
 
 use self::types::{CliNetwork, CliWordCount};
+use crate::DEFAULT_RELAY;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -13,6 +14,9 @@ pub struct Cli {
     /// Network
     #[clap(short, long, value_enum, default_value_t = CliNetwork::Bitcoin)]
     pub network: CliNetwork,
+    /// Relay
+    #[clap(short, long, default_value_t = DEFAULT_RELAY.to_string())]
+    pub relay: String,
     #[command(subcommand)]
     pub command: Command,
 }
