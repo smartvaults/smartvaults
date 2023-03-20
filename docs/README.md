@@ -169,14 +169,7 @@ Transaction 2b4226bd85fb32a833bfbde59728e21c2574d93a736d636ca689572c3731808a bro
 
 https://blockstream.info/testnet/tx/2b4226bd85fb32a833bfbde59728e21c2574d93a736d636ca689572c3731808a
 
-## Step 8: Delete the Proposal
-Once the proposal is broadcast, you can delete it with: 
-```
-./target/release/coinstr-cli --network testnet delete proposal \
-    alice-2of2 \
-    c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 
-```
 
 
 
