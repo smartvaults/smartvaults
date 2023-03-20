@@ -1,3 +1,5 @@
+use std::env;
+
 use coinstr_core::Result;
 use dialoguer::{Confirm, Input, Password};
 
@@ -8,8 +10,15 @@ where
     Ok(Input::new().with_prompt(prompt).interact_text()?)
 }
 
+/// Get password
+///
+/// If the `COINSTR_PASSWORD` env variable exists, that will be used as the password,
+/// otherwise it will be asked interactively.
 pub fn get_password() -> Result<String> {
-    Ok(Password::new().with_prompt("Password").interact()?)
+    match get_password_from_env() {
+        Some(psw) => Ok(psw),
+        None => Ok(Password::new().with_prompt("Password").interact()?),
+    }
 }
 
 pub fn get_password_with_confirmation() -> Result<String> {
@@ -32,4 +41,8 @@ where
     } else {
         Ok(false)
     }
+}
+
+pub fn get_password_from_env() -> Option<String> {
+    env::var("COINSTR_PASSWORD").ok()
 }

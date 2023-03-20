@@ -113,7 +113,7 @@ fn main() -> Result<()> {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.nostr_client(relays)?;
-            let keys = coinstr.keychain().nostr_keys()?;
+            let keys = client.keys();
 
             let extracted_pubkeys = coinstr_core::util::extract_public_keys(&policy_descriptor)?;
 
