@@ -1,9 +1,9 @@
 
 # Step by Step - 2 of 2 Multisig
-This step by step tutorial shows how to create a 2 of 2 multisignature Bitcoin transaction using `coinstr-cli`. 
+This step by step guide shows how to create a 2 of 2 multisignature Bitcoin transaction using `coinstr-cli`. 
 
 ## Step 1. Setup Keys
-Create keys and save them to keychains. You can use the keychain names of `alice-2of2` and `bob-2of2`. A password to encrypt your keychain IS required, but a passphrase (which modifies the key) is not required.
+Create keys and save them to keychains. You can use the keychain names of `alice-2of2` and `bob-2of2`. A password to encrypt your keychain **is** required, but a passphrase (which modifies the key) is not required.
 
 > NOTE: Mnemonics will be printed but they don't need to be saved for this tutorial.
 ```
@@ -58,7 +58,10 @@ thresh(2,pk(03eeb3a752dd7863c08e783429076d0ef308ef3a2a41c2df417a854e8287b34612),
 
 ## Step 3: Save the Policy 
 ```
-./target/release/coinstr-cli save-policy alice-2of2 "Multisig 2 of 2" "Testing multisig as part of the Coinstr demo" "thresh(2,pk(03eeb3a752dd7863c08e783429076d0ef308ef3a2a41c2df417a854e8287b34612),pk(025eace63cc5d93fb883082d30ccfbe43f16bbe869a2f1f0858a86ed6fa0475d52))"
+./target/release/coinstr-cli save-policy alice-2of2 \
+    "Multisig 2 of 2" \
+    "Testing multisig as part of the Coinstr demo" \
+    "thresh(2,pk(03eeb3a752dd7863c08e783429076d0ef308ef3a2a41c2df417a854e8287b34612),pk(025eace63cc5d93fb883082d30ccfbe43f16bbe869a2f1f0858a86ed6fa0475d52))"
 ```
 
 Now you can review the saved policies for alice using the following command: 
@@ -77,7 +80,9 @@ Produces:
 
 You can see the details of the policy by calling `get policy`: 
 ```
-./target/release/coinstr-cli --network testnet get policy alice-2of2 0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0
+./target/release/coinstr-cli --network testnet get policy \
+    alice-2of2 \
+    0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0
 ```
 
 > NOTE: Bob has the same policy saved into his list.
@@ -115,7 +120,12 @@ We will create the spend proposal from Alice's perspective. to create a spend pr
 Usage: coinstr-cli spend <NAME> <POLICY_ID> <TO_ADDRESS> <AMOUNT> <MEMO>
 ```
 ```
-./target/release/coinstr-cli --network testnet spend alice-2of2 0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0 mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78 1000 "Send back to the faucet"
+./target/release/coinstr-cli --network testnet spend \
+    alice-2of2 \
+    0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0 \
+    mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78 \
+    1000 \
+    "Send back to the faucet"
 ```
 You can now view the spend proposal:
 ```
@@ -133,8 +143,13 @@ Create the below table:
 ## Step 6: Approve a Spend Proposal
 Now we need to approve the proposal from both Alice and Bob's perspective.
 ```
-./target/release/coinstr-cli --network testnet approve alice-2of2 c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
-./target/release/coinstr-cli --network testnet approve bob-2of2 c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
+./target/release/coinstr-cli --network testnet approve \
+    alice-2of2 \
+    c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
+
+./target/release/coinstr-cli --network testnet approve \
+    bob-2of2 \
+    c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 ```
 
 > NOTE: if you try to broadcast the transaction before it is finalized, you will get an error such as `PSBT not finalized: [InputError(CouldNotSatisfyTr, 0), InputError(CouldNotSatisfyTr, 1)]`.
@@ -142,7 +157,9 @@ Now we need to approve the proposal from both Alice and Bob's perspective.
 
 ## Step 7: Broadcast the Transaction
 ```
-coinstr-cli --network testnet broadcast alice-2of2 c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
+coinstr-cli --network testnet broadcast \
+    alice-2of2 \
+    c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 ```
 
 You will get a transaction-id that you can view with a block explorer: 
@@ -155,7 +172,9 @@ https://blockstream.info/testnet/tx/2b4226bd85fb32a833bfbde59728e21c2574d93a736d
 ## Step 8: Delete the Proposal
 Once the proposal is broadcast, you can delete it with: 
 ```
-./target/release/coinstr-cli --network testnet delete proposal alice-2of2 c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
+./target/release/coinstr-cli --network testnet delete proposal \
+    alice-2of2 \
+    c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 
 ```
 
