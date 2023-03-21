@@ -50,14 +50,27 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(keychains.as_path())?;
 
     match args.command {
-        Command::Generate { name, word_count } => {
+        Command::Generate {
+            name,
+            word_count,
+            password,
+            passphrase,
+        } => {
             let path: PathBuf = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::generate(
                 path,
-                io::get_password_with_confirmation,
+                || {
+                    if let Some(password) = password {
+                        Ok(password)
+                    } else {
+                        io::get_password_with_confirmation()
+                    }
+                },
                 word_count.into(),
                 || {
-                    if io::ask("Do you want to use a passphrase?")? {
+                    if let Some(passphrase) = passphrase {
+                        Ok(Some(passphrase))
+                    } else if io::ask("Do you want to use a passphrase?")? {
                         Ok(Some(io::get_input("Passphrase")?))
                     } else {
                         Ok(None)

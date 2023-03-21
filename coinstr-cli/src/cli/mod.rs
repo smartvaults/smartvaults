@@ -32,6 +32,12 @@ pub enum Command {
         /// Word count
         #[arg(value_enum, default_value_t = CliWordCount::W12)]
         word_count: CliWordCount,
+        /// Password
+        #[arg(long)]
+        password: Option<String>,
+        /// Passphrase
+        #[arg(long)]
+        passphrase: Option<String>,
     },
     /// Restore keychain
     #[command(arg_required_else_help = true)]
