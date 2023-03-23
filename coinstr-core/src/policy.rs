@@ -1,8 +1,7 @@
 use std::str::FromStr;
-use std::sync::Arc;
 
 use bdk::bitcoin::XOnlyPublicKey;
-use bdk::miniscript::descriptor::{DescriptorType, TapTree};
+use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
 
@@ -57,10 +56,9 @@ impl Policy {
     where
         S: Into<String>,
     {
-        let policy = Concrete::<String>::from_str(&policy.into())?.compile()?;
-        let tap_tree = TapTree::Leaf(Arc::new(policy));
-        let unspendable_key = XOnlyPublicKey::unspendable();
-        let descriptor = Descriptor::new_tr(unspendable_key.to_string(), Some(tap_tree))?;
+        let policy = Concrete::<String>::from_str(&policy.into())?;
+        let unspendable_pk = XOnlyPublicKey::unspendable();
+        let descriptor = policy.compile_tr(Some(unspendable_pk.to_string()))?;
         Self::new(name, description, descriptor)
     }
 
