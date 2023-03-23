@@ -298,7 +298,18 @@ fn main() -> Result<()> {
                     let blockchain =
                         ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
                     blockchain.broadcast(&finalized_tx)?;
-                    println!("Transaction {} broadcasted", finalized_tx.txid());
+                    let txid = finalized_tx.txid();
+                    println!("Transaction {txid} broadcasted");
+
+                    match network {
+                        Network::Bitcoin => {
+                            println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                        }
+                        Network::Testnet => {
+                            println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
+                        }
+                        _ => (),
+                    };
 
                     // Delete the proposal
                     client.delete_proposal_by_id(proposal_id, TIMEOUT)?;
