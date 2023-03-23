@@ -5,7 +5,7 @@ use keechain_core::bitcoin::secp256k1::SECP256K1;
 use keechain_core::bitcoin::XOnlyPublicKey;
 pub use keechain_core::util::*;
 
-const PUBLIC_KEY_LEN: usize = 66;
+const XONLY_PUBLIC_KEY_LEN: usize = 64;
 const HEX_CHARS: &str = "ABCDEFabcdef0123456789";
 
 #[derive(Debug, thiserror::Error)]
@@ -22,13 +22,15 @@ where
     let len: usize = descriptor.len();
     let mut public_keys: Vec<XOnlyPublicKey> = Vec::new();
     for (index, _char) in descriptor.char_indices() {
-        if len - index < PUBLIC_KEY_LEN {
+        if len - index < XONLY_PUBLIC_KEY_LEN {
             break;
         }
-        if let Some(chunk) = descriptor.get(index..index + PUBLIC_KEY_LEN) {
-            if maybe_pubkey(chunk) {
-                if let Ok(pubkey) = XOnlyPublicKey::from_str(&chunk[2..]) {
-                    public_keys.push(pubkey);
+        if let Some(chunk) = descriptor.get(index..index + XONLY_PUBLIC_KEY_LEN) {
+            if maybe_xonly_pubkey(chunk) {
+                if let Ok(pubkey) = XOnlyPublicKey::from_str(chunk) {
+                    if !public_keys.contains(&pubkey) {
+                        public_keys.push(pubkey);
+                    }
                 }
             }
         }
@@ -36,8 +38,8 @@ where
     Ok(public_keys)
 }
 
-fn maybe_pubkey(chunk: &str) -> bool {
-    if chunk.len() != 66 {
+fn maybe_xonly_pubkey(chunk: &str) -> bool {
+    if chunk.len() != XONLY_PUBLIC_KEY_LEN {
         return false;
     }
 
@@ -69,7 +71,7 @@ mod test {
 
     #[test]
     fn test_policy_extractor() {
-        let descriptor = "thresh(2,pk(03e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc),pk(03101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df),pk(027b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff))";
+        let descriptor = "thresh(2,pk(e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc),pk(101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df),pk(7b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff))";
         let pubkeys = extract_public_keys(descriptor).unwrap();
 
         assert_eq!(
@@ -93,22 +95,22 @@ mod test {
 
     #[test]
     fn test_descriptor_extractor() {
-        let descriptor = "wsh(multi(2,03e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc,03101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df,027b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff))#lrsyq0eg";
+        let descriptor = "tr(0298e9fdeb06b3e9e49db3dbffe1a3a353bf359c54fe415769dd3f174f4ea610,multi_a(2,c04e8da91853b7fd215102e6aa48477d8e1ba6b3c16902371a153d3784a1b0f7,e8978cf935f7f912e77c57fcf03668a20cf4eacfbcdeb046613946266d8b8204))#37490v6l";
         let pubkeys = extract_public_keys(descriptor).unwrap();
 
         assert_eq!(
             pubkeys,
             vec![
                 XOnlyPublicKey::from_str(
-                    "e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc"
+                    "0298e9fdeb06b3e9e49db3dbffe1a3a353bf359c54fe415769dd3f174f4ea610"
                 )
                 .unwrap(),
                 XOnlyPublicKey::from_str(
-                    "101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df"
+                    "c04e8da91853b7fd215102e6aa48477d8e1ba6b3c16902371a153d3784a1b0f7"
                 )
                 .unwrap(),
                 XOnlyPublicKey::from_str(
-                    "7b9eda7669b1075c0eb4b117a34de19be4b3c8b0d5537b5de7fa9793b0a8e9ff"
+                    "e8978cf935f7f912e77c57fcf03668a20cf4eacfbcdeb046613946266d8b8204"
                 )
                 .unwrap(),
             ]
