@@ -335,28 +335,8 @@ fn main() -> Result<()> {
                 let filter = Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND);
                 let policies_events = client.get_events_of(vec![filter], timeout)?;
 
-                // Get global shared keys
-                let filter = Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(SHARED_KEY_KIND);
-                let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
-
-                // Index global keys by policy id
-                let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
-                for event in global_shared_key_events.into_iter() {
-                    for tag in event.tags {
-                        if let Tag::Event(event_id, ..) = tag {
-                            let content = nips::nip04::decrypt(
-                                &keys.secret_key()?,
-                                &event.pubkey,
-                                &event.content,
-                            )?;
-                            let sk = SecretKey::from_str(&content)?;
-                            let keys = Keys::new(sk);
-                            shared_keys.insert(event_id, keys);
-                        }
-                    }
-                }
+                // Get shared keys
+                let shared_keys: HashMap<EventId, Keys> = get_shared_keys(&client)?;
 
                 let mut policies: Vec<(EventId, Policy)> = Vec::new();
 
@@ -412,28 +392,8 @@ fn main() -> Result<()> {
                     .kind(SPENDING_PROPOSAL_KIND);
                 let proposals_events = client.get_events_of(vec![filter], timeout)?;
 
-                // Get global shared keys
-                let filter = Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(SHARED_KEY_KIND);
-                let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
-
-                // Index global keys by policy id
-                let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
-                for event in global_shared_key_events.into_iter() {
-                    for tag in event.tags {
-                        if let Tag::Event(event_id, ..) = tag {
-                            let content = nips::nip04::decrypt(
-                                &keys.secret_key()?,
-                                &event.pubkey,
-                                &event.content,
-                            )?;
-                            let sk = SecretKey::from_str(&content)?;
-                            let keys = Keys::new(sk);
-                            shared_keys.insert(event_id, keys);
-                        }
-                    }
-                }
+                // Get shared keys
+                let shared_keys: HashMap<EventId, Keys> = get_shared_keys(&client)?;
 
                 let mut proposals: Vec<(EventId, SpendingProposal, EventId)> = Vec::new();
 
@@ -507,6 +467,31 @@ fn main() -> Result<()> {
             }
         },
     }
+}
+
+fn get_shared_keys(client: &Client) -> Result<HashMap<EventId, Keys>> {
+    let timeout = Some(Duration::from_secs(300));
+    let keys = client.keys();
+
+    let filter = Filter::new()
+        .pubkey(keys.public_key())
+        .kind(SHARED_KEY_KIND);
+    let global_shared_key_events = client.get_events_of(vec![filter], timeout)?;
+
+    // Index global keys by policy id
+    let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
+    for event in global_shared_key_events.into_iter() {
+        for tag in event.tags {
+            if let Tag::Event(event_id, ..) = tag {
+                let content =
+                    nips::nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
+                let sk = SecretKey::from_str(&content)?;
+                let keys = Keys::new(sk);
+                shared_keys.insert(event_id, keys);
+            }
+        }
+    }
+    Ok(shared_keys)
 }
 
 fn get_policy_by_id(
