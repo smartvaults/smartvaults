@@ -178,7 +178,6 @@ fn main() -> Result<()> {
             let client = coinstr.nostr_client(relays)?;
 
             // Get policy
-
             let (policy, shared_keys) = client.get_policy_by_id(policy_id, TIMEOUT)?;
 
             // Sync balance
@@ -284,7 +283,6 @@ fn main() -> Result<()> {
             let client = coinstr.nostr_client(relays)?;
 
             // Get PSBTs
-
             let (mut base_psbt, psbts) =
                 client.get_signed_psbts_by_proposal_id(proposal_id, TIMEOUT)?;
 
@@ -359,7 +357,6 @@ fn main() -> Result<()> {
                 let client = coinstr.nostr_client(relays)?;
 
                 // Get policy
-
                 let (policy, _shared_keys) = client.get_policy_by_id(policy_id, TIMEOUT)?;
 
                 // Open wallet
@@ -392,8 +389,8 @@ fn main() -> Result<()> {
                 let mut proposals: Vec<(EventId, SpendingProposal, EventId)> = Vec::new();
 
                 for event in proposals_events.into_iter() {
-                    let policy_id =
-                        coinstr_core::extract_first_event_id(&event).expect("Policy id not found");
+                    let policy_id = coinstr_core::util::extract_first_event_id(&event)
+                        .expect("Policy id not found");
                     let global_key: &Keys =
                         shared_keys.get(&policy_id).expect("Global key not found");
 

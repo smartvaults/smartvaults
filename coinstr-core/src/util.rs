@@ -4,6 +4,7 @@ use keechain_core::bitcoin::secp256k1::rand::rngs::OsRng;
 use keechain_core::bitcoin::secp256k1::SECP256K1;
 use keechain_core::bitcoin::XOnlyPublicKey;
 pub use keechain_core::util::*;
+use nostr_sdk::{Event, EventId, Tag};
 
 const XONLY_PUBLIC_KEY_LEN: usize = 64;
 const HEX_CHARS: &str = "ABCDEFabcdef0123456789";
@@ -63,6 +64,15 @@ impl Unspendable for XOnlyPublicKey {
         let (public_key, _) = public_key.x_only_public_key();
         public_key
     }
+}
+
+pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
+    for tag in event.tags.iter() {
+        if let Tag::Event(event_id, ..) = tag {
+            return Some(*event_id);
+        }
+    }
+    None
 }
 
 #[cfg(test)]
