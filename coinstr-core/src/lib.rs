@@ -38,6 +38,7 @@ pub enum Error {
 }
 
 /// Coinstr Keystore
+#[derive(Debug, Clone)]
 pub struct Coinstr {
     network: Network,
     keechain: KeeChain,

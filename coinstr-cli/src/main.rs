@@ -78,7 +78,7 @@ fn main() -> Result<()> {
             )?;
             let keychain: Keychain = coinstr.keychain();
 
-            println!("\n!!! WRITE DOWN YOUT MNEMONIC !!!");
+            println!("\n!!! WRITE DOWN YOUR MNEMONIC !!!");
             println!("\n################################################################\n");
             println!("{}", keychain.seed.mnemonic());
             println!("\n################################################################\n");
@@ -200,7 +200,7 @@ fn main() -> Result<()> {
             let (psbt, _details) = builder.finish()?;
 
             // Create spending proposal
-            let proposal = SpendingProposal::new(memo, to_address, amount, psbt);
+            let proposal = SpendingProposal::new(&memo, to_address, amount, psbt);
             let extracted_pubkeys =
                 coinstr_core::util::extract_public_keys(policy.descriptor.to_string())?;
             let mut tags: Vec<Tag> = extracted_pubkeys
@@ -218,6 +218,17 @@ fn main() -> Result<()> {
                 EventBuilder::new(SPENDING_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
             let proposal_id = client.send_event(event)?;
             println!("Spending proposal {proposal_id} sent");
+
+            // Send DM msg
+            let sender = client.keys().public_key();
+            let mut msg = String::from("New spending proposal:\n");
+            msg.push_str(&format!("- Amount: {amount}\n"));
+            msg.push_str(&format!("- Memo: {memo}"));
+            for pubkey in extracted_pubkeys.into_iter() {
+                if sender != pubkey {
+                    client.send_direct_msg(pubkey, &msg)?;
+                }
+            }
 
             Ok(())
         }
