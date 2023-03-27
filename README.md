@@ -2,149 +2,120 @@
 
 ```
 cargo build --release
-./target/release/coinstr
+./target/release/coinstr-cli
 ```
 
 ```
 Using nostr to coordinate Bitcoin spending policy signatures and multi-custody
 
-Usage: coinstr <COMMAND>
+Usage: coinstr-cli [OPTIONS] <COMMAND>
 
 Commands:
-  generate     Generates random account(s)
-  subscribe    Subscribe to nostr events
-  publish      Publish a nostr event
-  inspect      Inspect a mnenonic for validity and print bitcoin and nostr keys
-  convert      Convert between hex and bech32 format keys
-  balance      Find the balance for a bitcoin descriptor
+  generate     Generate new keychain
+  restore      Restore keychain
+  list         List keychains
+  inspect      Inspect bitcoin and nostr keys
   save-policy  Save policy
-  get          Get data about events and users
+  spend        Create a spending proposal
+  approve      Approve a spending proposal
+  broadcast    Combine and broadcast the transaction
+  get          Get data about policies and proposals
+  delete       Delete
+  setting      Setting
   help         Print this message or the help of the given subcommand(s)
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+  -n, --network <NETWORK>  Network [default: bitcoin] [possible values: bitcoin, testnet, signet, regtest]
+  -r, --relay <RELAY>      Relay [default: wss://relay.rip]
+  -h, --help               Print help
+  -V, --version            Print version
+
 ```
 
-## Get Event
-```bash 
-./target/release/coinstr get event d3a421ae9cde2a530429867db0923fcfd5812dde84bb789169cd99b1d53d236a
-```
-
-## Show spending policies
+## Get policies
 ```bash
-→ cargo test policy -- --nocapture
-running 2 tests
-
-Coinstr Policy
-Name            : 💸 My testing policy
-Description     : A policy for testing Alice and Bob multisig
-
-Coinstr Policy
-Name            : 💸 My testing policy
-Description     : A policy for testing Alice and Bob multisig
-💸 My testing policy
-└── 🆔 ktrzwzm6
-    └── 🎚️ Threshold Condition    : 1 of 2 
-        ├── 🆔 96d6dvge
-        │   └── 🔑 Schnorr Sig of <fingerprint:06d1e3e7>
-        └── 🆔 460alevg
-            └── 🔑 Schnorr Sig of <fingerprint:ca0b6651>
-
-test policy::tests::build_multisig_policy ... ok
-💸 My testing policy
-└── 🆔 ng5yfwlw
-    └── 🎚️ Threshold Condition    : 2 of 2 
-        ├── 🆔 nk7jnzl3
-        │   └── ✍️ ECDSA Sig of <pk:02e5d000a7ea6d5c577245bd8e8727d0b57f12d1d06bb8c7266df3e1ff22f326e9>
-        └── 🆔 kxkjs274
-            └── 🎚️ Threshold Condition    : 1 of 2 
-                ├── 🆔 hn0csay5
-                │   └── ✍️ ECDSA Sig of <pk:032c9bf7a1a5074d790b9ff7f4b6f9595f4ff61d132da0d234ce47c69e9f2e5f89>
-                └── 🆔 hwm4g28x
-                    └── ⏳ Relative Timelock of 12960
-
-test policy::tests::build_with_descriptor ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.23s
+COINSTR_PASSWORD=test ./target/release/coinstr-cli get policies lee
 ```
 
-### Get list of known users
-```bash
-→ ./target/release/coinstr get users
-Alice
-Bob
-Charlie
-David
-Erika
+```
++---+------------------------------------------------------------------+--------------------------------------+-------------------------------------------------------+
+| # | ID                                                               | Name                                 | Description                                           |
++===+==================================================================+======================================+=======================================================+
+| 1 | fa58f0abd28e01acbe1712f54cdd759dec53aa2d28e6437a66d30ad8462c55f7 | 2 of 4 policy for waterwell          | 2 of 4 policy for waterwell short term spending needs |
++---+------------------------------------------------------------------+--------------------------------------+-------------------------------------------------------+
+| 2 | 4f13ae0ce31cd256a4b3b84ddc0c76c2399e8bbd3e9659b6bb81e83f88fbea82 | 6 of 10 with 1 year wait             | Requires 6 out of 10 with a 1 year waiting period     |
++---+------------------------------------------------------------------+--------------------------------------+-------------------------------------------------------+
+| 3 | dafc2f23c8a863e3ddb8eed08992c880d19d7e82a0ed76a9ef722a7b36f8c87f | 3 of 5 board member initial adopters | Requires 3 of 5 board members                         |
++---+------------------------------------------------------------------+--------------------------------------+-------------------------------------------------------+
 ```
 
-### Get information about a user
+## Get policy
+```
+COINSTR_PASSWORD=test ./target/release/coinstr-cli --network testnet get policy lee 4f13ae0ce31cd256a4b3b84ddc0c76c2399e8bbd3e9659b6bb81e83f88fbea82
+```
+
+```
+Policy
+- ID: 4f13ae0ce31cd256a4b3b84ddc0c76c2399e8bbd3e9659b6bb81e83f88fbea82
+- Name: 6 of 10 with 1 year wait
+- Description: Requires 6 out of 10 with a 1 year waiting period
+- Descriptor
+└── id -> jw7y2gax
+    └── 👑 Threshold Condition   : 1 of 2 
+        ├── id -> wt8mt054
+        │   └── 🔑 Schnorr Sig of  <xonly-pk:c42c4c164f56211e393c0d72adf9c7de7ac2af63b0a49bbc4c7f7c144d2a65df>
+        └── id -> g7vvrmru
+            └── 👑 Threshold Condition   : 2 of 2 
+                ├── id -> j6t74585
+                │   └── 🤝 MultiSig  :  6 of 10
+                │       ├── 🔑 <xonly-pk:0dd81025a7b83c6f432b7afe1591417a4074b2e64b9824990a4f5709eb566320>
+                │       ├── 🔑 <xonly-pk:101e7953a54b18d0f41ea199b9adf2d7e643441b5af8e539531e6d7275cee1df>
+                │       ├── 🔑 <xonly-pk:41be80424dfb9b33d66ea4f5369cc6b10afaa1b0b167ad7b8112fd6848faa32e>
+                │       ├── 🔑 <xonly-pk:51fd73484c435388b4a276a86b7a6888d83c074e91621e10736f39f3dc77284f>
+                │       ├── 🔑 <xonly-pk:ea527e059759d368a55253270454e58e9d6e4fe2e98d302d6e01821fa973259d>
+                │       ├── 🔑 <xonly-pk:19b5decafadedc2a318e731c248a3fa16a6e5f7e8161ad99767c5fea502342ed>
+                │       ├── 🔑 <xonly-pk:d484718041e84f42889219d850bb7f17805a04ca6b70e20d4a12ab3e959243e2>
+                │       ├── 🔑 <xonly-pk:efc3f1bd307c2b3374ee2c72d3cb1213238cb1ac4a338a719335d6f256f3d901>
+                │       ├── 🔑 <xonly-pk:e69d88524a5669723b473523cd2c6bfe76d6c289656c3ecd7981fa8fef784dcc>
+                │       └── 🔑 <xonly-pk:c04e8da91853b7fd215102e6aa48477d8e1ba6b3c16902371a153d3784a1b0f7>
+                └── id -> unzg4a67
+                    └── ⏰ Absolute Timelock of  52560
+
+Balances
+- Immature            	: 0 sats
+- Trusted pending     	: 0 sats
+- Untrusted pending   	: 0 sats
+- Confirmed           	: 3 000 sats
+
+Deposit address: tb1pqt7zfuvek8z2ymgjzahftq04sd7xj7rujyjd69acvxl9n4f95alqmtkuv6
+```
+## Get information about a key
 ```bash
-→ ./target/release/coinstr get user --user alice
-Name       : Alice
+COINSTR_PASSWORD=test ./target/release/coinstr-cli inspect lee
+```
 
-Mnemonic   : "carry surface crater rude auction ritual banana elder shuffle much wonder decrease" 
-Passphrase : "oy+hB/qeJ1AasCCR" 
+```
+Mnemonic: volume lyrics health attitude hidden enable afford grid ozone rotate wash blood
 
-Nostr Configuration
+Nostr
  Bech32 Keys
-  Public   : npub1xr59p9wquc3twvtq5vy93hm3srs8k8a25j2gxd5u6nv4a6k9f58schcx7v 
-  Private  : nsec1pcwmwsvd78ry208y9el52pacsgluy05xu860x0tl4lyr6dnwd6tsdak7nt 
+  Public   : npub1aff8upvht8fk3f2j2vnsg48936wkunlzaxxnqttwqxppl2tnykwsahwngp 
+  Private  : nsec18lkp320pjm7n5eqhk3066uq9akermpffedqa3trn3n7a054h2ems37v3ar 
  Hex Keys
-  Public   : 30e85095c0e622b73160a30858df7180e07b1faaa49483369cd4d95eeac54d0f 
-  Private  : 0e1db7418df1c6453ce42e7f4507b8823fc23e86e1f4f33d7fafc83d366e6e97 
+  Public   : ea527e059759d368a55253270454e58e9d6e4fe2e98d302d6e01821fa973259d 
+  Private  : 3fec18a9e196fd3a6417b45fad7005edb23d8529cb41d8ac738cfdd7d2b75677 
+  Normalized Public   : 02ea527e059759d368a55253270454e58e9d6e4fe2e98d302d6e01821fa973259d 
 
+Bitcoin
+  Root Private Key: xprv9s21ZrQH143K4Ph9z7CdHHcMzGAScvgh8Y1zsYkzbhEKqe1wKaotRm22y3h8C2QRd4RCoo3V59ygTpq2NtRKTth4Hgoh8sXUkiTSXouvF4n
+  Extended Pub Key: xpub661MyMwAqRbcGsmd68jdeRZ6YHzw2PQYVkwbfwAcA2mJiSM5s888yZLWpKyBHUQTK5b7RkLp2quDwtq4kn95VBFsa7TjVZJNEHQijWMadFN
+  Output Descriptor: tr([7b264e11/86'/0'/0']xpub6DMLuW1nPtGMxBeEujHwz57L7UMxfLCCdhxnN3dsjaJQTvdvCzhp2oikQGZ6qhewrcb9viB66WF51NUDbAEmSTgyfvmXQc5K8RzAip7nJ1p/0/*)#7td2nxg4
+  Change Descriptor: tr([7b264e11/86'/0'/0']xpub6DMLuW1nPtGMxBeEujHwz57L7UMxfLCCdhxnN3dsjaJQTvdvCzhp2oikQGZ6qhewrcb9viB66WF51NUDbAEmSTgyfvmXQc5K8RzAip7nJ1p/1/*)#0lgtwncd
+  Ext Address 1: bc1pp97fxzg2gj90k2kzh9pkygn5kspfv49xkjjwn7cgzvafv26ehvqq548kh4
+  Ext Address 2: bc1plperhnla7w5ay8dzmex5fwdja58nhg5vuzvv4t607s242v92j39qqs2hs2
+  Change Address: bc1pw75gajlhzycffcd49dhzy73z0fg5k348km2jsh27fl0qahmnkaqstkq0cl
 
-Bitcoin Configuration
-  Root Private Key      : tprv8ZgxMBicQKsPeFd9cajKjGekZW5wDXq2e1vpKToJvZMqjyNkMqmr7exPFUbJ92YxSkqL4w19HpuzYkVYvc4n4pvySBmJfsawS7Seb8FzuNJ
-  Root Public Key       : tpubD6NzVbkrYhZ4XiewWEPv8gJs8XbsNs1wDKXbbyqcLqAEaTdWzEbSJ9aFRamjrj3RQKyZ2Q848BkMxyt6J6e36Y14ga6Et7suFXk3RKFqEaA
-  Output Descriptor     : tr([9b5d4149/86'/0'/0']tpubDDfNLjZpqGcbyjiSzxxbvTRqvySNkCQKKDJHXkJPZCKQPVsVX9fcuvkd65MU3oyRmqgzpzvuEUxe6zstCCDP2ogHn5ModwnrxP4cdWLFdc3/0/*)#2azlv5fk
-  Change Descriptor     : tr([9b5d4149/86'/0'/0']tpubDDfNLjZpqGcbyjiSzxxbvTRqvySNkCQKKDJHXkJPZCKQPVsVX9fcuvkd65MU3oyRmqgzpzvuEUxe6zstCCDP2ogHn5ModwnrxP4cdWLFdc3/1/*)#mf873pew
-  Ext Address 1         : tb1p50q6uztqeg42gjqga0gtkax7kl2vd72v2mwqytn754s768w3rvlq09w3hc
-  Ext Address 2         : tb1pkzdfxvwp2ehvjasrzh78vvstk9smwx204naf58g0dye2p7s9hkgs060u7e
-  Change Address        : tb1p2y8glskt8wz288suzdhm6vs7nkwwxwtmlc00gd5gdd8qzqjz8gusuy0vkq
-
-Bitcoin Balances
-  Immature              : 0 
-  Trusted Pending       : 0 
-  Untrusted Pending     : 0 
-  Confirmed             : 4000 
 ```
 
-### Generate keys
-```bash
-→ ./target/release/coinstr generate -p "my passphrase"
-
-Generating account 1 of 1
-
-Mnemonic   : "good layer theme chronic maid canyon credit trend visit rent ahead destroy" 
-Passphrase : "my passphrase" 
-
-Nostr Configuration
-  Secret Key (HEX)    : f99a0ee1abcfe6b1ca8bd32efcd59bbe42f98b41c4b6b8967669f1c1ec2f2711 
-  Secret Key (bech32) : nsec1lxdqacdtelntrj5t6vh0e4vmhep0nz6pcjmt39nkd8curmp0yugss3s2tk 
-  Public Key (HEX)    : 0334a52d14b55bd8b85cc2787c2cc206ea6e0c8f9fc4d80137bd4d44b26a73981e 
-  X Only Public Key   : 34a52d14b55bd8b85cc2787c2cc206ea6e0c8f9fc4d80137bd4d44b26a73981e 
-  Public Key (bech32) : npub1xjjj6994t0vtshxz0p7zessxafhqerulcnvqzdaaf4zty6nnnq0qjy0xj5 
-
-Bitcoin Configuration
-  Output Descriptor   : tr([323ef8a3/44'/0'/0']tpubDC3mc2hbH3tn2UfbG7JsAL5WMkapHudFw8d2BP1mCMrgRXptx29axoo8H26uyaxcpwQAtWA8BgsLMJKnD4kS9tJr4X7t4kaMQy1bHsGtGLm/0/*)#w057gvdm
-  Address             : tb1p4zv8gd85mqxft8m7l7h7tnezvlsdd9efr8y9akxxv43t3v7q8efs0tvx7g
-  Address             : tb1pwl4y2yydjehgluqryx98j2pmvkasxme5ky59c09ktk8zhq0tfedsuu9emw
-
-Bitcoin Balances
-  Immature            : 0 
-  Trusted Pending     : 0 
-  Untrusted Pending   : 0 
-  Confirmed           : 0 
-```
-
-## Setup local nostr relay
-> WARNING: `nostr-rs-relay` has some known issues; recommend to use `strfry` or `wss://relay.rip`
-```
-git clone git@github.com:scsibug/nostr-rs-relay.git
-cd nostr-rs-relay
-cargo build --release
-RUST_LOG=warn,nostr_rs_relay=info ./target/release/nostr-rs-relay
-```
+# End-to-end spend tutorial
+[![Watch the video](https://img.youtube.com/vi/jW5_6kZWuWU/default.jpg)](https://www.youtube.com/watch?v=jW5_6kZWuWU)
