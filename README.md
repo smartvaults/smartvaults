@@ -116,6 +116,8 @@ Bitcoin
   Change Address: bc1pw75gajlhzycffcd49dhzy73z0fg5k348km2jsh27fl0qahmnkaqstkq0cl
 
 ```
+## Coinstr Product Video Playlist
+[![Watch the video](https://img.youtube.com/vi/_-K8K_76K24/default.jpg)](https://www.youtube.com/playlist?list=PLQvYD9hYsl07Iq8WkAk8sfrGC8jkWZZA4)
 
-# End-to-end spend tutorial
+## End-to-end spend tutorial
 [![Watch the video](https://img.youtube.com/vi/jW5_6kZWuWU/default.jpg)](https://www.youtube.com/watch?v=jW5_6kZWuWU)
