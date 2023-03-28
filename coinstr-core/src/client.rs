@@ -453,8 +453,19 @@ impl CoinstrClient {
                 is_internal_key: false,
             },
         );
+        let internal_signer = SignerWrapper::new(
+            private_key,
+            SignerContext::Tap {
+                is_internal_key: true,
+            },
+        );
 
         wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
+        wallet.add_signer(
+            KeychainKind::External,
+            SignerOrdering(0),
+            Arc::new(internal_signer),
+        );
 
         // Sign the transaction
         let mut psbt = proposal.psbt.clone();
