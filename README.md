@@ -32,9 +32,15 @@ Options:
 
 ```
 
+## Generate a new keychain
+
+```bash
+./target/release/coinstr-cli generate lee
+```
+
 ## Get policies
 ```bash
-COINSTR_PASSWORD=test ./target/release/coinstr-cli get policies lee
+./target/release/coinstr-cli get policies lee
 ```
 
 ```
@@ -51,7 +57,7 @@ COINSTR_PASSWORD=test ./target/release/coinstr-cli get policies lee
 
 ## Get policy
 ```
-COINSTR_PASSWORD=test ./target/release/coinstr-cli --network testnet get policy lee 4f13ae0ce31cd256a4b3b84ddc0c76c2399e8bbd3e9659b6bb81e83f88fbea82
+./target/release/coinstr-cli --network testnet get policy lee 4f13ae0ce31cd256a4b3b84ddc0c76c2399e8bbd3e9659b6bb81e83f88fbea82
 ```
 
 ```
@@ -91,7 +97,7 @@ Deposit address: tb1pqt7zfuvek8z2ymgjzahftq04sd7xj7rujyjd69acvxl9n4f95alqmtkuv6
 ```
 ## Get information about a key
 ```bash
-COINSTR_PASSWORD=test ./target/release/coinstr-cli inspect lee
+./target/release/coinstr-cli inspect lee
 ```
 
 ```
