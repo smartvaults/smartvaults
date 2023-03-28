@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -6,18 +6,14 @@ use std::time::Duration;
 
 use clap::Parser;
 use cli::{DeleteCommand, GetCommand};
-use coinstr_core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
+use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
-use coinstr_core::bdk::miniscript::psbt::PsbtExt;
 use coinstr_core::bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use coinstr_core::bdk::{KeychainKind, SignOptions, SyncOptions};
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::{Network, PrivateKey};
-use coinstr_core::constants::{
-    APPROVED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
-};
-use coinstr_core::nostr_sdk::{nips, EventBuilder, EventId, Filter, Keys, Tag, SECP256K1};
-use coinstr_core::policy::Policy;
+use coinstr_core::constants::{APPROVED_PROPOSAL_KIND, SPENDING_PROPOSAL_KIND};
+use coinstr_core::nostr_sdk::{nips, EventBuilder, Tag};
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util::dir;
 use coinstr_core::{Coinstr, CoinstrNostr, Keychain, Result};
@@ -124,45 +120,8 @@ fn main() -> Result<()> {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.nostr_client(relays)?;
-            let keys = client.keys();
-
-            let extracted_pubkeys = coinstr_core::util::extract_public_keys(&policy_descriptor)?;
-
-            // Generate a shared key
-            let shared_key = Keys::generate();
-            let policy =
-                Policy::from_desc_or_policy(policy_name, policy_description, policy_descriptor)?;
-            let content = nips::nip04::encrypt(
-                &shared_key.secret_key()?,
-                &shared_key.public_key(),
-                policy.as_json(),
-            )?;
-            let tags: Vec<Tag> = extracted_pubkeys
-                .iter()
-                .map(|p| Tag::PubKey(*p, None))
-                .collect();
-            // Publish policy with `shared_key` so every owner can delete it
-            let policy_event =
-                EventBuilder::new(POLICY_KIND, content, &tags).to_event(&shared_key)?;
-            let policy_id = client.send_event(policy_event)?;
-
-            // Publish the shared key
-            for pubkey in extracted_pubkeys.into_iter() {
-                let encrypted_shared_key = nips::nip04::encrypt(
-                    &keys.secret_key()?,
-                    &pubkey,
-                    shared_key.secret_key()?.display_secret().to_string(),
-                )?;
-                let event = EventBuilder::new(
-                    SHARED_KEY_KIND,
-                    encrypted_shared_key,
-                    &[Tag::Event(policy_id, None, None), Tag::PubKey(pubkey, None)],
-                )
-                .to_event(&keys)?;
-                let event_id = client.send_event(event)?;
-                println!("Published shared key for {pubkey} at event {event_id}");
-            }
-
+            let policy_id =
+                client.save_policy(policy_name, policy_description, policy_descriptor)?;
             println!("Policy saved: {policy_id}");
             Ok(())
         }
@@ -200,7 +159,7 @@ fn main() -> Result<()> {
             let (psbt, _details) = builder.finish()?;
 
             // Create spending proposal
-            let proposal = SpendingProposal::new(&memo, to_address, amount, psbt);
+            let proposal = SpendingProposal::new(to_address, amount, &memo, psbt);
             let extracted_pubkeys =
                 coinstr_core::util::extract_public_keys(policy.descriptor.to_string())?;
             let mut tags: Vec<Tag> = extracted_pubkeys
@@ -292,41 +251,19 @@ fn main() -> Result<()> {
             let path = dir::get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.nostr_client(relays)?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+            let txid = client.broadcast(proposal_id, blockchain, TIMEOUT)?;
+            println!("Transaction {txid} broadcasted");
 
-            // Get PSBTs
-            let (mut base_psbt, psbts) =
-                client.get_signed_psbts_by_proposal_id(proposal_id, TIMEOUT)?;
-
-            // Combine PSBTs
-            for psbt in psbts {
-                base_psbt.combine(psbt)?;
-            }
-
-            // Finalize and broadcast the transaction
-            match base_psbt.finalize_mut(SECP256K1) {
-                Ok(_) => {
-                    let finalized_tx = base_psbt.extract_tx();
-                    let blockchain =
-                        ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                    blockchain.broadcast(&finalized_tx)?;
-                    let txid = finalized_tx.txid();
-                    println!("Transaction {txid} broadcasted");
-
-                    match network {
-                        Network::Bitcoin => {
-                            println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
-                        }
-                        Network::Testnet => {
-                            println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
-                        }
-                        _ => (),
-                    };
-
-                    // Delete the proposal
-                    client.delete_proposal_by_id(proposal_id, TIMEOUT)?;
+            match network {
+                Network::Bitcoin => {
+                    println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
                 }
-                Err(e) => eprintln!("PSBT not finalized: {e:?}"),
-            }
+                Network::Testnet => {
+                    println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
+                }
+                _ => (),
+            };
 
             Ok(())
         }
@@ -343,30 +280,8 @@ fn main() -> Result<()> {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(relays)?;
-
-                let keys = client.keys();
-
-                // Get policies
-                let filter = Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND);
-                let policies_events = client.get_events_of(vec![filter], TIMEOUT)?;
-
-                // Get shared keys
-                let shared_keys: HashMap<EventId, Keys> = client.get_shared_keys(TIMEOUT)?;
-
-                let mut policies: Vec<(EventId, Policy)> = Vec::new();
-
-                for event in policies_events.into_iter() {
-                    let global_key = shared_keys.get(&event.id).expect("Global key not found");
-                    let content = nips::nip04::decrypt(
-                        &global_key.secret_key()?,
-                        &global_key.public_key(),
-                        &event.content,
-                    )?;
-                    policies.push((event.id, Policy::from_json(&content)?));
-                }
-
+                let policies = client.get_policies(TIMEOUT)?;
                 util::print_policies(policies);
-
                 Ok(())
             }
             GetCommand::Policy {
@@ -396,57 +311,17 @@ fn main() -> Result<()> {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(relays)?;
-
-                let keys = client.keys();
-
-                // Get proposals
-                let filter = Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(SPENDING_PROPOSAL_KIND);
-                let proposals_events = client.get_events_of(vec![filter], TIMEOUT)?;
-
-                // Get shared keys
-                let shared_keys: HashMap<EventId, Keys> = client.get_shared_keys(TIMEOUT)?;
-
-                let mut proposals: Vec<(EventId, SpendingProposal, EventId)> = Vec::new();
-
-                for event in proposals_events.into_iter() {
-                    let policy_id = coinstr_core::util::extract_first_event_id(&event)
-                        .expect("Policy id not found");
-                    let global_key: &Keys =
-                        shared_keys.get(&policy_id).expect("Global key not found");
-
-                    let content = nips::nip04::decrypt(
-                        &global_key.secret_key()?,
-                        &global_key.public_key(),
-                        &event.content,
-                    )?;
-
-                    proposals.push((event.id, SpendingProposal::from_json(&content)?, policy_id));
-                }
-
+                let proposals = client.get_proposals(TIMEOUT)?;
                 util::print_proposals(proposals);
-
                 Ok(())
             }
             GetCommand::Proposal { name, proposal_id } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(relays)?;
-
                 let (proposal, policy_id, _shared_keys) =
                     client.get_proposal_by_id(proposal_id, TIMEOUT)?;
-
-                // TODO: improve printed output
-
-                println!();
-                println!("- Proposal id: {proposal_id}");
-                println!("- Policy id: {policy_id}");
-                println!("- Memo: {}", proposal.memo);
-                println!("- To address: {}", proposal.to_address);
-                println!("- Amount: {}", proposal.amount);
-                println!();
-
+                util::print_proposal(proposal_id, proposal, policy_id);
                 Ok(())
             }
         },
@@ -455,14 +330,12 @@ fn main() -> Result<()> {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(relays)?;
-
                 client.delete_policy_by_id(policy_id, TIMEOUT)
             }
             DeleteCommand::Proposal { name, proposal_id } => {
                 let path = dir::get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.nostr_client(relays)?;
-
                 client.delete_proposal_by_id(proposal_id, TIMEOUT)
             }
         },

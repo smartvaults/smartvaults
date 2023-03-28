@@ -6,9 +6,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpendingProposal {
-    pub memo: String,
     pub to_address: Address,
     pub amount: u64,
+    pub memo: String,
     #[serde(
         serialize_with = "serialize_psbt",
         deserialize_with = "deserialize_psbt"
@@ -18,18 +18,18 @@ pub struct SpendingProposal {
 
 impl SpendingProposal {
     pub fn new<S>(
-        memo: S,
         to_address: Address,
         amount: u64,
+        memo: S,
         psbt: PartiallySignedTransaction,
     ) -> Self
     where
         S: Into<String>,
     {
         Self {
-            memo: memo.into(),
             to_address,
             amount,
+            memo: memo.into(),
             psbt,
         }
     }

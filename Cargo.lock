@@ -250,6 +250,7 @@ dependencies = [
  "bdk",
  "dirs",
  "keechain-core",
+ "log",
  "nostr-sdk",
  "serde",
  "serde_json",

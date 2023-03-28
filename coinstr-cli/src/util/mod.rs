@@ -257,6 +257,16 @@ pub fn print_policies(policies: Vec<(EventId, Policy)>) {
     table.printstd();
 }
 
+pub fn print_proposal(proposal_id: EventId, proposal: SpendingProposal, policy_id: EventId) {
+    println!();
+    println!("- Proposal id: {proposal_id}");
+    println!("- Policy id: {policy_id}");
+    println!("- Memo: {}", proposal.memo);
+    println!("- To address: {}", proposal.to_address);
+    println!("- Amount: {}", proposal.amount);
+    println!();
+}
+
 pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal, EventId)>) {
     let mut table = Table::new();
 

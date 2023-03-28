@@ -62,9 +62,15 @@ impl Policy {
         Self::new(name, description, descriptor)
     }
 
-    pub fn from_desc_or_policy<S>(name: S, description: S, desc_or_policy: S) -> Result<Self, Error>
+    pub fn from_desc_or_policy<N, D, P>(
+        name: N,
+        description: D,
+        desc_or_policy: P,
+    ) -> Result<Self, Error>
     where
-        S: Into<String>,
+        N: Into<String>,
+        D: Into<String>,
+        P: Into<String>,
     {
         let name = &name.into();
         let description = &description.into();
