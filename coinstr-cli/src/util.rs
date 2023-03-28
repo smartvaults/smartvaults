@@ -14,6 +14,7 @@ use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
+use coinstr_core::util::format;
 use coinstr_core::{Keychain, Result};
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
@@ -21,8 +22,6 @@ use owo_colors::colors::{BrightCyan, Magenta};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use termtree::Tree;
-
-mod format;
 
 pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     let mnemonic = keychain.seed.mnemonic();

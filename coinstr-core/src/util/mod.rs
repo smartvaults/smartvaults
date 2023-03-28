@@ -6,6 +6,8 @@ use keechain_core::bitcoin::XOnlyPublicKey;
 pub use keechain_core::util::*;
 use nostr_sdk::{Event, EventId, Tag};
 
+pub mod format;
+
 const XONLY_PUBLIC_KEY_LEN: usize = 64;
 const HEX_CHARS: &str = "ABCDEFabcdef0123456789";
 
