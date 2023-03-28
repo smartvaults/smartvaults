@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -8,10 +8,11 @@ use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::util::dir;
+use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
 use coinstr_core::{Coinstr, Keychain, Result};
 
 mod cli;
+mod dir;
 mod util;
 
 use self::cli::{io, Cli, Command, SettingCommand};
@@ -25,7 +26,7 @@ fn main() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
     let relays: Vec<String> = vec![args.relay];
-    let keychains: PathBuf = Path::new("./keychains").to_path_buf();
+    let keychains: PathBuf = dir::keychains()?;
 
     let bitcoin_endpoint: &str = match network {
         Network::Bitcoin => "ssl://blockstream.info:700",
@@ -43,7 +44,7 @@ fn main() -> Result<()> {
             password,
             passphrase,
         } => {
-            let path: PathBuf = dir::get_keychain_file(keychains, name)?;
+            let path: PathBuf = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::generate(
                 path,
                 || {
@@ -75,7 +76,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Restore { name } => {
-            let path = dir::get_keychain_file(keychains, name)?;
+            let path = get_keychain_file(keychains, name)?;
             Coinstr::restore(
                 path,
                 io::get_password_with_confirmation,
@@ -92,14 +93,14 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::List => {
-            let names = dir::get_keychains_list(keychains)?;
+            let names = get_keychains_list(keychains)?;
             for (index, name) in names.iter().enumerate() {
                 println!("{}. {name}", index + 1);
             }
             Ok(())
         }
         Command::Inspect { name } => {
-            let path = dir::get_keychain_file(keychains, name)?;
+            let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let keychain = coinstr.keychain();
             util::print_secrets(keychain, network)
@@ -110,7 +111,7 @@ fn main() -> Result<()> {
             policy_description,
             policy_descriptor,
         } => {
-            let path = dir::get_keychain_file(keychains, name)?;
+            let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays)?;
             let policy_id =
@@ -125,7 +126,7 @@ fn main() -> Result<()> {
             amount,
             memo,
         } => {
-            let path = dir::get_keychain_file(keychains, name)?;
+            let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays)?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
@@ -135,7 +136,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Approve { name, proposal_id } => {
-            let path = dir::get_keychain_file(keychains, name)?;
+            let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays)?;
             let event_id = client.approve(proposal_id, TIMEOUT)?;
@@ -143,7 +144,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Command::Broadcast { name, proposal_id } => {
-            let path = dir::get_keychain_file(keychains, name)?;
+            let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays)?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
@@ -164,7 +165,7 @@ fn main() -> Result<()> {
         }
         Command::Get { command } => match command {
             GetCommand::Contacts { name } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
                 let contacts = client.get_contacts(TIMEOUT)?;
@@ -172,7 +173,7 @@ fn main() -> Result<()> {
                 Ok(())
             }
             GetCommand::Policies { name } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
                 let policies = client.get_policies(TIMEOUT)?;
@@ -184,7 +185,7 @@ fn main() -> Result<()> {
                 policy_id,
                 export,
             } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
 
@@ -203,7 +204,7 @@ fn main() -> Result<()> {
                 }
             }
             GetCommand::Proposals { name } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
                 let proposals = client.get_proposals(TIMEOUT)?;
@@ -211,7 +212,7 @@ fn main() -> Result<()> {
                 Ok(())
             }
             GetCommand::Proposal { name, proposal_id } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
                 let (proposal, policy_id, _shared_keys) =
@@ -222,13 +223,13 @@ fn main() -> Result<()> {
         },
         Command::Delete { command } => match command {
             DeleteCommand::Policy { name, policy_id } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
                 client.delete_policy_by_id(policy_id, TIMEOUT)
             }
             DeleteCommand::Proposal { name, proposal_id } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays)?;
                 client.delete_proposal_by_id(proposal_id, TIMEOUT)
@@ -236,13 +237,13 @@ fn main() -> Result<()> {
         },
         Command::Setting { command } => match command {
             SettingCommand::Rename { name, new_name } => {
-                let path = dir::get_keychain_file(&keychains, name)?;
+                let path = get_keychain_file(&keychains, name)?;
                 let mut coinstr = Coinstr::open(path, io::get_password, network)?;
-                let new_path = dir::get_keychain_file(keychains, new_name)?;
+                let new_path = get_keychain_file(keychains, new_name)?;
                 Ok(coinstr.rename(new_path)?)
             }
             SettingCommand::ChangePassword { name } => {
-                let path = dir::get_keychain_file(keychains, name)?;
+                let path = get_keychain_file(keychains, name)?;
                 let mut coinstr = Coinstr::open(path, io::get_password, network)?;
                 Ok(coinstr.change_password(io::get_password_with_confirmation)?)
             }
