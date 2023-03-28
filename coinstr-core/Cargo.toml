@@ -11,7 +11,7 @@ keywords.workspace = true
 
 [dependencies]
 bdk = { version = "0.27", default-features = false, features = ["compiler", "electrum"] }
-dirs = "4.0"
+dirs = "5.0"
 keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "0c28714f18197c7eca66a5ee5298575f9b006762", features = ["nostr"] }
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "d2bb6c6e1030129550a864232a31b4d7e1a4f6dd", default-features = false, features = ["blocking", "nip04", "nip06", "nip19"] }
 log = "0.4"
