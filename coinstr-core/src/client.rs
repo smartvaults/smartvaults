@@ -419,7 +419,10 @@ impl CoinstrClient {
         // Send DM msg
         let sender = self.client.keys().public_key();
         let mut msg = String::from("New spending proposal:\n");
-        msg.push_str(&format!("- Amount: {amount}\n"));
+        msg.push_str(&format!(
+            "- Amount: {} sats\n",
+            util::format::big_number(amount)
+        ));
         msg.push_str(&format!("- Memo: {memo}"));
         for pubkey in extracted_pubkeys.into_iter() {
             if sender != pubkey {
