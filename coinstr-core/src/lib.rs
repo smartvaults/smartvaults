@@ -5,23 +5,19 @@ pub extern crate nostr_sdk;
 
 use std::path::Path;
 
-use bdk::database::MemoryDatabase;
-use bdk::Wallet;
 use keechain_core::bip39::Mnemonic;
 use keechain_core::bitcoin::Network;
 use keechain_core::types::WordCount;
 pub use keechain_core::Result;
 pub use keechain_core::*;
-use nostr_sdk::blocking::Client;
-use nostr_sdk::Options;
 
+pub mod client;
 pub mod constants;
-pub mod nostr;
 pub mod policy;
 pub mod proposal;
 pub mod util;
 
-pub use self::nostr::CoinstrNostr;
+pub use self::client::CoinstrClient;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -144,21 +140,8 @@ impl Coinstr {
         self.network
     }
 
-    pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
-    where
-        S: Into<String>,
-    {
-        let db = MemoryDatabase::new();
-        Ok(Wallet::new(&descriptor.into(), None, self.network, db)?)
-    }
-
-    pub fn nostr_client(&self, relays: Vec<String>) -> Result<Client, Error> {
-        let opts = Options::new().wait_for_send(true);
+    pub fn client(&self, relays: Vec<String>) -> Result<CoinstrClient> {
         let keys = self.keechain.keychain.nostr_keys()?;
-        let client = Client::new_with_opts(&keys, opts);
-        let relays = relays.iter().map(|url| (url, None)).collect();
-        client.add_relays(relays)?;
-        client.connect();
-        Ok(client)
+        CoinstrClient::new(keys, relays, self.network)
     }
 }
