@@ -17,14 +17,14 @@ help:
 	$(Q)echo ""
 
 cli:
-	$(Q)cargo build -p coinstr-cli --release --all-features
+	$(Q)cargo build -p coinstr-cli --release
 
 dev: precommit
 	$(Q)cargo build
 
 precommit: test
-	$(Q)cargo fmt --all
-	$(Q)cargo clippy --all
+	$(Q)cargo fmt
+	$(Q)cargo clippy
 
 test:
 	$(Q)cargo test -p coinstr-core
