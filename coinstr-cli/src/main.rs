@@ -1,11 +1,14 @@
+// Copyright (c) 2022-2023 Coinstr
+// Distributed under the MIT software license
+
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
+use bdk::blockchain::ElectrumBlockchain;
+use bdk::electrum_client::Client as ElectrumClient;
 use clap::Parser;
 use cli::{DeleteCommand, GetCommand};
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};

@@ -1,3 +1,6 @@
+// Copyright (c) 2022-2023 Coinstr
+// Distributed under the MIT software license
+
 use clap::{Parser, Subcommand};
 use coinstr_core::bitcoin::Address;
 use coinstr_core::nostr_sdk::EventId;

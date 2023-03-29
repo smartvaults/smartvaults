@@ -234,6 +234,7 @@ dependencies = [
 name = "coinstr-cli"
 version = "0.1.0"
 dependencies = [
+ "bdk",
  "clap",
  "coinstr-core",
  "dialoguer",
@@ -829,6 +830,7 @@ dependencies = [
  "bip39",
  "bitcoin",
  "cbc",
+ "getrandom",
  "nostr",
  "rand_chacha",
  "serde",
