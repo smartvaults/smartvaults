@@ -243,6 +243,7 @@ dependencies = [
  "owo-colors",
  "prettytable-rs",
  "termtree",
+ "tokio",
 ]
 
 [[package]]
@@ -822,7 +823,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=80f7ffd6d001dd67bf98b2d2d733685bceafff62#80f7ffd6d001dd67bf98b2d2d733685bceafff62"
+source = "git+https://github.com/yukibtc/keechain?rev=5397a1c3cedf119f15814450966dc2d3284f37dd#5397a1c3cedf119f15814450966dc2d3284f37dd"
 dependencies = [
  "aes",
  "base64 0.21.0",
@@ -912,7 +913,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.20.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5419d6a93fec5c06202afbd77ee9d29c0bdc7996#5419d6a93fec5c06202afbd77ee9d29c0bdc7996"
+source = "git+https://github.com/rust-nostr/nostr?rev=920c2628d983ac8b70b04debbf2a7e28358cfc45#920c2628d983ac8b70b04debbf2a7e28358cfc45"
 dependencies = [
  "aes",
  "base64 0.21.0",
@@ -935,7 +936,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.20.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=5419d6a93fec5c06202afbd77ee9d29c0bdc7996#5419d6a93fec5c06202afbd77ee9d29c0bdc7996"
+source = "git+https://github.com/rust-nostr/nostr?rev=920c2628d983ac8b70b04debbf2a7e28358cfc45#920c2628d983ac8b70b04debbf2a7e28358cfc45"
 dependencies = [
  "gloo-timers",
  "log",
@@ -950,7 +951,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.20.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5419d6a93fec5c06202afbd77ee9d29c0bdc7996#5419d6a93fec5c06202afbd77ee9d29c0bdc7996"
+source = "git+https://github.com/rust-nostr/nostr?rev=920c2628d983ac8b70b04debbf2a7e28358cfc45#920c2628d983ac8b70b04debbf2a7e28358cfc45"
 dependencies = [
  "futures-channel",
  "futures-util",

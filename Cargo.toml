@@ -4,6 +4,7 @@ members = [
     "coinstr-core",
 ]
 default-members = ["coinstr-cli"]
+resolver = "2"
 
 [workspace.package]
 description = "Using nostr to coordinate Bitcoin spending policy signatures and multi-custody"
