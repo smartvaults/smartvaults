@@ -15,7 +15,7 @@ use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, Wallet};
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
-    nips, Client, EventBuilder, EventId, Filter, Keys, Metadata, Options, Result, Tag, SECP256K1,
+    nips, Client, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, SECP256K1,
 };
 
 #[cfg(feature = "blocking")]
@@ -36,8 +36,8 @@ pub struct CoinstrClient {
 
 impl CoinstrClient {
     pub async fn new(keys: Keys, relays: Vec<String>, network: Network) -> Result<Self> {
-        let opts = Options::new().wait_for_send(true);
-        let client = Client::new_with_opts(&keys, opts);
+        let client = Client::new(&keys);
+        #[cfg(not(target_arch = "wasm32"))]
         let relays = relays.iter().map(|url| (url, None)).collect();
         client.add_relays(relays).await?;
         client.connect().await;

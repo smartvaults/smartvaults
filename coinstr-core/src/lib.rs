@@ -19,8 +19,8 @@ pub mod proposal;
 pub mod util;
 
 #[cfg(feature = "blocking")]
-use self::client::blocking::CoinstrClient;
+pub use self::client::blocking::CoinstrClient;
 #[cfg(not(feature = "blocking"))]
-use self::client::CoinstrClient;
+pub use self::client::CoinstrClient;
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::keychain::Coinstr;
