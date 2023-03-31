@@ -11,6 +11,7 @@ help:
 	$(Q)echo ""
 	$(Q)echo "make                                 - Build binaries files"
 	$(Q)echo "make cli                             - Build only CLI binary files"
+	$(Q)echo "make x86_64-unknown-linux-gnu        - Build target x86_64-unknown-linux-gnu"
 	$(Q)echo "make precommit                       - Execute precommit steps"
 	$(Q)echo "make clean                           - Clean"
 	$(Q)echo "make loc                             - Count lines of code in src folder"
@@ -18,6 +19,10 @@ help:
 
 cli:
 	$(Q)cargo build -p coinstr-cli --release
+
+x86_64-unknown-linux-musl:
+	$(Q)rustup target add x86_64-unknown-linux-musl
+	$(Q)TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
 
 dev: precommit
 	$(Q)cargo build
