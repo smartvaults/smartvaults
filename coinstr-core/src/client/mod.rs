@@ -99,7 +99,7 @@ impl CoinstrClient {
         Ok(self.client.get_contact_list_metadata(timeout).await?)
     }
 
-    async fn get_shared_keys(
+    pub async fn get_shared_keys(
         &self,
         timeout: Option<Duration>,
     ) -> Result<HashMap<EventId, Keys>, Error> {
@@ -108,11 +108,11 @@ impl CoinstrClient {
         let filter = Filter::new()
             .pubkey(keys.public_key())
             .kind(SHARED_KEY_KIND);
-        let global_shared_key_events = self.client.get_events_of(vec![filter], timeout).await?;
+        let shared_key_events = self.client.get_events_of(vec![filter], timeout).await?;
 
         // Index global keys by policy id
         let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
-        for event in global_shared_key_events.into_iter() {
+        for event in shared_key_events.into_iter() {
             for tag in event.tags {
                 if let Tag::Event(event_id, ..) = tag {
                     let content =
