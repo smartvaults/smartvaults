@@ -232,13 +232,13 @@ async fn main() -> Result<()> {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays).await?;
-                client.delete_policy_by_id(policy_id, TIMEOUT).await
+                Ok(client.delete_policy_by_id(policy_id, TIMEOUT).await?)
             }
             DeleteCommand::Proposal { name, proposal_id } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays).await?;
-                client.delete_proposal_by_id(proposal_id, TIMEOUT).await
+                Ok(client.delete_proposal_by_id(proposal_id, TIMEOUT).await?)
             }
         },
         Command::Setting { command } => match command {

@@ -20,6 +20,8 @@ pub enum Error {
     Nostr(#[from] nostr_sdk::client::Error),
     #[error(transparent)]
     Nip06(#[from] nostr_sdk::nips::nip06::Error),
+    #[error(transparent)]
+    Client(#[from] crate::client::Error),
     #[error("{0}")]
     Generic(String),
 }
@@ -132,14 +134,14 @@ impl Coinstr {
     }
 
     #[cfg(not(feature = "blocking"))]
-    pub async fn client(&self, relays: Vec<String>) -> Result<CoinstrClient> {
+    pub async fn client(&self, relays: Vec<String>) -> Result<CoinstrClient, Error> {
         let keys = self.keechain.keychain.nostr_keys()?;
-        CoinstrClient::new(keys, relays, self.network).await
+        Ok(CoinstrClient::new(keys, relays, self.network).await?)
     }
 
     #[cfg(feature = "blocking")]
-    pub fn client(&self, relays: Vec<String>) -> Result<CoinstrClient> {
+    pub fn client(&self, relays: Vec<String>) -> Result<CoinstrClient, Error> {
         let keys = self.keechain.keychain.nostr_keys()?;
-        CoinstrClient::new(keys, relays, self.network)
+        Ok(CoinstrClient::new(keys, relays, self.network)?)
     }
 }

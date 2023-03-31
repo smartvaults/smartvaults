@@ -24,9 +24,49 @@ pub mod blocking;
 use crate::constants::{
     APPROVED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
 };
-use crate::policy::Policy;
+use crate::policy::{self, Policy};
 use crate::proposal::SpendingProposal;
 use crate::util;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    Bdk(#[from] bdk::Error),
+    #[error(transparent)]
+    Client(#[from] nostr_sdk::client::Error),
+    #[error(transparent)]
+    Keys(#[from] nostr_sdk::key::Error),
+    #[error(transparent)]
+    EventBuilder(#[from] nostr_sdk::event::builder::Error),
+    #[error(transparent)]
+    NIP04(#[from] nostr_sdk::nips::nip04::Error),
+    #[error(transparent)]
+    Policy(#[from] policy::Error),
+    #[error(transparent)]
+    Secp256k1(#[from] keechain_core::bitcoin::secp256k1::Error),
+    #[error(transparent)]
+    JSON(#[from] serde_json::Error),
+    #[error(transparent)]
+    Psbt(#[from] keechain_core::bitcoin::psbt::Error),
+    #[error(transparent)]
+    PsbtParse(#[from] keechain_core::bitcoin::psbt::PsbtParseError),
+    #[error(transparent)]
+    Util(#[from] util::Error),
+    #[error("shared keys not found")]
+    SharedKeysNotFound,
+    #[error("policy not found")]
+    PolicyNotFound,
+    #[error("spending proposal not found")]
+    SpendingProposalNotFound,
+    #[error("approved proposal/s not found")]
+    ApprovedProposalNotFound,
+    #[error("impossible to finalize the PSBT: {:?}", 0)]
+    ImpossibleToFinalizePsbt(Vec<bdk::miniscript::psbt::Error>),
+    #[error("PSBT not signed")]
+    PsbtNotSigned,
+    #[error("wallet spending policy not found")]
+    WalletSpendingPolicyNotFound,
+}
 
 /// Coinstr Client
 pub struct CoinstrClient {
@@ -35,7 +75,7 @@ pub struct CoinstrClient {
 }
 
 impl CoinstrClient {
-    pub async fn new(keys: Keys, relays: Vec<String>, network: Network) -> Result<Self> {
+    pub async fn new(keys: Keys, relays: Vec<String>, network: Network) -> Result<Self, Error> {
         let client = Client::new(&keys);
         #[cfg(not(target_arch = "wasm32"))]
         let relays = relays.iter().map(|url| (url, None)).collect();
@@ -44,7 +84,7 @@ impl CoinstrClient {
         Ok(Self { network, client })
     }
 
-    pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>>
+    pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
     where
         S: Into<String>,
     {
@@ -55,11 +95,14 @@ impl CoinstrClient {
     pub async fn get_contacts(
         &self,
         timeout: Option<Duration>,
-    ) -> Result<HashMap<XOnlyPublicKey, Metadata>> {
+    ) -> Result<HashMap<XOnlyPublicKey, Metadata>, Error> {
         Ok(self.client.get_contact_list_metadata(timeout).await?)
     }
 
-    async fn get_shared_keys(&self, timeout: Option<Duration>) -> Result<HashMap<EventId, Keys>> {
+    async fn get_shared_keys(
+        &self,
+        timeout: Option<Duration>,
+    ) -> Result<HashMap<EventId, Keys>, Error> {
         let keys = self.client.keys();
 
         let filter = Filter::new()
@@ -87,13 +130,13 @@ impl CoinstrClient {
         &self,
         policy_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(Policy, Keys)> {
+    ) -> Result<(Policy, Keys), Error> {
         let keys = self.client.keys();
 
         // Get policy event
         let filter = Filter::new().id(policy_id).kind(POLICY_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let policy_event = events.first().expect("Policy not found");
+        let policy_event = events.first().ok_or(Error::PolicyNotFound)?;
 
         // Get global shared key
         let filter = Filter::new()
@@ -101,7 +144,7 @@ impl CoinstrClient {
             .event(policy_id)
             .kind(SHARED_KEY_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().expect("Shared key not found");
+        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
         let content = nips::nip04::decrypt(
             &keys.secret_key()?,
             &global_shared_key_event.pubkey,
@@ -123,14 +166,15 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(SpendingProposal, EventId, Keys)> {
+    ) -> Result<(SpendingProposal, EventId, Keys), Error> {
         let keys = self.client.keys();
 
         // Get proposal event
         let filter = Filter::new().id(proposal_id).kind(SPENDING_PROPOSAL_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let proposal_event = events.first().expect("Spending proposal not found");
-        let policy_id = util::extract_first_event_id(proposal_event).expect("Policy id not found");
+        let proposal_event = events.first().ok_or(Error::SpendingProposalNotFound)?;
+        let policy_id =
+            util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
         // Get global shared key
         let filter = Filter::new()
@@ -138,7 +182,7 @@ impl CoinstrClient {
             .event(policy_id)
             .kind(SHARED_KEY_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().expect("Shared key not found");
+        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
         let content = nips::nip04::decrypt(
             &keys.secret_key()?,
             &global_shared_key_event.pubkey,
@@ -164,7 +208,7 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(PartiallySignedTransaction, Vec<PartiallySignedTransaction>)> {
+    ) -> Result<(PartiallySignedTransaction, Vec<PartiallySignedTransaction>), Error> {
         // Get approved proposals
         let filter = Filter::new()
             .event(proposal_id)
@@ -172,8 +216,9 @@ impl CoinstrClient {
         let proposals_events = self.client.get_events_of(vec![filter], timeout).await?;
         let first_event = proposals_events
             .first()
-            .expect("Approved proposals not found");
-        let proposal_id = util::extract_first_event_id(first_event).expect("Proposal id not found");
+            .ok_or(Error::ApprovedProposalNotFound)?;
+        let proposal_id =
+            util::extract_first_event_id(first_event).ok_or(Error::ApprovedProposalNotFound)?;
 
         // Get global shared key
         let (proposal, _, shared_keys) = self.get_proposal_by_id(proposal_id, timeout).await?;
@@ -196,7 +241,7 @@ impl CoinstrClient {
         &self,
         policy_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let keys = self.client.keys();
 
         // Get global shared key
@@ -205,7 +250,7 @@ impl CoinstrClient {
             .event(policy_id)
             .kind(SHARED_KEY_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().expect("Shared key not found");
+        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
         let content = nips::nip04::decrypt(
             &keys.secret_key()?,
             &global_shared_key_event.pubkey,
@@ -231,14 +276,15 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let keys = self.client.keys();
 
         // Get the proposal
         let filter = Filter::new().id(proposal_id);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let proposal_event = events.first().expect("Spending proposal not found");
-        let policy_id = util::extract_first_event_id(proposal_event).expect("Policy id not found");
+        let proposal_event = events.first().ok_or(Error::SpendingProposalNotFound)?;
+        let policy_id =
+            util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
         // Get global shared key
         let filter = Filter::new()
@@ -246,7 +292,7 @@ impl CoinstrClient {
             .event(policy_id)
             .kind(SHARED_KEY_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().expect("Shared key not found");
+        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
         let content = nips::nip04::decrypt(
             &keys.secret_key()?,
             &global_shared_key_event.pubkey,
@@ -268,7 +314,10 @@ impl CoinstrClient {
         Ok(())
     }
 
-    pub async fn get_policies(&self, timeout: Option<Duration>) -> Result<Vec<(EventId, Policy)>> {
+    pub async fn get_policies(
+        &self,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<(EventId, Policy)>, Error> {
         let keys = self.client.keys();
 
         // Get policies
@@ -281,7 +330,9 @@ impl CoinstrClient {
         let mut policies: Vec<(EventId, Policy)> = Vec::new();
 
         for event in policies_events.into_iter() {
-            let global_key = shared_keys.get(&event.id).expect("Global key not found");
+            let global_key = shared_keys
+                .get(&event.id)
+                .ok_or(Error::SharedKeysNotFound)?;
             let content = nips::nip04::decrypt(
                 &global_key.secret_key()?,
                 &global_key.public_key(),
@@ -296,7 +347,7 @@ impl CoinstrClient {
     pub async fn get_proposals(
         &self,
         timeout: Option<Duration>,
-    ) -> Result<Vec<(EventId, SpendingProposal, EventId)>> {
+    ) -> Result<Vec<(EventId, SpendingProposal, EventId)>, Error> {
         let keys = self.client.keys();
 
         // Get proposals
@@ -311,8 +362,10 @@ impl CoinstrClient {
         let mut proposals: Vec<(EventId, SpendingProposal, EventId)> = Vec::new();
 
         for event in proposals_events.into_iter() {
-            let policy_id = util::extract_first_event_id(&event).expect("Policy id not found");
-            let global_key: &Keys = shared_keys.get(&policy_id).expect("Global key not found");
+            let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
+            let global_key: &Keys = shared_keys
+                .get(&policy_id)
+                .ok_or(Error::SharedKeysNotFound)?;
 
             let content = nips::nip04::decrypt(
                 &global_key.secret_key()?,
@@ -326,7 +379,12 @@ impl CoinstrClient {
         Ok(proposals)
     }
 
-    pub async fn save_policy<S>(&self, name: S, description: S, descriptor: S) -> Result<EventId>
+    pub async fn save_policy<S>(
+        &self,
+        name: S,
+        description: S,
+        descriptor: S,
+    ) -> Result<EventId, Error>
     where
         S: Into<String>,
     {
@@ -380,7 +438,7 @@ impl CoinstrClient {
         memo: S,
         blockchain: impl Blockchain,
         timeout: Option<Duration>,
-    ) -> Result<EventId>
+    ) -> Result<EventId, Error>
     where
         S: Into<String>,
     {
@@ -395,7 +453,9 @@ impl CoinstrClient {
         wallet.sync(&blockchain, SyncOptions::default()).await?;
 
         // Get policies and specify which ones to use
-        let wallet_policy = wallet.policies(KeychainKind::External)?.unwrap();
+        let wallet_policy = wallet
+            .policies(KeychainKind::External)?
+            .ok_or(Error::WalletSpendingPolicyNotFound)?;
         let mut path = BTreeMap::new();
         path.insert(wallet_policy.id, vec![1]);
 
@@ -449,7 +509,7 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<EventId> {
+    ) -> Result<EventId, Error> {
         let keys = self.client.keys();
 
         // Get proposal
@@ -507,8 +567,7 @@ impl CoinstrClient {
             let event_id = self.client.send_event(event).await?;
             Ok(event_id)
         } else {
-            // TODO: remove this `panic`
-            panic!("PSBT not signed")
+            Err(Error::PsbtNotSigned)
         }
     }
 
@@ -517,7 +576,7 @@ impl CoinstrClient {
         proposal_id: EventId,
         blockchain: impl Blockchain,
         timeout: Option<Duration>,
-    ) -> Result<Txid> {
+    ) -> Result<Txid, Error> {
         // Get PSBTs
         let (mut base_psbt, psbts) = self
             .get_signed_psbts_by_proposal_id(proposal_id, timeout)
@@ -531,7 +590,7 @@ impl CoinstrClient {
         // Finalize and broadcast the transaction
         base_psbt
             .finalize_mut(SECP256K1)
-            .expect("Impissible to finalize PSBT"); // TODO: remove this `expect`
+            .map_err(Error::ImpossibleToFinalizePsbt)?;
         let finalized_tx = base_psbt.extract_tx();
         #[cfg(not(target_arch = "wasm32"))]
         blockchain.broadcast(&finalized_tx)?;
