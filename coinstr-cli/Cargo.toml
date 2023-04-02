@@ -12,7 +12,7 @@ categories = ["command-line-utilities"]
 
 [dependencies]
 bdk = { version = "0.27", default-features = false, features = ["electrum"] }
-clap = { version = "4.1", features = ["derive"] }
+clap = { version = "4.2", features = ["derive"] }
 coinstr-core = { version = "0.1", path = "../coinstr-core" }
 dialoguer = "0.10"
 dirs = "5.0"
@@ -20,4 +20,4 @@ env_logger = "0.10"
 owo-colors = "3.5"
 prettytable-rs = "0.10"
 termtree = "0.4"
-tokio = { version = "1", features = ["macros"] }
+tokio = { version = "1.27", features = ["macros"] }
