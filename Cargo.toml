@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "coinstr-cli",
+    "coinstr-common",
     "coinstr-core",
 ]
 default-members = ["coinstr-cli"]

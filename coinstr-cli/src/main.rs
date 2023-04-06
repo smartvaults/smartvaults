@@ -15,7 +15,6 @@ use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
 use coinstr_core::{Coinstr, Keychain, Result};
 
 mod cli;
-mod dir;
 mod util;
 
 use self::cli::{io, Cli, Command, SettingCommand};
@@ -30,7 +29,7 @@ async fn main() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
     let relays: Vec<String> = vec![args.relay];
-    let keychains: PathBuf = dir::keychains()?;
+    let keychains: PathBuf = coinstr_common::keychains()?;
 
     let bitcoin_endpoint: &str = match network {
         Network::Bitcoin => "ssl://blockstream.info:700",
