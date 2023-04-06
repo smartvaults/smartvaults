@@ -5,17 +5,21 @@ else
   Q := @
 endif
 
-all: cli
+all: cli gui
 
 help:
 	$(Q)echo ""
 	$(Q)echo "make                                 - Build binaries files"
+	$(Q)echo "make gui                             - Build only GUI binary files"
 	$(Q)echo "make cli                             - Build only CLI binary files"
 	$(Q)echo "make x86_64-unknown-linux-gnu        - Build target x86_64-unknown-linux-gnu"
 	$(Q)echo "make precommit                       - Execute precommit steps"
 	$(Q)echo "make clean                           - Clean"
 	$(Q)echo "make loc                             - Count lines of code in src folder"
 	$(Q)echo ""
+
+gui:
+	$(Q)cargo build -p coinstr --release
 
 cli:
 	$(Q)cargo build -p coinstr-cli --release

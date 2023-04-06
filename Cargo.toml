@@ -1,10 +1,11 @@
 [workspace]
 members = [
+    "coinstr",
     "coinstr-cli",
     "coinstr-common",
     "coinstr-core",
 ]
-default-members = ["coinstr-cli"]
+default-members = ["coinstr", "coinstr-cli"]
 resolver = "2"
 
 [workspace.package]
