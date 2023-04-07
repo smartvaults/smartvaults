@@ -15,7 +15,7 @@ blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
 bdk = { version = "0.27", default-features = false, features = ["compiler"] }
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "6916a8989d02b725a0881aa88dc7d5565f8fe934", features = ["nostr"] }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "b6a556ecd27794d35f547221c3daa119979ca3d5", features = ["nostr"] }
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
