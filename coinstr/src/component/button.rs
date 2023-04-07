@@ -23,7 +23,7 @@ pub fn primary_with_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T
 
 pub fn border_text_below_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
     let row = Column::new()
-        .push(Icon::new(icon).size(22).view())
+        .push(Icon::new(icon).view())
         .push(Text::new(t).view())
         .spacing(10)
         .width(Length::Fill)

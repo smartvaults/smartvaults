@@ -27,11 +27,11 @@ impl Icon {
         }
     }
 
-    pub fn size(self, size: u16) -> Self {
+    /* pub fn size(self, size: u16) -> Self {
         Self { size, ..self }
     }
 
-    /* pub fn width(self, width: Length) -> Self {
+    pub fn width(self, width: Length) -> Self {
         Self { width, ..self }
     }
 

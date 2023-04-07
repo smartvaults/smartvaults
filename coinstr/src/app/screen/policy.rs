@@ -4,7 +4,8 @@
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
-use iced::widget::{Column, Row, Space};
+use iced::alignment::Horizontal;
+use iced::widget::{Column, Container, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
@@ -76,10 +77,10 @@ impl State for PolicyState {
 
         let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
             .on_press(PolicyMessage::Send.into())
-            .width(Length::Fixed(85.0));
+            .width(Length::Fixed(110.0));
         let deposit_btn = button::border_text_below_icon(ARROW_DOWN, "Deposit")
             .on_press(PolicyMessage::Deposit.into())
-            .width(Length::Fixed(85.0));
+            .width(Length::Fixed(110.0));
         let row = Row::new()
             .push(
                 Row::new()
@@ -89,21 +90,28 @@ impl State for PolicyState {
                     .width(Length::Fill),
             )
             .push(
-                Column::new()
-                    .push(
-                        Row::new()
-                            .push(Text::new("1 050 641").size(50).view())
-                            .push(Text::new("sats").size(24).view())
-                            .align_items(Alignment::End),
-                    )
-                    .push(Text::new("50 641 sats").size(24).view())
-                    .width(Length::Fill)
-                    .align_items(Alignment::End),
+                Container::new(
+                    Row::new()
+                        .push(
+                            Column::new()
+                                .push(Text::new("1 050 641").size(45).view())
+                                .push(Text::new("50 641").size(27).view())
+                                .align_items(Alignment::End),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Space::with_height(Length::Fixed(9.5)))
+                                .push(Text::new("sats").size(35).view())
+                                .push(Space::with_height(Length::Fixed(27.5)))
+                                .align_items(Alignment::End),
+                        )
+                        .spacing(10)
+                        .width(Length::Fill),
+                )
+                .align_x(Horizontal::Right),
             )
             .width(Length::Fill)
-            .align_items(Alignment::Center)
-            .spacing(10)
-            .padding(30);
+            .align_items(Alignment::Center);
         content = content.push(row);
 
         Dashboard::new().view(ctx, content, false, false)
