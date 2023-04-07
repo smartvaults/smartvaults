@@ -8,7 +8,7 @@ use crate::RUNTIME;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
-    Home,
+    Dashboard,
     Policies,
     Policy(EventId),
     Proposals,
@@ -18,7 +18,7 @@ pub enum Stage {
 
 impl Default for Stage {
     fn default() -> Self {
-        Self::Home
+        Self::Dashboard
     }
 }
 

@@ -10,9 +10,9 @@ mod button;
 use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
+use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::{HOME, KEY, LOCK, SEND_PENDING, SETTING};
-use crate::COINSTR_LOGO;
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -26,14 +26,14 @@ impl Sidebar {
 
     pub fn view<'a>(&self, ctx: &Context) -> Container<'a, Message> {
         // Logo
-        let handle = svg::Handle::from_memory(COINSTR_LOGO);
+        let handle = svg::Handle::from_memory(APP_LOGO);
         let logo = svg(handle)
             .width(Length::Fixed(80.0))
             .height(Length::Fixed(80.0));
 
         // Buttons
-        let home_button = SidebarButton::new("Home", Icon::new(HOME).view())
-            .view(ctx, Message::View(Stage::Home));
+        let home_button = SidebarButton::new("Dashboard", Icon::new(HOME).view())
+            .view(ctx, Message::View(Stage::Dashboard));
         let policies_button = SidebarButton::new("Policies", Icon::new(KEY).view())
             .view(ctx, Message::View(Stage::Policies));
         let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING).view())

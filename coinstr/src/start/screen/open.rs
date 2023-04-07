@@ -4,30 +4,45 @@
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
-use iced::widget::{column, row, svg, PickList, Rule, Space};
+use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
 use iced::{Alignment, Command, Element, Length};
 
 use super::view;
 use crate::component::{button, Text, TextInput};
+use crate::constants::{APP_DESCRIPTION, APP_LOGO, APP_NAME};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
-use crate::{APP_NAME, COINSTR_DESCRIPTION, COINSTR_LOGO, KEYCHAINS_PATH};
+use crate::KEYCHAINS_PATH;
 
 #[derive(Debug, Clone)]
 pub enum OpenMessage {
     LoadKeychains,
+    NetworkSelect(Network),
     KeychainSelect(String),
     PasswordChanged(String),
     OpenButtonPressed,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct OpenState {
-    // network: Network,
+    network: Network,
     keychains: Vec<String>,
     name: Option<String>,
     password: String,
     error: Option<String>,
+}
+
+impl Default for OpenState {
+    fn default() -> Self {
+        Self {
+            // TODO: add option to select network
+            network: Network::Testnet,
+            keychains: Vec::new(),
+            name: None,
+            password: String::new(),
+            error: None,
+        }
+    }
 }
 
 impl OpenState {
@@ -38,7 +53,7 @@ impl OpenState {
 
 impl State for OpenState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - open")
+        format!("{APP_NAME} - Open")
     }
 
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
@@ -54,16 +69,16 @@ impl State for OpenState {
                         Err(e) => self.error = Some(e.to_string()),
                     }
                 }
+                OpenMessage::NetworkSelect(network) => self.network = network,
                 OpenMessage::KeychainSelect(name) => self.name = Some(name),
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
                 OpenMessage::OpenButtonPressed => {
                     if let Some(name) = &self.name {
-                        // TODO: replace Network
                         match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), name) {
                             Ok(path) => match Coinstr::open(
                                 path,
                                 || Ok(self.password.clone()),
-                                Network::Testnet,
+                                self.network,
                             ) {
                                 Ok(keechain) => {
                                     return Command::perform(async {}, move |_| {
@@ -85,22 +100,27 @@ impl State for OpenState {
     }
 
     fn view(&self, _ctx: &Context) -> Element<Message> {
-        let handle = svg::Handle::from_memory(COINSTR_LOGO);
+        let handle = svg::Handle::from_memory(APP_LOGO);
         let svg = svg(handle)
             .width(Length::Fixed(100.0))
             .height(Length::Fixed(100.0));
 
-        let keychain_pick_list = PickList::new(self.keychains.clone(), self.name.clone(), |name| {
-            Message::Open(OpenMessage::KeychainSelect(name))
-        })
-        .width(Length::Fill)
-        .text_size(20)
-        .padding(10)
-        .placeholder(if self.keychains.is_empty() {
-            "No keychain availabe"
-        } else {
-            "Select a keychain"
-        });
+        let keychain_pick_list = Column::new()
+            .push(Text::new("Keychain").view())
+            .push(
+                PickList::new(self.keychains.clone(), self.name.clone(), |name| {
+                    Message::Open(OpenMessage::KeychainSelect(name))
+                })
+                .width(Length::Fill)
+                .text_size(20)
+                .padding(10)
+                .placeholder(if self.keychains.is_empty() {
+                    "No keychain availabe"
+                } else {
+                    "Select a keychain"
+                }),
+            )
+            .spacing(5);
 
         let password = TextInput::new("Password", &self.password, |s| {
             Message::Open(OpenMessage::PasswordChanged(s))
@@ -126,7 +146,7 @@ impl State for OpenState {
                 row![svg],
                 row![Space::with_height(Length::Fixed(5.0))],
                 row![Text::new("Coinstr").size(50).bold().view()],
-                row![Text::new(COINSTR_DESCRIPTION).size(22).color(GREY).view()]
+                row![Text::new(APP_DESCRIPTION).size(22).color(GREY).view()]
             ]
             .align_items(Alignment::Center)
             .spacing(10)],

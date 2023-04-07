@@ -11,7 +11,7 @@ pub mod screen;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-use self::screen::{HomeState, PoliciesState, SettingState};
+use self::screen::{DashboardState, PoliciesState, SettingState};
 
 pub trait State {
     fn title(&self) -> String;
@@ -27,7 +27,7 @@ pub trait State {
 
 pub fn new_state(context: &Context) -> Box<dyn State> {
     match &context.stage {
-        Stage::Home => HomeState::new().into(),
+        Stage::Dashboard => DashboardState::new().into(),
         Stage::Policies => PoliciesState::new().into(),
         Stage::Policy(_policy_id) => todo!(),
         Stage::Proposals => todo!(),

@@ -12,9 +12,10 @@ use iced::{Command, Element, Length};
 
 use super::view;
 use crate::component::{button, Text, TextInput};
+use crate::constants::APP_NAME;
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::DARK_RED;
-use crate::{APP_NAME, KEYCHAINS_PATH};
+use crate::KEYCHAINS_PATH;
 
 #[derive(Debug, Clone)]
 pub enum RestoreMessage {
@@ -44,7 +45,7 @@ impl RestoreState {
 
 impl State for RestoreState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - restore")
+        format!("{APP_NAME} - Restore")
     }
 
     fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {

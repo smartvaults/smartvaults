@@ -14,8 +14,8 @@ use rfd::FileDialog;
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
+use crate::constants::APP_NAME;
 use crate::theme::icon::{FULLSCREEN, RELOAD, SAVE};
-use crate::APP_NAME;
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
@@ -39,7 +39,7 @@ impl PoliciesState {
 
 impl State for PoliciesState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - policies")
+        format!("{APP_NAME} - Policies")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

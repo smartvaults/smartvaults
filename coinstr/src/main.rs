@@ -9,12 +9,10 @@ use tokio::runtime::Runtime;
 
 mod app;
 mod component;
+mod constants;
 mod start;
 mod theme;
 
-const APP_NAME: &str = env!("CARGO_PKG_NAME");
-const COINSTR_LOGO: &[u8] = include_bytes!("../static/img/coinstr.svg");
-const COINSTR_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 static KEYCHAINS_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::keychains().expect("Impossible to get keychains path"));
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));
