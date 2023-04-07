@@ -18,6 +18,7 @@ use crate::policy::Policy;
 use crate::proposal::SpendingProposal;
 
 /// Blocking Coinstr Client
+#[derive(Debug, Clone)]
 pub struct CoinstrClient {
     client: super::CoinstrClient,
 }

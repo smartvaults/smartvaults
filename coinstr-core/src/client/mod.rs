@@ -69,6 +69,7 @@ pub enum Error {
 }
 
 /// Coinstr Client
+#[derive(Debug, Clone)]
 pub struct CoinstrClient {
     network: Network,
     client: Client,
