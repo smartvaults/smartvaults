@@ -2,15 +2,16 @@
 // Distributed under the MIT software license
 
 use coinstr_core::nostr_sdk::EventId;
+use coinstr_core::policy::Policy;
 use coinstr_core::{Coinstr, CoinstrClient};
 
 use crate::RUNTIME;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
     Dashboard,
     Policies,
-    Policy(EventId),
+    Policy(EventId, Policy),
     Proposals,
     Proposal(EventId),
     Setting,

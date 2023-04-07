@@ -36,7 +36,7 @@ impl State for DashboardState {
             .push(Text::new("- Total balance").view())
             .push(Text::new("- Send and receive buttons").view())
             .push(Text::new("- All transactions").view());
-        Dashboard::new().view(ctx, content, true)
+        Dashboard::new().view(ctx, content, true, true)
     }
 }
 

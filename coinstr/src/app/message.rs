@@ -1,13 +1,14 @@
 // Copyright (c) 2022-2023 Yuki Kishimoto
 // Distributed under the MIT software license
 
-use super::screen::PoliciesMessage;
+use super::screen::{PoliciesMessage, PolicyMessage};
 use super::Stage;
 
 #[derive(Debug, Clone)]
 pub enum Message {
     View(Stage),
-    PoliciesMessage(PoliciesMessage),
+    Policies(PoliciesMessage),
+    Policy(PolicyMessage),
     Lock,
 }
 

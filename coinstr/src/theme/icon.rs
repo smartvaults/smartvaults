@@ -19,3 +19,5 @@ pub const CHECK_CIRCLE: char = '\u{F26B}';
 pub const SEND_PENDING: char = '\u{F6B8}';
 pub const FULLSCREEN: char = '\u{F14D}';
 pub const RELOAD: char = '\u{F117}';
+pub const ARROW_DOWN: char = '\u{F128}';
+pub const ARROW_UP: char = '\u{F148}';

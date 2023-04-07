@@ -7,6 +7,7 @@ use std::io::Write;
 use coinstr_core::bdk::miniscript::Descriptor;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
+use coinstr_core::util;
 use iced::widget::{Column, Row};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -56,7 +57,7 @@ impl State for PoliciesState {
             return self.load(ctx);
         }
 
-        if let Message::PoliciesMessage(msg) = message {
+        if let Message::Policies(msg) = message {
             match msg {
                 PoliciesMessage::LoadPolicies(policies) => {
                     self.policies = policies;
@@ -109,7 +110,13 @@ impl State for PoliciesState {
                 content = content
                     .push(
                         Row::new()
-                            .push(Text::new("ID").bold().bigger().width(Length::Fill).view())
+                            .push(
+                                Text::new("Policy ID")
+                                    .bold()
+                                    .bigger()
+                                    .width(Length::Fill)
+                                    .view(),
+                            )
                             .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
                             .push(
                                 Text::new("Description")
@@ -129,7 +136,7 @@ impl State for PoliciesState {
                 for (policy_id, policy) in self.policies.iter() {
                     let row = Row::new()
                         .push(
-                            Text::new(cut_policy_id(*policy_id))
+                            Text::new(util::cut_event_id(*policy_id))
                                 .width(Length::Fill)
                                 .view(),
                         )
@@ -145,7 +152,7 @@ impl State for PoliciesState {
                         )
                         .push(
                             button::primary_only_icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Policy(*policy_id)))
+                                .on_press(Message::View(Stage::Policy(*policy_id, policy.clone())))
                                 .width(Length::Fixed(40.0)),
                         )
                         .spacing(10)
@@ -158,12 +165,8 @@ impl State for PoliciesState {
             content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, center_y)
+        Dashboard::new().view(ctx, content, true, center_y)
     }
-}
-
-fn cut_policy_id(policy_id: EventId) -> String {
-    policy_id.to_string()[..8].to_string()
 }
 
 impl From<PoliciesState> for Box<dyn State> {
@@ -174,6 +177,6 @@ impl From<PoliciesState> for Box<dyn State> {
 
 impl From<PoliciesMessage> for Message {
     fn from(msg: PoliciesMessage) -> Self {
-        Self::PoliciesMessage(msg)
+        Self::Policies(msg)
     }
 }

@@ -30,7 +30,7 @@ impl State for SettingState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        Dashboard::new().view(ctx, Column::new(), true)
+        Dashboard::new().view(ctx, Column::new(), true, true)
     }
 }
 

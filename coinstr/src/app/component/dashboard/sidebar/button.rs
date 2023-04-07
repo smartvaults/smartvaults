@@ -21,7 +21,7 @@ impl<'a> SidebarButton<'a> {
     pub fn view(&self, ctx: &Context, msg: Message) -> Container<'a, Message> {
         let mut style = BorderButtonStyle.into();
 
-        if let Message::View(stage) = msg {
+        if let Message::View(stage) = msg.clone() {
             if ctx.stage.eq(&stage) {
                 style = PrimaryButtonStyle.into();
             }

@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_core::util::bip::bip32::Bip32RootKey;
-use iced::widget::{svg, Column, Container, Rule, Space};
+use iced::widget::{svg, Column, Container, Row, Rule, Space};
 use iced::Length;
 
 mod button;
@@ -12,7 +12,7 @@ use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{HOME, KEY, LOCK, SEND_PENDING, SETTING};
+use crate::theme::icon::{FINGERPRINT, HOME, KEY, LOCK, SEND_PENDING, SETTING};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -48,11 +48,16 @@ impl Sidebar {
             .seed
             .fingerprint(ctx.coinstr.network())
         {
-            Ok(fingerprint) => Text::new(format!("Fingerprint: {}", fingerprint)).size(22),
-            Err(_) => Text::new("Fingerprint: error").color(DARK_RED),
+            Ok(fingerprint) => Text::new(fingerprint.to_string()),
+            Err(_) => Text::new("error").color(DARK_RED),
         };
         let identity = Column::new()
-            .push(fingerprint.view())
+            .push(
+                Row::new()
+                    .push(Icon::new(FINGERPRINT).view())
+                    .push(fingerprint.view())
+                    .spacing(10),
+            )
             .spacing(10)
             .padding([15, 0]);
 

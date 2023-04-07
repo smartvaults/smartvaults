@@ -3,7 +3,7 @@
 
 #![allow(dead_code)]
 
-use iced::widget::{button, Button, Container, Row};
+use iced::widget::{button, Button, Column, Container, Row};
 use iced::{theme, Alignment, Background, Length, Theme, Vector};
 
 use super::{Icon, Text};
@@ -19,6 +19,22 @@ pub fn border<'a, T: 'a>(t: &'static str) -> Button<'a, T> {
 
 pub fn primary_with_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
     Button::new(content(Some(icon), t)).style(PrimaryButtonStyle.into())
+}
+
+pub fn border_text_below_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
+    let row = Column::new()
+        .push(Icon::new(icon).size(22).view())
+        .push(Text::new(t).view())
+        .spacing(10)
+        .width(Length::Fill)
+        .align_items(Alignment::Center);
+
+    let content = Container::new(row)
+        .width(Length::Fill)
+        .center_x()
+        .padding(5);
+
+    Button::new(content).style(BorderButtonStyle.into())
 }
 
 pub fn primary_only_icon<'a, T: 'a>(icon: char) -> Button<'a, T> {

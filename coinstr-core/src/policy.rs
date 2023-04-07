@@ -21,7 +21,7 @@ pub enum Error {
     NotTaprootDescriptor,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Policy {
     pub name: String,
     pub description: String,

@@ -18,14 +18,23 @@ impl Dashboard {
         Self::default()
     }
 
-    pub fn view<'a, T>(&self, ctx: &Context, content: T, center_y: bool) -> Element<'a, Message>
+    pub fn view<'a, T>(
+        &self,
+        ctx: &Context,
+        content: T,
+        center_x: bool,
+        center_y: bool,
+    ) -> Element<'a, Message>
     where
         T: Into<Element<'a, Message>>,
     {
         let mut content = Container::new(Scrollable::new(content))
             .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x();
+            .height(Length::Fill);
+
+        if center_x {
+            content = content.center_x();
+        }
 
         if center_y {
             content = content.center_y();
