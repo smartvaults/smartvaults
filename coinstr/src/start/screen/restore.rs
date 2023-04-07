@@ -3,18 +3,18 @@
 
 use std::str::FromStr;
 
+use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
+use coinstr_core::util::dir;
+use coinstr_core::Coinstr;
 use iced::widget::{Column, Row, Rule};
 use iced::{Command, Element, Length};
-use coinstr_core::bip39::Mnemonic;
-use coinstr_core::Coinstr;
-use coinstr_core::util::dir;
 
 use super::view;
 use crate::component::{button, Text, TextInput};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::DARK_RED;
-use crate::KEYCHAINS_PATH;
+use crate::{APP_NAME, KEYCHAINS_PATH};
 
 #[derive(Debug, Clone)]
 pub enum RestoreMessage {
@@ -44,7 +44,7 @@ impl RestoreState {
 
 impl State for RestoreState {
     fn title(&self) -> String {
-        String::from("KeeChain - Restore")
+        format!("{APP_NAME} - restore")
     }
 
     fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
@@ -72,7 +72,7 @@ impl State for RestoreState {
                                     })
                                 }
                                 Err(e) => self.error = Some(e.to_string()),
-                            }
+                            },
                             Err(e) => self.error = Some(e.to_string()),
                         }
                     } else {

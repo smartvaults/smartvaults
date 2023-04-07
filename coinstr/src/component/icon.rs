@@ -27,7 +27,7 @@ impl Icon {
         }
     }
 
-    pub fn size(self, size: u16) -> Self {
+    /* pub fn size(self, size: u16) -> Self {
         Self { size, ..self }
     }
 
@@ -40,7 +40,7 @@ impl Icon {
             color: Some(color),
             ..self
         }
-    }
+    } */
 
     pub fn view(self) -> Text<'static> {
         let mut icon = Text::new(self.unicode.to_string())

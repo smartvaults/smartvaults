@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Yuki Kishimoto
 // Distributed under the MIT software license
 
-use iced::{Command, Element, Subscription};
 use coinstr_core::Coinstr;
+use iced::{Command, Element, Subscription};
 
 mod component;
 mod context;
@@ -11,7 +11,7 @@ pub mod screen;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-use self::screen::{HomeState, SettingState};
+use self::screen::{HomeState, PoliciesState, SettingState};
 
 pub trait State {
     fn title(&self) -> String;
@@ -28,6 +28,10 @@ pub trait State {
 pub fn new_state(context: &Context) -> Box<dyn State> {
     match &context.stage {
         Stage::Home => HomeState::new().into(),
+        Stage::Policies => PoliciesState::new().into(),
+        Stage::Policy(_policy_id) => todo!(),
+        Stage::Proposals => todo!(),
+        Stage::Proposal(_proposal_id) => todo!(),
         Stage::Setting => SettingState::new().into(),
     }
 }

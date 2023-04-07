@@ -19,6 +19,14 @@ pub fn primary_with_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T
     Button::new(content(Some(icon), t)).style(PrimaryButtonStyle.into())
 }
 
+pub fn primary_only_icon<'a, T: 'a>(icon: char) -> Button<'a, T> {
+    Button::new(content(Some(icon), "")).style(PrimaryButtonStyle.into())
+}
+
+pub fn border_only_icon<'a, T: 'a>(icon: char) -> Button<'a, T> {
+    Button::new(content(Some(icon), "")).style(BorderButtonStyle.into())
+}
+
 pub fn border_with_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
     Button::new(content(Some(icon), t)).style(BorderButtonStyle.into())
 }
@@ -33,17 +41,22 @@ fn content<'a, T: 'a>(icon: Option<char>, t: &'static str) -> Container<'a, T> {
             .width(Length::Fill)
             .center_x()
             .padding(5),
-        Some(icon) => Container::new(
-            Row::new()
+        Some(icon) => {
+            let mut row = Row::new()
                 .push(Icon::new(icon).view())
-                .push(Text::new(t).view())
                 .spacing(10)
                 .width(Length::Fill)
-                .align_items(Alignment::Center),
-        )
-        .width(Length::Fill)
-        .center_x()
-        .padding(5),
+                .align_items(Alignment::Center);
+
+            if !t.is_empty() {
+                row = row.push(Text::new(t).view());
+            }
+
+            Container::new(row)
+                .width(Length::Fill)
+                .center_x()
+                .padding(5)
+        }
     }
 }
 

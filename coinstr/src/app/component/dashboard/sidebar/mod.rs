@@ -1,9 +1,9 @@
 // Copyright (c) 2022 Yuki Kishimoto
 // Distributed under the MIT software license
 
+use coinstr_core::util::bip::bip32::Bip32RootKey;
 use iced::widget::{svg, Column, Container, Rule, Space};
 use iced::Length;
-use coinstr_core::util::bip::bip32::Bip32RootKey;
 
 mod button;
 
@@ -11,7 +11,7 @@ use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{HOME, KEY, LOCK, SEARCH, SETTING, SIGN};
+use crate::theme::icon::{HOME, KEY, LOCK, SEND_PENDING, SETTING};
 use crate::COINSTR_LOGO;
 
 const MAX_WIDTH: u32 = 240;
@@ -34,11 +34,20 @@ impl Sidebar {
         // Buttons
         let home_button = SidebarButton::new("Home", Icon::new(HOME).view())
             .view(ctx, Message::View(Stage::Home));
+        let policies_button = SidebarButton::new("Policies", Icon::new(KEY).view())
+            .view(ctx, Message::View(Stage::Policies));
+        let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING).view())
+            .view(ctx, Message::View(Stage::Proposals));
         let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
             .view(ctx, Message::View(Stage::Setting));
 
         // Identity
-        let fingerprint = match ctx.coinstr.keychain().seed.fingerprint(ctx.coinstr.network()) {
+        let fingerprint = match ctx
+            .coinstr
+            .keychain()
+            .seed
+            .fingerprint(ctx.coinstr.network())
+        {
             Ok(fingerprint) => Text::new(format!("Fingerprint: {}", fingerprint)).size(22),
             Err(_) => Text::new("Fingerprint: error").color(DARK_RED),
         };
@@ -66,6 +75,8 @@ impl Sidebar {
             Container::new(identity).width(Length::Fill).center_x(),
             sidebar_menu(vec![
                 home_button,
+                policies_button,
+                proposals_button,
                 settings_button,
             ]),
             sidebar_menu(vec![

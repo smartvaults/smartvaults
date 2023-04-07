@@ -6,6 +6,7 @@ use iced::{Command, Element};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
+use crate::APP_NAME;
 
 #[derive(Debug, Clone)]
 pub enum HomeMessage {}
@@ -21,7 +22,7 @@ impl HomeState {
 
 impl State for HomeState {
     fn title(&self) -> String {
-        String::from("KeeChain - Home")
+        format!("{APP_NAME} - home")
     }
 
     fn update(&mut self, _ctx: &mut Context, _message: Message) -> Command<Message> {
@@ -29,7 +30,7 @@ impl State for HomeState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        Dashboard::new().view(ctx, Column::new())
+        Dashboard::new().view(ctx, Column::new(), true)
     }
 }
 

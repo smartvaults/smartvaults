@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use iced::widget::Text as NativeText;
-use iced::{Color, Font};
+use iced::{Color, Font, Length};
 
 use crate::theme::font::{BOLD, REGULAR};
 
@@ -11,6 +11,7 @@ pub struct Text {
     size: u16,
     color: Option<Color>,
     font: Font,
+    width: Option<Length>,
 }
 
 impl Text {
@@ -23,6 +24,7 @@ impl Text {
             size: 20,
             color: None,
             font: REGULAR,
+            width: None,
         }
     }
 
@@ -41,6 +43,13 @@ impl Text {
         Self { font: BOLD, ..self }
     }
 
+    pub fn width(self, length: Length) -> Self {
+        Self {
+            width: Some(length),
+            ..self
+        }
+    }
+
     pub fn view<'a>(self) -> NativeText<'a> {
         let mut text = NativeText::new(self.content)
             .size(self.size)
@@ -48,6 +57,10 @@ impl Text {
 
         if let Some(color) = self.color {
             text = text.style(color);
+        }
+
+        if let Some(length) = self.width {
+            text = text.width(length);
         }
 
         text

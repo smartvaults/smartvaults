@@ -18,10 +18,19 @@ impl Dashboard {
         Self::default()
     }
 
-    pub fn view<'a, T>(&self, ctx: &Context, content: T) -> Element<'a, Message>
+    pub fn view<'a, T>(&self, ctx: &Context, content: T, center_y: bool) -> Element<'a, Message>
     where
         T: Into<Element<'a, Message>>,
     {
+        let mut content = Container::new(Scrollable::new(content))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x();
+
+        if center_y {
+            content = content.center_y();
+        }
+
         Column::new()
             .push(
                 Row::new()
@@ -32,15 +41,7 @@ impl Dashboard {
                             .height(Length::Fill),
                     )
                     .push(Rule::vertical(1))
-                    .push(
-                        Column::new().push(
-                            Container::new(Scrollable::new(content))
-                                .width(Length::Fill)
-                                .height(Length::Fill)
-                                .center_x()
-                                .center_y(),
-                        ),
-                    ),
+                    .push(Column::new().push(content)),
             )
             .width(iced::Length::Fill)
             .height(iced::Length::Fill)

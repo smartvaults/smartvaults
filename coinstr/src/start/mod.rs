@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use iced::{Command, Element, Subscription};
-use coinstr_core::bitcoin::Network;
 
 mod context;
 mod message;

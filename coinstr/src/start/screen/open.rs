@@ -2,16 +2,16 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bitcoin::Network;
-use iced::widget::{column, row, svg, PickList, Rule, Space};
-use iced::{Alignment, Command, Element, Length};
 use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
+use iced::widget::{column, row, svg, PickList, Rule, Space};
+use iced::{Alignment, Command, Element, Length};
 
 use super::view;
 use crate::component::{button, Text, TextInput};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
-use crate::{COINSTR_LOGO, COINSTR_DESCRIPTION, KEYCHAINS_PATH};
+use crate::{APP_NAME, COINSTR_DESCRIPTION, COINSTR_LOGO, KEYCHAINS_PATH};
 
 #[derive(Debug, Clone)]
 pub enum OpenMessage {
@@ -38,7 +38,7 @@ impl OpenState {
 
 impl State for OpenState {
     fn title(&self) -> String {
-        String::from("Coinstr - Open")
+        format!("{APP_NAME} - open")
     }
 
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
@@ -48,24 +48,30 @@ impl State for OpenState {
     fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Open(msg) = message {
             match msg {
-                OpenMessage::LoadKeychains => match dir::get_keychains_list(KEYCHAINS_PATH.as_path()) {
-                    Ok(list) => self.keychains = list,
-                    Err(e) => self.error = Some(e.to_string()),
-                },
+                OpenMessage::LoadKeychains => {
+                    match dir::get_keychains_list(KEYCHAINS_PATH.as_path()) {
+                        Ok(list) => self.keychains = list,
+                        Err(e) => self.error = Some(e.to_string()),
+                    }
+                }
                 OpenMessage::KeychainSelect(name) => self.name = Some(name),
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
                 OpenMessage::OpenButtonPressed => {
                     if let Some(name) = &self.name {
                         // TODO: replace Network
                         match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), name) {
-                            Ok(path) => match Coinstr::open(path, || Ok(self.password.clone()), Network::Testnet) {
+                            Ok(path) => match Coinstr::open(
+                                path,
+                                || Ok(self.password.clone()),
+                                Network::Testnet,
+                            ) {
                                 Ok(keechain) => {
                                     return Command::perform(async {}, move |_| {
                                         Message::OpenResult(keechain)
                                     })
                                 }
                                 Err(e) => self.error = Some(e.to_string()),
-                            }
+                            },
                             Err(e) => self.error = Some(e.to_string()),
                         }
                     } else {
@@ -120,12 +126,7 @@ impl State for OpenState {
                 row![svg],
                 row![Space::with_height(Length::Units(5))],
                 row![Text::new("Coinstr").size(50).bold().view()],
-                row![
-                    Text::new(COINSTR_DESCRIPTION)
-                        .size(22)
-                        .color(GREY)
-                        .view()
-                ]
+                row![Text::new(COINSTR_DESCRIPTION).size(22).color(GREY).view()]
             ]
             .align_items(Alignment::Center)
             .spacing(10)],
