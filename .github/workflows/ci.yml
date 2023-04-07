@@ -20,6 +20,14 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-args:
+          [
+            "-p coinstr-core",
+            "-p coinstr-cli",
+            "-p coinstr",
+          ]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -31,11 +39,14 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml','**/Cargo.lock') }}
+    - name: Install GUI dependencies
+      if: ${{ matrix.build-args == '-p coinstr' }}
+      run: sudo apt update && sudo apt install build-essential libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
     - name: Set profile
       run: rustup set profile minimal && rustup component add clippy
     - name: Build
-      run: cargo build --verbose
+      run: cargo build ${{ matrix.build-args }}
     - name: Tests
-      run: cargo test --verbose
+      run: cargo test ${{ matrix.build-args }}
     - name: Clippy
-      run: cargo clippy -- -D warnings
+      run: cargo clippy ${{ matrix.build-args }} -- -D warnings
