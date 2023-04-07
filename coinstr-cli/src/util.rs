@@ -159,6 +159,20 @@ where
         wallet.get_address(AddressIndex::New)?
     );
 
+    let mut txs = wallet.list_transactions(false)?;
+    txs.sort_by(|a, b| {
+        b.confirmation_time
+            .as_ref()
+            .map(|t| t.height)
+            .cmp(&a.confirmation_time.as_ref().map(|t| t.height))
+    });
+    if !txs.is_empty() {
+        println!("{}", "Latest transactions".fg::<BlazeOrange>().underline());
+        for tx in txs.into_iter().take(10) {
+            println!("{tx:?}")
+        }
+    }
+
     Ok(())
 }
 
