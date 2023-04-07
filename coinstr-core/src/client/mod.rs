@@ -606,4 +606,8 @@ impl CoinstrClient {
 
         Ok(txid)
     }
+
+    pub fn inner(&self) -> Client {
+        self.client.clone()
+    }
 }
