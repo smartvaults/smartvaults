@@ -7,11 +7,11 @@ use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
-use iced::widget::{Column, Row, Rule};
+use iced::widget::{Checkbox, Column, Row};
 use iced::{Command, Element, Length};
 
 use super::view;
-use crate::component::{button, Text, TextInput};
+use crate::component::{button, rule, Text, TextInput};
 use crate::constants::APP_NAME;
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::DARK_RED;
@@ -23,6 +23,7 @@ pub enum RestoreMessage {
     PasswordChanged(String),
     ConfirmPasswordChanged(String),
     MnemonicChanged(String),
+    UsePassphrase(bool),
     PassphraseChanged(String),
     RestoreButtonPressed,
 }
@@ -33,6 +34,7 @@ pub struct RestoreState {
     password: String,
     confirm_password: String,
     mnemonic: String,
+    use_passphrase: bool,
     passphrase: String,
     error: Option<String>,
 }
@@ -55,6 +57,10 @@ impl State for RestoreState {
                 RestoreMessage::PasswordChanged(passwd) => self.password = passwd,
                 RestoreMessage::ConfirmPasswordChanged(passwd) => self.confirm_password = passwd,
                 RestoreMessage::MnemonicChanged(mnemonic) => self.mnemonic = mnemonic,
+                RestoreMessage::UsePassphrase(value) => {
+                    self.use_passphrase = value;
+                    self.passphrase = String::new();
+                }
                 RestoreMessage::PassphraseChanged(passphrase) => self.passphrase = passphrase,
                 RestoreMessage::RestoreButtonPressed => {
                     if self.password.eq(&self.confirm_password) {
@@ -113,6 +119,21 @@ impl State for RestoreState {
         .placeholder("Mnemonic")
         .view();
 
+        let use_passphrase = Checkbox::new("Use a passphrase", self.use_passphrase, |value| {
+            RestoreMessage::UsePassphrase(value).into()
+        })
+        .width(Length::Fill);
+
+        let passphrase = if self.use_passphrase {
+            TextInput::new("Passphrase", &self.passphrase, |s| {
+                Message::Restore(RestoreMessage::PassphraseChanged(s))
+            })
+            .placeholder("Passphrase")
+            .view()
+        } else {
+            Column::new()
+        };
+
         let restore_keychain_btn = button::primary("Restore")
             .on_press(Message::Restore(RestoreMessage::RestoreButtonPressed))
             .width(Length::Fill);
@@ -130,13 +151,15 @@ impl State for RestoreState {
             .push(password)
             .push(confirm_password)
             .push(mnemonic)
+            .push(use_passphrase)
+            .push(passphrase)
             .push(if let Some(error) = &self.error {
                 Row::new().push(Text::new(error).color(DARK_RED).view())
             } else {
                 Row::new()
             })
             .push(restore_keychain_btn)
-            .push(Rule::horizontal(1))
+            .push(rule::horizontal())
             .push(open_btn)
             .push(new_keychain_btn);
 
@@ -147,5 +170,11 @@ impl State for RestoreState {
 impl From<RestoreState> for Box<dyn State> {
     fn from(s: RestoreState) -> Box<dyn State> {
         Box::new(s)
+    }
+}
+
+impl From<RestoreMessage> for Message {
+    fn from(msg: RestoreMessage) -> Self {
+        Self::Restore(msg)
     }
 }
