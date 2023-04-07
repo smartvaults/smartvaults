@@ -3,7 +3,7 @@
 
 use iced::Font;
 
-pub const REGULAR_BYTES: &[u8] = include_bytes!("../../static/font/OpenSans-Regular.ttf");
+pub const REGULAR_BYTES: &[u8] = include_bytes!("../../static/font/RobotoMono-Regular.ttf");
 
 pub const REGULAR: Font = Font::External {
     name: "Regular",
@@ -12,5 +12,5 @@ pub const REGULAR: Font = Font::External {
 
 pub const BOLD: Font = Font::External {
     name: "Bold",
-    bytes: include_bytes!("../../static/font/OpenSans-Bold.ttf"),
+    bytes: include_bytes!("../../static/font/RobotoMono-Bold.ttf"),
 };
