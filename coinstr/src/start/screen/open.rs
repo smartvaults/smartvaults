@@ -145,12 +145,11 @@ impl State for OpenState {
             row![column![
                 row![svg],
                 row![Space::with_height(Length::Fixed(5.0))],
-                row![Text::new("Coinstr").size(50).bold().view()],
                 row![Text::new(APP_DESCRIPTION).size(22).color(GREY).view()]
             ]
             .align_items(Alignment::Center)
-            .spacing(10)],
-            row![Space::with_height(Length::Fixed(15.0))],
+            .spacing(15)],
+            row![Space::with_height(Length::Fixed(10.0))],
             row![keychain_pick_list],
             row![password].spacing(10),
             if let Some(error) = &self.error {
