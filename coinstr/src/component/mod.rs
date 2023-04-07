@@ -4,6 +4,7 @@
 pub mod button;
 mod icon;
 mod numeric_input;
+pub mod rule;
 mod text;
 mod text_input;
 

@@ -14,7 +14,7 @@ use crate::theme::color::DARK_RED;
 use crate::theme::icon::{HOME, KEY, LOCK, SEND_PENDING, SETTING};
 use crate::COINSTR_LOGO;
 
-const MAX_WIDTH: u32 = 240;
+const MAX_WIDTH: f32 = 240.0;
 
 #[derive(Clone, Default)]
 pub struct Sidebar;
@@ -28,8 +28,8 @@ impl Sidebar {
         // Logo
         let handle = svg::Handle::from_memory(COINSTR_LOGO);
         let logo = svg(handle)
-            .width(Length::Units(80))
-            .height(Length::Units(80));
+            .width(Length::Fixed(80.0))
+            .height(Length::Fixed(80.0));
 
         // Buttons
         let home_button = SidebarButton::new("Home", Icon::new(HOME).view())
@@ -100,7 +100,7 @@ pub fn sidebar<'a, T: 'a>(
             .push(Rule::horizontal(1))
             .push(identity)
             .push(Rule::horizontal(1))
-            .push(Space::with_height(Length::Units(15)))
+            .push(Space::with_height(Length::Fixed(15.0)))
             .push(menu.height(Length::Fill))
             .push(footer.height(Length::Shrink)),
     )

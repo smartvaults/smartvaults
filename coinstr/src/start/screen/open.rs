@@ -87,8 +87,8 @@ impl State for OpenState {
     fn view(&self, _ctx: &Context) -> Element<Message> {
         let handle = svg::Handle::from_memory(COINSTR_LOGO);
         let svg = svg(handle)
-            .width(Length::Units(100))
-            .height(Length::Units(100));
+            .width(Length::Fixed(100.0))
+            .height(Length::Fixed(100.0));
 
         let keychain_pick_list = PickList::new(self.keychains.clone(), self.name.clone(), |name| {
             Message::Open(OpenMessage::KeychainSelect(name))
@@ -124,13 +124,13 @@ impl State for OpenState {
         let content = column![
             row![column![
                 row![svg],
-                row![Space::with_height(Length::Units(5))],
+                row![Space::with_height(Length::Fixed(5.0))],
                 row![Text::new("Coinstr").size(50).bold().view()],
                 row![Text::new(COINSTR_DESCRIPTION).size(22).color(GREY).view()]
             ]
             .align_items(Alignment::Center)
             .spacing(10)],
-            row![Space::with_height(Length::Units(15))],
+            row![Space::with_height(Length::Fixed(15.0))],
             row![keychain_pick_list],
             row![password].spacing(10),
             if let Some(error) = &self.error {

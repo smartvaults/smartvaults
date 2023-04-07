@@ -63,7 +63,7 @@ where
                     .horizontal_alignment(Horizontal::Center)
                     .vertical_alignment(Vertical::Center),
             )
-            .width(Length::Units(50))
+            .width(Length::Fixed(50.0))
             .on_press(on_press)
         };
 

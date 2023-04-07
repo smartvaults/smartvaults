@@ -43,6 +43,10 @@ impl Text {
         Self { font: BOLD, ..self }
     }
 
+    pub fn bigger(self) -> Self {
+        Self { size: 22, ..self }
+    }
+
     pub fn width(self, length: Length) -> Self {
         Self {
             width: Some(length),

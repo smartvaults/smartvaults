@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Yuki Kishimoto
 // Distributed under the MIT software license
 
+#![allow(dead_code)]
+
 use iced::widget::{button, Button, Container, Row};
 use iced::{theme, Alignment, Background, Length, Theme, Vector};
 

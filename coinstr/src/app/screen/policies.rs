@@ -7,14 +7,14 @@ use std::io::Write;
 use coinstr_core::bdk::miniscript::Descriptor;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
-use iced::widget::{Column, Row, Rule};
+use iced::widget::{Column, Row};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text};
-use crate::theme::icon::{EXPORT, FULLSCREEN, RELOAD};
+use crate::component::{button, rule, Text};
+use crate::theme::icon::{FULLSCREEN, RELOAD, SAVE};
 use crate::APP_NAME;
 
 #[derive(Debug, Clone)]
@@ -53,7 +53,7 @@ impl State for PoliciesState {
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if !self.loaded && !self.loading {
-            self.load(ctx);
+            return self.load(ctx);
         }
 
         if let Message::PoliciesMessage(msg) = message {
@@ -98,7 +98,7 @@ impl State for PoliciesState {
             } else {
                 center_y = false;
 
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Units(40));
+                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
                 if !self.loading {
                     reload_btn = reload_btn.on_press(PoliciesMessage::Reload.into());
@@ -107,16 +107,22 @@ impl State for PoliciesState {
                 content = content
                     .push(
                         Row::new()
-                            .push(Text::new("ID").bold().width(Length::Fill).view())
-                            .push(Text::new("Name").bold().width(Length::Fill).view())
-                            .push(Text::new("Description").bold().width(Length::Fill).view())
-                            .push(Text::new("").width(Length::Units(40)).view())
+                            .push(Text::new("ID").bold().bigger().width(Length::Fill).view())
+                            .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
+                            .push(
+                                Text::new("Description")
+                                    .bold()
+                                    .bigger()
+                                    .width(Length::Fill)
+                                    .view(),
+                            )
+                            .push(Text::new("").width(Length::Fixed(40.0)).view())
                             .push(reload_btn)
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill),
                     )
-                    .push(Rule::horizontal(1));
+                    .push(rule::horizontal_bold());
 
                 for (policy_id, policy) in self.policies.iter() {
                     let row = Row::new()
@@ -128,22 +134,22 @@ impl State for PoliciesState {
                         .push(Text::new(&policy.name).width(Length::Fill).view())
                         .push(Text::new(&policy.description).width(Length::Fill).view())
                         .push(
-                            button::border_only_icon(EXPORT)
+                            button::border_only_icon(SAVE)
                                 .on_press(
                                     PoliciesMessage::ExportDescriptor(policy.descriptor.clone())
                                         .into(),
                                 )
-                                .width(Length::Units(40)),
+                                .width(Length::Fixed(40.0)),
                         )
                         .push(
                             button::primary_only_icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::Policy(*policy_id)))
-                                .width(Length::Units(40)),
+                                .width(Length::Fixed(40.0)),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
-                    content = content.push(row).push(Rule::horizontal(1));
+                    content = content.push(row).push(rule::horizontal());
                 }
             }
         } else {

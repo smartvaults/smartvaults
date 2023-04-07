@@ -22,7 +22,7 @@ impl Icon {
         Self {
             unicode,
             size: 20,
-            width: Length::Units(20),
+            width: Length::Fixed(20.0),
             color: None,
         }
     }
