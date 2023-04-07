@@ -77,6 +77,11 @@ pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
     None
 }
 
+/// Get the first 8 chars of an [`EventId`]
+pub fn cut_event_id(event_id: EventId) -> String {
+    event_id.to_string()[..8].to_string()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
