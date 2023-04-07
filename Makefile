@@ -32,8 +32,7 @@ dev: precommit
 	$(Q)cargo build
 
 precommit: test
-	$(Q)cargo fmt
-	$(Q)cargo clippy
+	$(Q)cargo fmt && cargo clippy
 
 test:
 	$(Q)cargo test -p coinstr-core
