@@ -20,6 +20,8 @@ static KEYCHAINS_PATH: Lazy<PathBuf> =
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));
 
 pub fn main() -> iced::Result {
+    env_logger::init();
+
     let mut settings = Settings::default();
     settings.window.min_size = Some((600, 600));
     settings.default_font = Some(theme::font::REGULAR_BYTES);
@@ -78,6 +80,12 @@ impl Application for CoinstrApp {
             }
             (State::App(app), Message::App(msg)) => match *msg {
                 app::Message::Lock => {
+                    let client = app.context.client.inner();
+                    tokio::task::spawn(async move {
+                        if let Err(e) = client.shutdown().await {
+                            log::error!("Impossible to shutdown client: {}", e.to_string());
+                        }
+                    });
                     let new = Self::new(());
                     *self = new.0;
                     new.1

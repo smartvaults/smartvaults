@@ -38,7 +38,7 @@ pub fn new_state(context: &Context) -> Box<dyn State> {
 
 pub struct App {
     state: Box<dyn State>,
-    context: Context,
+    pub(crate) context: Context,
 }
 
 impl App {

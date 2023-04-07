@@ -70,12 +70,14 @@ impl State for PoliciesState {
                         .save_file();
 
                     if let Some(path) = path {
-                        match File::create(path) {
+                        match File::create(&path) {
                             Ok(mut file) => match file.write_all(desc.to_string().as_bytes()) {
-                                Ok(_) => println!("Saved!"),
-                                Err(e) => println!("Impossible to save file: {e}"),
+                                Ok(_) => {
+                                    log::info!("Exported descriptor backup to {}", path.display())
+                                }
+                                Err(e) => log::error!("Impossible to save file: {e}"),
                             },
-                            Err(e) => println!("Impossible to create file: {e}"),
+                            Err(e) => log::error!("Impossible to create file: {e}"),
                         }
                     }
                     Command::none()
