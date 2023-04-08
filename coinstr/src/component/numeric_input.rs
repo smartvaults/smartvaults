@@ -1,28 +1,46 @@
 // Copyright (c) 2022-2023 Yuki Kishimoto
 // Distributed under the MIT software license
 
-use iced::alignment::{Alignment, Horizontal, Vertical};
-use iced::widget::{self, button, row, text, text_input};
-use iced::{Element, Length};
+use iced::widget::{self, text_input, Column, Row, Text};
+use iced::Element;
 use iced_lazy::{self, Component};
 
 pub struct NumericInput<Message> {
-    value: Option<u32>,
-    on_change: Box<dyn Fn(Option<u32>) -> Message>,
+    name: String,
+    value: Option<u64>,
+    placeholder: String,
+    on_change: Box<dyn Fn(Option<u64>) -> Message>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Event {
     InputChanged(String),
-    IncrementPressed,
-    DecrementPressed,
 }
 
 impl<Message> NumericInput<Message> {
-    pub fn new(value: Option<u32>, on_change: impl Fn(Option<u32>) -> Message + 'static) -> Self {
+    pub fn new<S>(
+        name: S,
+        value: Option<u64>,
+        on_change: impl Fn(Option<u64>) -> Message + 'static,
+    ) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
+            name: name.into(),
             value,
+            placeholder: String::new(),
             on_change: Box::new(on_change),
+        }
+    }
+
+    pub fn placeholder<S>(self, placeholder: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            placeholder: placeholder.into(),
+            ..self
         }
     }
 }
@@ -38,12 +56,6 @@ where
 
     fn update(&mut self, _state: &mut Self::State, event: Event) -> Option<Message> {
         match event {
-            Event::IncrementPressed => Some((self.on_change)(Some(
-                self.value.unwrap_or_default().saturating_add(1),
-            ))),
-            Event::DecrementPressed => Some((self.on_change)(Some(
-                self.value.unwrap_or_default().saturating_sub(1),
-            ))),
             Event::InputChanged(value) => {
                 if value.is_empty() {
                     Some((self.on_change)(None))
@@ -55,35 +67,25 @@ where
     }
 
     fn view(&self, _state: &Self::State) -> Element<Event, Renderer> {
-        let button = |label, on_press| {
-            button(
-                text(label)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .horizontal_alignment(Horizontal::Center)
-                    .vertical_alignment(Vertical::Center),
-            )
-            .width(Length::Fixed(50.0))
-            .on_press(on_press)
-        };
+        let text_input = text_input(
+            &self.placeholder,
+            self.value
+                .as_ref()
+                .map(u64::to_string)
+                .as_deref()
+                .unwrap_or(""),
+            Event::InputChanged,
+        )
+        .padding(10)
+        .size(20);
 
-        row![
-            button("-", Event::DecrementPressed),
-            text_input(
-                "Type a number",
-                self.value
-                    .as_ref()
-                    .map(u32::to_string)
-                    .as_deref()
-                    .unwrap_or(""),
-                Event::InputChanged,
-            )
-            .padding(10),
-            button("+", Event::IncrementPressed),
-        ]
-        .align_items(Alignment::Fill)
-        .spacing(10)
-        .into()
+        let text = Text::new(&self.name).size(20);
+
+        Column::new()
+            .push(text)
+            .push(Row::new().push(text_input))
+            .spacing(5)
+            .into()
     }
 }
 
