@@ -21,6 +21,7 @@ use owo_colors::colors::{BrightCyan, Magenta};
 use owo_colors::OwoColorize;
 use prettytable::{row, Table};
 use termtree::Tree;
+use chrono::{DateTime, TimeZone, Utc};
 
 mod format;
 
@@ -109,6 +110,52 @@ pub fn print_contacts(contacts: HashMap<XOnlyPublicKey, Metadata>) {
     table.printstd();
 }
 
+pub fn _print_utxos(wallet: &Wallet<MemoryDatabase>) -> Result<()> {
+    println!("{}", "\nUTXOs".fg::<BlazeOrange>().underline());
+    let mut utxo_table = Table::new();
+    utxo_table.set_titles(row![
+        "Transaction ID",
+        "Amount (sats)",
+    ]);
+
+    let unspent = wallet.list_unspent().unwrap();
+    for utxo in unspent {
+        utxo_table.add_row(row![
+            utxo.outpoint.txid,
+            utxo.txout.value,
+        ]);
+    }
+
+    utxo_table.printstd();
+    Ok(())
+}
+
+pub fn print_transactions(wallet: &Wallet<MemoryDatabase>) -> Result<()> {
+    println!("{}", "\nTransactions".fg::<BlazeOrange>().underline());
+    let mut transaction_table = Table::new();
+    transaction_table.set_titles(row![
+        "Transaction ID",
+        "Received",
+        "Sent",
+        "Time",
+    ]);
+
+    let transactions = wallet.list_transactions(true).unwrap();
+    for trx in transactions {
+        let datetime: DateTime<Utc> = Utc.timestamp_opt(trx.confirmation_time.unwrap().timestamp as i64, 0).unwrap();
+        transaction_table.add_row(row![
+            trx.txid,
+            trx.received,
+            trx.sent,
+            datetime.to_rfc2822(),
+        ]);
+    }
+
+    transaction_table.printstd();
+    Ok(())
+}
+
+
 pub fn print_policy<S>(
     policy: Policy,
     policy_id: EventId,
@@ -131,9 +178,12 @@ where
 
     let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint.into())?);
     wallet.sync(&blockchain, SyncOptions::default())?;
+    
+    // print_utxos(&wallet)?;
+    print_transactions(&wallet)?;
 
     let balance = wallet.get_balance()?;
-    println!("{}", "Balances".fg::<BlazeOrange>().underline());
+    println!("{}", "\nBalances".fg::<BlazeOrange>().underline());
     println!(
         "- Immature            	: {} sats",
         format::number(balance.immature)
