@@ -117,7 +117,7 @@ pub fn _print_utxos(wallet: &Wallet<MemoryDatabase>) -> Result<()> {
 
     let unspent = wallet.list_unspent().unwrap();
     for utxo in unspent {
-        utxo_table.add_row(row![utxo.outpoint.txid, utxo.txout.value,]);
+        utxo_table.add_row(row![utxo.outpoint.txid, format::number(utxo.txout.value),]);
     }
 
     utxo_table.printstd();
@@ -136,8 +136,8 @@ pub fn print_transactions(wallet: &Wallet<MemoryDatabase>) -> Result<()> {
             .unwrap();
         transaction_table.add_row(row![
             trx.txid,
-            trx.received,
-            trx.sent,
+            format::number(trx.received),
+            format::number(trx.sent),
             datetime.to_rfc2822(),
         ]);
     }
