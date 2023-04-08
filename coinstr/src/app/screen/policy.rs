@@ -1,6 +1,8 @@
 // Copyright (c) 2022 Yuki Kishimoto
 // Distributed under the MIT software license
 
+use std::cmp::Ordering;
+
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails};
@@ -191,22 +193,22 @@ impl State for PolicyState {
                     Some(block_time) => format!("block height: {}", block_time.height),
                     None => String::from(" - unconfirmed"),
                 };
-                let text = if tx.received > tx.sent {
-                    Text::new(format!(
+                let text = match tx.received.cmp(&tx.sent) {
+                    Ordering::Greater => Text::new(format!(
                         "Received {} sats{unconfirmed}",
                         format::number(tx.received - tx.sent)
-                    ))
-                } else if tx.received < tx.sent {
-                    let fee = match tx.fee {
-                        Some(fee) => format!(" (fee: {} sats)", format::number(fee)),
-                        None => String::new(),
-                    };
-                    Text::new(format!(
-                        "Sent {} sats{fee}{unconfirmed}",
-                        format::number(tx.sent - tx.received)
-                    ))
-                } else {
-                    Text::new(format!("null{unconfirmed}"))
+                    )),
+                    Ordering::Less => {
+                        let fee = match tx.fee {
+                            Some(fee) => format!(" (fee: {} sats)", format::number(fee)),
+                            None => String::new(),
+                        };
+                        Text::new(format!(
+                            "Sent {} sats{fee}{unconfirmed}",
+                            format::number(tx.sent - tx.received)
+                        ))
+                    }
+                    Ordering::Equal => Text::new(format!("null{unconfirmed}")),
                 };
                 transactions = transactions.push(text.view()).push(rule::horizontal());
             }
