@@ -11,6 +11,7 @@ keywords.workspace = true
 
 [features]
 default = []
+electrum = ["bdk/electrum"]
 blocking = ["nostr-sdk/blocking"]
 
 [dependencies]

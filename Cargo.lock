@@ -629,7 +629,6 @@ dependencies = [
 name = "coinstr-cli"
 version = "0.1.0"
 dependencies = [
- "bdk",
  "clap",
  "coinstr-common",
  "coinstr-core",
