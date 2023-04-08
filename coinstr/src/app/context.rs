@@ -11,6 +11,7 @@ use crate::RUNTIME;
 pub enum Stage {
     Dashboard,
     Policies,
+    AddPolicy,
     Policy(EventId, Policy),
     Proposals,
     Proposal(EventId),

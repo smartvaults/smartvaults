@@ -21,3 +21,4 @@ pub const FULLSCREEN: char = '\u{F14D}';
 pub const RELOAD: char = '\u{F117}';
 pub const ARROW_DOWN: char = '\u{F128}';
 pub const ARROW_UP: char = '\u{F148}';
+pub const PLUS: char = '\u{F64D}';

@@ -8,7 +8,7 @@ use coinstr_core::bdk::miniscript::Descriptor;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
-use iced::widget::{Column, Row};
+use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 
@@ -16,7 +16,7 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{FULLSCREEN, RELOAD, SAVE};
+use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
@@ -96,11 +96,24 @@ impl State for PoliciesState {
 
         if self.loaded {
             if self.policies.is_empty() {
-                content = content.push(Text::new("No policies").view());
-                // TODO: add button to create a policy
+                let add_policy_btn = button::primary_with_icon(PLUS, "Add policy")
+                    .width(Length::Fixed(250.0))
+                    .on_press(Message::View(Stage::AddPolicy));
+                let reload_btn = button::border_with_icon(RELOAD, "Reload")
+                    .width(Length::Fixed(250.0))
+                    .on_press(PoliciesMessage::Reload.into());
+                content = content
+                    .push(Text::new("No policies").view())
+                    .push(Space::with_height(Length::Fixed(15.0)))
+                    .push(add_policy_btn)
+                    .push(reload_btn)
+                    .align_items(Alignment::Center);
             } else {
                 center_y = false;
 
+                let add_policy_btn = button::border_only_icon(PLUS)
+                    .width(Length::Fixed(40.0))
+                    .on_press(Message::View(Stage::AddPolicy));
                 let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
                 if !self.loading {
@@ -125,7 +138,7 @@ impl State for PoliciesState {
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(Text::new("").width(Length::Fixed(40.0)).view())
+                            .push(add_policy_btn)
                             .push(reload_btn)
                             .spacing(10)
                             .align_items(Alignment::Center)
