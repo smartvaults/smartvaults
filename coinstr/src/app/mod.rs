@@ -60,6 +60,10 @@ impl App {
         self.state.title()
     }
 
+    pub fn subscription(&self) -> Subscription<Message> {
+        self.state.subscription()
+    }
+
     pub fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::View(stage) => {

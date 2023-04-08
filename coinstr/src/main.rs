@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use iced::{executor, Application, Command, Element, Settings, Theme};
+use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
 
@@ -65,6 +65,13 @@ impl Application for CoinstrApp {
 
     fn theme(&self) -> Theme {
         Theme::Dark
+    }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
+        match &self.state {
+            State::Start(start) => start.subscription().map(|m| m.into()),
+            State::App(app) => app.subscription().map(|m| m.into()),
+        }
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {

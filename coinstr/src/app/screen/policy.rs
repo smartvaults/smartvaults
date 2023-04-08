@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::cmp::Ordering;
+use std::time::Duration;
 
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
@@ -12,7 +13,7 @@ use coinstr_core::policy::Policy;
 use coinstr_core::util::{self, format};
 use iced::alignment::Horizontal;
 use iced::widget::{Column, Container, Row, Space};
-use iced::{Alignment, Command, Element, Length};
+use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
@@ -25,6 +26,7 @@ pub enum PolicyMessage {
     Send,
     Deposit,
     WalledSynced(Balance, Vec<TransactionDetails>),
+    Reload,
 }
 
 #[derive(Debug)]
@@ -58,7 +60,11 @@ impl State for PolicyState {
         )
     }
 
-    // TODO: reload automatically balance every 60 secs
+    fn subscription(&self) -> Subscription<Message> {
+        Subscription::batch(vec![
+            time::every(Duration::from_secs(60)).map(|_| PolicyMessage::Reload.into())
+        ])
+    }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         let client = ctx.client.clone();
@@ -104,6 +110,9 @@ impl State for PolicyState {
                     self.transactions = txs;
                     self.loading = false;
                     self.loaded = true;
+                }
+                PolicyMessage::Reload => {
+                    return self.load(ctx);
                 }
             }
         }
@@ -190,7 +199,7 @@ impl State for PolicyState {
         } else {
             for tx in self.transactions.iter().take(10) {
                 let unconfirmed = match &tx.confirmation_time {
-                    Some(block_time) => format!("block height: {}", block_time.height),
+                    Some(block_time) => format!(" - block {}", block_time.height),
                     None => String::from(" - unconfirmed"),
                 };
                 let text = match tx.received.cmp(&tx.sent) {
@@ -218,6 +227,7 @@ impl State for PolicyState {
             .push(
                 Column::new()
                     .push(Text::new("Latest transactions").bigger().view())
+                    .push(Space::with_height(Length::Fixed(10.0)))
                     .push(rule::horizontal_bold())
                     .push(transactions)
                     .width(Length::Fill),
