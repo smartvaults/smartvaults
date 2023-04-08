@@ -11,7 +11,9 @@ pub mod screen;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-use self::screen::{AddPolicyState, DashboardState, PoliciesState, PolicyState, SettingState};
+use self::screen::{
+    AddPolicyState, DashboardState, PoliciesState, PolicyState, SettingState, SpendState,
+};
 
 pub trait State {
     fn title(&self) -> String;
@@ -31,6 +33,7 @@ pub fn new_state(context: &Context) -> Box<dyn State> {
         Stage::Policies => PoliciesState::new().into(),
         Stage::AddPolicy => AddPolicyState::new().into(),
         Stage::Policy(policy_id, policy) => PolicyState::new(*policy_id, policy.clone()).into(),
+        Stage::Spend(policy_id) => SpendState::new(*policy_id).into(),
         Stage::Proposals => todo!(),
         Stage::Proposal(_proposal_id) => todo!(),
         Stage::Setting => SettingState::new().into(),

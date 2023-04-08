@@ -13,6 +13,7 @@ pub enum Stage {
     Policies,
     AddPolicy,
     Policy(EventId, Policy),
+    Spend(EventId),
     Proposals,
     Proposal(EventId),
     Setting,

@@ -16,7 +16,7 @@ use iced::widget::{Column, Container, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::Dashboard;
-use crate::app::{Context, Message, State};
+use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
 use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
@@ -103,7 +103,12 @@ impl State for PolicyState {
 
         if let Message::Policy(msg) = message {
             match msg {
-                PolicyMessage::Send => (),
+                PolicyMessage::Send => {
+                    let policy_id = self.policy_id;
+                    return Command::perform(async {}, move |_| {
+                        Message::View(Stage::Spend(policy_id))
+                    });
+                }
                 PolicyMessage::Deposit => (),
                 PolicyMessage::WalledSynced(balance, txs) => {
                     self.balance = balance;
