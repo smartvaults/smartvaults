@@ -85,6 +85,10 @@ impl CoinstrClient {
         Ok(Self { network, client })
     }
 
+    pub fn network(&self) -> Network {
+        self.network
+    }
+
     pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
     where
         S: Into<String>,
