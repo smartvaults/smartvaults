@@ -297,15 +297,16 @@ impl CoinstrClient {
         let mut policies: Vec<(EventId, Policy)> = Vec::new();
 
         for event in policies_events.into_iter() {
-            let global_key = shared_keys
-                .get(&event.id)
-                .ok_or(Error::SharedKeysNotFound)?;
-            let content = nips::nip04::decrypt(
-                &global_key.secret_key()?,
-                &global_key.public_key(),
-                &event.content,
-            )?;
-            policies.push((event.id, Policy::from_json(&content)?));
+            if let Some(shared_key) = shared_keys.get(&event.id) {
+                let content = nips::nip04::decrypt(
+                    &shared_key.secret_key()?,
+                    &shared_key.public_key(),
+                    &event.content,
+                )?;
+                policies.push((event.id, Policy::from_json(&content)?));
+            } else {
+                log::error!("Shared key not found for policy {}", event.id);
+            }
         }
 
         Ok(policies)
