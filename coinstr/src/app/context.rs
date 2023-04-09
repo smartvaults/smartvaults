@@ -5,7 +5,8 @@ use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::{Coinstr, CoinstrClient};
 
-use crate::RUNTIME;
+use super::cache::Cache;
+use crate::{APP_PATH, RUNTIME};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
@@ -29,6 +30,7 @@ pub struct Context {
     pub stage: Stage,
     pub coinstr: Coinstr,
     pub client: CoinstrClient,
+    pub cache: Cache,
 }
 
 impl Context {
@@ -43,6 +45,7 @@ impl Context {
                     .expect("Impossible to build client")
             }),
             coinstr,
+            cache: Cache::new(APP_PATH.join("cache")),
         }
     }
 

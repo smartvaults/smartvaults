@@ -45,11 +45,10 @@ impl State for PoliciesState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let client = ctx.client.clone();
-        Command::perform(
-            async move { client.get_policies(None).await.unwrap() },
-            |p| PoliciesMessage::LoadPolicies(p).into(),
-        )
+        let cache = ctx.cache.clone();
+        Command::perform(async move { cache.get_policies().unwrap() }, |p| {
+            PoliciesMessage::LoadPolicies(p).into()
+        })
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

@@ -12,6 +12,7 @@ pub enum Message {
     Policy(PolicyMessage),
     Spend(SpendMessage),
     Lock,
+    Sync,
 }
 
 impl From<Message> for crate::Message {

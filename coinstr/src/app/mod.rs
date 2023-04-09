@@ -4,16 +4,19 @@
 use coinstr_core::Coinstr;
 use iced::{Command, Element, Subscription};
 
+mod cache;
 mod component;
 mod context;
 mod message;
 pub mod screen;
+mod sync;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
     AddPolicyState, DashboardState, PoliciesState, PolicyState, SettingState, SpendState,
 };
+use self::sync::CoinstrSync;
 
 pub trait State {
     fn title(&self) -> String;
@@ -27,8 +30,8 @@ pub trait State {
     }
 }
 
-pub fn new_state(context: &Context) -> Box<dyn State> {
-    match &context.stage {
+pub fn new_state(ctx: &Context) -> Box<dyn State> {
+    match &ctx.stage {
         Stage::Dashboard => DashboardState::new().into(),
         Stage::Policies => PoliciesState::new().into(),
         Stage::AddPolicy => AddPolicyState::new().into(),
@@ -64,7 +67,10 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        self.state.subscription()
+        let sync =
+            CoinstrSync::subscription(self.context.client.clone(), self.context.cache.clone())
+                .map(|_| Message::Sync);
+        Subscription::batch(vec![sync, self.state.subscription()])
     }
 
     pub fn update(&mut self, message: Message) -> Command<Message> {
@@ -74,6 +80,7 @@ impl App {
                 self.state = new_state(&self.context);
                 self.state.load(&self.context)
             }
+            Message::Sync => self.state.load(&self.context),
             _ => self.state.update(&mut self.context, message),
         }
     }
