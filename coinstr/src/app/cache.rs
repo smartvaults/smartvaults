@@ -5,8 +5,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use coinstr_core::bdk::blockchain::Blockchain;
 use coinstr_core::bdk::database::MemoryDatabase;
-use coinstr_core::bdk::Wallet;
+use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::{EventId, Result};
 use coinstr_core::policy::Policy;
 use coinstr_core::util::serde::{deserialize, serialize};
@@ -57,5 +59,39 @@ impl Cache {
         self.policies.insert(key, value)?;
         log::info!("Saved policy {policy_id}");
         Ok(())
+    }
+
+    pub async fn load_wallets(&self, network: Network) -> Result<()> {
+        let mut wallets = self.wallets.lock().await;
+        for (policy_id, policy) in self.get_policies()?.into_iter() {
+            let db = MemoryDatabase::new();
+            let wallet = Wallet::new(&policy.descriptor.to_string(), None, network, db)?;
+            wallets.insert(policy_id, wallet);
+        }
+        Ok(())
+    }
+
+    pub async fn sync_wallets<B>(&self, blockchain: &B) -> Result<()>
+    where
+        B: Blockchain,
+    {
+        let wallets = self.wallets.lock().await;
+        for (policy_id, wallet) in wallets.iter() {
+            log::info!("Syncing policy {policy_id}");
+            wallet.sync(blockchain, SyncOptions::default())?;
+        }
+        Ok(())
+    }
+
+    pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&policy_id)?;
+        wallet.get_balance().ok()
+    }
+
+    pub async fn get_transactions(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
+        let wallets = self.wallets.lock().await;
+        let wallet = wallets.get(&policy_id)?;
+        wallet.list_transactions(false).ok()
     }
 }

@@ -6,10 +6,14 @@ use std::time::Duration;
 
 use async_recursion::async_recursion;
 use async_stream::stream;
+use coinstr_core::bdk::blockchain::ElectrumBlockchain;
+use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::POLICY_KIND;
 use coinstr_core::nostr_sdk::{nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result};
 use coinstr_core::policy::Policy;
 use coinstr_core::CoinstrClient;
+use futures_util::future::{AbortHandle, Abortable};
 use iced::Subscription;
 use iced_futures::BoxStream;
 use tokio::sync::mpsc;
@@ -36,9 +40,38 @@ where
     fn stream(mut self: Box<Self>, _input: BoxStream<I>) -> BoxStream<Self::Output> {
         let (_sender, mut receiver) = mpsc::unbounded_channel();
 
+        let bitcoin_endpoint: &str = match self.client.network() {
+            Network::Bitcoin => "ssl://blockstream.info:700",
+            Network::Testnet => "ssl://blockstream.info:993",
+            _ => panic!("Endpoints not availabe for this network"),
+        };
+
         let client = self.client.clone();
         let cache = self.cache.clone();
         let join = tokio::task::spawn(async move {
+            // Load wallets
+            if let Err(e) = cache.load_wallets(client.network()).await {
+                log::error!("Impossible to load wallets: {e}");
+            }
+
+            let cache_cloned = cache.clone();
+            let (abort_handle, abort_registration) = AbortHandle::new_pair();
+            let wallet_sync = async move {
+                let electrum_client = ElectrumClient::new(bitcoin_endpoint).unwrap();
+                let blockchain = ElectrumBlockchain::from(electrum_client);
+                loop {
+                    if let Err(e) = cache_cloned.sync_wallets(&blockchain).await {
+                        log::error!("Impossible to sync wallets: {e}");
+                    }
+                    tokio::time::sleep(Duration::from_secs(60)).await;
+                }
+            };
+            let future = Abortable::new(wallet_sync, abort_registration);
+            tokio::task::spawn(async {
+                let _ = future.await;
+                log::debug!("Exited from wallet sync thread");
+            });
+
             let nostr_client = client.inner();
             let keys = nostr_client.keys();
 
@@ -64,11 +97,14 @@ where
                         }
                         //sender.send(()).ok();
                     }
-                    RelayPoolNotification::Shutdown => break,
+                    RelayPoolNotification::Shutdown => {
+                        abort_handle.abort();
+                        break;
+                    }
                     _ => (),
                 }
             }
-            log::debug!("Exited from sync thread");
+            log::debug!("Exited from nostr sync thread");
         });
 
         self.join = Some(join);

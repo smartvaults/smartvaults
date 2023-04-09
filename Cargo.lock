@@ -651,6 +651,7 @@ dependencies = [
  "coinstr-common",
  "coinstr-core",
  "env_logger",
+ "futures-util",
  "iced",
  "iced_futures",
  "iced_lazy",

@@ -15,6 +15,7 @@ async-stream = "0.3"
 coinstr-common = { version = "0.1", path = "../coinstr-common" }
 coinstr-core = { version = "0.1", path = "../coinstr-core", features = ["electrum"] }
 env_logger = "0.10"
+futures-util = "0.3"
 iced = { version = "0.8", default-features = false, features = ["image", "glow", "qr_code", "svg", "tokio"] }
 iced_futures = "0.6"
 iced_lazy = "0.5"

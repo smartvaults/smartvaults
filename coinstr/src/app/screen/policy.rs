@@ -3,10 +3,7 @@
 
 use std::time::Duration;
 
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
-use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails};
-use coinstr_core::bitcoin::Network;
+use coinstr_core::bdk::{Balance, TransactionDetails};
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
@@ -33,6 +30,7 @@ pub struct PolicyState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
+    #[allow(dead_code)]
     policy: Policy,
     balance: Balance,
     transactions: Vec<TransactionDetails>,
@@ -66,29 +64,13 @@ impl State for PolicyState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let client = ctx.client.clone();
-        let descriptor = self.policy.descriptor.to_string();
-        // TODO: get electrum endpoint from config file
-        let bitcoin_endpoint: &str = match ctx.coinstr.network() {
-            Network::Bitcoin => "ssl://blockstream.info:700",
-            Network::Testnet => "ssl://blockstream.info:993",
-            _ => panic!("Endpoints not availabe for this network"),
-        };
+        let cache = ctx.cache.clone();
+        let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
             async move {
-                let wallet = client.wallet(descriptor).unwrap();
-                let electrum_client = ElectrumClient::new(bitcoin_endpoint).unwrap();
-                let blockchain = ElectrumBlockchain::from(electrum_client);
-                wallet.sync(&blockchain, SyncOptions::default()).unwrap();
-                let balance = wallet.get_balance().unwrap();
-                let mut txs = wallet.list_transactions(false).unwrap();
-                txs.sort_by(|a, b| {
-                    b.confirmation_time
-                        .as_ref()
-                        .map(|t| t.height)
-                        .cmp(&a.confirmation_time.as_ref().map(|t| t.height))
-                });
+                let balance = cache.get_balance(policy_id).await.unwrap();
+                let txs = cache.get_transactions(policy_id).await.unwrap();
                 (balance, txs)
             },
             |(balance, txs)| PolicyMessage::WalledSynced(balance, txs).into(),
