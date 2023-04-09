@@ -127,32 +127,40 @@ impl CoinstrClient {
         Ok(shared_keys)
     }
 
-    pub async fn get_policy_by_id(
+    pub async fn get_shared_key_by_policy_id(
         &self,
         policy_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(Policy, Keys), Error> {
+    ) -> Result<Keys, Error> {
         let keys = self.client.keys();
 
-        // Get policy event
-        let filter = Filter::new().id(policy_id).kind(POLICY_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let policy_event = events.first().ok_or(Error::PolicyNotFound)?;
-
-        // Get global shared key
         let filter = Filter::new()
             .pubkey(keys.public_key())
             .event(policy_id)
             .kind(SHARED_KEY_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
+        let shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
         let content = nips::nip04::decrypt(
             &keys.secret_key()?,
-            &global_shared_key_event.pubkey,
-            &global_shared_key_event.content,
+            &shared_key_event.pubkey,
+            &shared_key_event.content,
         )?;
         let sk = SecretKey::from_str(&content)?;
-        let shared_keys = Keys::new(sk);
+        Ok(Keys::new(sk))
+    }
+
+    pub async fn get_policy_by_id(
+        &self,
+        policy_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<(Policy, Keys), Error> {
+        // Get policy event
+        let filter = Filter::new().id(policy_id).kind(POLICY_KIND);
+        let events = self.client.get_events_of(vec![filter], timeout).await?;
+        let policy_event = events.first().ok_or(Error::PolicyNotFound)?;
+
+        // Get shared key
+        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         // Decrypt and deserialize the policy
         let content = nips::nip04::decrypt(
@@ -168,8 +176,6 @@ impl CoinstrClient {
         proposal_id: EventId,
         timeout: Option<Duration>,
     ) -> Result<(SpendingProposal, EventId, Keys), Error> {
-        let keys = self.client.keys();
-
         // Get proposal event
         let filter = Filter::new().id(proposal_id).kind(SPENDING_PROPOSAL_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
@@ -177,20 +183,8 @@ impl CoinstrClient {
         let policy_id =
             util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
-        // Get global shared key
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .event(policy_id)
-            .kind(SHARED_KEY_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
-        let content = nips::nip04::decrypt(
-            &keys.secret_key()?,
-            &global_shared_key_event.pubkey,
-            &global_shared_key_event.content,
-        )?;
-        let sk = SecretKey::from_str(&content)?;
-        let shared_keys = Keys::new(sk);
+        // Get shared key
+        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         // Decrypt and deserialize the spending proposal
         let content = nips::nip04::decrypt(
@@ -243,22 +237,8 @@ impl CoinstrClient {
         policy_id: EventId,
         timeout: Option<Duration>,
     ) -> Result<(), Error> {
-        let keys = self.client.keys();
-
-        // Get global shared key
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .event(policy_id)
-            .kind(SHARED_KEY_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
-        let content = nips::nip04::decrypt(
-            &keys.secret_key()?,
-            &global_shared_key_event.pubkey,
-            &global_shared_key_event.content,
-        )?;
-        let sk = SecretKey::from_str(&content)?;
-        let shared_keys = Keys::new(sk);
+        // Get shared key
+        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         // Get all events linked to the policy
         let filter = Filter::new().event(policy_id);
@@ -278,8 +258,6 @@ impl CoinstrClient {
         proposal_id: EventId,
         timeout: Option<Duration>,
     ) -> Result<(), Error> {
-        let keys = self.client.keys();
-
         // Get the proposal
         let filter = Filter::new().id(proposal_id);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
@@ -287,20 +265,8 @@ impl CoinstrClient {
         let policy_id =
             util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
-        // Get global shared key
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .event(policy_id)
-            .kind(SHARED_KEY_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let global_shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
-        let content = nips::nip04::decrypt(
-            &keys.secret_key()?,
-            &global_shared_key_event.pubkey,
-            &global_shared_key_event.content,
-        )?;
-        let sk = SecretKey::from_str(&content)?;
-        let shared_keys = Keys::new(sk);
+        // Get shared key
+        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         // Get all events linked to the proposal
         let filter = Filter::new().event(proposal_id);
