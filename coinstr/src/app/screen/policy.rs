@@ -1,7 +1,6 @@
 // Copyright (c) 2022 Yuki Kishimoto
 // Distributed under the MIT software license
 
-use std::cmp::Ordering;
 use std::time::Duration;
 
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
@@ -10,14 +9,14 @@ use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails};
 use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
-use coinstr_core::util::{self, format};
+use coinstr_core::util;
 use iced::alignment::Horizontal;
 use iced::widget::{Column, Container, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
-use crate::app::component::Dashboard;
+use crate::app::component::{Balances, Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{button, Text};
 use crate::constants::APP_NAME;
 use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
@@ -151,101 +150,29 @@ impl State for PolicyState {
             .on_press(PolicyMessage::Deposit.into())
             .width(Length::Fixed(110.0));
 
-        let pending_balance =
-            self.balance.untrusted_pending + self.balance.trusted_pending + self.balance.immature;
-
-        let row = Row::new()
+        content = content
             .push(
                 Row::new()
-                    .push(send_btn)
-                    .push(deposit_btn)
-                    .spacing(10)
-                    .width(Length::Fill),
+                    .push(
+                        Row::new()
+                            .push(send_btn)
+                            .push(deposit_btn)
+                            .spacing(10)
+                            .width(Length::Fill),
+                    )
+                    .push(
+                        Container::new(Balances::new(self.balance.clone()).view())
+                            .align_x(Horizontal::Right),
+                    )
+                    .width(Length::Fill)
+                    .align_items(Alignment::Center),
             )
+            .push(Space::with_height(Length::Fixed(20.0)))
             .push(
-                Container::new(
-                    Row::new()
-                        .push(
-                            Column::new()
-                                .push(
-                                    Text::new(format::number(self.balance.confirmed))
-                                        .size(45)
-                                        .view(),
-                                )
-                                .push(if pending_balance > 0 {
-                                    Text::new(format::number(pending_balance)).size(25).view()
-                                } else {
-                                    Text::new("").size(25).view()
-                                })
-                                .align_items(Alignment::End),
-                        )
-                        .push(
-                            Column::new()
-                                .push(Space::with_height(Length::Fixed(8.0)))
-                                .push(Text::new("sats").size(35).view())
-                                .push(Space::with_height(Length::Fixed(29.0)))
-                                .align_items(Alignment::End),
-                        )
-                        .spacing(10)
-                        .width(Length::Fill),
-                )
-                .align_x(Horizontal::Right),
-            )
-            .width(Length::Fill)
-            .align_items(Alignment::Center);
-        content = content
-            .push(row)
-            .push(Space::with_height(Length::Fixed(20.0)));
-
-        let mut transactions = Column::new().spacing(10);
-
-        if self.transactions.is_empty() {
-            transactions = transactions.push(Text::new("No transactions").view());
-        } else {
-            for tx in self.transactions.iter().take(10) {
-                let unconfirmed = match &tx.confirmation_time {
-                    Some(block_time) => format!(" - block {}", block_time.height),
-                    None => String::from(" - unconfirmed"),
-                };
-                let text = match tx.received.cmp(&tx.sent) {
-                    Ordering::Greater => Text::new(format!(
-                        "Received {} sats{unconfirmed}",
-                        format::number(tx.received - tx.sent)
-                    )),
-                    Ordering::Less => {
-                        let fee = match tx.fee {
-                            Some(fee) => format!(" (fee: {} sats)", format::number(fee)),
-                            None => String::new(),
-                        };
-                        Text::new(format!(
-                            "Sent {} sats{fee}{unconfirmed}",
-                            format::number(tx.sent - tx.received)
-                        ))
-                    }
-                    Ordering::Equal => Text::new(format!("null{unconfirmed}")),
-                };
-                transactions = transactions.push(text.view()).push(rule::horizontal());
-            }
-        }
-
-        let row = Row::new()
-            .push(
-                Column::new()
-                    .push(Text::new("Latest transactions").bigger().view())
-                    .push(Space::with_height(Length::Fixed(10.0)))
-                    .push(rule::horizontal_bold())
-                    .push(transactions)
-                    .width(Length::Fill),
-            )
-            /* .push(Space::with_width(Length::Fixed(10.0)))
-            .push(
-                Column::new()
-                    .push(Text::new("Descriptor").bigger().view())
-                    .push(rule::horizontal_bold())
-                    .push(Text::new(self.policy.descriptor.to_string()).view())
-                    .width(Length::Fill),
-            ) */;
-        content = content.push(row);
+                TransactionsList::new(self.transactions.clone())
+                    .take(10)
+                    .view(),
+            );
 
         Dashboard::new().view(ctx, content, false, false)
     }
