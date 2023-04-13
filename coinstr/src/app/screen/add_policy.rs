@@ -68,23 +68,20 @@ impl State for AddPolicyState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let name = TextInput::new("Name", &self.name, |s| {
-            AddPolicyMessage::NameChanged(s).into()
-        })
-        .placeholder("Policy name")
-        .view();
+        let name = TextInput::new("Name", &self.name)
+            .on_input(|s| AddPolicyMessage::NameChanged(s).into())
+            .placeholder("Policy name")
+            .view();
 
-        let description = TextInput::new("Description", &self.description, |s| {
-            AddPolicyMessage::DescriptionChanged(s).into()
-        })
-        .placeholder("Policy description")
-        .view();
+        let description = TextInput::new("Description", &self.description)
+            .on_input(|s| AddPolicyMessage::DescriptionChanged(s).into())
+            .placeholder("Policy description")
+            .view();
 
-        let descriptor = TextInput::new("Descriptor/Policy", &self.descriptor, |s| {
-            AddPolicyMessage::DescriptorChanged(s).into()
-        })
-        .placeholder("Policy descriptor")
-        .view();
+        let descriptor = TextInput::new("Descriptor/Policy", &self.descriptor)
+            .on_input(|s| AddPolicyMessage::DescriptorChanged(s).into())
+            .placeholder("Policy descriptor")
+            .view();
 
         let error = if let Some(error) = &self.error {
             Row::new().push(Text::new(error).color(DARK_RED).view())

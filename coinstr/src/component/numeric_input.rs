@@ -9,7 +9,7 @@ pub struct NumericInput<Message> {
     name: String,
     value: Option<u64>,
     placeholder: String,
-    on_change: Box<dyn Fn(Option<u64>) -> Message>,
+    on_input: Option<Box<dyn Fn(Option<u64>) -> Message>>,
 }
 
 #[derive(Debug, Clone)]
@@ -18,11 +18,7 @@ pub enum Event {
 }
 
 impl<Message> NumericInput<Message> {
-    pub fn new<S>(
-        name: S,
-        value: Option<u64>,
-        on_change: impl Fn(Option<u64>) -> Message + 'static,
-    ) -> Self
+    pub fn new<S>(name: S, value: Option<u64>) -> Self
     where
         S: Into<String>,
     {
@@ -30,7 +26,7 @@ impl<Message> NumericInput<Message> {
             name: name.into(),
             value,
             placeholder: String::new(),
-            on_change: Box::new(on_change),
+            on_input: None,
         }
     }
 
@@ -40,6 +36,13 @@ impl<Message> NumericInput<Message> {
     {
         Self {
             placeholder: placeholder.into(),
+            ..self
+        }
+    }
+
+    pub fn on_input(self, on_input: impl Fn(Option<u64>) -> Message + 'static) -> Self {
+        Self {
+            on_input: Some(Box::new(on_input)),
             ..self
         }
     }
@@ -55,19 +58,23 @@ where
     type Event = Event;
 
     fn update(&mut self, _state: &mut Self::State, event: Event) -> Option<Message> {
-        match event {
-            Event::InputChanged(value) => {
-                if value.is_empty() {
-                    Some((self.on_change)(None))
-                } else {
-                    value.parse().ok().map(Some).map(self.on_change.as_ref())
+        if let Some(on_input) = &self.on_input {
+            match event {
+                Event::InputChanged(value) => {
+                    if value.is_empty() {
+                        Some((on_input)(None))
+                    } else {
+                        value.parse().ok().map(Some).map(on_input.as_ref())
+                    }
                 }
             }
+        } else {
+            None
         }
     }
 
     fn view(&self, _state: &Self::State) -> Element<Event, Renderer> {
-        let text_input = text_input(
+        let mut text_input = text_input(
             &self.placeholder,
             self.value
                 .as_ref()
@@ -75,9 +82,12 @@ where
                 .as_deref()
                 .unwrap_or(""),
         )
-        .on_input(Event::InputChanged)
         .padding(10)
         .size(20);
+
+        if self.on_input.is_some() {
+            text_input = text_input.on_input(Event::InputChanged);
+        }
 
         let text = Text::new(&self.name).size(20);
 

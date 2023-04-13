@@ -10,7 +10,7 @@ pub struct TextInput<Message> {
     value: String,
     placeholder: String,
     password: bool,
-    on_change: Box<dyn Fn(String) -> Message>,
+    on_input: Option<Box<dyn Fn(String) -> Message>>,
     on_submit: Option<Message>,
 }
 
@@ -18,7 +18,7 @@ impl<Message> TextInput<Message>
 where
     Message: Clone + 'static,
 {
-    pub fn new<S>(name: S, value: S, on_change: impl Fn(String) -> Message + 'static) -> Self
+    pub fn new<S>(name: S, value: S) -> Self
     where
         S: Into<String>,
     {
@@ -27,7 +27,7 @@ where
             value: value.into(),
             placeholder: String::new(),
             password: false,
-            on_change: Box::new(on_change),
+            on_input: None,
             on_submit: None,
         }
     }
@@ -49,6 +49,13 @@ where
         }
     }
 
+    pub fn on_input(self, on_input: impl Fn(String) -> Message + 'static) -> Self {
+        Self {
+            on_input: Some(Box::new(on_input)),
+            ..self
+        }
+    }
+
     pub fn on_submit(self, message: Message) -> Self {
         Self {
             on_submit: Some(message),
@@ -58,12 +65,15 @@ where
 
     pub fn view(self) -> Column<'static, Message> {
         let mut text_input = NativeTextInput::new(self.placeholder.as_str(), self.value.as_str())
-            .on_input(self.on_change)
             .padding(10)
             .size(20);
 
         if self.password {
             text_input = text_input.password();
+        }
+
+        if let Some(on_input) = self.on_input {
+            text_input = text_input.on_input(on_input);
         }
 
         if let Some(message) = self.on_submit {

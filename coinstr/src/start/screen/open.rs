@@ -122,13 +122,12 @@ impl State for OpenState {
             )
             .spacing(5);
 
-        let password = TextInput::new("Password", &self.password, |s| {
-            Message::Open(OpenMessage::PasswordChanged(s))
-        })
-        .placeholder("Enter password")
-        .on_submit(Message::Open(OpenMessage::OpenButtonPressed))
-        .password()
-        .view();
+        let password = TextInput::new("Password", &self.password)
+            .on_input(|s| Message::Open(OpenMessage::PasswordChanged(s)))
+            .placeholder("Enter password")
+            .on_submit(Message::Open(OpenMessage::OpenButtonPressed))
+            .password()
+            .view();
 
         let open_btn = button::primary("Open")
             .width(Length::Fill)
