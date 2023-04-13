@@ -57,13 +57,10 @@ where
     }
 
     pub fn view(self) -> Column<'static, Message> {
-        let mut text_input = NativeTextInput::new(
-            self.placeholder.as_str(),
-            self.value.as_str(),
-            self.on_change,
-        )
-        .padding(10)
-        .size(20);
+        let mut text_input = NativeTextInput::new(self.placeholder.as_str(), self.value.as_str())
+            .on_input(self.on_change)
+            .padding(10)
+            .size(20);
 
         if self.password {
             text_input = text_input.password();
