@@ -32,6 +32,9 @@ use crate::util;
 pub enum Error {
     #[error(transparent)]
     Bdk(#[from] bdk::Error),
+    #[cfg(feature = "electrum")]
+    #[error(transparent)]
+    Electrum(#[from] bdk::electrum_client::Error),
     #[error(transparent)]
     Client(#[from] nostr_sdk::client::Error),
     #[error(transparent)]
