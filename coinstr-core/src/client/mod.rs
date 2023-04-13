@@ -379,7 +379,7 @@ impl CoinstrClient {
             .collect();
         // Publish policy with `shared_key` so every owner can delete it
         let policy_event = EventBuilder::new(POLICY_KIND, content, &tags).to_event(&shared_key)?;
-        let policy_id = self.client.send_event(policy_event).await?;
+        let policy_id = policy_event.id;
 
         // Publish the shared key
         for pubkey in extracted_pubkeys.into_iter() {
@@ -397,6 +397,8 @@ impl CoinstrClient {
             let event_id = self.client.send_event(event).await?;
             log::info!("Published shared key for {pubkey} at event {event_id}");
         }
+
+        self.client.send_event(policy_event).await?;
 
         Ok(policy_id)
     }
