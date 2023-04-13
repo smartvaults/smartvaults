@@ -433,14 +433,14 @@ impl CoinstrClient {
         let mut path = BTreeMap::new();
         path.insert(wallet_policy.id, vec![1]);
 
-        // Build the transaction
-        let mut builder = wallet.build_tx();
-        builder
-            .add_recipient(to_address.script_pubkey(), amount)
-            .policy_path(path, KeychainKind::External);
-
         // Build the PSBT
-        let (psbt, _details) = builder.finish()?;
+        let (psbt, _details) = {
+            let mut builder = wallet.build_tx();
+            builder
+                .add_recipient(to_address.script_pubkey(), amount)
+                .policy_path(path, KeychainKind::External);
+            builder.finish()?
+        };
 
         let memo: &str = &memo.into();
 
