@@ -29,10 +29,17 @@ impl TransactionsList {
     }
 
     fn list(self) -> Box<dyn Iterator<Item = TransactionDetails>> {
+        let mut list = self.list;
+        list.sort_by(|a, b| {
+            b.confirmation_time
+                .as_ref()
+                .map(|t| t.height)
+                .cmp(&a.confirmation_time.as_ref().map(|t| t.height))
+        });
         if let Some(take) = self.take {
-            Box::new(self.list.into_iter().take(take))
+            Box::new(list.into_iter().take(take))
         } else {
-            Box::new(self.list.into_iter())
+            Box::new(list.into_iter())
         }
     }
 
