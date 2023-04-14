@@ -7,6 +7,7 @@ use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::{Address, Network};
 use coinstr_core::nostr_sdk::EventId;
+use coinstr_core::proposal::SpendingProposal;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -84,6 +85,7 @@ impl State for SpendState {
                         Some(amount) => match Address::from_str(&self.to_address) {
                             Ok(to_address) => {
                                 let client = ctx.client.clone();
+                                let cache = ctx.cache.clone();
                                 let policy_id = self.policy_id;
                                 let memo = self.memo.clone();
 
@@ -99,12 +101,22 @@ impl State for SpendState {
                                         let blockchain = ElectrumBlockchain::from(
                                             ElectrumClient::new(bitcoin_endpoint)?,
                                         );
-                                        client
+                                        let (proposal_id, proposal) = client
                                             .spend(
                                                 policy_id, to_address, amount, memo, blockchain,
                                                 None,
                                             )
-                                            .await
+                                            .await?;
+                                        cache
+                                            .cache_proposal(
+                                                proposal_id,
+                                                policy_id,
+                                                proposal.clone(),
+                                            )
+                                            .await;
+                                        Ok::<(EventId, SpendingProposal), Box<dyn std::error::Error>>(
+                                            (proposal_id, proposal),
+                                        )
                                     },
                                     |res| match res {
                                         Ok((proposal_id, proposal)) => {

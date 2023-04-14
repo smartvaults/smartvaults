@@ -14,8 +14,8 @@ mod sync;
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
-    AddPolicyState, DashboardState, PoliciesState, PolicyState, ProposalsState, SettingState,
-    SpendState,
+    AddPolicyState, DashboardState, PoliciesState, PolicyState, ProposalState, ProposalsState,
+    SettingState, SpendState,
 };
 use self::sync::CoinstrSync;
 
@@ -39,7 +39,9 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Policy(policy_id, policy) => PolicyState::new(*policy_id, policy.clone()).into(),
         Stage::Spend(policy_id) => SpendState::new(*policy_id).into(),
         Stage::Proposals => ProposalsState::new().into(),
-        Stage::Proposal(_proposal_id, _proposal) => todo!(),
+        Stage::Proposal(proposal_id, proposal) => {
+            ProposalState::new(*proposal_id, proposal.clone()).into()
+        }
         Stage::Setting => SettingState::new().into(),
     }
 }
