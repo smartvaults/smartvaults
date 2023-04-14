@@ -49,17 +49,18 @@ where
         let client = self.client.clone();
         let cache = self.cache.clone();
         let join = tokio::task::spawn(async move {
-            // Load wallets
-            if let Err(e) = cache.load_wallets(client.network()).await {
-                log::error!("Impossible to load wallets: {e}");
-            }
-
             let cache_cloned = cache.clone();
+            let network = client.network();
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
             let wallet_sync = async move {
                 let electrum_client = ElectrumClient::new(bitcoin_endpoint).unwrap();
                 let blockchain = ElectrumBlockchain::from(electrum_client);
                 loop {
+                    // Load wallets
+                    if let Err(e) = cache_cloned.load_wallets(network).await {
+                        log::error!("Impossible to load wallets: {e}");
+                    }
+
                     if let Err(e) = cache_cloned.sync_wallets(&blockchain).await {
                         log::error!("Impossible to sync wallets: {e}");
                     }

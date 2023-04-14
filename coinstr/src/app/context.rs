@@ -3,6 +3,7 @@
 
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
+use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::{Coinstr, CoinstrClient};
 
 use super::cache::Cache;
@@ -16,7 +17,7 @@ pub enum Stage {
     Policy(EventId, Policy),
     Spend(EventId),
     Proposals,
-    Proposal(EventId),
+    Proposal(EventId, SpendingProposal),
     Setting,
 }
 
@@ -36,16 +37,22 @@ pub struct Context {
 impl Context {
     pub fn new(stage: Stage, coinstr: Coinstr) -> Self {
         // TODO: let choose the relay and network
+        let client = RUNTIME.block_on(async {
+            coinstr
+                .client(vec!["wss://relay.rip".to_string()])
+                .await
+                .expect("Impossible to build client")
+        });
+
         Self {
             stage,
-            client: RUNTIME.block_on(async {
-                coinstr
-                    .client(vec!["wss://relay.rip".to_string()])
-                    .await
-                    .expect("Impossible to build client")
-            }),
             coinstr,
-            cache: Cache::new(APP_PATH.join("cache")),
+            cache: Cache::new(
+                APP_PATH
+                    .join("cache")
+                    .join(client.inner().keys().public_key().to_string()),
+            ),
+            client,
         }
     }
 

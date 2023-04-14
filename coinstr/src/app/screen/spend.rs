@@ -107,8 +107,8 @@ impl State for SpendState {
                                             .await
                                     },
                                     |res| match res {
-                                        Ok(proposal_id) => {
-                                            Message::View(Stage::Proposal(proposal_id))
+                                        Ok((proposal_id, proposal)) => {
+                                            Message::View(Stage::Proposal(proposal_id, proposal))
                                         }
                                         Err(e) => {
                                             SpendMessage::ErrorChanged(Some(e.to_string())).into()

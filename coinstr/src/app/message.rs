@@ -1,7 +1,9 @@
 // Copyright (c) 2022-2023 Yuki Kishimoto
 // Distributed under the MIT software license
 
-use super::screen::{AddPolicyMessage, PoliciesMessage, PolicyMessage, SpendMessage};
+use super::screen::{
+    AddPolicyMessage, PoliciesMessage, PolicyMessage, ProposalsMessage, SpendMessage,
+};
 use super::Stage;
 
 #[derive(Debug, Clone)]
@@ -11,6 +13,7 @@ pub enum Message {
     AddPolicy(AddPolicyMessage),
     Policy(PolicyMessage),
     Spend(SpendMessage),
+    Proposals(ProposalsMessage),
     Lock,
     Sync,
 }
