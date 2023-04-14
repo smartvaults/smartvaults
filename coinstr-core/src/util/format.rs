@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Yuki Kishimoto
+// Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
 const SCALES: [(u8, &str); 4] = [(1, "K"), (2, "M"), (3, "Bn"), (4, "T")];

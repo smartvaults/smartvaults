@@ -1,3 +1,6 @@
+// Copyright (c) 2022-2023 Coinstr
+// Distributed under the MIT software license
+
 use nostr_sdk::Kind;
 
 // Kinds
