@@ -13,8 +13,6 @@ mod constants;
 mod start;
 mod theme;
 
-static APP_PATH: Lazy<PathBuf> =
-    Lazy::new(|| coinstr_common::base_path().expect("Impossible to get main path"));
 static KEYCHAINS_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::keychains().expect("Impossible to get keychains path"));
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));

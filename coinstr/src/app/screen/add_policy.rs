@@ -52,16 +52,15 @@ impl State for AddPolicyState {
                     let description = self.description.clone();
                     let descriptor = self.descriptor.clone();
                     return Command::perform(
-                        async move { client.save_policy(name, description, descriptor).await },
-                        move |res| match res {
-                            Ok((policy_id, policy)) => {
-                                match cache.insert_policy(policy_id, policy) {
-                                    Ok(_) => Message::View(Stage::Policies),
-                                    Err(e) => {
-                                        AddPolicyMessage::ErrorChanged(Some(e.to_string())).into()
-                                    }
-                                }
-                            }
+                        async move {
+                            let (policy_id, policy) =
+                                client.save_policy(name, description, descriptor).await?;
+                            cache
+                                .cache_policy(policy_id, policy, client.network())
+                                .await
+                        },
+                        |res| match res {
+                            Ok(_) => Message::View(Stage::Policies),
                             Err(e) => AddPolicyMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );

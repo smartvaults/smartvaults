@@ -59,7 +59,7 @@ impl State for PolicyState {
 
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(vec![
-            time::every(Duration::from_secs(60)).map(|_| PolicyMessage::Reload.into())
+            time::every(Duration::from_secs(10)).map(|_| PolicyMessage::Reload.into())
         ])
     }
 

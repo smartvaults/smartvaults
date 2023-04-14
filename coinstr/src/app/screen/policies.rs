@@ -1,6 +1,7 @@
 // Copyright (c) 2022 Yuki Kishimoto
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 
@@ -20,7 +21,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(Vec<(EventId, Policy)>),
+    LoadPolicies(HashMap<EventId, Policy>),
     ExportDescriptor(Descriptor<String>),
     Reload,
 }
@@ -29,7 +30,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: Vec<(EventId, Policy)>,
+    policies: HashMap<EventId, Policy>,
 }
 
 impl PoliciesState {
@@ -46,7 +47,7 @@ impl State for PoliciesState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let cache = ctx.cache.clone();
-        Command::perform(async move { cache.get_policies().unwrap() }, |p| {
+        Command::perform(async move { cache.policies().await }, |p| {
             PoliciesMessage::LoadPolicies(p).into()
         })
     }

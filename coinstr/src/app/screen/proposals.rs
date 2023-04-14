@@ -1,6 +1,8 @@
 // Copyright (c) 2022 Yuki Kishimoto
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
+
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util;
@@ -11,11 +13,11 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD};
+use crate::theme::icon::{FULLSCREEN, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum ProposalsMessage {
-    LoadProposals(Vec<(EventId, SpendingProposal)>),
+    LoadProposals(HashMap<EventId, (EventId, SpendingProposal)>),
     Reload,
 }
 
@@ -23,7 +25,7 @@ pub enum ProposalsMessage {
 pub struct ProposalsState {
     loading: bool,
     loaded: bool,
-    proposals: Vec<(EventId, SpendingProposal)>,
+    proposals: HashMap<EventId, (EventId, SpendingProposal)>,
 }
 
 impl ProposalsState {
@@ -40,7 +42,7 @@ impl State for ProposalsState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let cache = ctx.cache.clone();
-        Command::perform(async move { cache.get_proposals().unwrap() }, |p| {
+        Command::perform(async move { cache.proposals().await }, |p| {
             ProposalsMessage::LoadProposals(p).into()
         })
     }
@@ -82,8 +84,6 @@ impl State for ProposalsState {
             } else {
                 center_y = false;
 
-                let new_spengind_proposal_btn =
-                    button::border_only_icon(PLUS).width(Length::Fixed(40.0));
                 let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
                 if !self.loading {
@@ -107,15 +107,14 @@ impl State for ProposalsState {
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
                             .push(
-                                Text::new("Description")
+                                Text::new("Amount (sats)")
                                     .bold()
                                     .bigger()
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(new_spengind_proposal_btn)
+                            .push(Text::new("Memo").bold().bigger().width(Length::Fill).view())
                             .push(reload_btn)
                             .spacing(10)
                             .align_items(Alignment::Center)
@@ -123,7 +122,7 @@ impl State for ProposalsState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (proposal_id, proposal) in self.proposals.iter() {
+                for (proposal_id, (policy_id, proposal)) in self.proposals.iter() {
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*proposal_id))
@@ -131,7 +130,12 @@ impl State for ProposalsState {
                                 .view(),
                         )
                         .push(
-                            Text::new(&proposal.amount.to_string())
+                            Text::new(util::cut_event_id(*policy_id))
+                                .width(Length::Fill)
+                                .view(),
+                        )
+                        .push(
+                            Text::new(util::format::number(proposal.amount))
                                 .width(Length::Fill)
                                 .view(),
                         )

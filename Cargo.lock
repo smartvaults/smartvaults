@@ -316,6 +316,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "sled",
  "tokio",
 ]
 
@@ -686,7 +687,6 @@ dependencies = [
  "log",
  "once_cell",
  "rfd",
- "sled",
  "tokio",
 ]
 

@@ -7,7 +7,7 @@ use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::{Coinstr, CoinstrClient};
 
 use super::cache::Cache;
-use crate::{APP_PATH, RUNTIME};
+use crate::RUNTIME;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
@@ -47,12 +47,8 @@ impl Context {
         Self {
             stage,
             coinstr,
-            cache: Cache::new(
-                APP_PATH
-                    .join("cache")
-                    .join(client.inner().keys().public_key().to_string()),
-            ),
             client,
+            cache: Cache::new(),
         }
     }
 
