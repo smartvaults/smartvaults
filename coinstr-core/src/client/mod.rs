@@ -538,6 +538,7 @@ impl CoinstrClient {
                 &[
                     Tag::Event(proposal_id, None, None),
                     Tag::Event(policy_id, None, None),
+                    Tag::PubKey(keys.public_key(), None),
                 ],
             )
             .to_event(&shared_keys)?;
@@ -581,6 +582,21 @@ impl CoinstrClient {
         }
 
         Ok(txid)
+    }
+
+    pub async fn get_approved_proposal_by_id_for_own_keys(
+        &self,
+        proposal_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<EventId, Error> {
+        let keys = self.client.keys();
+        let filter = Filter::new()
+            .pubkey(keys.public_key())
+            .event(proposal_id)
+            .kind(APPROVED_PROPOSAL_KIND);
+        let events = self.client.get_events_of(vec![filter], timeout).await?;
+        let event = events.first().ok_or(Error::ApprovedProposalNotFound)?;
+        Ok(event.id)
     }
 
     pub fn inner(&self) -> Client {
