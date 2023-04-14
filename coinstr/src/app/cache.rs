@@ -19,16 +19,22 @@ use tokio::sync::Mutex;
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
 #[derive(Debug)]
-pub struct CacheWallet {
+pub struct PolicyWallet {
+    policy: Policy,
     wallet: Wallet<MemoryDatabase>,
     last_sync: Timestamp,
 }
 
 #[derive(Debug, Clone)]
 pub struct Cache {
-    pub policies: Arc<Mutex<HashMap<EventId, Policy>>>,
+    pub policies: Arc<Mutex<HashMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<HashMap<EventId, (EventId, SpendingProposal)>>>,
-    pub wallets: Arc<Mutex<HashMap<EventId, CacheWallet>>>,
+}
+
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Cache {
@@ -36,7 +42,6 @@ impl Cache {
         Self {
             policies: Arc::new(Mutex::new(HashMap::new())),
             proposals: Arc::new(Mutex::new(HashMap::new())),
-            wallets: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -47,7 +52,10 @@ impl Cache {
 
     pub async fn policies(&self) -> HashMap<EventId, Policy> {
         let policies = self.policies.lock().await;
-        policies.clone()
+        policies
+            .iter()
+            .map(|(policy_id, w)| (*policy_id, w.policy.clone()))
+            .collect()
     }
 
     pub async fn cache_policy(
@@ -58,22 +66,15 @@ impl Cache {
     ) -> Result<()> {
         let mut policies = self.policies.lock().await;
         if let Entry::Vacant(e) = policies.entry(policy_id) {
-            let descriptor: &str = &policy.descriptor.to_string();
-
             // Cache policy
-            e.insert(policy);
+            let db = MemoryDatabase::new();
+            let wallet = Wallet::new(&policy.descriptor.to_string(), None, network, db)?;
+            e.insert(PolicyWallet {
+                policy,
+                wallet,
+                last_sync: Timestamp::from(0),
+            });
             log::info!("Cached policy {policy_id}");
-
-            // Load wallet
-            let mut wallets = self.wallets.lock().await;
-            if let Entry::Vacant(e) = wallets.entry(policy_id) {
-                let db = MemoryDatabase::new();
-                let wallet = Wallet::new(descriptor, None, network, db)?;
-                e.insert(CacheWallet {
-                    wallet,
-                    last_sync: Timestamp::from(0),
-                });
-            }
         }
         Ok(())
     }
@@ -105,26 +106,54 @@ impl Cache {
     where
         B: Blockchain,
     {
-        let mut wallets = self.wallets.lock().await;
-        for (policy_id, cache) in wallets.iter_mut() {
-            if cache.last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+        let mut policies = self.policies.lock().await;
+        for (policy_id, pw) in policies.iter_mut() {
+            if pw.last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
-                cache.wallet.sync(blockchain, SyncOptions::default())?;
-                cache.last_sync = Timestamp::now();
+                pw.wallet.sync(blockchain, SyncOptions::default())?;
+                pw.last_sync = Timestamp::now();
             }
         }
         Ok(())
     }
 
     pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
-        let wallets = self.wallets.lock().await;
-        let cache = wallets.get(&policy_id)?;
-        cache.wallet.get_balance().ok()
+        let policies = self.policies.lock().await;
+        let pw = policies.get(&policy_id)?;
+        pw.wallet.get_balance().ok()
     }
 
     pub async fn get_transactions(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
-        let wallets = self.wallets.lock().await;
-        let cache = wallets.get(&policy_id)?;
-        cache.wallet.list_transactions(false).ok()
+        let policies = self.policies.lock().await;
+        let pw = policies.get(&policy_id)?;
+        pw.wallet.list_transactions(false).ok()
+    }
+
+    pub async fn get_total_balance(&self) -> Result<Balance> {
+        let policies = self.policies.lock().await;
+        let mut total_balance = Balance::default();
+        let mut already_seen = Vec::new();
+        for (_, pw) in policies.iter() {
+            if !already_seen.contains(&&pw.policy.descriptor) {
+                let balance = pw.wallet.get_balance()?;
+                total_balance = total_balance.add(balance);
+                already_seen.push(&pw.policy.descriptor);
+            }
+        }
+        Ok(total_balance)
+    }
+
+    pub async fn get_all_transactions(&self) -> Result<Vec<TransactionDetails>> {
+        let policies = self.policies.lock().await;
+        let mut transactions = Vec::new();
+        let mut already_seen = Vec::new();
+        for (_, pw) in policies.iter() {
+            if !already_seen.contains(&&pw.policy.descriptor) {
+                let mut list = pw.wallet.list_transactions(false)?;
+                transactions.append(&mut list);
+                already_seen.push(&pw.policy.descriptor);
+            }
+        }
+        Ok(transactions)
     }
 }

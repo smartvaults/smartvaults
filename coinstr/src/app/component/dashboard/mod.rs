@@ -52,8 +52,8 @@ impl Dashboard {
                     .push(Rule::vertical(1))
                     .push(Column::new().push(content)),
             )
-            .width(iced::Length::Fill)
-            .height(iced::Length::Fill)
+            .width(Length::Fill)
+            .height(Length::Fill)
             .into()
     }
 }

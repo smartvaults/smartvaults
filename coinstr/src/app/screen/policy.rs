@@ -21,7 +21,7 @@ use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 pub enum PolicyMessage {
     Send,
     Deposit,
-    WalledSynced(Balance, Vec<TransactionDetails>),
+    WalletSynced(Balance, Vec<TransactionDetails>),
     Reload,
 }
 
@@ -73,7 +73,7 @@ impl State for PolicyState {
                 let txs = cache.get_transactions(policy_id).await.unwrap();
                 (balance, txs)
             },
-            |(balance, txs)| PolicyMessage::WalledSynced(balance, txs).into(),
+            |(balance, txs)| PolicyMessage::WalletSynced(balance, txs).into(),
         )
     }
 
@@ -91,7 +91,7 @@ impl State for PolicyState {
                     });
                 }
                 PolicyMessage::Deposit => (),
-                PolicyMessage::WalledSynced(balance, txs) => {
+                PolicyMessage::WalletSynced(balance, txs) => {
                     self.balance = balance;
                     self.transactions = txs;
                     self.loading = false;
