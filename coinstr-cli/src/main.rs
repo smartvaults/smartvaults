@@ -117,7 +117,7 @@ async fn main() -> Result<()> {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
-            let policy_id = client
+            let (policy_id, _policy) = client
                 .save_policy(policy_name, policy_description, policy_descriptor)
                 .await?;
             println!("Policy saved: {policy_id}");
@@ -134,7 +134,7 @@ async fn main() -> Result<()> {
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let proposal_id = client
+            let (proposal_id, _proposal) = client
                 .spend(policy_id, to_address, amount, memo, blockchain, TIMEOUT)
                 .await?;
             println!("Spending proposal {proposal_id} sent");

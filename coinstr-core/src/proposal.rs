@@ -4,7 +4,7 @@ use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::Address;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpendingProposal {
     pub to_address: Address,
     pub amount: u64,

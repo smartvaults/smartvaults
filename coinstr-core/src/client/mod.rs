@@ -359,7 +359,7 @@ impl CoinstrClient {
         name: S,
         description: S,
         descriptor: S,
-    ) -> Result<EventId, Error>
+    ) -> Result<(EventId, Policy), Error>
     where
         S: Into<String>,
     {
@@ -403,7 +403,7 @@ impl CoinstrClient {
 
         self.client.send_event(policy_event).await?;
 
-        Ok(policy_id)
+        Ok((policy_id, policy))
     }
 
     /// Make a spending proposal
@@ -415,7 +415,7 @@ impl CoinstrClient {
         memo: S,
         blockchain: impl Blockchain,
         timeout: Option<Duration>,
-    ) -> Result<EventId, Error>
+    ) -> Result<(EventId, SpendingProposal), Error>
     where
         S: Into<String>,
     {
@@ -479,7 +479,7 @@ impl CoinstrClient {
             }
         }
 
-        Ok(proposal_id)
+        Ok((proposal_id, proposal))
     }
 
     pub async fn approve(
