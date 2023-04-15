@@ -5,7 +5,6 @@ use std::time::Duration;
 
 use coinstr_core::bdk::{Balance, TransactionDetails};
 use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::policy::Policy;
 use coinstr_core::util;
 use iced::alignment::Horizontal;
 use iced::widget::{Column, Container, Row, Space};
@@ -30,19 +29,16 @@ pub struct PolicyState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
-    #[allow(dead_code)]
-    policy: Policy,
     balance: Balance,
     transactions: Vec<TransactionDetails>,
 }
 
 impl PolicyState {
-    pub fn new(policy_id: EventId, policy: Policy) -> Self {
+    pub fn new(policy_id: EventId) -> Self {
         Self {
             loading: false,
             loaded: false,
             policy_id,
-            policy,
             balance: Balance::default(),
             transactions: Vec::new(),
         }
@@ -120,10 +116,6 @@ impl State for PolicyState {
         } else {
             content = content.push(Space::with_height(Length::Fixed(40.0)));
         }
-
-        /* content = content
-        .push(Text::new(format!("Name: {}", &self.policy.name)).view())
-        .push(Text::new(format!("Description: {}", &self.policy.description)).view()); */
 
         let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
             .on_press(PolicyMessage::Send.into())

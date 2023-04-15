@@ -94,17 +94,17 @@ impl State for ProposalsState {
                     .push(
                         Row::new()
                             .push(
-                                Text::new("Proposal ID")
+                                Text::new("ID")
                                     .bold()
                                     .bigger()
-                                    .width(Length::Fill)
+                                    .width(Length::Fixed(115.0))
                                     .view(),
                             )
                             .push(
                                 Text::new("Policy ID")
                                     .bold()
                                     .bigger()
-                                    .width(Length::Fill)
+                                    .width(Length::Fixed(115.0))
                                     .view(),
                             )
                             .push(
@@ -126,12 +126,13 @@ impl State for ProposalsState {
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*proposal_id))
-                                .width(Length::Fill)
+                                .width(Length::Fixed(115.0))
                                 .view(),
                         )
                         .push(
                             Text::new(util::cut_event_id(*policy_id))
-                                .width(Length::Fill)
+                                .width(Length::Fixed(115.0))
+                                .on_press(Message::View(Stage::Policy(*policy_id)))
                                 .view(),
                         )
                         .push(

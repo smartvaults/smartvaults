@@ -124,10 +124,10 @@ impl State for PoliciesState {
                     .push(
                         Row::new()
                             .push(
-                                Text::new("Policy ID")
+                                Text::new("ID")
                                     .bold()
                                     .bigger()
-                                    .width(Length::Fill)
+                                    .width(Length::Fixed(115.0))
                                     .view(),
                             )
                             .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
@@ -150,7 +150,7 @@ impl State for PoliciesState {
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*policy_id))
-                                .width(Length::Fill)
+                                .width(Length::Fixed(115.0))
                                 .view(),
                         )
                         .push(Text::new(&policy.name).width(Length::Fill).view())
@@ -165,7 +165,7 @@ impl State for PoliciesState {
                         )
                         .push(
                             button::primary_only_icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Policy(*policy_id, policy.clone())))
+                                .on_press(Message::View(Stage::Policy(*policy_id)))
                                 .width(Length::Fixed(40.0)),
                         )
                         .spacing(10)
