@@ -1,27 +1,41 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-#![allow(dead_code)]
-
 use iced::widget::{button, Button, Column, Container, Row};
 use iced::{theme, Alignment, Background, Length, Theme, Vector};
 
 use super::{Icon, Text};
-use crate::theme::color::{GREY, ORANGE, TRANSPARENT, WHITE};
+use crate::theme::color::{ORANGE, TRANSPARENT};
 
-pub fn primary<'a, T: 'a>(t: &'static str) -> Button<'a, T> {
+pub fn primary<S, T>(t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
     Button::new(content(None, t)).style(PrimaryButtonStyle.into())
 }
 
-pub fn border<'a, T: 'a>(t: &'static str) -> Button<'a, T> {
+pub fn border<S, T>(t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
     Button::new(content(None, t)).style(BorderButtonStyle.into())
 }
 
-pub fn primary_with_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
+pub fn primary_with_icon<S, T>(icon: char, t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
     Button::new(content(Some(icon), t)).style(PrimaryButtonStyle.into())
 }
 
-pub fn border_text_below_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
+pub fn border_text_below_icon<S, T>(icon: char, t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
     let row = Column::new()
         .push(Icon::new(icon).view())
         .push(Text::new(t).view())
@@ -37,23 +51,41 @@ pub fn border_text_below_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<
     Button::new(content).style(BorderButtonStyle.into())
 }
 
-pub fn primary_only_icon<'a, T: 'a>(icon: char) -> Button<'a, T> {
+pub fn primary_only_icon<T>(icon: char) -> Button<'static, T>
+where
+    T: Clone + 'static,
+{
     Button::new(content(Some(icon), "")).style(PrimaryButtonStyle.into())
 }
 
-pub fn border_only_icon<'a, T: 'a>(icon: char) -> Button<'a, T> {
+pub fn border_only_icon<T>(icon: char) -> Button<'static, T>
+where
+    T: Clone + 'static,
+{
     Button::new(content(Some(icon), "")).style(BorderButtonStyle.into())
 }
 
-pub fn border_with_icon<'a, T: 'a>(icon: char, t: &'static str) -> Button<'a, T> {
+pub fn border_with_icon<S, T>(icon: char, t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
     Button::new(content(Some(icon), t)).style(BorderButtonStyle.into())
 }
 
-pub fn secondary<'a, T: 'a>(t: &'static str) -> Button<'a, T> {
-    Button::new(content(None, t)).style(SecondaryButtonStyle.into())
-}
+/* pub fn transparent<S, T>(t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
+    Button::new(content(None, t)).style(TransparentButtonStyle.into())
+} */
 
-fn content<'a, T: 'a>(icon: Option<char>, t: &'static str) -> Container<'a, T> {
+fn content<S, T>(icon: Option<char>, t: S) -> Container<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
     match icon {
         None => Container::new(Text::new(t).view())
             .width(Length::Fill)
@@ -66,8 +98,10 @@ fn content<'a, T: 'a>(icon: Option<char>, t: &'static str) -> Container<'a, T> {
                 .width(Length::Fill)
                 .align_items(Alignment::Center);
 
-            if !t.is_empty() {
-                row = row.push(Text::new(t).view());
+            let text = t.into();
+
+            if !text.is_empty() {
+                row = row.push(Text::new(text).view());
             }
 
             Container::new(row)
@@ -83,14 +117,14 @@ pub struct PrimaryButtonStyle;
 impl button::StyleSheet for PrimaryButtonStyle {
     type Style = Theme;
 
-    fn active(&self, _style: &Self::Style) -> button::Appearance {
+    fn active(&self, style: &Self::Style) -> button::Appearance {
         button::Appearance {
             shadow_offset: Vector::default(),
             background: Some(Background::Color(ORANGE)),
             border_radius: 10.0,
             border_width: 0.0,
             border_color: TRANSPARENT,
-            text_color: WHITE,
+            text_color: style.palette().text,
         }
     }
 }
@@ -124,25 +158,23 @@ impl From<BorderButtonStyle> for theme::Button {
     }
 }
 
-pub struct SecondaryButtonStyle;
+pub struct TransparentButtonStyle;
 
-impl button::StyleSheet for SecondaryButtonStyle {
+impl button::StyleSheet for TransparentButtonStyle {
     type Style = Theme;
 
-    fn active(&self, _style: &Self::Style) -> button::Appearance {
+    fn active(&self, style: &Self::Style) -> button::Appearance {
         button::Appearance {
-            shadow_offset: Vector::default(),
-            background: Some(Background::Color(GREY)),
-            border_radius: 10.0,
-            border_width: 0.0,
+            background: Some(Background::Color(TRANSPARENT)),
             border_color: TRANSPARENT,
-            text_color: WHITE,
+            text_color: style.palette().text,
+            ..Default::default()
         }
     }
 }
 
-impl From<SecondaryButtonStyle> for theme::Button {
-    fn from(style: SecondaryButtonStyle) -> Self {
+impl From<TransparentButtonStyle> for theme::Button {
+    fn from(style: TransparentButtonStyle) -> Self {
         theme::Button::Custom(Box::new(style))
     }
 }

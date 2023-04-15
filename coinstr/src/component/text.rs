@@ -1,20 +1,25 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::widget::Text as NativeText;
-use iced::{Color, Font, Length};
+use iced::widget::{Button, Text as NativeText};
+use iced::{Color, Element, Font, Length};
 
+use super::button::TransparentButtonStyle;
 use crate::theme::font::{BOLD, REGULAR};
 
-pub struct Text {
+pub struct Text<Message> {
     content: String,
     size: u16,
     color: Option<Color>,
     font: Font,
     width: Option<Length>,
+    on_press: Option<Message>,
 }
 
-impl Text {
+impl<Message> Text<Message>
+where
+    Message: Clone + 'static,
+{
     pub fn new<S>(content: S) -> Self
     where
         S: Into<String>,
@@ -25,6 +30,7 @@ impl Text {
             color: None,
             font: REGULAR,
             width: None,
+            on_press: None,
         }
     }
 
@@ -54,7 +60,14 @@ impl Text {
         }
     }
 
-    pub fn view<'a>(self) -> NativeText<'a> {
+    pub fn on_press(self, message: Message) -> Self {
+        Self {
+            on_press: Some(message),
+            ..self
+        }
+    }
+
+    pub fn view(self) -> Element<'static, Message> {
         let mut text = NativeText::new(self.content)
             .size(self.size)
             .font(self.font);
@@ -67,6 +80,14 @@ impl Text {
             text = text.width(length);
         }
 
-        text
+        if let Some(on_press) = self.on_press {
+            Button::new(text)
+                .on_press(on_press)
+                .padding(0)
+                .style(TransparentButtonStyle.into())
+                .into()
+        } else {
+            text.into()
+        }
     }
 }
