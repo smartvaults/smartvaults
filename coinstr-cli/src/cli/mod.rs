@@ -90,6 +90,9 @@ pub enum Command {
         /// Memo
         #[arg(required = true)]
         memo: String,
+        /// Taget blocks
+        #[clap(short, long, default_value_t = 6)]
+        target_blocks: usize,
     },
     /// Approve a spending proposal
     Approve {

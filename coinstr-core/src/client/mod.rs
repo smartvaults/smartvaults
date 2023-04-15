@@ -407,12 +407,14 @@ impl CoinstrClient {
     }
 
     /// Make a spending proposal
+    #[allow(clippy::too_many_arguments)]
     pub async fn spend<S>(
         &self,
         policy_id: EventId,
         to_address: Address,
         amount: u64,
         memo: S,
+        target_blocks: usize,
         blockchain: impl Blockchain,
         timeout: Option<Duration>,
     ) -> Result<(EventId, SpendingProposal), Error>
@@ -436,12 +438,19 @@ impl CoinstrClient {
         let mut path = BTreeMap::new();
         path.insert(wallet_policy.id, vec![1]);
 
+        // Calculate fee rate
+        #[cfg(not(target_arch = "wasm32"))]
+        let fee_rate = blockchain.estimate_fee(target_blocks)?;
+        #[cfg(target_arch = "wasm32")]
+        let fee_rate = blockchain.estimate_fee(target_blocks).await?;
+
         // Build the PSBT
         let (psbt, _details) = {
             let mut builder = wallet.build_tx();
             builder
                 .add_recipient(to_address.script_pubkey(), amount)
-                .policy_path(path, KeychainKind::External);
+                .policy_path(path, KeychainKind::External)
+                .fee_rate(fee_rate);
             builder.finish()?
         };
 

@@ -103,7 +103,7 @@ impl State for SpendState {
                                         );
                                         let (proposal_id, proposal) = client
                                             .spend(
-                                                policy_id, to_address, amount, memo, blockchain,
+                                                policy_id, to_address, amount, memo, 6, blockchain,
                                                 None,
                                             )
                                             .await?;
