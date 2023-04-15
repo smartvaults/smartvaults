@@ -77,6 +77,22 @@ impl Cache {
         new_policies
     }
 
+    pub async fn policy(
+        &self,
+        policy_id: EventId,
+    ) -> Option<(
+        Policy,
+        Option<Balance>,
+        Option<Vec<TransactionDetails>>,
+        Option<Timestamp>,
+    )> {
+        let policies = self.policies.lock().await;
+        let pw = policies.get(&policy_id)?;
+        let balance = pw.wallet.get_balance().ok();
+        let list = pw.wallet.list_transactions(false).ok();
+        Some((pw.policy.clone(), balance, list, pw.last_sync))
+    }
+
     pub async fn cache_policy(
         &self,
         policy_id: EventId,
