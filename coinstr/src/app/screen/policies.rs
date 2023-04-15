@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::Write;
 
 use coinstr_core::bdk::miniscript::Descriptor;
+use coinstr_core::bdk::Balance;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
@@ -21,7 +22,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(BTreeMap<EventId, Policy>),
+    LoadPolicies(BTreeMap<EventId, (Policy, Option<Balance>)>),
     ExportDescriptor(Descriptor<String>),
     Reload,
 }
@@ -30,7 +31,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: BTreeMap<EventId, Policy>,
+    policies: BTreeMap<EventId, (Policy, Option<Balance>)>,
 }
 
 impl PoliciesState {
@@ -47,7 +48,7 @@ impl State for PoliciesState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let cache = ctx.cache.clone();
-        Command::perform(async move { cache.policies().await }, |p| {
+        Command::perform(async move { cache.policies_with_balance().await }, |p| {
             PoliciesMessage::LoadPolicies(p).into()
         })
     }
@@ -138,6 +139,13 @@ impl State for PoliciesState {
                                     .width(Length::Fill)
                                     .view(),
                             )
+                            .push(
+                                Text::new("Balance")
+                                    .bold()
+                                    .bigger()
+                                    .width(Length::Fixed(125.0))
+                                    .view(),
+                            )
                             .push(add_policy_btn)
                             .push(reload_btn)
                             .spacing(10)
@@ -146,7 +154,14 @@ impl State for PoliciesState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (policy_id, policy) in self.policies.iter() {
+                for (policy_id, (policy, balance)) in self.policies.iter() {
+                    let balance: String = match balance {
+                        Some(balance) => {
+                            format!("{} sats", util::format::big_number(balance.get_total()))
+                        }
+                        None => String::from("Unavailabe"),
+                    };
+
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*policy_id))
@@ -155,6 +170,7 @@ impl State for PoliciesState {
                         )
                         .push(Text::new(&policy.name).width(Length::Fill).view())
                         .push(Text::new(&policy.description).width(Length::Fill).view())
+                        .push(Text::new(balance).width(Length::Fixed(125.0)).view())
                         .push(
                             button::border_only_icon(SAVE)
                                 .on_press(

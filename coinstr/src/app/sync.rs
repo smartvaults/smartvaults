@@ -52,13 +52,17 @@ where
         let join = tokio::task::spawn(async move {
             // Sync wallet thread
             let ccache = cache.clone();
+            let ssender = sender.clone();
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
             let wallet_sync = async move {
                 let electrum_client = ElectrumClient::new(bitcoin_endpoint).unwrap();
                 let blockchain = ElectrumBlockchain::from(electrum_client);
                 loop {
-                    if let Err(e) = ccache.sync_wallets(&blockchain).await {
-                        log::error!("Impossible to sync wallets: {e}");
+                    match ccache.sync_wallets(&blockchain).await {
+                        Ok(_) => {
+                            ssender.send(()).ok();
+                        }
+                        Err(e) => log::error!("Impossible to sync wallets: {e}"),
                     }
                     tokio::time::sleep(Duration::from_secs(3)).await;
                 }

@@ -58,6 +58,18 @@ impl Cache {
             .collect()
     }
 
+    pub async fn policies_with_balance(&self) -> BTreeMap<EventId, (Policy, Option<Balance>)> {
+        let policies = self.policies.lock().await;
+        let mut new_policies = BTreeMap::new();
+        for (policy_id, pw) in policies.iter() {
+            new_policies.insert(
+                *policy_id,
+                (pw.policy.clone(), pw.wallet.get_balance().ok()),
+            );
+        }
+        new_policies
+    }
+
     pub async fn cache_policy(
         &self,
         policy_id: EventId,
