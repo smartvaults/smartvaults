@@ -10,6 +10,11 @@ pub const REGULAR: Font = Font::External {
     bytes: REGULAR_BYTES,
 };
 
+pub const EXTRA_LIGHT: Font = Font::External {
+    name: "ExtraLight",
+    bytes: include_bytes!("../../static/font/RobotoMono-ExtraLight.ttf"),
+};
+
 pub const BOLD: Font = Font::External {
     name: "Bold",
     bytes: include_bytes!("../../static/font/RobotoMono-Bold.ttf"),

@@ -5,7 +5,7 @@ use iced::widget::{Button, Text as NativeText};
 use iced::{Color, Element, Font, Length};
 
 use super::button::TransparentButtonStyle;
-use crate::theme::font::{BOLD, REGULAR};
+use crate::theme::font::{BOLD, EXTRA_LIGHT, REGULAR};
 
 pub struct Text<Message> {
     content: String,
@@ -41,6 +41,13 @@ where
     pub fn color(self, color: Color) -> Self {
         Self {
             color: Some(color),
+            ..self
+        }
+    }
+
+    pub fn extra_light(self) -> Self {
+        Self {
+            font: EXTRA_LIGHT,
             ..self
         }
     }
