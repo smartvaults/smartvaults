@@ -1,15 +1,15 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::cmp::Ordering;
-
 use coinstr_core::bdk::TransactionDetails;
 use coinstr_core::util::format;
-use iced::widget::Column;
-use iced::Length;
+use iced::widget::{Column, Row, Space};
+use iced::{Alignment, Length};
 
 use crate::app::Message;
-use crate::component::{rule, Text};
+use crate::component::{button, rule, Icon, Text};
+use crate::theme::color::{GREEN, YELLOW};
+use crate::theme::icon::{CHECK, FULLSCREEN, HOURGLASS};
 
 pub struct TransactionsList {
     list: Option<Vec<TransactionDetails>>,
@@ -34,7 +34,13 @@ impl TransactionsList {
             b.confirmation_time
                 .as_ref()
                 .map(|t| t.height)
-                .cmp(&a.confirmation_time.as_ref().map(|t| t.height))
+                .unwrap_or(u32::MAX)
+                .cmp(
+                    &a.confirmation_time
+                        .as_ref()
+                        .map(|t| t.height)
+                        .unwrap_or(u32::MAX),
+                )
         });
         if let Some(take) = self.take {
             Box::new(list.into_iter().take(take))
@@ -45,7 +51,48 @@ impl TransactionsList {
 
     pub fn view(self) -> Column<'static, Message> {
         let mut transactions = Column::new()
-            .push(Text::new("Transactions").bigger().view())
+            .push(
+                Row::new()
+                    .push(
+                        Text::new("Status")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fixed(70.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new("Timestamp")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fixed(125.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new("Incoming")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(
+                        Text::new("Outcoming")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(
+                        Text::new("Total")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(Space::with_width(40.0))
+                    .spacing(10)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill),
+            )
             .push(rule::horizontal_bold())
             .width(Length::Fill)
             .spacing(10);
@@ -56,30 +103,55 @@ impl TransactionsList {
                     transactions = transactions.push(Text::new("No transactions").view());
                 } else {
                     for tx in self.list() {
-                        let unconfirmed = match &tx.confirmation_time {
-                            Some(block_time) => {
-                                format!(" - block {}", format::number(block_time.height.into()))
-                            }
-                            None => String::from(" - unconfirmed"),
+                        let status = if tx.confirmation_time.is_some() {
+                            Icon::new(CHECK).color(GREEN)
+                        } else {
+                            Icon::new(HOURGLASS).color(YELLOW)
                         };
-                        let text = match tx.received.cmp(&tx.sent) {
-                            Ordering::Greater => Text::new(format!(
-                                "Received {} sats{unconfirmed}",
-                                format::number(tx.received - tx.sent)
-                            )),
-                            Ordering::Less => {
-                                let fee = match tx.fee {
-                                    Some(fee) => format!(" (fee: {} sats)", format::number(fee)),
-                                    None => String::new(),
-                                };
+
+                        let (total, positive): (u64, bool) = {
+                            let received: i64 = tx.received as i64;
+                            let sent: i64 = tx.sent as i64;
+                            let tot = received.saturating_sub(sent);
+                            let positive = tot >= 0;
+                            (tot as u64, positive)
+                        };
+
+                        let row = Row::new()
+                            .push(status.width(Length::Fixed(70.0)).view())
+                            .push(
+                                Text::new(
+                                    tx.confirmation_time
+                                        .map(|b| b.timestamp.to_string())
+                                        .unwrap_or_default(),
+                                )
+                                .width(Length::Fixed(125.0))
+                                .view(),
+                            )
+                            .push(
+                                Text::new(format!("{} sats", format::number(tx.received)))
+                                    .width(Length::Fill)
+                                    .view(),
+                            )
+                            .push(
+                                Text::new(format!("{} sats", format::number(tx.sent)))
+                                    .width(Length::Fill)
+                                    .view(),
+                            )
+                            .push(
                                 Text::new(format!(
-                                    "Sent {} sats{fee}{unconfirmed}",
-                                    format::number(tx.sent - tx.received)
+                                    "{}{} sats",
+                                    if positive { "+" } else { "-" },
+                                    format::number(total)
                                 ))
-                            }
-                            Ordering::Equal => Text::new(format!("null{unconfirmed}")),
-                        };
-                        transactions = transactions.push(text.view()).push(rule::horizontal());
+                                .width(Length::Fill)
+                                .view(),
+                            )
+                            .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                            .spacing(10)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fill);
+                        transactions = transactions.push(row).push(rule::horizontal());
                     }
                 }
             }
