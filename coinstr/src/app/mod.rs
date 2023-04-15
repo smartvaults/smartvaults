@@ -11,6 +11,8 @@ mod message;
 pub mod screen;
 mod sync;
 
+use crate::constants::APP_NAME;
+
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
@@ -20,12 +22,18 @@ use self::screen::{
 use self::sync::CoinstrSync;
 
 pub trait State {
-    fn title(&self) -> String;
+    fn title(&self) -> String {
+        APP_NAME.to_string()
+    }
+
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message>;
+
     fn view(&self, ctx: &Context) -> Element<Message>;
+
     fn subscription(&self) -> Subscription<Message> {
         Subscription::none()
     }
+
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
         Command::none()
     }

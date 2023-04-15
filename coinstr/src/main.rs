@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
+use iced::{executor, Application, Command, Element, Settings, Subscription, Theme as NativeTheme};
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
 
@@ -12,6 +12,8 @@ mod component;
 mod constants;
 mod start;
 mod theme;
+
+use self::theme::Theme;
 
 static KEYCHAINS_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::keychains().expect("Impossible to get keychains path"));
@@ -28,6 +30,7 @@ pub fn main() -> iced::Result {
 
 pub struct CoinstrApp {
     state: State,
+    theme: Theme,
 }
 pub enum State {
     Start(start::Start),
@@ -44,13 +47,14 @@ impl Application for CoinstrApp {
     type Executor = executor::Default;
     type Flags = ();
     type Message = Message;
-    type Theme = Theme;
+    type Theme = NativeTheme;
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
         let stage = start::Start::new();
         (
             Self {
                 state: State::Start(stage.0),
+                theme: Theme::default(),
             },
             stage.1.map(|m| m.into()),
         )
@@ -63,8 +67,8 @@ impl Application for CoinstrApp {
         }
     }
 
-    fn theme(&self) -> Theme {
-        Theme::Dark
+    fn theme(&self) -> NativeTheme {
+        self.theme.into()
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

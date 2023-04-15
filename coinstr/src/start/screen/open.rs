@@ -9,7 +9,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use super::view;
 use crate::component::{button, Text, TextInput};
-use crate::constants::{APP_DESCRIPTION, APP_LOGO, APP_NAME};
+use crate::constants::{APP_DESCRIPTION, APP_LOGO};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
 use crate::KEYCHAINS_PATH;
@@ -52,10 +52,6 @@ impl OpenState {
 }
 
 impl State for OpenState {
-    fn title(&self) -> String {
-        format!("{APP_NAME} - Open")
-    }
-
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
         Command::perform(async {}, |_| Message::Open(OpenMessage::LoadKeychains))
     }

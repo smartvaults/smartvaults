@@ -11,15 +11,23 @@ pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{OpenState, RestoreState};
 use crate::app::App;
+use crate::constants::APP_NAME;
+use crate::theme::Theme;
 use crate::CoinstrApp;
 
 pub trait State {
-    fn title(&self) -> String;
+    fn title(&self) -> String {
+        APP_NAME.to_string()
+    }
+
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message>;
+
     fn view(&self, ctx: &Context) -> Element<Message>;
+
     fn subscription(&self) -> Subscription<Message> {
         Subscription::none()
     }
+
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
         Command::none()
     }
@@ -73,6 +81,7 @@ impl Start {
                     Command::none(),
                     Some(CoinstrApp {
                         state: crate::State::App(app),
+                        theme: Theme::default(),
                     }),
                 )
             }
