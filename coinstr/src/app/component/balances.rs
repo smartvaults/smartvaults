@@ -10,41 +10,45 @@ use crate::app::Message;
 use crate::component::Text;
 
 pub struct Balances {
-    balance: Balance,
+    balance: Option<Balance>,
 }
 
 impl Balances {
-    pub fn new(balance: Balance) -> Self {
+    pub fn new(balance: Option<Balance>) -> Self {
         Self { balance }
     }
 
     pub fn view(self) -> Row<'static, Message> {
-        let pending_balance =
-            self.balance.untrusted_pending + self.balance.trusted_pending + self.balance.immature;
+        match self.balance {
+            Some(balance) => {
+                let pending_balance =
+                    balance.untrusted_pending + balance.trusted_pending + balance.immature;
 
-        Row::new()
-            .push(
-                Column::new()
+                Row::new()
                     .push(
-                        Text::new(format::number(self.balance.confirmed))
-                            .size(45)
-                            .view(),
+                        Column::new()
+                            .push(Text::new(format::number(balance.confirmed)).size(45).view())
+                            .push(if pending_balance > 0 {
+                                Text::new(format::number(pending_balance)).size(25).view()
+                            } else {
+                                Text::new("").size(25).view()
+                            })
+                            .align_items(Alignment::End),
                     )
-                    .push(if pending_balance > 0 {
-                        Text::new(format::number(pending_balance)).size(25).view()
-                    } else {
-                        Text::new("").size(25).view()
-                    })
-                    .align_items(Alignment::End),
-            )
-            .push(
-                Column::new()
-                    .push(Space::with_height(Length::Fixed(8.0)))
-                    .push(Text::new("sats").size(35).view())
-                    .push(Space::with_height(Length::Fixed(29.0)))
-                    .align_items(Alignment::End),
-            )
-            .spacing(10)
-            .width(Length::Fill)
+                    .push(
+                        Column::new()
+                            .push(Space::with_height(Length::Fixed(8.0)))
+                            .push(Text::new("sats").size(35).view())
+                            .push(Space::with_height(Length::Fixed(29.0)))
+                            .align_items(Alignment::End),
+                    )
+                    .spacing(10)
+                    .width(Length::Fill)
+            }
+            None => Row::new()
+                .push(Text::new("Unavailabe").view())
+                .spacing(10)
+                .width(Length::Fill),
+        }
     }
 }

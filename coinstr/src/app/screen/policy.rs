@@ -4,7 +4,8 @@
 use std::time::Duration;
 
 use coinstr_core::bdk::{Balance, TransactionDetails};
-use coinstr_core::nostr_sdk::EventId;
+use coinstr_core::nostr_sdk::{EventId, Timestamp};
+use coinstr_core::policy::Policy;
 use coinstr_core::util;
 use iced::alignment::Horizontal;
 use iced::widget::{Column, Container, Row, Space};
@@ -20,7 +21,12 @@ use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 pub enum PolicyMessage {
     Send,
     Deposit,
-    WalletSynced(Balance, Vec<TransactionDetails>),
+    LoadPolicy(
+        Policy,
+        Option<Balance>,
+        Option<Vec<TransactionDetails>>,
+        Option<Timestamp>,
+    ),
     Reload,
 }
 
@@ -29,8 +35,9 @@ pub struct PolicyState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
-    balance: Balance,
-    transactions: Vec<TransactionDetails>,
+    balance: Option<Balance>,
+    transactions: Option<Vec<TransactionDetails>>,
+    last_sync: Option<Timestamp>,
 }
 
 impl PolicyState {
@@ -39,8 +46,9 @@ impl PolicyState {
             loading: false,
             loaded: false,
             policy_id,
-            balance: Balance::default(),
-            transactions: Vec::new(),
+            balance: None,
+            transactions: None,
+            last_sync: None,
         }
     }
 }
@@ -64,12 +72,13 @@ impl State for PolicyState {
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
-            async move {
-                let balance = cache.get_balance(policy_id).await.unwrap();
-                let txs = cache.get_transactions(policy_id).await.unwrap();
-                (balance, txs)
+            async move { cache.policy(policy_id).await },
+            |res| match res {
+                Some((policy, balance, list, last_sync)) => {
+                    PolicyMessage::LoadPolicy(policy, balance, list, last_sync).into()
+                }
+                None => Message::View(Stage::Policies),
             },
-            |(balance, txs)| PolicyMessage::WalletSynced(balance, txs).into(),
         )
     }
 
@@ -87,9 +96,10 @@ impl State for PolicyState {
                     });
                 }
                 PolicyMessage::Deposit => (),
-                PolicyMessage::WalletSynced(balance, txs) => {
+                PolicyMessage::LoadPolicy(_policy, balance, list, last_sync) => {
                     self.balance = balance;
-                    self.transactions = txs;
+                    self.transactions = list;
+                    self.last_sync = last_sync;
                     self.loading = false;
                     self.loaded = true;
                 }
@@ -105,50 +115,54 @@ impl State for PolicyState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        let title = format!("Policy #{}", util::cut_event_id(self.policy_id));
-        content = content.push(Text::new(title).size(40).bold().view());
+        let mut center_y = true;
+        let mut center_x = true;
 
-        if self.loading {
+        if let Some(last_sync) = self.last_sync {
+            center_y = false;
+            center_x = false;
+
+            let title = format!("Policy #{}", util::cut_event_id(self.policy_id));
             content = content
-                .push(Space::with_height(Length::Fixed(5.0)))
-                .push(Text::new("Syncing with the timechain...").view())
-                .push(Space::with_height(Length::Fixed(5.0)));
+                .push(Text::new(title).size(40).bold().view())
+                .push(Space::with_height(Length::Fixed(40.0)));
+
+            let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
+                .on_press(PolicyMessage::Send.into())
+                .width(Length::Fixed(110.0));
+            let deposit_btn = button::border_text_below_icon(ARROW_DOWN, "Receive")
+                .on_press(PolicyMessage::Deposit.into())
+                .width(Length::Fixed(110.0));
+
+            content = content
+                .push(
+                    Row::new()
+                        .push(
+                            Row::new()
+                                .push(send_btn)
+                                .push(deposit_btn)
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Container::new(Balances::new(self.balance.clone()).view())
+                                .align_x(Horizontal::Right),
+                        )
+                        .width(Length::Fill)
+                        .align_items(Alignment::Center),
+                )
+                .push(Space::with_height(Length::Fixed(20.0)))
+                .push(
+                    TransactionsList::new(self.transactions.clone())
+                        .take(10)
+                        .view(),
+                )
+                .push(Text::new(format!("Last sync: {last_sync}")).size(18).view());
         } else {
-            content = content.push(Space::with_height(Length::Fixed(40.0)));
+            content = content.push(Text::new("Loading...").view());
         }
 
-        let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
-            .on_press(PolicyMessage::Send.into())
-            .width(Length::Fixed(110.0));
-        let deposit_btn = button::border_text_below_icon(ARROW_DOWN, "Receive")
-            .on_press(PolicyMessage::Deposit.into())
-            .width(Length::Fixed(110.0));
-
-        content = content
-            .push(
-                Row::new()
-                    .push(
-                        Row::new()
-                            .push(send_btn)
-                            .push(deposit_btn)
-                            .spacing(10)
-                            .width(Length::Fill),
-                    )
-                    .push(
-                        Container::new(Balances::new(self.balance.clone()).view())
-                            .align_x(Horizontal::Right),
-                    )
-                    .width(Length::Fill)
-                    .align_items(Alignment::Center),
-            )
-            .push(Space::with_height(Length::Fixed(20.0)))
-            .push(
-                TransactionsList::new(self.transactions.clone())
-                    .take(10)
-                    .view(),
-            );
-
-        Dashboard::new().view(ctx, content, false, false)
+        Dashboard::new().view(ctx, content, center_x, center_y)
     }
 }
 

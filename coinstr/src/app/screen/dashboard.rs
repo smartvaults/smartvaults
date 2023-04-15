@@ -15,7 +15,7 @@ use crate::constants::APP_NAME;
 
 #[derive(Debug, Clone)]
 pub enum DashboardMessage {
-    WalletsSynced(Balance, Vec<TransactionDetails>),
+    WalletsSynced(Option<Balance>, Option<Vec<TransactionDetails>>),
     Reload,
 }
 
@@ -23,8 +23,8 @@ pub enum DashboardMessage {
 pub struct DashboardState {
     loading: bool,
     loaded: bool,
-    balance: Balance,
-    transactions: Vec<TransactionDetails>,
+    balance: Option<Balance>,
+    transactions: Option<Vec<TransactionDetails>>,
 }
 
 impl DashboardState {
@@ -32,8 +32,8 @@ impl DashboardState {
         Self {
             loading: false,
             loaded: false,
-            balance: Balance::default(),
-            transactions: Vec::new(),
+            balance: None,
+            transactions: None,
         }
     }
 }
@@ -65,7 +65,7 @@ impl State for DashboardState {
             },
             |(balance, txs, synced)| {
                 if synced {
-                    DashboardMessage::WalletsSynced(balance, txs).into()
+                    DashboardMessage::WalletsSynced(Some(balance), Some(txs)).into()
                 } else {
                     DashboardMessage::Reload.into()
                 }

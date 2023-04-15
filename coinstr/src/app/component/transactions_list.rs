@@ -12,12 +12,12 @@ use crate::app::Message;
 use crate::component::{rule, Text};
 
 pub struct TransactionsList {
-    list: Vec<TransactionDetails>,
+    list: Option<Vec<TransactionDetails>>,
     take: Option<usize>,
 }
 
 impl TransactionsList {
-    pub fn new(list: Vec<TransactionDetails>) -> Self {
+    pub fn new(list: Option<Vec<TransactionDetails>>) -> Self {
         Self { list, take: None }
     }
 
@@ -29,7 +29,7 @@ impl TransactionsList {
     }
 
     fn list(self) -> Box<dyn Iterator<Item = TransactionDetails>> {
-        let mut list = self.list;
+        let mut list = self.list.unwrap_or_default();
         list.sort_by(|a, b| {
             b.confirmation_time
                 .as_ref()
@@ -50,36 +50,41 @@ impl TransactionsList {
             .width(Length::Fill)
             .spacing(10);
 
-        if self.list.is_empty() {
-            transactions = transactions.push(Text::new("No transactions").view());
-        } else {
-            for tx in self.list() {
-                let unconfirmed = match &tx.confirmation_time {
-                    Some(block_time) => {
-                        format!(" - block {}", format::number(block_time.height.into()))
-                    }
-                    None => String::from(" - unconfirmed"),
-                };
-                let text = match tx.received.cmp(&tx.sent) {
-                    Ordering::Greater => Text::new(format!(
-                        "Received {} sats{unconfirmed}",
-                        format::number(tx.received - tx.sent)
-                    )),
-                    Ordering::Less => {
-                        let fee = match tx.fee {
-                            Some(fee) => format!(" (fee: {} sats)", format::number(fee)),
-                            None => String::new(),
+        match &self.list {
+            Some(list) => {
+                if list.is_empty() {
+                    transactions = transactions.push(Text::new("No transactions").view());
+                } else {
+                    for tx in self.list() {
+                        let unconfirmed = match &tx.confirmation_time {
+                            Some(block_time) => {
+                                format!(" - block {}", format::number(block_time.height.into()))
+                            }
+                            None => String::from(" - unconfirmed"),
                         };
-                        Text::new(format!(
-                            "Sent {} sats{fee}{unconfirmed}",
-                            format::number(tx.sent - tx.received)
-                        ))
+                        let text = match tx.received.cmp(&tx.sent) {
+                            Ordering::Greater => Text::new(format!(
+                                "Received {} sats{unconfirmed}",
+                                format::number(tx.received - tx.sent)
+                            )),
+                            Ordering::Less => {
+                                let fee = match tx.fee {
+                                    Some(fee) => format!(" (fee: {} sats)", format::number(fee)),
+                                    None => String::new(),
+                                };
+                                Text::new(format!(
+                                    "Sent {} sats{fee}{unconfirmed}",
+                                    format::number(tx.sent - tx.received)
+                                ))
+                            }
+                            Ordering::Equal => Text::new(format!("null{unconfirmed}")),
+                        };
+                        transactions = transactions.push(text.view()).push(rule::horizontal());
                     }
-                    Ordering::Equal => Text::new(format!("null{unconfirmed}")),
-                };
-                transactions = transactions.push(text.view()).push(rule::horizontal());
+                }
             }
-        }
+            None => transactions = transactions.push(Text::new("Unavailable").view()),
+        };
 
         transactions
     }
