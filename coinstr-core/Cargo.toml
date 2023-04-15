@@ -12,6 +12,7 @@ keywords.workspace = true
 [features]
 default = []
 electrum = ["bdk/electrum"]
+key-value-db = ["bdk/key-value-db"]
 blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
