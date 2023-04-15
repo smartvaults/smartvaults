@@ -54,11 +54,22 @@ impl State for DashboardState {
         self.loading = true;
         Command::perform(
             async move {
-                let balance = cache.get_total_balance().await.unwrap();
+                let (balance, synced) = cache.get_total_balance().await.unwrap();
                 let txs = cache.get_all_transactions().await.unwrap();
-                (balance, txs)
+
+                if !synced {
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+
+                (balance, txs, synced)
             },
-            |(balance, txs)| DashboardMessage::WalletsSynced(balance, txs).into(),
+            |(balance, txs, synced)| {
+                if synced {
+                    DashboardMessage::WalletsSynced(balance, txs).into()
+                } else {
+                    DashboardMessage::Reload.into()
+                }
+            },
         )
     }
 
@@ -85,23 +96,32 @@ impl State for DashboardState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let content = Column::new()
-            .push(Text::new("Dashboard").size(40).bold().view())
-            .push(Space::with_height(Length::Fixed(40.0)))
-            .push(
-                Container::new(Balances::new(self.balance.clone()).view())
-                    .align_x(Horizontal::Right),
-            )
-            .push(Space::with_height(Length::Fixed(20.0)))
-            .push(
-                TransactionsList::new(self.transactions.clone())
-                    .take(10)
-                    .view(),
-            )
-            .spacing(10)
-            .padding(20);
+        let mut content = Column::new().spacing(10).padding(20);
+        let mut center_y = true;
+        let mut center_x = true;
 
-        Dashboard::new().view(ctx, content, false, false)
+        if self.loaded {
+            center_y = false;
+            center_x = false;
+
+            content = content
+                .push(Text::new("Dashboard").size(40).bold().view())
+                .push(Space::with_height(Length::Fixed(40.0)))
+                .push(
+                    Container::new(Balances::new(self.balance.clone()).view())
+                        .align_x(Horizontal::Right),
+                )
+                .push(Space::with_height(Length::Fixed(20.0)))
+                .push(
+                    TransactionsList::new(self.transactions.clone())
+                        .take(10)
+                        .view(),
+                );
+        } else {
+            content = content.push(Text::new("Loading...").view());
+        }
+
+        Dashboard::new().view(ctx, content, center_x, center_y)
     }
 }
 

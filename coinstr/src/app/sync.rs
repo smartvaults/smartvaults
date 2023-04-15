@@ -58,11 +58,8 @@ where
                 let electrum_client = ElectrumClient::new(bitcoin_endpoint).unwrap();
                 let blockchain = ElectrumBlockchain::from(electrum_client);
                 loop {
-                    match ccache.sync_wallets(&blockchain).await {
-                        Ok(_) => {
-                            ssender.send(()).ok();
-                        }
-                        Err(e) => log::error!("Impossible to sync wallets: {e}"),
+                    if let Err(e) = ccache.sync_wallets(&blockchain, Some(&ssender)).await {
+                        log::error!("Impossible to sync wallets: {e}");
                     }
                     tokio::time::sleep(Duration::from_secs(3)).await;
                 }

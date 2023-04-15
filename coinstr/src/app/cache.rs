@@ -14,6 +14,7 @@ use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::{EventId, Result, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
+use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
@@ -22,7 +23,7 @@ const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 pub struct PolicyWallet {
     policy: Policy,
     wallet: Wallet<MemoryDatabase>,
-    last_sync: Timestamp,
+    last_sync: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,13 +59,19 @@ impl Cache {
             .collect()
     }
 
-    pub async fn policies_with_balance(&self) -> BTreeMap<EventId, (Policy, Option<Balance>)> {
+    pub async fn policies_with_balance(
+        &self,
+    ) -> BTreeMap<EventId, (Policy, Option<Balance>, bool)> {
         let policies = self.policies.lock().await;
         let mut new_policies = BTreeMap::new();
         for (policy_id, pw) in policies.iter() {
             new_policies.insert(
                 *policy_id,
-                (pw.policy.clone(), pw.wallet.get_balance().ok()),
+                (
+                    pw.policy.clone(),
+                    pw.wallet.get_balance().ok(),
+                    pw.last_sync.is_some(),
+                ),
             );
         }
         new_policies
@@ -84,7 +91,7 @@ impl Cache {
             e.insert(PolicyWallet {
                 policy,
                 wallet,
-                last_sync: Timestamp::from(0),
+                last_sync: None,
             });
             log::info!("Cached policy {policy_id}");
         }
@@ -114,16 +121,24 @@ impl Cache {
         }
     }
 
-    pub async fn sync_wallets<B>(&self, blockchain: &B) -> Result<()>
+    pub async fn sync_wallets<B>(
+        &self,
+        blockchain: &B,
+        sender: Option<&UnboundedSender<()>>,
+    ) -> Result<()>
     where
         B: Blockchain,
     {
         let mut policies = self.policies.lock().await;
         for (policy_id, pw) in policies.iter_mut() {
-            if pw.last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+            let last_sync = pw.last_sync.unwrap_or_else(|| Timestamp::from(0));
+            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
                 pw.wallet.sync(blockchain, SyncOptions::default())?;
-                pw.last_sync = Timestamp::now();
+                pw.last_sync = Some(Timestamp::now());
+                if let Some(sender) = sender {
+                    sender.send(())?;
+                }
             }
         }
         Ok(())
@@ -141,18 +156,23 @@ impl Cache {
         pw.wallet.list_transactions(false).ok()
     }
 
-    pub async fn get_total_balance(&self) -> Result<Balance> {
+    pub async fn get_total_balance(&self) -> Result<(Balance, bool)> {
         let policies = self.policies.lock().await;
+        let mut synced = true;
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
         for (_, pw) in policies.iter() {
             if !already_seen.contains(&&pw.policy.descriptor) {
+                if pw.last_sync.is_none() {
+                    synced = false;
+                    break;
+                }
                 let balance = pw.wallet.get_balance()?;
                 total_balance = total_balance.add(balance);
                 already_seen.push(&pw.policy.descriptor);
             }
         }
-        Ok(total_balance)
+        Ok((total_balance, synced))
     }
 
     pub async fn get_all_transactions(&self) -> Result<Vec<TransactionDetails>> {

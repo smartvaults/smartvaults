@@ -22,7 +22,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(BTreeMap<EventId, (Policy, Option<Balance>)>),
+    LoadPolicies(BTreeMap<EventId, (Policy, Option<Balance>, bool)>),
     ExportDescriptor(Descriptor<String>),
     Reload,
 }
@@ -31,7 +31,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: BTreeMap<EventId, (Policy, Option<Balance>)>,
+    policies: BTreeMap<EventId, (Policy, Option<Balance>, bool)>,
 }
 
 impl PoliciesState {
@@ -154,12 +154,16 @@ impl State for PoliciesState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (policy_id, (policy, balance)) in self.policies.iter() {
-                    let balance: String = match balance {
-                        Some(balance) => {
-                            format!("{} sats", util::format::big_number(balance.get_total()))
+                for (policy_id, (policy, balance, synced)) in self.policies.iter() {
+                    let balance: String = if *synced {
+                        match balance {
+                            Some(balance) => {
+                                format!("{} sats", util::format::big_number(balance.get_total()))
+                            }
+                            None => String::from("Unavailabe"),
                         }
-                        None => String::from("Unavailabe"),
+                    } else {
+                        String::from("Loading...")
                     };
 
                     let row = Row::new()
