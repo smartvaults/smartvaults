@@ -12,7 +12,7 @@ use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
-use coinstr_core::{Coinstr, Keychain, Result};
+use coinstr_core::{Coinstr, FeeRate, Keychain, Result};
 
 mod cli;
 mod util;
@@ -141,7 +141,7 @@ async fn main() -> Result<()> {
                     to_address,
                     amount,
                     memo,
-                    target_blocks,
+                    FeeRate::Custom(target_blocks),
                     blockchain,
                     TIMEOUT,
                 )

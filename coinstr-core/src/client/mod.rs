@@ -12,7 +12,7 @@ use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
-use bdk::{KeychainKind, SignOptions, SyncOptions, Wallet};
+use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
     nips, Client, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, SECP256K1,
@@ -26,7 +26,7 @@ use crate::constants::{
 };
 use crate::policy::{self, Policy};
 use crate::proposal::SpendingProposal;
-use crate::util;
+use crate::{util, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -406,24 +406,18 @@ impl CoinstrClient {
         Ok((policy_id, policy))
     }
 
-    /// Make a spending proposal
-    #[allow(clippy::too_many_arguments)]
-    pub async fn spend<S>(
+    pub async fn build_spending_proposal<S>(
         &self,
-        policy_id: EventId,
+        policy: &Policy,
         to_address: Address,
         amount: u64,
         memo: S,
-        target_blocks: usize,
+        fee_rate: FeeRate,
         blockchain: impl Blockchain,
-        timeout: Option<Duration>,
-    ) -> Result<(EventId, SpendingProposal), Error>
+    ) -> Result<(SpendingProposal, TransactionDetails), Error>
     where
         S: Into<String>,
     {
-        // Get policy
-        let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
-
         // Sync balance
         let wallet = self.wallet(policy.descriptor.to_string())?;
         #[cfg(not(target_arch = "wasm32"))]
@@ -439,13 +433,14 @@ impl CoinstrClient {
         path.insert(wallet_policy.id, vec![1]);
 
         // Calculate fee rate
+        let target_blocks: usize = fee_rate.target_blocks();
         #[cfg(not(target_arch = "wasm32"))]
         let fee_rate = blockchain.estimate_fee(target_blocks)?;
         #[cfg(target_arch = "wasm32")]
         let fee_rate = blockchain.estimate_fee(target_blocks).await?;
 
         // Build the PSBT
-        let (psbt, _details) = {
+        let (psbt, details) = {
             let mut builder = wallet.build_tx();
             builder
                 .add_recipient(to_address.script_pubkey(), amount)
@@ -454,10 +449,37 @@ impl CoinstrClient {
             builder.finish()?
         };
 
+        let proposal = SpendingProposal::new(to_address, amount, memo, psbt);
+
+        Ok((proposal, details))
+    }
+
+    /// Make a spending proposal
+    #[allow(clippy::too_many_arguments)]
+    pub async fn spend<S>(
+        &self,
+        policy_id: EventId,
+        to_address: Address,
+        amount: u64,
+        memo: S,
+        fee_rate: FeeRate,
+        blockchain: impl Blockchain,
+        timeout: Option<Duration>,
+    ) -> Result<(EventId, SpendingProposal), Error>
+    where
+        S: Into<String>,
+    {
+        // Get policy
+        let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
+
         let memo: &str = &memo.into();
 
+        // Build spending proposal
+        let (proposal, _details) = self
+            .build_spending_proposal(&policy, to_address, amount, memo, fee_rate, blockchain)
+            .await?;
+
         // Create spending proposal
-        let proposal = SpendingProposal::new(to_address, amount, memo, psbt);
         let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
         let mut tags: Vec<Tag> = extracted_pubkeys
             .iter()
