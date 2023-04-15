@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
 
@@ -21,7 +21,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(HashMap<EventId, Policy>),
+    LoadPolicies(BTreeMap<EventId, Policy>),
     ExportDescriptor(Descriptor<String>),
     Reload,
 }
@@ -30,7 +30,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: HashMap<EventId, Policy>,
+    policies: BTreeMap<EventId, Policy>,
 }
 
 impl PoliciesState {

@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
 use std::ops::Add;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,8 +27,8 @@ pub struct PolicyWallet {
 
 #[derive(Debug, Clone)]
 pub struct Cache {
-    pub policies: Arc<Mutex<HashMap<EventId, PolicyWallet>>>,
-    pub proposals: Arc<Mutex<HashMap<EventId, (EventId, SpendingProposal)>>>,
+    pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
+    pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
 }
 
 impl Default for Cache {
@@ -40,8 +40,8 @@ impl Default for Cache {
 impl Cache {
     pub fn new() -> Self {
         Self {
-            policies: Arc::new(Mutex::new(HashMap::new())),
-            proposals: Arc::new(Mutex::new(HashMap::new())),
+            policies: Arc::new(Mutex::new(BTreeMap::new())),
+            proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
@@ -50,7 +50,7 @@ impl Cache {
         policies.contains_key(&policy_id)
     }
 
-    pub async fn policies(&self) -> HashMap<EventId, Policy> {
+    pub async fn policies(&self) -> BTreeMap<EventId, Policy> {
         let policies = self.policies.lock().await;
         policies
             .iter()
@@ -84,7 +84,7 @@ impl Cache {
         proposals.contains_key(&proposal_id)
     }
 
-    pub async fn proposals(&self) -> HashMap<EventId, (EventId, SpendingProposal)> {
+    pub async fn proposals(&self) -> BTreeMap<EventId, (EventId, SpendingProposal)> {
         let proposals = self.proposals.lock().await;
         proposals.clone()
     }

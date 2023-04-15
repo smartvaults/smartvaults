@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::SpendingProposal;
@@ -17,7 +17,7 @@ use crate::theme::icon::{FULLSCREEN, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum ProposalsMessage {
-    LoadProposals(HashMap<EventId, (EventId, SpendingProposal)>),
+    LoadProposals(BTreeMap<EventId, (EventId, SpendingProposal)>),
     Reload,
 }
 
@@ -25,7 +25,7 @@ pub enum ProposalsMessage {
 pub struct ProposalsState {
     loading: bool,
     loaded: bool,
-    proposals: HashMap<EventId, (EventId, SpendingProposal)>,
+    proposals: BTreeMap<EventId, (EventId, SpendingProposal)>,
 }
 
 impl ProposalsState {
