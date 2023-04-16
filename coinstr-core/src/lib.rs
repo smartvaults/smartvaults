@@ -25,11 +25,12 @@ pub use self::client::CoinstrClient;
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::keychain::Coinstr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum FeeRate {
     /// High: confirm in 1 blocks
     High,
     /// Medium: confirm in 6 blocks
+    #[default]
     Medium,
     /// Low: confirm in 12 blocks
     Low,
