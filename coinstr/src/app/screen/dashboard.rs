@@ -5,16 +5,19 @@ use std::time::Duration;
 
 use coinstr_core::bdk::{Balance, TransactionDetails};
 use iced::alignment::Horizontal;
-use iced::widget::{Column, Container, Space};
-use iced::{time, Command, Element, Length, Subscription};
+use iced::widget::{Column, Container, Row, Space};
+use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::{Balances, Dashboard, TransactionsList};
-use crate::app::{Context, Message, State};
-use crate::component::Text;
+use crate::app::{Context, Message, Stage, State};
+use crate::component::{button, Text};
 use crate::constants::APP_NAME;
+use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
 #[derive(Debug, Clone)]
 pub enum DashboardMessage {
+    Send,
+    Deposit,
     WalletsSynced(Option<Balance>, Option<Vec<TransactionDetails>>),
     Reload,
 }
@@ -80,6 +83,10 @@ impl State for DashboardState {
 
         if let Message::Dashboard(msg) = message {
             match msg {
+                DashboardMessage::Send => {
+                    return Command::perform(async {}, |_| Message::View(Stage::Spend(None)));
+                }
+                DashboardMessage::Deposit => (),
                 DashboardMessage::WalletsSynced(balance, txs) => {
                     self.balance = balance;
                     self.transactions = txs;
@@ -104,12 +111,31 @@ impl State for DashboardState {
             center_y = false;
             center_x = false;
 
+            let send_btn = button::border_text_below_icon(ARROW_DOWN, "Send")
+                .on_press(DashboardMessage::Send.into())
+                .width(Length::Fixed(110.0));
+            let deposit_btn = button::border_text_below_icon(ARROW_UP, "Receive")
+                .on_press(DashboardMessage::Deposit.into())
+                .width(Length::Fixed(110.0));
+
             content = content
                 .push(Text::new("Dashboard").size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(40.0)))
                 .push(
-                    Container::new(Balances::new(self.balance.clone()).view())
-                        .align_x(Horizontal::Right),
+                    Row::new()
+                        .push(
+                            Row::new()
+                                .push(send_btn)
+                                .push(deposit_btn)
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Container::new(Balances::new(self.balance.clone()).view())
+                                .align_x(Horizontal::Right),
+                        )
+                        .width(Length::Fill)
+                        .align_items(Alignment::Center),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
