@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_core::nostr_sdk::EventId;
+use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::{Coinstr, CoinstrClient};
 
@@ -14,7 +15,7 @@ pub enum Stage {
     Policies,
     AddPolicy,
     Policy(EventId),
-    Spend(EventId),
+    Spend(Option<(EventId, Policy)>),
     Proposals,
     Proposal(EventId, SpendingProposal),
     Setting,

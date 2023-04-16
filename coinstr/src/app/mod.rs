@@ -45,7 +45,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Policies => PoliciesState::new().into(),
         Stage::AddPolicy => AddPolicyState::new().into(),
         Stage::Policy(policy_id) => PolicyState::new(*policy_id).into(),
-        Stage::Spend(policy_id) => SpendState::new(*policy_id).into(),
+        Stage::Spend(policy) => SpendState::new(policy.clone()).into(),
         Stage::Proposals => ProposalsState::new().into(),
         Stage::Proposal(proposal_id, proposal) => {
             ProposalState::new(*proposal_id, proposal.clone()).into()

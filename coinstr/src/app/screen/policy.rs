@@ -35,6 +35,7 @@ pub struct PolicyState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
+    policy: Option<Policy>,
     balance: Option<Balance>,
     transactions: Option<Vec<TransactionDetails>>,
     last_sync: Option<Timestamp>,
@@ -46,6 +47,7 @@ impl PolicyState {
             loading: false,
             loaded: false,
             policy_id,
+            policy: None,
             balance: None,
             transactions: None,
             last_sync: None,
@@ -91,12 +93,15 @@ impl State for PolicyState {
             match msg {
                 PolicyMessage::Send => {
                     let policy_id = self.policy_id;
-                    return Command::perform(async {}, move |_| {
-                        Message::View(Stage::Spend(policy_id))
+                    let policy = self.policy.clone();
+                    return Command::perform(async {}, move |_| match policy {
+                        Some(policy) => Message::View(Stage::Spend(Some((policy_id, policy)))),
+                        None => Message::View(Stage::Policies),
                     });
                 }
                 PolicyMessage::Deposit => (),
-                PolicyMessage::LoadPolicy(_policy, balance, list, last_sync) => {
+                PolicyMessage::LoadPolicy(policy, balance, list, last_sync) => {
+                    self.policy = Some(policy);
                     self.balance = balance;
                     self.transactions = list;
                     self.last_sync = last_sync;
