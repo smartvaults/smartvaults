@@ -129,9 +129,9 @@ impl TransactionsList {
                         let (total, positive): (u64, bool) = {
                             let received: i64 = tx.received as i64;
                             let sent: i64 = tx.sent as i64;
-                            let tot = received.saturating_sub(sent);
+                            let tot = received - sent;
                             let positive = tot >= 0;
-                            (tot as u64, positive)
+                            (tot.unsigned_abs(), positive)
                         };
 
                         let row = Row::new()
