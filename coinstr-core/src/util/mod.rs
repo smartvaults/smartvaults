@@ -7,7 +7,7 @@ use keechain_core::bitcoin::secp256k1::rand::rngs::OsRng;
 use keechain_core::bitcoin::secp256k1::SECP256K1;
 use keechain_core::bitcoin::XOnlyPublicKey;
 pub use keechain_core::util::*;
-use nostr_sdk::{Event, EventId, Tag};
+use nostr_sdk::{prelude::TagKind, Event, EventId, Tag};
 
 pub mod format;
 
@@ -78,6 +78,16 @@ pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
         }
     }
     None
+}
+
+pub fn extract_tags_by_kind(event: &Event, kind: TagKind) -> Vec<&Tag> {
+    let mut tags = Vec::new();
+    for tag in event.tags.iter() {
+        if kind == tag.kind() {
+            tags.push(tag);
+        }
+    }
+    tags
 }
 
 /// Get the first 8 chars of an [`EventId`]
