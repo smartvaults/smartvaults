@@ -23,7 +23,13 @@ const DEFAULT_RELAY: &str = "wss://relay.rip";
 const TIMEOUT: Option<Duration> = Some(Duration::from_secs(300));
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
+    if let Err(e) = run().await {
+        eprintln!("{e}");
+    }
+}
+
+async fn run() -> Result<()> {
     env_logger::init();
 
     let args = Cli::parse();
@@ -153,7 +159,7 @@ async fn main() -> Result<()> {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
-            let event_id = client.approve(proposal_id, TIMEOUT).await?;
+            let (event_id, _) = client.approve(proposal_id, TIMEOUT).await?;
             println!("Spending proposal {proposal_id} approved: {event_id}");
             Ok(())
         }
