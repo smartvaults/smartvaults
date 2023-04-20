@@ -10,7 +10,8 @@ use std::time::Duration;
 use coinstr_core::bdk::blockchain::Blockchain;
 use coinstr_core::bdk::database::MemoryDatabase;
 use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
-use coinstr_core::bitcoin::Network;
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
+use coinstr_core::bitcoin::{Network, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Result, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
@@ -18,6 +19,15 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
+
+type ApprovedProposals = Arc<
+    Mutex<
+        BTreeMap<
+            EventId,
+            BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
+        >,
+    >,
+>;
 
 #[derive(Debug)]
 pub struct PolicyWallet {
@@ -30,6 +40,7 @@ pub struct PolicyWallet {
 pub struct Cache {
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
+    pub approved_proposals: ApprovedProposals,
 }
 
 impl Default for Cache {
@@ -43,6 +54,7 @@ impl Cache {
         Self {
             policies: Arc::new(Mutex::new(BTreeMap::new())),
             proposals: Arc::new(Mutex::new(BTreeMap::new())),
+            approved_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
@@ -137,10 +149,59 @@ impl Cache {
         }
     }
 
+    pub async fn uncache_proposal(&self, proposal_id: EventId) {
+        let mut proposals = self.proposals.lock().await;
+        proposals.remove(&proposal_id);
+        let mut approved_proposals = self.approved_proposals.lock().await;
+        approved_proposals.remove(&proposal_id);
+    }
+
+    pub async fn approved_proposals(
+        &self,
+    ) -> BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>>
+    {
+        let approved_proposals = self.approved_proposals.lock().await;
+        approved_proposals.clone()
+    }
+
+    pub async fn signed_psbts_by_proposal_id(
+        &self,
+        proposal_id: EventId,
+    ) -> Option<BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>> {
+        let approved_proposals = self.approved_proposals.lock().await;
+        approved_proposals.get(&proposal_id).cloned()
+    }
+
+    pub async fn cache_approved_proposal(
+        &self,
+        proposal_id: EventId,
+        author: XOnlyPublicKey,
+        approved_proposal_id: EventId,
+        psbt: PartiallySignedTransaction,
+        timestamp: Timestamp,
+    ) {
+        let mut approved_proposals = self.approved_proposals.lock().await;
+        approved_proposals
+            .entry(proposal_id)
+            .and_modify(|map| {
+                if let Entry::Vacant(e) = map.entry(author) {
+                    e.insert((approved_proposal_id, psbt.clone(), timestamp));
+                    log::info!(
+                        "Cached approved proposal {proposal_id} for pubkey {author} (append)"
+                    );
+                }
+            })
+            .or_insert_with(|| {
+                log::info!("Cached approved proposal {proposal_id} for pubkey {author}");
+                [(author, (approved_proposal_id, psbt.clone(), timestamp))].into()
+            });
+    }
+
     pub async fn sync_wallets<B>(
         &self,
         blockchain: &B,
         sender: Option<&UnboundedSender<()>>,
+        force: bool,
     ) -> Result<()>
     where
         B: Blockchain,
@@ -148,7 +209,7 @@ impl Cache {
         let mut policies = self.policies.lock().await;
         for (policy_id, pw) in policies.iter_mut() {
             let last_sync = pw.last_sync.unwrap_or_else(|| Timestamp::from(0));
-            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+            if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
                 pw.wallet.sync(blockchain, SyncOptions::default())?;
                 pw.last_sync = Some(Timestamp::now());

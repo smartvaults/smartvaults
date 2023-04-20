@@ -2,15 +2,20 @@
 // Distributed under the MIT software license
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Duration;
 
 use async_recursion::async_recursion;
 use async_stream::stream;
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::constants::{POLICY_KIND, SPENDING_PROPOSAL_KIND};
-use coinstr_core::nostr_sdk::{nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result};
+use coinstr_core::constants::{APPROVED_PROPOSAL_KIND, POLICY_KIND, SPENDING_PROPOSAL_KIND};
+use coinstr_core::nostr_sdk::prelude::TagKind;
+use coinstr_core::nostr_sdk::{
+    nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag,
+};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::{util, CoinstrClient};
@@ -58,7 +63,10 @@ where
                 let electrum_client = ElectrumClient::new(bitcoin_endpoint).unwrap();
                 let blockchain = ElectrumBlockchain::from(electrum_client);
                 loop {
-                    if let Err(e) = ccache.sync_wallets(&blockchain, Some(&ssender)).await {
+                    if let Err(e) = ccache
+                        .sync_wallets(&blockchain, Some(&ssender), false)
+                        .await
+                    {
                         log::error!("Impossible to sync wallets: {e}");
                     }
                     tokio::time::sleep(Duration::from_secs(3)).await;
@@ -85,6 +93,9 @@ where
                 Filter::new()
                     .pubkey(keys.public_key())
                     .kind(SPENDING_PROPOSAL_KIND),
+                Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(APPROVED_PROPOSAL_KIND),
             ];
 
             nostr_client.subscribe(filters).await;
@@ -179,6 +190,45 @@ async fn handle_event(
             }
         } else {
             log::error!("Impossible to find policy id in proposal {}", event.id);
+        }
+    } else if event.kind == APPROVED_PROPOSAL_KIND {
+        if let Some(proposal_id) = util::extract_first_event_id(&event) {
+            if let Some(Tag::Event(policy_id, ..)) =
+                util::extract_tags_by_kind(&event, TagKind::E).get(1)
+            {
+                if let Some(shared_key) = shared_keys.get(policy_id) {
+                    let content = nips::nip04::decrypt(
+                        &shared_key.secret_key()?,
+                        &shared_key.public_key(),
+                        &event.content,
+                    )?;
+                    let psbt = PartiallySignedTransaction::from_str(&content)?;
+                    cache
+                        .cache_approved_proposal(
+                            proposal_id,
+                            event.pubkey,
+                            event.id,
+                            psbt,
+                            event.created_at,
+                        )
+                        .await;
+                } else {
+                    log::info!("Requesting shared key for approved proposal {}", event.id);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    let shared_key = client
+                        .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
+                        .await?;
+                    shared_keys.insert(*policy_id, shared_key);
+                    handle_event(client, cache, shared_keys, event).await?;
+                }
+            } else {
+                log::error!("Impossible to find policy id in proposal {}", event.id);
+            }
+        } else {
+            log::error!(
+                "Impossible to find proposal id in approved proposal {}",
+                event.id
+            );
         }
     }
 

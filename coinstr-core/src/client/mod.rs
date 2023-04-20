@@ -16,7 +16,8 @@ use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
-    nips, Client, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, Timestamp, SECP256K1,
+    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, Timestamp,
+    SECP256K1,
 };
 
 #[cfg(feature = "blocking")]
@@ -565,7 +566,7 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(EventId, PartiallySignedTransaction), Error> {
+    ) -> Result<(Event, PartiallySignedTransaction), Error> {
         let keys = self.client.keys();
 
         // Get proposal
@@ -596,9 +597,9 @@ impl CoinstrClient {
         ));
 
         let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
-        let event_id = self.client.send_event(event).await?;
+        self.client.send_event(event.clone()).await?;
 
-        Ok((event_id, signed_psbt))
+        Ok((event, signed_psbt))
     }
 
     pub fn combine_psbts(
@@ -621,12 +622,15 @@ impl CoinstrClient {
         Ok(base_psbt.extract_tx())
     }
 
-    pub async fn broadcast(
+    pub async fn broadcast<B>(
         &self,
         proposal_id: EventId,
-        blockchain: impl Blockchain,
+        blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<Txid, Error> {
+    ) -> Result<Txid, Error>
+    where
+        B: Blockchain,
+    {
         // Get PSBTs
         let (base_psbt, signed_psbts) = self
             .get_signed_psbts_by_proposal_id(proposal_id, timeout)
