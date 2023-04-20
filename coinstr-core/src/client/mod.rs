@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::{BTreeMap, HashMap};
+use std::ops::Add;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,7 +16,7 @@ use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
-    nips, Client, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, SECP256K1,
+    nips, Client, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, Timestamp, SECP256K1,
 };
 
 #[cfg(feature = "blocking")]
@@ -561,18 +562,18 @@ impl CoinstrClient {
                 &shared_keys.public_key(),
                 psbt.to_string(),
             )?;
-            // Publish approved proposal with `shared_key` so after the broadcast
-            // of the transaction it can be deleted
-            let event = EventBuilder::new(
-                APPROVED_PROPOSAL_KIND,
-                content,
-                &[
-                    Tag::Event(proposal_id, None, None),
-                    Tag::Event(policy_id, None, None),
-                    Tag::PubKey(keys.public_key(), None),
-                ],
-            )
-            .to_event(&shared_keys)?;
+            let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
+            let mut tags: Vec<Tag> = extracted_pubkeys
+                .iter()
+                .map(|p| Tag::PubKey(*p, None))
+                .collect();
+            tags.push(Tag::Event(proposal_id, None, None));
+            tags.push(Tag::Event(policy_id, None, None));
+            tags.push(Tag::Expiration(
+                Timestamp::now().add(Duration::from_secs(60 * 60 * 24 * 7)),
+            ));
+            let event =
+                EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
             let event_id = self.client.send_event(event).await?;
             Ok(event_id)
         } else {
