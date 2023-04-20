@@ -2,11 +2,12 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::TransactionDetails;
+use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
-use crate::app::Message;
+use crate::app::{Message, Stage};
 use crate::component::{button, rule, Icon, Text};
 use crate::theme::color::{GREEN, YELLOW};
 use crate::theme::icon::{CHECK, FULLSCREEN, HOURGLASS};
@@ -14,16 +15,28 @@ use crate::theme::icon::{CHECK, FULLSCREEN, HOURGLASS};
 pub struct TransactionsList {
     list: Option<Vec<TransactionDetails>>,
     take: Option<usize>,
+    policy_id: Option<EventId>,
 }
 
 impl TransactionsList {
     pub fn new(list: Option<Vec<TransactionDetails>>) -> Self {
-        Self { list, take: None }
+        Self {
+            list,
+            take: None,
+            policy_id: None,
+        }
     }
 
     pub fn take(self, num: usize) -> Self {
         Self {
             take: Some(num),
+            ..self
+        }
+    }
+
+    pub fn policy_id(self, policy_id: EventId) -> Self {
+        Self {
+            policy_id: Some(policy_id),
             ..self
         }
     }
@@ -102,6 +115,10 @@ impl TransactionsList {
                 if list.is_empty() {
                     transactions = transactions.push(Text::new("No transactions").view());
                 } else {
+                    let list_len = list.len();
+                    let take = self.take;
+                    let policy_id = self.policy_id;
+
                     for tx in self.list() {
                         let status = if tx.confirmation_time.is_some() {
                             Icon::new(CHECK).color(GREEN)
@@ -152,6 +169,16 @@ impl TransactionsList {
                             .align_items(Alignment::Center)
                             .width(Length::Fill);
                         transactions = transactions.push(row).push(rule::horizontal());
+                    }
+
+                    if let Some(take) = take {
+                        if list_len > take {
+                            transactions = transactions.push(
+                                Text::new("Show all")
+                                    .on_press(Message::View(Stage::Transactions(policy_id)))
+                                    .view(),
+                            );
+                        }
                     }
                 }
             }

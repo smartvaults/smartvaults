@@ -159,7 +159,8 @@ impl State for PolicyState {
                 .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())
-                        .take(10)
+                        .take(5)
+                        .policy_id(self.policy_id)
                         .view(),
                 )
                 .push(Text::new(format!("Last sync: {last_sync}")).size(18).view());
