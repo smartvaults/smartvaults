@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, PrivateKey, Transaction, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
@@ -64,7 +64,7 @@ pub enum Error {
     SpendingProposalNotFound,
     #[error("approved proposal/s not found")]
     ApprovedProposalNotFound,
-    #[error("impossible to finalize the PSBT: {:?}", 0)]
+    #[error("impossible to finalize the PSBT: {0:?}")]
     ImpossibleToFinalizePsbt(Vec<bdk::miniscript::psbt::Error>),
     #[error("PSBT not signed")]
     PsbtNotSigned,
@@ -91,6 +91,10 @@ impl CoinstrClient {
 
     pub fn network(&self) -> Network {
         self.network
+    }
+
+    pub fn keys(&self) -> Keys {
+        self.client.keys()
     }
 
     pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
@@ -514,19 +518,24 @@ impl CoinstrClient {
         Ok((proposal_id, proposal))
     }
 
-    pub async fn approve(
-        &self,
-        proposal_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<EventId, Error> {
+    fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
+    where
+        S: Into<String>,
+    {
+        let descriptor = descriptor.into();
         let keys = self.client.keys();
+        Ok(
+            descriptor.starts_with(&format!("tr({}", keys.secret_key()?.public_key(SECP256K1)))
+                || descriptor.starts_with(&format!("tr({}", keys.public_key())),
+        )
+    }
 
-        // Get proposal
-        let (proposal, policy_id, shared_keys) =
-            self.get_proposal_by_id(proposal_id, timeout).await?;
-
-        // Get policy id
-        let (policy, _shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
+    pub fn approve_spending_proposal(
+        &self,
+        policy: &Policy,
+        proposal: &SpendingProposal,
+    ) -> Result<PartiallySignedTransaction, Error> {
+        let keys = self.client.keys();
 
         // Create a BDK wallet
         let mut wallet = self.wallet(policy.descriptor.to_string())?;
@@ -536,49 +545,80 @@ impl CoinstrClient {
         let signer = SignerWrapper::new(
             private_key,
             SignerContext::Tap {
-                is_internal_key: false,
-            },
-        );
-        let internal_signer = SignerWrapper::new(
-            private_key,
-            SignerContext::Tap {
-                is_internal_key: true,
+                is_internal_key: self.is_internal_key(policy.descriptor.to_string())?,
             },
         );
 
         wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
-        wallet.add_signer(
-            KeychainKind::External,
-            SignerOrdering(0),
-            Arc::new(internal_signer),
-        );
 
         // Sign the transaction
         let mut psbt = proposal.psbt.clone();
         let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
         if psbt != proposal.psbt {
-            let content = nips::nip04::encrypt(
-                &shared_keys.secret_key()?,
-                &shared_keys.public_key(),
-                psbt.to_string(),
-            )?;
-            let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
-            let mut tags: Vec<Tag> = extracted_pubkeys
-                .iter()
-                .map(|p| Tag::PubKey(*p, None))
-                .collect();
-            tags.push(Tag::Event(proposal_id, None, None));
-            tags.push(Tag::Event(policy_id, None, None));
-            tags.push(Tag::Expiration(
-                Timestamp::now().add(Duration::from_secs(60 * 60 * 24 * 7)),
-            ));
-            let event =
-                EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
-            let event_id = self.client.send_event(event).await?;
-            Ok(event_id)
+            Ok(psbt)
         } else {
             Err(Error::PsbtNotSigned)
         }
+    }
+
+    pub async fn approve(
+        &self,
+        proposal_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<(EventId, PartiallySignedTransaction), Error> {
+        let keys = self.client.keys();
+
+        // Get proposal
+        let (proposal, policy_id, shared_keys) =
+            self.get_proposal_by_id(proposal_id, timeout).await?;
+
+        // Get policy id
+        let (policy, _shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
+
+        // Sign PSBT
+        let signed_psbt = self.approve_spending_proposal(&policy, &proposal)?;
+
+        let content = nips::nip04::encrypt(
+            &shared_keys.secret_key()?,
+            &shared_keys.public_key(),
+            signed_psbt.to_string(),
+        )?;
+
+        let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
+        let mut tags: Vec<Tag> = extracted_pubkeys
+            .iter()
+            .map(|p| Tag::PubKey(*p, None))
+            .collect();
+        tags.push(Tag::Event(proposal_id, None, None));
+        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::Expiration(
+            Timestamp::now().add(Duration::from_secs(60 * 60 * 24 * 7)),
+        ));
+
+        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+        let event_id = self.client.send_event(event).await?;
+
+        Ok((event_id, signed_psbt))
+    }
+
+    pub fn combine_psbts(
+        &self,
+        base_psbt: PartiallySignedTransaction,
+        signed_psbts: Vec<PartiallySignedTransaction>,
+    ) -> Result<Transaction, Error> {
+        let mut base_psbt = base_psbt;
+
+        // Combine PSBTs
+        for psbt in signed_psbts {
+            base_psbt.combine(psbt)?;
+        }
+
+        // Finalize the transaction
+        base_psbt
+            .finalize_mut(SECP256K1)
+            .map_err(Error::ImpossibleToFinalizePsbt)?;
+
+        Ok(base_psbt.extract_tx())
     }
 
     pub async fn broadcast(
@@ -588,50 +628,78 @@ impl CoinstrClient {
         timeout: Option<Duration>,
     ) -> Result<Txid, Error> {
         // Get PSBTs
-        let (mut base_psbt, psbts) = self
+        let (base_psbt, signed_psbts) = self
             .get_signed_psbts_by_proposal_id(proposal_id, timeout)
             .await?;
 
         // Combine PSBTs
-        for psbt in psbts {
-            base_psbt.combine(psbt)?;
-        }
+        let finalized_tx = self.combine_psbts(base_psbt, signed_psbts)?;
 
-        // Finalize and broadcast the transaction
-        base_psbt
-            .finalize_mut(SECP256K1)
-            .map_err(Error::ImpossibleToFinalizePsbt)?;
-        let finalized_tx = base_psbt.extract_tx();
+        // Broadcast
         #[cfg(not(target_arch = "wasm32"))]
         blockchain.broadcast(&finalized_tx)?;
         #[cfg(target_arch = "wasm32")]
         blockchain.broadcast(&finalized_tx).await?;
-        let txid = finalized_tx.txid();
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
             log::error!("Impossibe to delete proposal {proposal_id}: {e}");
         }
 
-        Ok(txid)
-    }
-
-    pub async fn get_approved_proposal_by_id_for_own_keys(
-        &self,
-        proposal_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<EventId, Error> {
-        let keys = self.client.keys();
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .event(proposal_id)
-            .kind(APPROVED_PROPOSAL_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let event = events.first().ok_or(Error::ApprovedProposalNotFound)?;
-        Ok(event.id)
+        Ok(finalized_tx.txid())
     }
 
     pub fn inner(&self) -> Client {
         self.client.clone()
+    }
+}
+
+#[cfg(feature = "electrum")]
+#[cfg(test)]
+mod test {
+    use bdk::blockchain::ElectrumBlockchain;
+    use bdk::electrum_client::Client as ElectrumClient;
+    use nostr_sdk::prelude::FromSkStr;
+
+    use super::*;
+
+    const NETWORK: Network = Network::Testnet;
+    const BITCOIN_ENDPOINT: &str = "ssl://blockstream.info:993";
+
+    #[tokio::test]
+    async fn test_spend_approve_combine() -> Result<()> {
+        let descriptor = "tr(38e977f65c9d4f7adafc50d7a181a5a4fcbbce3cda2f29bd123163e21e9bf307,multi_a(2,f831caf722214748c72db4829986bd0cbb2bb8b3aeade1c959624a52a9629046,3eea9e831fefdaa8df35187a204d82edb589a36b170955ac5ca6b88340befaa0))#39a2m6vn";
+
+        let keys_a =
+            Keys::from_sk_str("1614a50390bc2c2ed7d2a68caeb3f79fb8c9ec76a7fecaa6c60ded40652ab684")?;
+        let keys_b =
+            Keys::from_sk_str("d5a2db059247c393d8d11bab1374b20390c1ec162aaca3782578f2bf433ebeb7")?;
+
+        let client_a = CoinstrClient::new(keys_a, Vec::new(), NETWORK).await?;
+        let client_b = CoinstrClient::new(keys_b, Vec::new(), NETWORK).await?;
+
+        let policy = Policy::from_descriptor("Name", "Description", descriptor)?;
+
+        // Build spending proposal
+        let blockchain = ElectrumBlockchain::from(ElectrumClient::new(BITCOIN_ENDPOINT)?);
+        let (proposal, _) = client_a
+            .build_spending_proposal(
+                &policy,
+                Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
+                1120,
+                "Testing",
+                FeeRate::default(),
+                blockchain,
+            )
+            .await?;
+
+        // Sign
+        let signed_psbt_a = client_a.approve_spending_proposal(&policy, &proposal)?;
+        let signed_psbt_b = client_b.approve_spending_proposal(&policy, &proposal)?;
+
+        // Combine PSBTs
+        let _tx = client_b.combine_psbts(proposal.psbt, vec![signed_psbt_a, signed_psbt_b])?;
+
+        Ok(())
     }
 }

@@ -26,3 +26,6 @@ thiserror = "1.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bdk = { version = "0.27", default-features = false, features = ["async-interface"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros"] }
