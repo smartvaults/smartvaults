@@ -9,6 +9,7 @@ mod proposal;
 mod proposals;
 mod setting;
 mod spend;
+mod transactions;
 
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
 pub use self::dashboard::{DashboardMessage, DashboardState};
@@ -18,3 +19,4 @@ pub use self::proposal::{ProposalMessage, ProposalState};
 pub use self::proposals::{ProposalsMessage, ProposalsState};
 pub use self::setting::{SettingMessage, SettingState};
 pub use self::spend::{SpendMessage, SpendState};
+pub use self::transactions::{TransactionsMessage, TransactionsState};

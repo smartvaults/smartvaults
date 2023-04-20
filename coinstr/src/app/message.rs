@@ -3,7 +3,7 @@
 
 use super::screen::{
     AddPolicyMessage, DashboardMessage, PoliciesMessage, PolicyMessage, ProposalMessage,
-    ProposalsMessage, SpendMessage,
+    ProposalsMessage, SpendMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -17,6 +17,7 @@ pub enum Message {
     Spend(SpendMessage),
     Proposals(ProposalsMessage),
     Proposal(ProposalMessage),
+    Transactions(TransactionsMessage),
     Lock,
     Sync,
 }

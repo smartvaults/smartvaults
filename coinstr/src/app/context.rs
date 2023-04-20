@@ -18,6 +18,7 @@ pub enum Stage {
     Spend(Option<(EventId, Policy)>),
     Proposals,
     Proposal(EventId, SpendingProposal),
+    Transactions(Option<EventId>),
     Setting,
 }
 
