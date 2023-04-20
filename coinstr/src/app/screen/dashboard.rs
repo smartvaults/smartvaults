@@ -111,10 +111,10 @@ impl State for DashboardState {
             center_y = false;
             center_x = false;
 
-            let send_btn = button::border_text_below_icon(ARROW_DOWN, "Send")
+            let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
                 .on_press(DashboardMessage::Send.into())
                 .width(Length::Fixed(110.0));
-            let deposit_btn = button::border_text_below_icon(ARROW_UP, "Receive")
+            let deposit_btn = button::border_text_below_icon(ARROW_DOWN, "Receive")
                 .on_press(DashboardMessage::Deposit.into())
                 .width(Length::Fixed(110.0));
 
