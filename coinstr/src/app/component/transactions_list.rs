@@ -2,15 +2,15 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::TransactionDetails;
-use coinstr_core::nostr_sdk::EventId;
+use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
 use crate::app::{Message, Stage};
 use crate::component::{button, rule, Icon, Text};
-use crate::theme::color::{GREEN, YELLOW};
-use crate::theme::icon::{CHECK, FULLSCREEN, HOURGLASS};
+use crate::theme::color::{GREEN, RED, YELLOW};
+use crate::theme::icon::{CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
 pub struct TransactionsList {
     list: Option<Vec<TransactionDetails>>,
@@ -74,13 +74,13 @@ impl TransactionsList {
                             .view(),
                     )
                     .push(
-                        Text::new("Timestamp")
+                        Text::new("Date/Time")
                             .bold()
                             .bigger()
-                            .width(Length::Fixed(125.0))
+                            .width(Length::Fill)
                             .view(),
                     )
-                    .push(
+                    /* .push(
                         Text::new("Incoming")
                             .bold()
                             .bigger()
@@ -93,14 +93,15 @@ impl TransactionsList {
                             .bigger()
                             .width(Length::Fill)
                             .view(),
-                    )
+                    ) */
                     .push(
-                        Text::new("Total")
+                        Text::new("Amount")
                             .bold()
                             .bigger()
                             .width(Length::Fill)
                             .view(),
                     )
+                    .push(Space::with_width(40.0))
                     .push(Space::with_width(40.0))
                     .spacing(10)
                     .align_items(Alignment::Center)
@@ -139,13 +140,13 @@ impl TransactionsList {
                             .push(
                                 Text::new(
                                     tx.confirmation_time
-                                        .map(|b| b.timestamp.to_string())
+                                        .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
                                         .unwrap_or_default(),
                                 )
-                                .width(Length::Fixed(125.0))
+                                .width(Length::Fill)
                                 .view(),
                             )
-                            .push(
+                            /* .push(
                                 Text::new(format!("{} sats", format::number(tx.received)))
                                     .width(Length::Fill)
                                     .view(),
@@ -154,15 +155,21 @@ impl TransactionsList {
                                 Text::new(format!("{} sats", format::number(tx.sent)))
                                     .width(Length::Fill)
                                     .view(),
-                            )
+                            ) */
                             .push(
                                 Text::new(format!(
                                     "{}{} sats",
                                     if positive { "+" } else { "-" },
                                     format::number(total)
                                 ))
+                                .color(if positive { GREEN } else { RED })
                                 .width(Length::Fill)
                                 .view(),
+                            )
+                            .push(
+                                button::border_only_icon(CLIPBOARD)
+                                    .on_press(Message::Clipboard(tx.txid.to_string()))
+                                    .width(Length::Fixed(40.0)),
                             )
                             .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
                             .spacing(10)

@@ -107,13 +107,14 @@ impl State for ProposalState {
                     let proposal_id = self.proposal_id;
                     return Command::perform(
                         async move {
-                            let (event, psbt) = client.approve(proposal_id, None).await?;
+                            let (event, approved_proposal) =
+                                client.approve(proposal_id, None).await?;
                             cache
                                 .cache_approved_proposal(
                                     proposal_id,
                                     client.keys().public_key(),
                                     event.id,
-                                    psbt,
+                                    approved_proposal.psbt(),
                                     event.created_at,
                                 )
                                 .await;
@@ -258,19 +259,13 @@ impl State for ProposalState {
                                     .view(),
                             )
                             .push(
-                                Text::new("Timestamp")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fixed(125.0))
-                                    .view(),
-                            )
-                            .push(
-                                Text::new("Author")
+                                Text::new("Date/Time")
                                     .bold()
                                     .bigger()
                                     .width(Length::Fill)
                                     .view(),
                             )
+                            .push(Text::new("User").bold().bigger().width(Length::Fill).view())
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill),
@@ -285,8 +280,8 @@ impl State for ProposalState {
                                 .view(),
                         )
                         .push(
-                            Text::new(timestamp.to_string())
-                                .width(Length::Fixed(125.0))
+                            Text::new(timestamp.to_human_datetime())
+                                .width(Length::Fill)
                                 .view(),
                         )
                         .push(
