@@ -148,7 +148,7 @@ async fn run() -> Result<()> {
                     amount,
                     memo,
                     FeeRate::Custom(target_blocks),
-                    blockchain,
+                    &blockchain,
                     TIMEOUT,
                 )
                 .await?;

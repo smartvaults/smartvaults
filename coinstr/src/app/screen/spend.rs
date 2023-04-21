@@ -167,8 +167,13 @@ impl State for SpendState {
                                             );
                                             let (proposal_id, proposal) = client
                                                 .spend(
-                                                    policy_id, to_address, amount, memo, fee_rate,
-                                                    blockchain, None,
+                                                    policy_id,
+                                                    to_address,
+                                                    amount,
+                                                    memo,
+                                                    fee_rate,
+                                                    &blockchain,
+                                                    None,
                                                 )
                                                 .await?;
                                             cache

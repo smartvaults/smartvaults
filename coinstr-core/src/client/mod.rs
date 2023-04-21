@@ -412,22 +412,23 @@ impl CoinstrClient {
         Ok((policy_id, policy))
     }
 
-    pub async fn build_spending_proposal<S>(
+    pub async fn build_spending_proposal<S, B>(
         &self,
         policy: &Policy,
         to_address: Address,
         amount: u64,
         memo: S,
         fee_rate: FeeRate,
-        blockchain: impl Blockchain,
+        blockchain: &B,
     ) -> Result<(SpendingProposal, TransactionDetails), Error>
     where
         S: Into<String>,
+        B: Blockchain,
     {
         // Sync balance
         let wallet = self.wallet(policy.descriptor.to_string())?;
         #[cfg(not(target_arch = "wasm32"))]
-        wallet.sync(&blockchain, SyncOptions::default())?;
+        wallet.sync(blockchain, SyncOptions::default())?;
         #[cfg(target_arch = "wasm32")]
         wallet.sync(&blockchain, SyncOptions::default()).await?;
 
@@ -462,18 +463,19 @@ impl CoinstrClient {
 
     /// Make a spending proposal
     #[allow(clippy::too_many_arguments)]
-    pub async fn spend<S>(
+    pub async fn spend<S, B>(
         &self,
         policy_id: EventId,
         to_address: Address,
         amount: u64,
         memo: S,
         fee_rate: FeeRate,
-        blockchain: impl Blockchain,
+        blockchain: &B,
         timeout: Option<Duration>,
     ) -> Result<(EventId, SpendingProposal), Error>
     where
         S: Into<String>,
+        B: Blockchain,
     {
         // Get policy
         let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
@@ -693,7 +695,7 @@ mod test {
                 1120,
                 "Testing",
                 FeeRate::default(),
-                blockchain,
+                &blockchain,
             )
             .await?;
 
