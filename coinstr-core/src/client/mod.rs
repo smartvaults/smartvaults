@@ -24,7 +24,8 @@ use nostr_sdk::{
 pub mod blocking;
 
 use crate::constants::{
-    APPROVED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
+    APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND,
+    SPENDING_PROPOSAL_KIND,
 };
 use crate::policy::{self, Policy};
 use crate::proposal::{ApprovedProposal, SpendingProposal};
@@ -71,6 +72,12 @@ pub enum Error {
     PsbtNotSigned,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
+}
+
+struct GetApprovedProposals {
+    base_psbt: PartiallySignedTransaction,
+    signed_psbts: Vec<PartiallySignedTransaction>,
+    public_keys: Vec<XOnlyPublicKey>,
 }
 
 /// Coinstr Client
@@ -212,11 +219,11 @@ impl CoinstrClient {
         ))
     }
 
-    pub async fn get_signed_psbts_by_proposal_id(
+    async fn get_approved_proposals_by_id(
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(PartiallySignedTransaction, Vec<PartiallySignedTransaction>), Error> {
+    ) -> Result<GetApprovedProposals, Error> {
         // Get approved proposals
         let filter = Filter::new()
             .event(proposal_id)
@@ -232,6 +239,7 @@ impl CoinstrClient {
         let (proposal, _, shared_keys) = self.get_proposal_by_id(proposal_id, timeout).await?;
 
         let mut psbts: Vec<PartiallySignedTransaction> = Vec::new();
+        let mut public_keys = Vec::new();
 
         for event in proposals_events.into_iter() {
             let content = nips::nip04::decrypt(
@@ -241,9 +249,21 @@ impl CoinstrClient {
             )?;
             let approved_proposal = ApprovedProposal::from_json(&content)?;
             psbts.push(approved_proposal.psbt());
+
+            for tag in event.tags.into_iter() {
+                if let Tag::PubKeyReport(pubkey, ..) = tag {
+                    if !public_keys.contains(&pubkey) {
+                        public_keys.push(pubkey);
+                    }
+                }
+            }
         }
 
-        Ok((proposal.psbt, psbts))
+        Ok(GetApprovedProposals {
+            base_psbt: proposal.psbt,
+            signed_psbts: psbts,
+            public_keys,
+        })
     }
 
     pub async fn delete_policy_by_id(
@@ -634,9 +654,15 @@ impl CoinstrClient {
     where
         B: Blockchain,
     {
+        let keys = self.client.keys();
+
         // Get PSBTs
-        let (base_psbt, signed_psbts) = self
-            .get_signed_psbts_by_proposal_id(proposal_id, timeout)
+        let GetApprovedProposals {
+            base_psbt,
+            signed_psbts,
+            public_keys,
+        } = self
+            .get_approved_proposals_by_id(proposal_id, timeout)
             .await?;
 
         // Combine PSBTs
@@ -647,6 +673,15 @@ impl CoinstrClient {
         blockchain.broadcast(&finalized_tx)?;
         #[cfg(target_arch = "wasm32")]
         blockchain.broadcast(&finalized_tx).await?;
+
+        let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
+        tags.push(Tag::Event(proposal_id, None, None));
+        tags.push(Tag::Expiration(
+            Timestamp::now().add(Duration::from_secs(60 * 60 * 24)),
+        ));
+
+        let event = EventBuilder::new(BROADCASTED_PROPOSAL_KIND, "", &tags).to_event(&keys)?;
+        self.client.send_event(event).await?;
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {

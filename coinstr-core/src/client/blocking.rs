@@ -6,7 +6,6 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
@@ -61,18 +60,6 @@ impl CoinstrClient {
         timeout: Option<Duration>,
     ) -> Result<(SpendingProposal, EventId, Keys), Error> {
         block_on(async { self.client.get_proposal_by_id(proposal_id, timeout).await })
-    }
-
-    pub fn get_signed_psbts_by_proposal_id(
-        &self,
-        proposal_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<(PartiallySignedTransaction, Vec<PartiallySignedTransaction>), Error> {
-        block_on(async {
-            self.client
-                .get_signed_psbts_by_proposal_id(proposal_id, timeout)
-                .await
-        })
     }
 
     pub fn delete_policy_by_id(
