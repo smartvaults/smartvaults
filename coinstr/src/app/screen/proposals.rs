@@ -5,15 +5,14 @@ use std::collections::BTreeMap;
 
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::SpendingProposal;
-use coinstr_core::util;
-use iced::widget::{Column, Row, Space};
+use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::Dashboard;
-use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::app::component::{Dashboard, SpendingProposalsList};
+use crate::app::{Context, Message, State};
+use crate::component::{button, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{FULLSCREEN, RELOAD};
+use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
 pub enum ProposalsMessage {
@@ -83,77 +82,7 @@ impl State for ProposalsState {
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-                if !self.loading {
-                    reload_btn = reload_btn.on_press(ProposalsMessage::Reload.into());
-                }
-
-                content = content
-                    .push(
-                        Row::new()
-                            .push(
-                                Text::new("ID")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fixed(115.0))
-                                    .view(),
-                            )
-                            .push(
-                                Text::new("Policy ID")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fixed(115.0))
-                                    .view(),
-                            )
-                            .push(
-                                Text::new("Amount")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fixed(125.0))
-                                    .view(),
-                            )
-                            .push(Text::new("Memo").bold().bigger().width(Length::Fill).view())
-                            .push(reload_btn)
-                            .spacing(10)
-                            .align_items(Alignment::Center)
-                            .width(Length::Fill),
-                    )
-                    .push(rule::horizontal_bold());
-
-                for (proposal_id, (policy_id, proposal)) in self.proposals.iter() {
-                    let row = Row::new()
-                        .push(
-                            Text::new(util::cut_event_id(*proposal_id))
-                                .width(Length::Fixed(115.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new(util::cut_event_id(*policy_id))
-                                .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Policy(*policy_id)))
-                                .view(),
-                        )
-                        .push(
-                            Text::new(format!("{} sat", util::format::big_number(proposal.amount)))
-                                .width(Length::Fixed(125.0))
-                                .view(),
-                        )
-                        .push(Text::new(&proposal.memo).width(Length::Fill).view())
-                        .push(
-                            button::primary_only_icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Proposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                )))
-                                .width(Length::Fixed(40.0)),
-                        )
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill);
-                    content = content.push(row).push(rule::horizontal());
-                }
+                content = content.push(SpendingProposalsList::new(self.proposals.clone()).view());
             }
         } else {
             content = content.push(Text::new("Loading...").view());

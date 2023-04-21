@@ -114,7 +114,8 @@ impl TransactionsList {
         match &self.list {
             Some(list) => {
                 if list.is_empty() {
-                    transactions = transactions.push(Text::new("No transactions").view());
+                    transactions =
+                        transactions.push(Text::new("No transactions").extra_light().view());
                 } else {
                     let list_len = list.len();
                     let take = self.take;

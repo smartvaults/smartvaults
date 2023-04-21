@@ -20,14 +20,8 @@ use tokio::sync::Mutex;
 
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
-type ApprovedProposals = Arc<
-    Mutex<
-        BTreeMap<
-            EventId,
-            BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
-        >,
-    >,
->;
+type ApprovedProposals =
+    BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>>;
 
 #[derive(Debug)]
 pub struct PolicyWallet {
@@ -40,7 +34,7 @@ pub struct PolicyWallet {
 pub struct Cache {
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
-    pub approved_proposals: ApprovedProposals,
+    pub approved_proposals: Arc<Mutex<ApprovedProposals>>,
 }
 
 impl Default for Cache {
@@ -156,10 +150,7 @@ impl Cache {
         approved_proposals.remove(&proposal_id);
     }
 
-    pub async fn approved_proposals(
-        &self,
-    ) -> BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>>
-    {
+    pub async fn approved_proposals(&self) -> ApprovedProposals {
         let approved_proposals = self.approved_proposals.lock().await;
         approved_proposals.clone()
     }
