@@ -11,7 +11,7 @@ use coinstr_core::bdk::blockchain::Blockchain;
 use coinstr_core::bdk::database::MemoryDatabase;
 use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Network, XOnlyPublicKey};
+use coinstr_core::bitcoin::{Network, Txid, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Result, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
@@ -255,5 +255,22 @@ impl Cache {
             }
         }
         Ok(transactions)
+    }
+
+    pub async fn get_tx(&self, txid: Txid) -> Option<TransactionDetails> {
+        let policies = self.policies.lock().await;
+        let mut already_seen = Vec::new();
+        for (_, pw) in policies.iter() {
+            if !already_seen.contains(&&pw.policy.descriptor) {
+                let txs = pw.wallet.list_transactions(true).ok()?;
+                for tx in txs.into_iter() {
+                    if tx.txid == txid {
+                        return Some(tx);
+                    }
+                }
+                already_seen.push(&pw.policy.descriptor);
+            }
+        }
+        None
     }
 }
