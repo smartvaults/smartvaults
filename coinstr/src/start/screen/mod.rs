@@ -4,9 +4,11 @@
 use iced::widget::{Column, Container, Row, Scrollable};
 use iced::{Alignment, Element, Length};
 
+mod generate;
 mod open;
 mod restore;
 
+pub use self::generate::{GenerateMessage, GenerateState};
 pub use self::open::{OpenMessage, OpenState};
 pub use self::restore::{RestoreMessage, RestoreState};
 use super::Message;

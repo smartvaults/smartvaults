@@ -9,7 +9,7 @@ pub mod screen;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-use self::screen::{OpenState, RestoreState};
+use self::screen::{GenerateState, OpenState, RestoreState};
 use crate::app::App;
 use crate::constants::APP_NAME;
 use crate::theme::Theme;
@@ -36,7 +36,7 @@ pub trait State {
 pub fn new_state(context: &Context) -> Box<dyn State> {
     match &context.stage {
         Stage::Open => OpenState::new().into(),
-        Stage::New => todo!(),
+        Stage::New => GenerateState::new().into(),
         Stage::Restore => RestoreState::new().into(),
     }
 }

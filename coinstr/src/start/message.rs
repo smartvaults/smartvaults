@@ -3,7 +3,7 @@
 
 use coinstr_core::Coinstr;
 
-use super::screen::{OpenMessage, RestoreMessage};
+use super::screen::{GenerateMessage, OpenMessage, RestoreMessage};
 use super::Stage;
 
 #[derive(Debug, Clone)]
@@ -11,6 +11,7 @@ pub enum Message {
     View(Stage),
     Open(OpenMessage),
     Restore(RestoreMessage),
+    Generate(GenerateMessage),
     OpenResult(Coinstr),
 }
 
