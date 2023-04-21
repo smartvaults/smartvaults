@@ -251,7 +251,7 @@ impl CoinstrClient {
             psbts.push(approved_proposal.psbt());
 
             for tag in event.tags.into_iter() {
-                if let Tag::PubKeyReport(pubkey, ..) = tag {
+                if let Tag::PubKey(pubkey, ..) = tag {
                     if !public_keys.contains(&pubkey) {
                         public_keys.push(pubkey);
                     }
