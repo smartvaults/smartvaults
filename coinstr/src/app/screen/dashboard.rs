@@ -7,15 +7,13 @@ use std::time::Duration;
 use coinstr_core::bdk::{Balance, TransactionDetails};
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::SpendingProposal;
-use iced::alignment::Horizontal;
-use iced::widget::{Column, Container, Row, Space};
-use iced::{time, Alignment, Command, Element, Length, Subscription};
+use iced::widget::{Column, Space};
+use iced::{time, Command, Element, Length, Subscription};
 
 use crate::app::component::{Balances, Dashboard, SpendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text};
+use crate::component::Text;
 use crate::constants::APP_NAME;
-use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
 #[derive(Debug, Clone)]
 pub enum DashboardMessage {
@@ -123,34 +121,17 @@ impl State for DashboardState {
             center_y = false;
             center_x = false;
 
-            let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
-                .on_press(DashboardMessage::Send.into())
-                .width(Length::Fixed(110.0));
-            let deposit_btn = button::border_text_below_icon(ARROW_DOWN, "Receive")
-                .on_press(DashboardMessage::Deposit.into())
-                .width(Length::Fixed(110.0));
-
             content = content
-                .push(Text::new("Dashboard").size(40).bold().view())
-                .push(Space::with_height(Length::Fixed(40.0)))
+                .push(Space::with_height(Length::Fixed(50.0)))
                 .push(
-                    Row::new()
-                        .push(
-                            Row::new()
-                                .push(send_btn)
-                                .push(deposit_btn)
-                                .spacing(10)
-                                .width(Length::Fill),
-                        )
-                        .push(
-                            Container::new(Balances::new(self.balance.clone()).view())
-                                .align_x(Horizontal::Right),
-                        )
-                        .width(Length::Fill)
-                        .align_items(Alignment::Center),
+                    Balances::new(self.balance.clone())
+                        .bigger()
+                        .on_send(DashboardMessage::Send.into())
+                        .on_deposit(DashboardMessage::Deposit.into())
+                        .view(),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Spending proposals").bold().size(24).view())
+                .push(Text::new("Spending proposals").bold().size(25).view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
                     SpendingProposalsList::new(self.proposals.clone())
@@ -158,7 +139,7 @@ impl State for DashboardState {
                         .view(),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Transactions").bold().size(24).view())
+                .push(Text::new("Transactions").bold().size(25).view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())

@@ -7,15 +7,13 @@ use coinstr_core::bdk::{Balance, TransactionDetails};
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
-use iced::alignment::Horizontal;
-use iced::widget::{Column, Container, Row, Space};
+use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::{Balances, Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text};
+use crate::component::{rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
 #[derive(Debug, Clone)]
 pub enum PolicyMessage {
@@ -130,29 +128,58 @@ impl State for PolicyState {
             let title = format!("Policy #{}", util::cut_event_id(self.policy_id));
             content = content
                 .push(Text::new(title).size(40).bold().view())
-                .push(Space::with_height(Length::Fixed(40.0)));
-
-            let send_btn = button::border_text_below_icon(ARROW_UP, "Send")
-                .on_press(PolicyMessage::Send.into())
-                .width(Length::Fixed(110.0));
-            let deposit_btn = button::border_text_below_icon(ARROW_DOWN, "Receive")
-                .on_press(PolicyMessage::Deposit.into())
-                .width(Length::Fixed(110.0));
+                .push(Space::with_height(Length::Fixed(30.0)));
 
             content = content
                 .push(
                     Row::new()
                         .push(
-                            Row::new()
-                                .push(send_btn)
-                                .push(deposit_btn)
+                            Column::new()
+                                .push(
+                                    Text::new(format!(
+                                        "Name: {}",
+                                        self.policy
+                                            .as_ref()
+                                            .map(|p| p.name.as_str())
+                                            .unwrap_or("Unavailable")
+                                    ))
+                                    .view(),
+                                )
+                                .push(
+                                    Text::new(format!(
+                                        "Description: {}",
+                                        self.policy
+                                            .as_ref()
+                                            .map(|p| p.description.as_str())
+                                            .unwrap_or("Unavailable")
+                                    ))
+                                    .view(),
+                                )
+                                .push(
+                                    Text::new(format!(
+                                        "Last sync: {}",
+                                        last_sync.to_human_datetime()
+                                    ))
+                                    .view(),
+                                )
                                 .spacing(10)
-                                .width(Length::Fill),
+                                .max_width(300),
                         )
+                        .push(Space::with_width(Length::Fixed(10.0)))
                         .push(
-                            Container::new(Balances::new(self.balance.clone()).view())
-                                .align_x(Horizontal::Right),
+                            Column::new()
+                                .push(rule::vertical())
+                                .height(Length::Fixed(125.0))
+                                .align_items(Alignment::Center),
                         )
+                        .push(Space::with_width(Length::Fixed(10.0)))
+                        .push(
+                            Balances::new(self.balance.clone())
+                                .on_send(PolicyMessage::Send.into())
+                                .on_deposit(PolicyMessage::Deposit.into())
+                                .view(),
+                        )
+                        .spacing(20)
                         .width(Length::Fill)
                         .align_items(Alignment::Center),
                 )
@@ -162,8 +189,7 @@ impl State for PolicyState {
                         .take(5)
                         .policy_id(self.policy_id)
                         .view(),
-                )
-                .push(Text::new(format!("Last sync: {last_sync}")).size(18).view());
+                );
         } else {
             content = content.push(Text::new("Loading...").view());
         }
