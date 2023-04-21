@@ -38,7 +38,7 @@ impl Balances {
                     .push(
                         Column::new()
                             .push(Space::with_height(Length::Fixed(8.0)))
-                            .push(Text::new("sats").size(35).view())
+                            .push(Text::new("sat").size(35).view())
                             .push(Space::with_height(Length::Fixed(29.0)))
                             .align_items(Alignment::End),
                     )

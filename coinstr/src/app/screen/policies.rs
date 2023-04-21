@@ -158,7 +158,7 @@ impl State for PoliciesState {
                     let balance: String = if *synced {
                         match balance {
                             Some(balance) => {
-                                format!("{} sats", util::format::big_number(balance.get_total()))
+                                format!("{} sat", util::format::big_number(balance.get_total()))
                             }
                             None => String::from("Unavailabe"),
                         }

@@ -317,7 +317,7 @@ impl State for SpendState {
                     .placeholder("Address")
                     .view();
 
-                let amount = NumericInput::new("Amount (sats)", self.amount)
+                let amount = NumericInput::new("Amount (sat)", self.amount)
                     .on_input(|s| SpendMessage::AmountChanged(s).into())
                     .placeholder("Amount");
 

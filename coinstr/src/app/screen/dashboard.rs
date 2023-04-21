@@ -140,7 +140,7 @@ impl State for DashboardState {
                 .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())
-                        .take(5)
+                        .take(3)
                         .view(),
                 );
         } else {

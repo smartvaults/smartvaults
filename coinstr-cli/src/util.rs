@@ -137,19 +137,19 @@ where
     let balance = wallet.get_balance()?;
     println!("{}", "Balances".fg::<BlazeOrange>().underline());
     println!(
-        "- Immature            	: {} sats",
+        "- Immature            	: {} sat",
         format::number(balance.immature)
     );
     println!(
-        "- Trusted pending     	: {} sats",
+        "- Trusted pending     	: {} sat",
         format::number(balance.trusted_pending)
     );
     println!(
-        "- Untrusted pending   	: {} sats",
+        "- Untrusted pending   	: {} sat",
         format::number(balance.untrusted_pending)
     );
     println!(
-        "- Confirmed           	: {} sats",
+        "- Confirmed           	: {} sat",
         format::number(balance.confirmed)
     );
 
@@ -295,7 +295,7 @@ pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal, EventId)>) {
             policy_id.to_hex()[..9],
             proposal.memo,
             proposal.to_address,
-            format!("{} sats", format::number(proposal.amount))
+            format!("{} sat", format::number(proposal.amount))
         ]);
     }
 

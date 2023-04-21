@@ -88,10 +88,10 @@ Policy
                     └── ⏰ Absolute Timelock of  52560
 
 Balances
-- Immature            	: 0 sats
-- Trusted pending     	: 0 sats
-- Untrusted pending   	: 0 sats
-- Confirmed           	: 3 000 sats
+- Immature            	: 0 sat
+- Trusted pending     	: 0 sat
+- Untrusted pending   	: 0 sat
+- Confirmed           	: 3 000 sat
 
 Deposit address: tb1pqt7zfuvek8z2ymgjzahftq04sd7xj7rujyjd69acvxl9n4f95alqmtkuv6
 ```

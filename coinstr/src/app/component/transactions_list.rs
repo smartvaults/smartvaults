@@ -147,18 +147,18 @@ impl TransactionsList {
                                 .view(),
                             )
                             /* .push(
-                                Text::new(format!("{} sats", format::number(tx.received)))
+                                Text::new(format!("{} sat", format::number(tx.received)))
                                     .width(Length::Fill)
                                     .view(),
                             )
                             .push(
-                                Text::new(format!("{} sats", format::number(tx.sent)))
+                                Text::new(format!("{} sat", format::number(tx.sent)))
                                     .width(Length::Fill)
                                     .view(),
                             ) */
                             .push(
                                 Text::new(format!(
-                                    "{}{} sats",
+                                    "{}{} sat",
                                     if positive { "+" } else { "-" },
                                     format::number(total)
                                 ))

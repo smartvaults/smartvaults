@@ -103,10 +103,10 @@ Produces the following output:
                 └── 🔑 <pk:025eace63cc5d93fb883082d30ccfbe43f16bbe869a2f1f0858a86ed6fa0475d52>
 
 Balances
-- Immature            	: 0 sats
-- Trusted pending     	: 0 sats
-- Untrusted pending   	: 0 sats
-- Confirmed           	: 0 sats
+- Immature            	: 0 sat
+- Trusted pending     	: 0 sat
+- Untrusted pending   	: 0 sat
+- Confirmed           	: 0 sat
 
 Deposit address: tb1ph64hcng7egq67qm9q7k2n805qf86llxeup9l86n4yv6sszxmn5uqjnwmdw
 ```
@@ -136,7 +136,7 @@ Create the below table:
 +---+------------------------------------------------------------------+-----------+-------------------------+------------------------------------+------------+
 | # | ID                                                               | Policy ID | Memo                    | Address                            | Amount     |
 +===+==================================================================+===========+=========================+====================================+============+
-| 1 | c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6 | 0a24f8f6f | Send back to the faucet | mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78 | 1 000 sats |
+| 1 | c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6 | 0a24f8f6f | Send back to the faucet | mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78 | 1 000 sat |
 +---+------------------------------------------------------------------+-----------+-------------------------+------------------------------------+------------+
 ```
 

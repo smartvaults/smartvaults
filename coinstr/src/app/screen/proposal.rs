@@ -200,7 +200,7 @@ impl State for ProposalState {
                 .push(Text::new(format!("Address: {}", self.proposal.to_address)).view())
                 .push(
                     Text::new(format!(
-                        "Amount: {} sats",
+                        "Amount: {} sat",
                         util::format::number(self.proposal.amount)
                     ))
                     .view(),

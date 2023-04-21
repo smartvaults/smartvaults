@@ -508,7 +508,7 @@ impl CoinstrClient {
         let sender = self.client.keys().public_key();
         let mut msg = String::from("New spending proposal:\n");
         msg.push_str(&format!(
-            "- Amount: {} sats\n",
+            "- Amount: {} sat\n",
             util::format::big_number(amount)
         ));
         msg.push_str(&format!("- Memo: {memo}"));

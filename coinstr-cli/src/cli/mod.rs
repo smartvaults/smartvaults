@@ -84,7 +84,7 @@ pub enum Command {
         /// To address
         #[arg(required = true)]
         to_address: Address,
-        /// Amount in sats
+        /// Amount in sat
         #[arg(required = true)]
         amount: u64,
         /// Memo

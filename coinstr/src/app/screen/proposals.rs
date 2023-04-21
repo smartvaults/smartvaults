@@ -136,12 +136,9 @@ impl State for ProposalsState {
                                 .view(),
                         )
                         .push(
-                            Text::new(format!(
-                                "{} sats",
-                                util::format::big_number(proposal.amount)
-                            ))
-                            .width(Length::Fixed(125.0))
-                            .view(),
+                            Text::new(format!("{} sat", util::format::big_number(proposal.amount)))
+                                .width(Length::Fixed(125.0))
+                                .view(),
                         )
                         .push(Text::new(&proposal.memo).width(Length::Fill).view())
                         .push(
