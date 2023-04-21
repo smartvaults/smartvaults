@@ -25,6 +25,8 @@ jobs:
         build-args:
           [
             "-p coinstr-core",
+            "-p coinstr-core --features blocking",
+            "-p coinstr-core --features electrum",
             "-p coinstr-cli",
             "-p coinstr",
           ]
