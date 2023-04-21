@@ -15,6 +15,10 @@ pub fn horizontal_bold() -> Rule<Renderer> {
     Rule::horizontal(1).style(theme::Rule::Custom(Box::new(BoldRuleStyle)))
 }
 
+pub fn vertical() -> Rule<Renderer> {
+    Rule::vertical(1)
+}
+
 pub struct BoldRuleStyle;
 
 impl rule::StyleSheet for BoldRuleStyle {
