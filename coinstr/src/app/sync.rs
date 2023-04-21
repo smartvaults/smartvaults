@@ -2,14 +2,12 @@
 // Distributed under the MIT software license
 
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::Duration;
 
 use async_recursion::async_recursion;
 use async_stream::stream;
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
-use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::{APPROVED_PROPOSAL_KIND, POLICY_KIND, SPENDING_PROPOSAL_KIND};
 use coinstr_core::nostr_sdk::prelude::TagKind;
@@ -17,7 +15,7 @@ use coinstr_core::nostr_sdk::{
     nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag,
 };
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::{ApprovedProposal, SpendingProposal};
 use coinstr_core::{util, CoinstrClient};
 use futures_util::future::{AbortHandle, Abortable};
 use iced::Subscription;
@@ -202,13 +200,13 @@ async fn handle_event(
                         &shared_key.public_key(),
                         &event.content,
                     )?;
-                    let psbt = PartiallySignedTransaction::from_str(&content)?;
+                    let approved_proposal = ApprovedProposal::from_json(&content)?;
                     cache
                         .cache_approved_proposal(
                             proposal_id,
                             event.pubkey,
                             event.id,
-                            psbt,
+                            approved_proposal.psbt(),
                             event.created_at,
                         )
                         .await;

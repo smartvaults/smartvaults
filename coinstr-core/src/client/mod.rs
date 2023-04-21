@@ -239,7 +239,8 @@ impl CoinstrClient {
                 &shared_keys.public_key(),
                 &event.content,
             )?;
-            psbts.push(PartiallySignedTransaction::from_str(&content)?);
+            let approved_proposal = ApprovedProposal::from_json(&content)?;
+            psbts.push(approved_proposal.psbt());
         }
 
         Ok((proposal.psbt, psbts))
