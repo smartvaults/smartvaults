@@ -9,9 +9,10 @@ use std::time::Duration;
 
 use coinstr_core::bdk::blockchain::Blockchain;
 use coinstr_core::bdk::database::MemoryDatabase;
+use coinstr_core::bdk::wallet::AddressIndex;
 use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Network, Txid, XOnlyPublicKey};
+use coinstr_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Result, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
@@ -223,6 +224,15 @@ impl Cache {
         let policies = self.policies.lock().await;
         let pw = policies.get(&policy_id)?;
         pw.wallet.list_transactions(false).ok()
+    }
+
+    pub async fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
+        let policies = self.policies.lock().await;
+        let pw = policies.get(&policy_id)?;
+        pw.wallet
+            .get_address(AddressIndex::LastUnused)
+            .ok()
+            .map(|a| a.address)
     }
 
     pub async fn get_total_balance(&self) -> Result<(Balance, bool)> {
