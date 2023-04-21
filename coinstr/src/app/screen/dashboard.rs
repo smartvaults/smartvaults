@@ -1,14 +1,17 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use coinstr_core::bdk::{Balance, TransactionDetails};
+use coinstr_core::nostr_sdk::EventId;
+use coinstr_core::proposal::SpendingProposal;
 use iced::alignment::Horizontal;
 use iced::widget::{Column, Container, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
-use crate::app::component::{Balances, Dashboard, TransactionsList};
+use crate::app::component::{Balances, Dashboard, SpendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text};
 use crate::constants::APP_NAME;
@@ -18,7 +21,11 @@ use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 pub enum DashboardMessage {
     Send,
     Deposit,
-    WalletsSynced(Option<Balance>, Option<Vec<TransactionDetails>>),
+    Load(
+        Option<Balance>,
+        BTreeMap<EventId, (EventId, SpendingProposal)>,
+        Option<Vec<TransactionDetails>>,
+    ),
     Reload,
 }
 
@@ -27,6 +34,7 @@ pub struct DashboardState {
     loading: bool,
     loaded: bool,
     balance: Option<Balance>,
+    proposals: BTreeMap<EventId, (EventId, SpendingProposal)>,
     transactions: Option<Vec<TransactionDetails>>,
 }
 
@@ -36,6 +44,7 @@ impl DashboardState {
             loading: false,
             loaded: false,
             balance: None,
+            proposals: BTreeMap::new(),
             transactions: None,
         }
     }
@@ -60,15 +69,17 @@ impl State for DashboardState {
                 let (balance, synced) = cache.get_total_balance().await.unwrap();
                 let txs = cache.get_all_transactions().await.unwrap();
 
+                let proposals = cache.proposals().await;
+
                 if !synced {
                     tokio::time::sleep(Duration::from_secs(3)).await;
                 }
 
-                (balance, txs, synced)
+                (balance, proposals, txs, synced)
             },
-            |(balance, txs, synced)| {
+            |(balance, proposals, txs, synced)| {
                 if synced {
-                    DashboardMessage::WalletsSynced(Some(balance), Some(txs)).into()
+                    DashboardMessage::Load(Some(balance), proposals, Some(txs)).into()
                 } else {
                     DashboardMessage::Reload.into()
                 }
@@ -87,8 +98,9 @@ impl State for DashboardState {
                     return Command::perform(async {}, |_| Message::View(Stage::Spend(None)));
                 }
                 DashboardMessage::Deposit => (),
-                DashboardMessage::WalletsSynced(balance, txs) => {
+                DashboardMessage::Load(balance, proposals, txs) => {
                     self.balance = balance;
+                    self.proposals = proposals;
                     self.transactions = txs;
                     self.loading = false;
                     self.loaded = true;
@@ -138,6 +150,16 @@ impl State for DashboardState {
                         .align_items(Alignment::Center),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
+                .push(Text::new("Spending proposals").bold().size(24).view())
+                .push(Space::with_height(Length::Fixed(10.0)))
+                .push(
+                    SpendingProposalsList::new(self.proposals.clone())
+                        .take(3)
+                        .view(),
+                )
+                .push(Space::with_height(Length::Fixed(20.0)))
+                .push(Text::new("Transactions").bold().size(24).view())
+                .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())
                         .take(3)
