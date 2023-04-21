@@ -18,6 +18,7 @@ pub enum Message {
     Proposals(ProposalsMessage),
     Proposal(ProposalMessage),
     Transactions(TransactionsMessage),
+    Clipboard(String),
     Lock,
     Sync,
 }

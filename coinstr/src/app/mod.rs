@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_core::Coinstr;
-use iced::{Command, Element, Subscription};
+use iced::{clipboard, Command, Element, Subscription};
 
 mod cache;
 mod component;
@@ -93,6 +93,7 @@ impl App {
                 self.state.load(&self.context)
             }
             Message::Sync => self.state.load(&self.context),
+            Message::Clipboard(data) => clipboard::write(data),
             _ => self.state.update(&mut self.context, message),
         }
     }
