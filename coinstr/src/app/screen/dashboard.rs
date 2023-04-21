@@ -95,7 +95,9 @@ impl State for DashboardState {
                 DashboardMessage::Send => {
                     return Command::perform(async {}, |_| Message::View(Stage::Spend(None)));
                 }
-                DashboardMessage::Deposit => (),
+                DashboardMessage::Deposit => {
+                    return Command::perform(async {}, |_| Message::View(Stage::Receive(None)))
+                }
                 DashboardMessage::Load(balance, proposals, txs) => {
                     self.balance = balance;
                     self.proposals = proposals;

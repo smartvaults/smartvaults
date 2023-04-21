@@ -97,7 +97,14 @@ impl State for PolicyState {
                         None => Message::View(Stage::Policies),
                     });
                 }
-                PolicyMessage::Deposit => (),
+                PolicyMessage::Deposit => {
+                    let policy_id = self.policy_id;
+                    let policy = self.policy.clone();
+                    return Command::perform(async {}, move |_| match policy {
+                        Some(policy) => Message::View(Stage::Receive(Some((policy_id, policy)))),
+                        None => Message::View(Stage::Policies),
+                    });
+                }
                 PolicyMessage::LoadPolicy(policy, balance, list, last_sync) => {
                     self.policy = Some(policy);
                     self.balance = balance;
