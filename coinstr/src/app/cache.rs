@@ -148,6 +148,7 @@ impl Cache {
         proposals.remove(&proposal_id);
         let mut approved_proposals = self.approved_proposals.lock().await;
         approved_proposals.remove(&proposal_id);
+        log::info!("Proposal {proposal_id} removed");
     }
 
     pub async fn approved_proposals(&self) -> ApprovedProposals {

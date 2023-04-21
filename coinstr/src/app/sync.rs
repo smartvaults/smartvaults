@@ -9,7 +9,9 @@ use async_stream::stream;
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::constants::{APPROVED_PROPOSAL_KIND, POLICY_KIND, SPENDING_PROPOSAL_KIND};
+use coinstr_core::constants::{
+    APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND, SPENDING_PROPOSAL_KIND,
+};
 use coinstr_core::nostr_sdk::prelude::TagKind;
 use coinstr_core::nostr_sdk::{
     nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag,
@@ -94,6 +96,9 @@ where
                 Filter::new()
                     .pubkey(keys.public_key())
                     .kind(APPROVED_PROPOSAL_KIND),
+                Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(BROADCASTED_PROPOSAL_KIND),
             ];
 
             nostr_client.subscribe(filters).await;
@@ -227,6 +232,10 @@ async fn handle_event(
                 "Impossible to find proposal id in approved proposal {}",
                 event.id
             );
+        }
+    } else if event.kind == BROADCASTED_PROPOSAL_KIND {
+        if let Some(proposal_id) = util::extract_first_event_id(&event) {
+            cache.uncache_proposal(proposal_id).await;
         }
     }
 

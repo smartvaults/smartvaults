@@ -78,8 +78,22 @@ impl State for ProposalState {
         let proposal_id = self.proposal_id;
         self.loading = true;
         Command::perform(
-            async move { cache.signed_psbts_by_proposal_id(proposal_id).await },
-            |result| ProposalMessage::LoadApprovedProposals(result.unwrap_or_default()).into(),
+            async move {
+                if cache.proposal_exists(proposal_id).await {
+                    Some(
+                        cache
+                            .signed_psbts_by_proposal_id(proposal_id)
+                            .await
+                            .unwrap_or_default(),
+                    )
+                } else {
+                    None
+                }
+            },
+            |res| match res {
+                Some(data) => ProposalMessage::LoadApprovedProposals(data).into(),
+                None => Message::View(Stage::Dashboard),
+            },
         )
     }
 
