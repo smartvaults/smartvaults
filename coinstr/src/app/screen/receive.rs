@@ -74,7 +74,7 @@ impl ReceiveState {
 
 impl State for ReceiveState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Send")
+        format!("{APP_NAME} - Receive")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
