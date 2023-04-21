@@ -18,7 +18,7 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::color::{DARK_RED, GREEN, YELLOW};
+use crate::theme::color::{GREEN, RED, YELLOW};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
@@ -244,6 +244,10 @@ impl State for ProposalState {
                 .push(Row::new().push(approve_btn).push(broadcast_btn).spacing(10))
                 .push(Space::with_height(20.0));
 
+            if let Some(error) = &self.error {
+                content = content.push(Text::new(error).color(RED).view());
+            };
+
             if !self.approved_proposals.is_empty() {
                 content = content
                     .push(Text::new("Approvals").bold().bigger().view())
@@ -294,10 +298,6 @@ impl State for ProposalState {
                     content = content.push(row).push(rule::horizontal());
                 }
             }
-
-            if let Some(error) = &self.error {
-                content = content.push(Text::new(error).color(DARK_RED).view());
-            };
         } else {
             content = content.push(Text::new("Loading...").view());
         }
