@@ -7,7 +7,7 @@ use std::time::Duration;
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Network, XOnlyPublicKey};
+use coinstr_core::bitcoin::{Network, Txid, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util;
@@ -144,14 +144,13 @@ impl State for ProposalState {
                         async move {
                             let blockchain =
                                 ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                            client.broadcast(proposal_id, &blockchain, None).await?;
+                            let txid = client.broadcast(proposal_id, &blockchain, None).await?;
                             cache.uncache_proposal(proposal_id).await;
                             cache.sync_wallets(&blockchain, None, true).await?;
-                            Ok::<(), Box<dyn std::error::Error>>(())
+                            Ok::<Txid, Box<dyn std::error::Error>>(txid)
                         },
                         |res| match res {
-                            // TODO: change this to Transaction stage
-                            Ok(_) => Message::View(Stage::Dashboard),
+                            Ok(txid) => Message::View(Stage::Transaction(txid)),
                             Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );

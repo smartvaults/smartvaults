@@ -172,7 +172,11 @@ impl TransactionsList {
                                     .on_press(Message::Clipboard(tx.txid.to_string()))
                                     .width(Length::Fixed(40.0)),
                             )
-                            .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                            .push(
+                                button::primary_only_icon(FULLSCREEN)
+                                    .on_press(Message::View(Stage::Transaction(tx.txid)))
+                                    .width(Length::Fixed(40.0)),
+                            )
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill);

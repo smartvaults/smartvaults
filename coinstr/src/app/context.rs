@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_core::bitcoin::Txid;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
@@ -18,6 +19,7 @@ pub enum Stage {
     Spend(Option<(EventId, Policy)>),
     Proposals,
     Proposal(EventId, SpendingProposal),
+    Transaction(Txid),
     Transactions(Option<EventId>),
     Setting,
 }
