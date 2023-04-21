@@ -27,7 +27,7 @@ use crate::constants::{
     APPROVED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
 };
 use crate::policy::{self, Policy};
-use crate::proposal::SpendingProposal;
+use crate::proposal::{ApprovedProposal, SpendingProposal};
 use crate::{util, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
@@ -535,7 +535,7 @@ impl CoinstrClient {
         &self,
         policy: &Policy,
         proposal: &SpendingProposal,
-    ) -> Result<PartiallySignedTransaction, Error> {
+    ) -> Result<ApprovedProposal, Error> {
         let keys = self.client.keys();
 
         // Create a BDK wallet
@@ -556,7 +556,7 @@ impl CoinstrClient {
         let mut psbt = proposal.psbt.clone();
         let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
         if psbt != proposal.psbt {
-            Ok(psbt)
+            Ok(ApprovedProposal::new(psbt))
         } else {
             Err(Error::PsbtNotSigned)
         }
@@ -566,7 +566,7 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(Event, PartiallySignedTransaction), Error> {
+    ) -> Result<(Event, ApprovedProposal), Error> {
         let keys = self.client.keys();
 
         // Get proposal
@@ -577,12 +577,12 @@ impl CoinstrClient {
         let (policy, _shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
 
         // Sign PSBT
-        let signed_psbt = self.approve_spending_proposal(&policy, &proposal)?;
+        let approved_proposal = self.approve_spending_proposal(&policy, &proposal)?;
 
         let content = nips::nip04::encrypt(
             &shared_keys.secret_key()?,
             &shared_keys.public_key(),
-            signed_psbt.to_string(),
+            approved_proposal.as_json(),
         )?;
 
         let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
@@ -599,7 +599,7 @@ impl CoinstrClient {
         let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
         self.client.send_event(event.clone()).await?;
 
-        Ok((event, signed_psbt))
+        Ok((event, approved_proposal))
     }
 
     pub fn combine_psbts(
@@ -698,11 +698,14 @@ mod test {
             .await?;
 
         // Sign
-        let signed_psbt_a = client_a.approve_spending_proposal(&policy, &proposal)?;
-        let signed_psbt_b = client_b.approve_spending_proposal(&policy, &proposal)?;
+        let approved_proposal_a = client_a.approve_spending_proposal(&policy, &proposal)?;
+        let approved_proposal_b = client_b.approve_spending_proposal(&policy, &proposal)?;
 
         // Combine PSBTs
-        let _tx = client_b.combine_psbts(proposal.psbt, vec![signed_psbt_a, signed_psbt_b])?;
+        let _tx = client_b.combine_psbts(
+            proposal.psbt,
+            vec![approved_proposal_a.psbt(), approved_proposal_b.psbt()],
+        )?;
 
         Ok(())
     }

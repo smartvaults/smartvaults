@@ -37,6 +37,42 @@ impl SpendingProposal {
         }
     }
 
+    pub fn psbt(&self) -> PartiallySignedTransaction {
+        self.psbt.clone()
+    }
+
+    /// Deserialize from `JSON` string
+    pub fn from_json<S>(json: S) -> Result<Self, serde_json::Error>
+    where
+        S: Into<String>,
+    {
+        serde_json::from_str(&json.into())
+    }
+
+    /// Serialize to `JSON` string
+    pub fn as_json(&self) -> String {
+        serde_json::json!(self).to_string()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApprovedProposal {
+    #[serde(
+        serialize_with = "serialize_psbt",
+        deserialize_with = "deserialize_psbt"
+    )]
+    pub psbt: PartiallySignedTransaction,
+}
+
+impl ApprovedProposal {
+    pub fn new(psbt: PartiallySignedTransaction) -> Self {
+        Self { psbt }
+    }
+
+    pub fn psbt(&self) -> PartiallySignedTransaction {
+        self.psbt.clone()
+    }
+
     /// Deserialize from `JSON` string
     pub fn from_json<S>(json: S) -> Result<Self, serde_json::Error>
     where
