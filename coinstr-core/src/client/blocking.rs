@@ -13,7 +13,7 @@ use bdk::Wallet;
 use nostr_sdk::block_on;
 use nostr_sdk::{Event, EventId, Keys, Metadata, Result};
 
-use super::{Error, FeeRate};
+use super::{Amount, Error, FeeRate};
 use crate::policy::Policy;
 use crate::proposal::{ApprovedProposal, SpendingProposal};
 
@@ -111,7 +111,7 @@ impl CoinstrClient {
         &self,
         policy_id: EventId,
         to_address: Address,
-        amount: u64,
+        amount: Amount,
         memo: S,
         fee_rate: FeeRate,
         blockchain: &B,

@@ -48,3 +48,9 @@ impl FeeRate {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Amount {
+    Max,
+    Custom(u64),
+}

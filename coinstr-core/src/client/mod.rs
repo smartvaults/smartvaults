@@ -29,7 +29,7 @@ use crate::constants::{
 };
 use crate::policy::{self, Policy};
 use crate::proposal::{ApprovedProposal, SpendingProposal};
-use crate::{util, FeeRate};
+use crate::{util, Amount, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -437,7 +437,7 @@ impl CoinstrClient {
         &self,
         policy: &Policy,
         to_address: Address,
-        amount: u64,
+        amount: Amount,
         memo: S,
         fee_rate: FeeRate,
         blockchain: &B,
@@ -471,12 +471,16 @@ impl CoinstrClient {
         let (psbt, details) = {
             let mut builder = wallet.build_tx();
             builder
-                .add_recipient(to_address.script_pubkey(), amount)
                 .policy_path(path, KeychainKind::External)
                 .fee_rate(fee_rate);
+            match amount {
+                Amount::Max => builder.drain_wallet().drain_to(to_address.script_pubkey()),
+                Amount::Custom(amount) => builder.add_recipient(to_address.script_pubkey(), amount),
+            };
             builder.finish()?
         };
 
+        let amount: u64 = details.sent.saturating_sub(details.received);
         let proposal = SpendingProposal::new(to_address, amount, memo, psbt);
 
         Ok((proposal, details))
@@ -488,7 +492,7 @@ impl CoinstrClient {
         &self,
         policy_id: EventId,
         to_address: Address,
-        amount: u64,
+        amount: Amount,
         memo: S,
         fee_rate: FeeRate,
         blockchain: &B,
@@ -530,7 +534,7 @@ impl CoinstrClient {
         let mut msg = String::from("New spending proposal:\n");
         msg.push_str(&format!(
             "- Amount: {} sat\n",
-            util::format::big_number(amount)
+            util::format::big_number(proposal.amount)
         ));
         msg.push_str(&format!("- Memo: {memo}"));
         for pubkey in extracted_pubkeys.into_iter() {
@@ -728,7 +732,7 @@ mod test {
             .build_spending_proposal(
                 &policy,
                 Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
-                1120,
+                Amount::Custom(1120),
                 "Testing",
                 FeeRate::default(),
                 &blockchain,
