@@ -24,3 +24,4 @@ pub const ARROW_DOWN: char = '\u{F128}';
 pub const ARROW_UP: char = '\u{F148}';
 pub const PLUS: char = '\u{F64D}';
 pub const HOURGLASS: char = '\u{F41F}';
+pub const NETWORK: char = '\u{F2EE}';
