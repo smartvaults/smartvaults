@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use iced::alignment::Horizontal;
 use iced::widget::{Button, Text as NativeText};
 use iced::{Color, Element, Font, Length};
 
@@ -13,6 +14,7 @@ pub struct Text<Message> {
     color: Option<Color>,
     font: Font,
     width: Option<Length>,
+    horizontal_alignment: Option<Horizontal>,
     on_press: Option<Message>,
 }
 
@@ -30,6 +32,7 @@ where
             color: None,
             font: REGULAR,
             width: None,
+            horizontal_alignment: None,
             on_press: None,
         }
     }
@@ -56,6 +59,10 @@ where
         Self { font: BOLD, ..self }
     }
 
+    pub fn smaller(self) -> Self {
+        Self { size: 18, ..self }
+    }
+
     pub fn bigger(self) -> Self {
         Self { size: 22, ..self }
     }
@@ -66,6 +73,13 @@ where
             ..self
         }
     }
+
+    /* pub fn horizontal_alignment(self, alignment: Horizontal) -> Self {
+        Self {
+            horizontal_alignment: Some(alignment),
+            ..self
+        }
+    } */
 
     pub fn on_press(self, message: Message) -> Self {
         Self {
@@ -85,6 +99,10 @@ where
 
         if let Some(length) = self.width {
             text = text.width(length);
+        }
+
+        if let Some(alignment) = self.horizontal_alignment {
+            text = text.horizontal_alignment(alignment);
         }
 
         if let Some(on_press) = self.on_press {
