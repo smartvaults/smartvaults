@@ -12,7 +12,7 @@ use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{FINGERPRINT, HOME, KEY, LOCK, SEND_PENDING, SETTING};
+use crate::theme::icon::{FINGERPRINT, HOME, KEY, LOCK, NETWORK, SEND_PENDING, SETTING};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -51,11 +51,17 @@ impl Sidebar {
             Ok(fingerprint) => Text::new(fingerprint.to_string()),
             Err(_) => Text::new("error").color(DARK_RED),
         };
-        let identity = Column::new()
+        let details = Column::new()
             .push(
                 Row::new()
                     .push(Icon::new(FINGERPRINT).view())
                     .push(fingerprint.view())
+                    .spacing(10),
+            )
+            .push(
+                Row::new()
+                    .push(Icon::new(NETWORK).view())
+                    .push(Text::new(ctx.coinstr.network().to_string()).view())
                     .spacing(10),
             )
             .spacing(10)
@@ -77,7 +83,7 @@ impl Sidebar {
             Container::new(Column::new().push(logo).padding([30, 0]))
                 .width(Length::Fill)
                 .center_x(),
-            Container::new(identity).width(Length::Fill).center_x(),
+            Container::new(details).width(Length::Fill).center_x(),
             sidebar_menu(vec![
                 home_button,
                 policies_button,
