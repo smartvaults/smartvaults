@@ -36,7 +36,7 @@ pub fn main() -> iced::Result {
 
     let network = parse_network(std::env::args().collect());
     let mut settings = Settings::with_flags(network);
-    settings.window.min_size = Some((600, 600));
+    settings.window.min_size = Some((1000, 600));
     settings.text_multithreading = true;
     settings.default_font = Some(theme::font::REGULAR_BYTES);
     CoinstrApp::run(settings)
