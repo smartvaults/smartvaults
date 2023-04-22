@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::widget::{Column, Row, TextInput as NativeTextInput};
+use iced::widget::{Button, Column, Row, TextInput as NativeTextInput};
 
 use super::Text;
 
@@ -10,6 +10,7 @@ pub struct TextInput<Message> {
     value: String,
     placeholder: String,
     password: bool,
+    button: Option<Button<'static, Message>>,
     on_input: Option<Box<dyn Fn(String) -> Message>>,
     on_submit: Option<Message>,
 }
@@ -27,6 +28,7 @@ where
             value: value.into(),
             placeholder: String::new(),
             password: false,
+            button: None,
             on_input: None,
             on_submit: None,
         }
@@ -45,6 +47,13 @@ where
     pub fn password(self) -> Self {
         Self {
             password: true,
+            ..self
+        }
+    }
+
+    pub fn button(self, btn: Button<'static, Message>) -> Self {
+        Self {
+            button: Some(btn),
             ..self
         }
     }
@@ -80,9 +89,15 @@ where
             text_input = text_input.on_submit(message);
         }
 
+        let mut input_row = Row::new().push(text_input);
+
+        if let Some(btn) = self.button {
+            input_row = input_row.push(btn).spacing(5);
+        }
+
         Column::new()
             .push(Row::new().push(Text::new(self.name).view()))
-            .push(Row::new().push(text_input))
+            .push(input_row)
             .spacing(5)
     }
 }
