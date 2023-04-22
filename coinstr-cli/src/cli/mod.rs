@@ -94,6 +94,24 @@ pub enum Command {
         #[clap(short, long, default_value_t = 6)]
         target_blocks: usize,
     },
+    /// Create a spending proposal (send all funds)
+    SpendAll {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Policy id
+        #[arg(required = true)]
+        policy_id: EventId,
+        /// To address
+        #[arg(required = true)]
+        to_address: Address,
+        /// Memo
+        #[arg(required = true)]
+        memo: String,
+        /// Taget blocks
+        #[clap(short, long, default_value_t = 6)]
+        target_blocks: usize,
+    },
     /// Approve a spending proposal
     Approve {
         /// Keychain name

@@ -12,7 +12,7 @@ use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
-use coinstr_core::{Coinstr, FeeRate, Keychain, Result};
+use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
 
 mod cli;
 mod util;
@@ -145,7 +145,32 @@ async fn run() -> Result<()> {
                 .spend(
                     policy_id,
                     to_address,
-                    amount,
+                    Amount::Custom(amount),
+                    memo,
+                    FeeRate::Custom(target_blocks),
+                    &blockchain,
+                    TIMEOUT,
+                )
+                .await?;
+            println!("Spending proposal {proposal_id} sent");
+            Ok(())
+        }
+        Command::SpendAll {
+            name,
+            policy_id,
+            to_address,
+            memo,
+            target_blocks,
+        } => {
+            let path = get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.client(relays).await?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+            let (proposal_id, _proposal) = client
+                .spend(
+                    policy_id,
+                    to_address,
+                    Amount::Max,
                     memo,
                     FeeRate::Custom(target_blocks),
                     &blockchain,
