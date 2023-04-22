@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use coinstr_core::bdk::TransactionDetails;
 use coinstr_core::bitcoin::{Address, Txid};
+use coinstr_core::nostr_sdk::Timestamp;
 use coinstr_core::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Command, Element, Length, Subscription};
@@ -177,6 +178,24 @@ impl State for TransactionState {
 
             let txid: String = self.txid.to_string();
             let title = format!("Txid {}..{}", &txid[..6], &txid[txid.len() - 6..]);
+
+            let (confirmed_at_block, confirmed_at_time, confirmations) =
+                match tx.confirmation_time.as_ref() {
+                    Some(block_time) => {
+                        let confirmations: u32 = ctx.cache.block_height() - block_time.height;
+                        (
+                            format::number(block_time.height as u64),
+                            Timestamp::from(block_time.timestamp).to_human_datetime(),
+                            format::number(confirmations as u64),
+                        )
+                    }
+                    None => (
+                        "Unconfirmed".to_string(),
+                        "Unconfirmed".to_string(),
+                        "Unconfirmed".to_string(),
+                    ),
+                };
+
             content = content
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(10.0)))
@@ -185,23 +204,14 @@ impl State for TransactionState {
                         .push(
                             Column::new()
                                 .push(Text::new("Block").bigger().extra_light().view())
-                                .push(
-                                    Text::new(
-                                        tx.confirmation_time
-                                            .as_ref()
-                                            .map(|b| format::number(b.height as u64))
-                                            .unwrap_or_else(|| "Unconfirmed".to_string()),
-                                    )
-                                    .size(25)
-                                    .view(),
-                                )
+                                .push(Text::new(confirmed_at_block).size(25).view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
                         .push(
                             Column::new()
                                 .push(Text::new("Confirmations").bigger().extra_light().view())
-                                .push(Text::new("TODO").size(25).view())
+                                .push(Text::new(confirmations).size(25).view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
@@ -266,6 +276,15 @@ impl State for TransactionState {
                         )
                         .spacing(10)
                         .width(Length::Fill),
+                )
+                .push(
+                    Row::new().push(
+                        Column::new()
+                            .push(Text::new("Date/Time").bigger().extra_light().view())
+                            .push(Text::new(confirmed_at_time).size(25).view())
+                            .spacing(10)
+                            .width(Length::Fill),
+                    ),
                 )
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
