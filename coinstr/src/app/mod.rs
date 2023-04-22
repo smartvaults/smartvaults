@@ -12,6 +12,7 @@ pub mod screen;
 mod sync;
 
 use crate::constants::APP_NAME;
+use crate::theme::Theme;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
@@ -63,9 +64,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(coinstr: Coinstr) -> (Self, Command<Message>) {
+    pub fn new(coinstr: Coinstr, theme: Theme) -> (Self, Command<Message>) {
         let stage = Stage::default();
-        let context = Context::new(stage.clone(), coinstr);
+        let context = Context::new(stage.clone(), coinstr, theme);
         let app = Self {
             state: new_state(&context),
             context,
@@ -78,6 +79,10 @@ impl App {
 
     pub fn title(&self) -> String {
         self.state.title()
+    }
+
+    pub fn theme(&self) -> Theme {
+        self.context.theme
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

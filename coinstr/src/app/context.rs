@@ -8,6 +8,7 @@ use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::{Coinstr, CoinstrClient};
 
 use super::cache::Cache;
+use crate::theme::Theme;
 use crate::RUNTIME;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,10 +37,11 @@ pub struct Context {
     pub coinstr: Coinstr,
     pub client: CoinstrClient,
     pub cache: Cache,
+    pub theme: Theme,
 }
 
 impl Context {
-    pub fn new(stage: Stage, coinstr: Coinstr) -> Self {
+    pub fn new(stage: Stage, coinstr: Coinstr, theme: Theme) -> Self {
         // TODO: let choose the relay and network
         let client = RUNTIME.block_on(async {
             coinstr
@@ -53,6 +55,7 @@ impl Context {
             coinstr,
             client,
             cache: Cache::new(),
+            theme,
         }
     }
 

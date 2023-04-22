@@ -3,6 +3,8 @@
 
 #![allow(dead_code)]
 
+use std::fmt;
+
 use iced::theme::{Palette, Theme as NativeTheme};
 
 pub mod color;
@@ -46,5 +48,14 @@ impl Theme {
 impl From<Theme> for NativeTheme {
     fn from(theme: Theme) -> Self {
         Self::custom(theme.palette())
+    }
+}
+
+impl fmt::Display for Theme {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Light => write!(f, "Light"),
+            Self::Dark => write!(f, "Dark"),
+        }
     }
 }

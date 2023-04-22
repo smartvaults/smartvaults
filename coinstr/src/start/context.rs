@@ -3,6 +3,8 @@
 
 use coinstr_core::bitcoin::Network;
 
+use crate::theme::Theme;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
     Open,
@@ -19,11 +21,16 @@ impl Default for Stage {
 pub struct Context {
     pub stage: Stage,
     pub network: Network,
+    pub theme: Theme,
 }
 
 impl Context {
-    pub fn new(stage: Stage, network: Network) -> Self {
-        Self { stage, network }
+    pub fn new(stage: Stage, network: Network, theme: Theme) -> Self {
+        Self {
+            stage,
+            network,
+            theme,
+        }
     }
 
     pub fn set_stage(&mut self, stage: Stage) {

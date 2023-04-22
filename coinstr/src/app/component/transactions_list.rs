@@ -80,20 +80,6 @@ impl TransactionsList {
                             .width(Length::Fill)
                             .view(),
                     )
-                    /* .push(
-                        Text::new("Incoming")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    )
-                    .push(
-                        Text::new("Outcoming")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    ) */
                     .push(
                         Text::new("Amount")
                             .bold()
@@ -147,16 +133,6 @@ impl TransactionsList {
                                 .width(Length::Fill)
                                 .view(),
                             )
-                            /* .push(
-                                Text::new(format!("{} sat", format::number(tx.received)))
-                                    .width(Length::Fill)
-                                    .view(),
-                            )
-                            .push(
-                                Text::new(format!("{} sat", format::number(tx.sent)))
-                                    .width(Length::Fill)
-                                    .view(),
-                            ) */
                             .push(
                                 Text::new(format!(
                                     "{}{} sat",

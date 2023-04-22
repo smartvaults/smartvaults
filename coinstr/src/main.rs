@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use coinstr_core::bitcoin::Network;
-use iced::{executor, Application, Command, Element, Settings, Subscription, Theme as NativeTheme};
+use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
 
@@ -14,8 +14,6 @@ mod component;
 mod constants;
 mod start;
 mod theme;
-
-use self::theme::Theme;
 
 static KEYCHAINS_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::keychains().expect("Impossible to get keychains path"));
@@ -44,7 +42,6 @@ pub fn main() -> iced::Result {
 
 pub struct CoinstrApp {
     state: State,
-    theme: Theme,
 }
 pub enum State {
     Start(start::Start),
@@ -61,14 +58,13 @@ impl Application for CoinstrApp {
     type Executor = executor::Default;
     type Flags = Network;
     type Message = Message;
-    type Theme = NativeTheme;
+    type Theme = Theme;
 
     fn new(network: Network) -> (Self, Command<Self::Message>) {
         let stage = start::Start::new(network);
         (
             Self {
                 state: State::Start(stage.0),
-                theme: Theme::default(),
             },
             stage.1.map(|m| m.into()),
         )
@@ -87,8 +83,11 @@ impl Application for CoinstrApp {
         }
     }
 
-    fn theme(&self) -> NativeTheme {
-        self.theme.into()
+    fn theme(&self) -> Theme {
+        match &self.state {
+            State::Start(start) => start.theme().into(),
+            State::App(app) => app.theme().into(),
+        }
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

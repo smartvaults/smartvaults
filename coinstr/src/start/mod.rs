@@ -50,7 +50,8 @@ pub struct Start {
 impl Start {
     pub fn new(network: Network) -> (Self, Command<Message>) {
         let stage = Stage::default();
-        let context = Context::new(stage, network);
+        // TODO: load theme from config
+        let context = Context::new(stage, network, Theme::default());
         let app = Self {
             state: new_state(&context),
             context,
@@ -65,6 +66,10 @@ impl Start {
         self.state.title()
     }
 
+    pub fn theme(&self) -> Theme {
+        self.context.theme
+    }
+
     pub fn subscription(&self) -> Subscription<Message> {
         self.state.subscription()
     }
@@ -77,12 +82,11 @@ impl Start {
                 (self.state.load(&self.context), None)
             }
             Message::OpenResult(coinstr) => {
-                let (app, _) = App::new(coinstr);
+                let (app, _) = App::new(coinstr, self.context.theme);
                 (
                     Command::none(),
                     Some(CoinstrApp {
                         state: crate::State::App(app),
-                        theme: Theme::default(),
                     }),
                 )
             }
