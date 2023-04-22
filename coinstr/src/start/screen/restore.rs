@@ -4,7 +4,6 @@
 use std::str::FromStr;
 
 use coinstr_core::bip39::Mnemonic;
-use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
 use iced::widget::{Checkbox, Column, Row};
@@ -50,7 +49,7 @@ impl State for RestoreState {
         format!("{APP_NAME} - Restore")
     }
 
-    fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
+    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Restore(msg) = message {
             match msg {
                 RestoreMessage::NameChanged(name) => self.name = name,
@@ -64,14 +63,13 @@ impl State for RestoreState {
                 RestoreMessage::PassphraseChanged(passphrase) => self.passphrase = passphrase,
                 RestoreMessage::RestoreButtonPressed => {
                     if self.password.eq(&self.confirm_password) {
-                        // TODO: replace network
                         match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), self.name.clone()) {
                             Ok(path) => match Coinstr::restore(
                                 path,
                                 || Ok(self.password.clone()),
                                 || Ok(Mnemonic::from_str(&self.mnemonic)?),
                                 || Ok(Some(self.passphrase.clone())),
-                                Network::Testnet,
+                                ctx.network,
                             ) {
                                 Ok(keechain) => {
                                     return Command::perform(async {}, move |_| {

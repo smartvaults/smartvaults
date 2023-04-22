@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
 use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
@@ -17,32 +16,17 @@ use crate::KEYCHAINS_PATH;
 #[derive(Debug, Clone)]
 pub enum OpenMessage {
     LoadKeychains,
-    NetworkSelect(Network),
     KeychainSelect(String),
     PasswordChanged(String),
     OpenButtonPressed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct OpenState {
-    network: Network,
     keychains: Vec<String>,
     name: Option<String>,
     password: String,
     error: Option<String>,
-}
-
-impl Default for OpenState {
-    fn default() -> Self {
-        Self {
-            // TODO: add option to select network
-            network: Network::Testnet,
-            keychains: Vec::new(),
-            name: None,
-            password: String::new(),
-            error: None,
-        }
-    }
 }
 
 impl OpenState {
@@ -56,7 +40,7 @@ impl State for OpenState {
         Command::perform(async {}, |_| Message::Open(OpenMessage::LoadKeychains))
     }
 
-    fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
+    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Open(msg) = message {
             match msg {
                 OpenMessage::LoadKeychains => {
@@ -65,24 +49,22 @@ impl State for OpenState {
                         Err(e) => self.error = Some(e.to_string()),
                     }
                 }
-                OpenMessage::NetworkSelect(network) => self.network = network,
                 OpenMessage::KeychainSelect(name) => self.name = Some(name),
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
                 OpenMessage::OpenButtonPressed => {
                     if let Some(name) = &self.name {
                         match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), name) {
-                            Ok(path) => match Coinstr::open(
-                                path,
-                                || Ok(self.password.clone()),
-                                self.network,
-                            ) {
-                                Ok(keechain) => {
-                                    return Command::perform(async {}, move |_| {
-                                        Message::OpenResult(keechain)
-                                    })
+                            Ok(path) => {
+                                match Coinstr::open(path, || Ok(self.password.clone()), ctx.network)
+                                {
+                                    Ok(keechain) => {
+                                        return Command::perform(async {}, move |_| {
+                                            Message::OpenResult(keechain)
+                                        })
+                                    }
+                                    Err(e) => self.error = Some(e.to_string()),
                                 }
-                                Err(e) => self.error = Some(e.to_string()),
-                            },
+                            }
                             Err(e) => self.error = Some(e.to_string()),
                         }
                     } else {

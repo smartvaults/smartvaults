@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_core::bitcoin::Network;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
     Open,
@@ -16,11 +18,12 @@ impl Default for Stage {
 
 pub struct Context {
     pub stage: Stage,
+    pub network: Network,
 }
 
 impl Context {
-    pub fn new(stage: Stage) -> Self {
-        Self { stage }
+    pub fn new(stage: Stage, network: Network) -> Self {
+        Self { stage, network }
     }
 
     pub fn set_stage(&mut self, stage: Stage) {

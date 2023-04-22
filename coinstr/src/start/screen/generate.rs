@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bitcoin::Network;
 use coinstr_core::types::WordCount;
 use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
@@ -47,7 +46,7 @@ impl State for GenerateState {
         format!("{APP_NAME} - Generate")
     }
 
-    fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
+    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Generate(msg) = message {
             match msg {
                 GenerateMessage::NameChanged(name) => self.name = name,
@@ -60,14 +59,13 @@ impl State for GenerateState {
                 GenerateMessage::PassphraseChanged(passphrase) => self.passphrase = passphrase,
                 GenerateMessage::Generate => {
                     if self.password.eq(&self.confirm_password) {
-                        // TODO: replace network
                         match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), self.name.clone()) {
                             Ok(path) => match Coinstr::generate(
                                 path,
                                 || Ok(self.password.clone()),
                                 WordCount::W12, // TODO: let user choose the len.
                                 || Ok(Some(self.passphrase.clone())),
-                                Network::Testnet,
+                                ctx.network,
                             ) {
                                 Ok(keechain) => {
                                     return Command::perform(async {}, move |_| {

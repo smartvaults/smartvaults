@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_core::bitcoin::Network;
 use iced::{Command, Element, Subscription};
 
 mod context;
@@ -43,13 +44,13 @@ pub fn new_state(context: &Context) -> Box<dyn State> {
 
 pub struct Start {
     state: Box<dyn State>,
-    context: Context,
+    pub(crate) context: Context,
 }
 
 impl Start {
-    pub fn new() -> (Self, Command<Message>) {
+    pub fn new(network: Network) -> (Self, Command<Message>) {
         let stage = Stage::default();
-        let context = Context::new(stage);
+        let context = Context::new(stage, network);
         let app = Self {
             state: new_state(&context),
             context,

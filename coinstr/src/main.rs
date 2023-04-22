@@ -2,7 +2,9 @@
 // Distributed under the MIT software license
 
 use std::path::PathBuf;
+use std::str::FromStr;
 
+use coinstr_core::bitcoin::Network;
 use iced::{executor, Application, Command, Element, Settings, Subscription, Theme as NativeTheme};
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
@@ -19,10 +21,21 @@ static KEYCHAINS_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::keychains().expect("Impossible to get keychains path"));
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));
 
+fn parse_network(args: Vec<String>) -> Network {
+    for (i, arg) in args.iter().enumerate() {
+        if arg.contains("--") {
+            let network = Network::from_str(args[i].trim_start_matches("--")).unwrap();
+            return network;
+        }
+    }
+    Network::Bitcoin
+}
+
 pub fn main() -> iced::Result {
     env_logger::init();
 
-    let mut settings = Settings::default();
+    let network = parse_network(std::env::args().collect());
+    let mut settings = Settings::with_flags(network);
     settings.window.min_size = Some((600, 600));
     settings.text_multithreading = true;
     settings.default_font = Some(theme::font::REGULAR_BYTES);
@@ -46,12 +59,12 @@ pub enum Message {
 
 impl Application for CoinstrApp {
     type Executor = executor::Default;
-    type Flags = ();
+    type Flags = Network;
     type Message = Message;
     type Theme = NativeTheme;
 
-    fn new(_flags: ()) -> (Self, Command<Self::Message>) {
-        let stage = start::Start::new();
+    fn new(network: Network) -> (Self, Command<Self::Message>) {
+        let stage = start::Start::new(network);
         (
             Self {
                 state: State::Start(stage.0),
@@ -62,9 +75,15 @@ impl Application for CoinstrApp {
     }
 
     fn title(&self) -> String {
-        match &self.state {
-            State::Start(auth) => auth.title(),
-            State::App(app) => app.title(),
+        let (title, network) = match &self.state {
+            State::Start(auth) => (auth.title(), auth.context.network),
+            State::App(app) => (app.title(), app.context.coinstr.network()),
+        };
+
+        if network == Network::Bitcoin {
+            title
+        } else {
+            format!("{title} [{network}]")
         }
     }
 
@@ -96,7 +115,7 @@ impl Application for CoinstrApp {
                             log::error!("Impossible to shutdown client: {}", e.to_string());
                         }
                     });
-                    let new = Self::new(());
+                    let new = Self::new(app.context.coinstr.network());
                     *self = new.0;
                     new.1
                 }
