@@ -4,6 +4,7 @@
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::ops::Add;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -33,6 +34,7 @@ pub struct PolicyWallet {
 
 #[derive(Debug, Clone)]
 pub struct Cache {
+    pub block_height: Arc<AtomicU32>,
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
     pub approved_proposals: Arc<Mutex<ApprovedProposals>>,
@@ -47,10 +49,21 @@ impl Default for Cache {
 impl Cache {
     pub fn new() -> Self {
         Self {
+            block_height: Arc::new(AtomicU32::new(0)),
             policies: Arc::new(Mutex::new(BTreeMap::new())),
             proposals: Arc::new(Mutex::new(BTreeMap::new())),
             approved_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
+    }
+
+    pub fn block_height(&self) -> u32 {
+        self.block_height.load(Ordering::SeqCst)
+    }
+
+    pub fn cache_block_height(&self, block_height: u32) {
+        let _ = self
+            .block_height
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(block_height));
     }
 
     pub async fn policy_exists(&self, policy_id: EventId) -> bool {
@@ -199,6 +212,9 @@ impl Cache {
     where
         B: Blockchain,
     {
+        let block_height: u32 = blockchain.get_height()?;
+        self.cache_block_height(block_height);
+
         let mut policies = self.policies.lock().await;
         for (policy_id, pw) in policies.iter_mut() {
             let last_sync = pw.last_sync.unwrap_or_else(|| Timestamp::from(0));
