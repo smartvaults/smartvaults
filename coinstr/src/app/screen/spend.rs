@@ -6,12 +6,14 @@ use std::str::FromStr;
 
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_core::bdk::Balance;
 use coinstr_core::bitcoin::{Address, Network};
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::util::format;
 use coinstr_core::{util, FeeRate};
-use iced::widget::{Column, PickList, Radio, Row, Space};
+use iced::widget::{Column, Container, PickList, Radio, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
@@ -42,10 +44,12 @@ impl fmt::Display for PolicyPicLisk {
 pub enum SpendMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
     PolicySelectd(PolicyPicLisk),
+    LoadBalance(EventId),
     AddressChanged(String),
     AmountChanged(Option<u64>),
     MemoChanged(String),
     FeeRateChanged(FeeRate),
+    BalanceChanged(Option<Balance>),
     ErrorChanged(Option<String>),
     Review,
     EditProposal,
@@ -60,6 +64,7 @@ pub struct SpendState {
     amount: Option<u64>,
     memo: String,
     fee_rate: FeeRate,
+    balance: Option<Balance>,
     reviewing: bool,
     loading: bool,
     loaded: bool,
@@ -78,6 +83,7 @@ impl SpendState {
             amount: None,
             memo: String::new(),
             fee_rate: FeeRate::default(),
+            balance: None,
             reviewing: false,
             loading: false,
             loaded: false,
@@ -117,10 +123,28 @@ impl State for SpendState {
                     self.policies = policies;
                     self.loading = false;
                     self.loaded = true;
+                    if let Some(policy) = self.policy.as_ref() {
+                        let policy_id = policy.policy_id;
+                        return Command::perform(async {}, move |_| {
+                            SpendMessage::LoadBalance(policy_id).into()
+                        });
+                    }
                 }
                 SpendMessage::PolicySelectd(policy) => {
+                    let policy_id = policy.policy_id;
                     self.policy = Some(policy);
+                    return Command::perform(async {}, move |_| {
+                        SpendMessage::LoadBalance(policy_id).into()
+                    });
                 }
+                SpendMessage::LoadBalance(policy_id) => {
+                    let cache = ctx.cache.clone();
+                    return Command::perform(
+                        async move { cache.get_balance(policy_id).await },
+                        |balance| SpendMessage::BalanceChanged(balance).into(),
+                    );
+                }
+                SpendMessage::BalanceChanged(balance) => self.balance = balance,
                 SpendMessage::AddressChanged(value) => self.to_address = value,
                 SpendMessage::AmountChanged(value) => self.amount = value,
                 SpendMessage::MemoChanged(value) => self.memo = value,
@@ -290,10 +314,6 @@ impl State for SpendState {
                     .push(Space::with_height(Length::Fixed(15.0)))
                     .push(send_proposal_btn)
                     .push(back_btn)
-                    .align_items(Alignment::Center)
-                    .spacing(10)
-                    .padding(20)
-                    .max_width(400)
             } else {
                 let policy_pick_list = Column::new()
                     .push(Text::new("Policy").view())
@@ -320,6 +340,21 @@ impl State for SpendState {
                 let amount = NumericInput::new("Amount (sat)", self.amount)
                     .on_input(|s| SpendMessage::AmountChanged(s).into())
                     .placeholder("Amount");
+
+                let your_balance = if self.policy.is_some() {
+                    Text::new(match &self.balance {
+                        Some(balance) => {
+                            format!("Balance: {} sat", format::number(balance.get_spendable()))
+                        }
+                        None => String::from("Loading..."),
+                    })
+                    .extra_light()
+                    .smaller()
+                    .width(Length::Fill)
+                    .view()
+                } else {
+                    Text::new("").view()
+                };
 
                 let memo = TextInput::new("Memo", &self.memo)
                     .on_input(|s| SpendMessage::MemoChanged(s).into())
@@ -411,6 +446,7 @@ impl State for SpendState {
                     .push(policy_pick_list)
                     .push(address)
                     .push(amount)
+                    .push(your_balance)
                     .push(memo)
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(fee_selector)
@@ -418,14 +454,20 @@ impl State for SpendState {
                     .push(error)
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(continue_btn)
-                    .align_items(Alignment::Center)
-                    .spacing(10)
-                    .padding(20)
-                    .max_width(400)
             }
         } else {
             Column::new().push(Text::new("Loading...").view())
         };
+
+        let content = Container::new(
+            content
+                .align_items(Alignment::Center)
+                .spacing(10)
+                .padding(20)
+                .max_width(400),
+        )
+        .width(Length::Fill)
+        .center_x();
 
         Dashboard::new().view(ctx, content, true, true)
     }
