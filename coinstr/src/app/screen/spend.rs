@@ -12,7 +12,7 @@ use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::SpendingProposal;
 use coinstr_core::util::format;
-use coinstr_core::{util, FeeRate};
+use coinstr_core::{util, Amount, FeeRate};
 use iced::widget::{Column, Container, PickList, Radio, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -47,6 +47,7 @@ pub enum SpendMessage {
     LoadBalance(EventId),
     AddressChanged(String),
     AmountChanged(Option<u64>),
+    SendAllBtnPressed,
     MemoChanged(String),
     FeeRateChanged(FeeRate),
     BalanceChanged(Option<Balance>),
@@ -62,6 +63,7 @@ pub struct SpendState {
     policies: Vec<PolicyPicLisk>,
     to_address: String,
     amount: Option<u64>,
+    send_all: bool,
     memo: String,
     fee_rate: FeeRate,
     balance: Option<Balance>,
@@ -81,6 +83,7 @@ impl SpendState {
             policies: Vec::new(),
             to_address: String::new(),
             amount: None,
+            send_all: false,
             memo: String::new(),
             fee_rate: FeeRate::default(),
             balance: None,
@@ -89,6 +92,58 @@ impl SpendState {
             loaded: false,
             error: None,
         }
+    }
+
+    fn spend(
+        &mut self,
+        ctx: &mut Context,
+        policy_id: EventId,
+        to_address: Address,
+        amount: Amount,
+    ) -> Command<Message> {
+        self.loading = true;
+
+        let client = ctx.client.clone();
+        let cache = ctx.cache.clone();
+        let memo = self.memo.clone();
+        let fee_rate = self.fee_rate;
+
+        // TODO: get electrum endpoint from config file
+        let bitcoin_endpoint: &str = match ctx.coinstr.network() {
+            Network::Bitcoin => "ssl://blockstream.info:700",
+            Network::Testnet => "ssl://blockstream.info:993",
+            _ => panic!("Endpoints not availabe for this network"),
+        };
+
+        Command::perform(
+            async move {
+                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+                let (proposal_id, proposal) = client
+                    .spend(
+                        policy_id,
+                        to_address,
+                        amount,
+                        memo,
+                        fee_rate,
+                        &blockchain,
+                        None,
+                    )
+                    .await?;
+                cache
+                    .cache_proposal(proposal_id, policy_id, proposal.clone())
+                    .await;
+                Ok::<(EventId, SpendingProposal), Box<dyn std::error::Error>>((
+                    proposal_id,
+                    proposal,
+                ))
+            },
+            |res| match res {
+                Ok((proposal_id, proposal)) => {
+                    Message::View(Stage::Proposal(proposal_id, proposal))
+                }
+                Err(e) => SpendMessage::ErrorChanged(Some(e.to_string())).into(),
+            },
+        )
     }
 }
 
@@ -147,92 +202,60 @@ impl State for SpendState {
                 SpendMessage::BalanceChanged(balance) => self.balance = balance,
                 SpendMessage::AddressChanged(value) => self.to_address = value,
                 SpendMessage::AmountChanged(value) => self.amount = value,
+                SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
                 SpendMessage::MemoChanged(value) => self.memo = value,
                 SpendMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
                 SpendMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;
                 }
-                SpendMessage::Review => match self.amount {
+                SpendMessage::Review => match &self.policy {
                     Some(_) => match Address::from_str(&self.to_address) {
                         Ok(_) => {
-                            self.error = None;
-                            self.reviewing = true;
+                            if self.send_all {
+                                self.error = None;
+                                self.reviewing = true;
+                            } else {
+                                match self.amount {
+                                    Some(_) => {
+                                        self.error = None;
+                                        self.reviewing = true;
+                                    }
+                                    None => self.error = Some(String::from("Invalid amount")),
+                                };
+                            }
                         }
                         Err(e) => self.error = Some(e.to_string()),
                     },
-                    None => self.error = Some(String::from("Invalid amount")),
+                    None => self.error = Some(String::from("You must select a policy")),
                 },
                 SpendMessage::EditProposal => self.reviewing = false,
-                SpendMessage::SendProposal => {
-                    match &self.policy {
-                        Some(policy) => match self.amount {
-                            Some(amount) => match Address::from_str(&self.to_address) {
-                                Ok(to_address) => {
-                                    self.loading = true;
-
-                                    let client = ctx.client.clone();
-                                    let cache = ctx.cache.clone();
-                                    let policy_id = policy.policy_id;
-                                    let memo = self.memo.clone();
-                                    let fee_rate = self.fee_rate;
-
-                                    // TODO: get electrum endpoint from config file
-                                    let bitcoin_endpoint: &str = match ctx.coinstr.network() {
-                                        Network::Bitcoin => "ssl://blockstream.info:700",
-                                        Network::Testnet => "ssl://blockstream.info:993",
-                                        _ => panic!("Endpoints not availabe for this network"),
+                SpendMessage::SendProposal => match &self.policy {
+                    Some(policy) => {
+                        let policy_id = policy.policy_id;
+                        match Address::from_str(&self.to_address) {
+                            Ok(to_address) => {
+                                if self.send_all {
+                                    return self.spend(ctx, policy_id, to_address, Amount::Max);
+                                } else {
+                                    match self.amount {
+                                        Some(amount) => {
+                                            return self.spend(
+                                                ctx,
+                                                policy_id,
+                                                to_address,
+                                                Amount::Custom(amount),
+                                            )
+                                        }
+                                        None => self.error = Some(String::from("Invalid amount")),
                                     };
-
-                                    return Command::perform(
-                                        async move {
-                                            let blockchain = ElectrumBlockchain::from(
-                                                ElectrumClient::new(bitcoin_endpoint)?,
-                                            );
-                                            let (proposal_id, proposal) = client
-                                                .spend(
-                                                    policy_id,
-                                                    to_address,
-                                                    amount,
-                                                    memo,
-                                                    fee_rate,
-                                                    &blockchain,
-                                                    None,
-                                                )
-                                                .await?;
-                                            cache
-                                                .cache_proposal(
-                                                    proposal_id,
-                                                    policy_id,
-                                                    proposal.clone(),
-                                                )
-                                                .await;
-                                            Ok::<
-                                                (EventId, SpendingProposal),
-                                                Box<dyn std::error::Error>,
-                                            >((
-                                                proposal_id,
-                                                proposal,
-                                            ))
-                                        },
-                                        |res| match res {
-                                            Ok((proposal_id, proposal)) => Message::View(
-                                                Stage::Proposal(proposal_id, proposal),
-                                            ),
-                                            Err(e) => {
-                                                SpendMessage::ErrorChanged(Some(e.to_string()))
-                                                    .into()
-                                            }
-                                        },
-                                    );
                                 }
-                                Err(e) => self.error = Some(e.to_string()),
-                            },
-                            None => self.error = Some(String::from("Invalid amount")),
-                        },
-                        None => self.error = Some(String::from("You must select a policy")),
+                            }
+                            Err(e) => self.error = Some(e.to_string()),
+                        }
                     }
-                }
+                    None => self.error = Some(String::from("You must select a policy")),
+                },
             }
         }
 
@@ -261,8 +284,14 @@ impl State for SpendState {
                 let amount = Column::new()
                     .push(Row::new().push(Text::new("Amount").bold().view()))
                     .push(
-                        Row::new()
-                            .push(Text::new(self.amount.unwrap_or_default().to_string()).view()),
+                        Row::new().push(
+                            Text::new(if self.send_all {
+                                String::from("Send all")
+                            } else {
+                                self.amount.unwrap_or_default().to_string()
+                            })
+                            .view(),
+                        ),
                     )
                     .spacing(5)
                     .width(Length::Fill);
@@ -337,9 +366,33 @@ impl State for SpendState {
                     .placeholder("Address")
                     .view();
 
-                let amount = NumericInput::new("Amount (sat)", self.amount)
-                    .on_input(|s| SpendMessage::AmountChanged(s).into())
-                    .placeholder("Amount");
+                let mut send_all_btn = button::border("Max").width(Length::Fixed(50.0));
+
+                if self.policy.is_some() {
+                    send_all_btn = send_all_btn.on_press(SpendMessage::SendAllBtnPressed.into());
+                }
+
+                let amount = if self.send_all {
+                    TextInput::new("Amount (sats)", "Send all")
+                        .button(send_all_btn)
+                        .view()
+                } else {
+                    Column::new().push(
+                        Row::new()
+                            .push(
+                                Column::new()
+                                    .push(
+                                        NumericInput::new("Amount (sat)", self.amount)
+                                            .on_input(|s| SpendMessage::AmountChanged(s).into())
+                                            .placeholder("Amount"),
+                                    )
+                                    .width(Length::Fill),
+                            )
+                            .push(send_all_btn)
+                            .align_items(Alignment::End)
+                            .spacing(5),
+                    )
+                };
 
                 let your_balance = if self.policy.is_some() {
                     Text::new(match &self.balance {
