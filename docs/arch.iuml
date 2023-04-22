@@ -1,0 +1,31 @@
+@startuml
+
+package "Coinstr" {
+  [Coinstr Web \n(Policy Builder)]
+  [Coinstr CLI] 
+  [Coinstr GUI]
+}
+
+cloud "Bitcoin Network"
+
+database "Events" 
+[Coinstr Web \n(Policy Builder)] <--> [Nostr Relay]
+
+[Nostr Relay] <--> Events
+[Coinstr CLI] <--> "Bitcoin Network"
+[Coinstr GUI] <--> "Bitcoin Network"
+
+[Coinstr CLI] <--> [Nostr Relay]
+[Coinstr GUI] <--> [Nostr Relay]
+
+note left of [Nostr Relay]
+ Default 
+ implementation 
+end note
+
+note right of [Events]
+ Custom event KINDS for policies, 
+ proposals, and PSBTs 
+end note
+
+@enduml
