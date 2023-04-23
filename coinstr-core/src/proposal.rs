@@ -3,6 +3,7 @@
 
 use std::str::FromStr;
 
+use bdk::bitcoin::{Txid, XOnlyPublicKey};
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::Address;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -71,6 +72,39 @@ impl ApprovedProposal {
 
     pub fn psbt(&self) -> PartiallySignedTransaction {
         self.psbt.clone()
+    }
+
+    /// Deserialize from `JSON` string
+    pub fn from_json<S>(json: S) -> Result<Self, serde_json::Error>
+    where
+        S: Into<String>,
+    {
+        serde_json::from_str(&json.into())
+    }
+
+    /// Serialize to `JSON` string
+    pub fn as_json(&self) -> String {
+        serde_json::json!(self).to_string()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BroadcastedProposal {
+    pub txid: Txid,
+    pub memo: String,
+    pub approvals: Vec<XOnlyPublicKey>,
+}
+
+impl BroadcastedProposal {
+    pub fn new<S>(txid: Txid, memo: S, approvals: Vec<XOnlyPublicKey>) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            txid,
+            memo: memo.into(),
+            approvals,
+        }
     }
 
     /// Deserialize from `JSON` string

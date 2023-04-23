@@ -24,11 +24,11 @@ use nostr_sdk::{
 pub mod blocking;
 
 use crate::constants::{
-    APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND, SHARED_KEY_KIND,
-    SPENDING_PROPOSAL_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND,
+    SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
 };
 use crate::policy::{self, Policy};
-use crate::proposal::{ApprovedProposal, SpendingProposal};
+use crate::proposal::{ApprovedProposal, BroadcastedProposal, SpendingProposal};
 use crate::{util, Amount, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
@@ -75,9 +75,12 @@ pub enum Error {
 }
 
 struct GetApprovedProposals {
-    base_psbt: PartiallySignedTransaction,
+    policy_id: EventId,
+    proposal: SpendingProposal,
     signed_psbts: Vec<PartiallySignedTransaction>,
     public_keys: Vec<XOnlyPublicKey>,
+    approvals: Vec<XOnlyPublicKey>,
+    shared_keys: Keys,
 }
 
 /// Coinstr Client
@@ -228,20 +231,24 @@ impl CoinstrClient {
         let filter = Filter::new()
             .event(proposal_id)
             .kind(APPROVED_PROPOSAL_KIND);
-        let proposals_events = self.client.get_events_of(vec![filter], timeout).await?;
-        let first_event = proposals_events
+        let approvaed_proposal_events = self.client.get_events_of(vec![filter], timeout).await?;
+        let first_event = approvaed_proposal_events
             .first()
             .ok_or(Error::ApprovedProposalNotFound)?;
         let proposal_id =
             util::extract_first_event_id(first_event).ok_or(Error::ApprovedProposalNotFound)?;
 
         // Get global shared key
-        let (proposal, _, shared_keys) = self.get_proposal_by_id(proposal_id, timeout).await?;
+        let (proposal, policy_id, shared_keys) =
+            self.get_proposal_by_id(proposal_id, timeout).await?;
 
         let mut psbts: Vec<PartiallySignedTransaction> = Vec::new();
         let mut public_keys = Vec::new();
+        let mut approvals = Vec::new();
 
-        for event in proposals_events.into_iter() {
+        for event in approvaed_proposal_events.into_iter() {
+            approvals.push(event.pubkey);
+
             let content = nips::nip04::decrypt(
                 &shared_keys.secret_key()?,
                 &shared_keys.public_key(),
@@ -260,9 +267,12 @@ impl CoinstrClient {
         }
 
         Ok(GetApprovedProposals {
-            base_psbt: proposal.psbt,
+            policy_id,
+            proposal,
             signed_psbts: psbts,
             public_keys,
+            approvals,
+            shared_keys,
         })
     }
 
@@ -620,7 +630,7 @@ impl CoinstrClient {
         tags.push(Tag::Event(proposal_id, None, None));
         tags.push(Tag::Event(policy_id, None, None));
         tags.push(Tag::Expiration(
-            Timestamp::now().add(Duration::from_secs(60 * 60 * 24 * 7)),
+            Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
         ));
 
         let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
@@ -658,19 +668,20 @@ impl CoinstrClient {
     where
         B: Blockchain,
     {
-        let keys = self.client.keys();
-
         // Get PSBTs
         let GetApprovedProposals {
-            base_psbt,
+            policy_id,
+            proposal,
             signed_psbts,
             public_keys,
+            approvals,
+            shared_keys,
         } = self
             .get_approved_proposals_by_id(proposal_id, timeout)
             .await?;
 
         // Combine PSBTs
-        let finalized_tx = self.combine_psbts(base_psbt, signed_psbts)?;
+        let finalized_tx = self.combine_psbts(proposal.psbt, signed_psbts)?;
 
         // Broadcast
         #[cfg(not(target_arch = "wasm32"))]
@@ -678,13 +689,22 @@ impl CoinstrClient {
         #[cfg(target_arch = "wasm32")]
         blockchain.broadcast(&finalized_tx).await?;
 
+        let txid: Txid = finalized_tx.txid();
+
         let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
         tags.push(Tag::Event(proposal_id, None, None));
-        tags.push(Tag::Expiration(
-            Timestamp::now().add(Duration::from_secs(60 * 60 * 24)),
-        ));
+        tags.push(Tag::Event(policy_id, None, None));
 
-        let event = EventBuilder::new(BROADCASTED_PROPOSAL_KIND, "", &tags).to_event(&keys)?;
+        let broadcasted_proposal = BroadcastedProposal::new(txid, proposal.memo, approvals);
+
+        let content = nips::nip04::encrypt(
+            &shared_keys.secret_key()?,
+            &shared_keys.public_key(),
+            broadcasted_proposal.as_json(),
+        )?;
+
+        let event =
+            EventBuilder::new(BROADCASTED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
 
         // Delete the proposal
@@ -692,7 +712,7 @@ impl CoinstrClient {
             log::error!("Impossibe to delete proposal {proposal_id}: {e}");
         }
 
-        Ok(finalized_tx.txid())
+        Ok(txid)
     }
 
     pub fn inner(&self) -> Client {
