@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::HashMap;
+use std::ops::Sub;
 use std::time::Duration;
 
 use async_recursion::async_recursion;
@@ -10,11 +11,12 @@ use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::{
-    APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND, SPENDING_PROPOSAL_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND,
+    SPENDING_PROPOSAL_KIND,
 };
 use coinstr_core::nostr_sdk::prelude::TagKind;
 use coinstr_core::nostr_sdk::{
-    nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag,
+    nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag, Timestamp,
 };
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{ApprovedProposal, SpendingProposal};
@@ -95,7 +97,8 @@ where
                     .kind(SPENDING_PROPOSAL_KIND),
                 Filter::new()
                     .pubkey(keys.public_key())
-                    .kind(APPROVED_PROPOSAL_KIND),
+                    .kind(APPROVED_PROPOSAL_KIND)
+                    .since(Timestamp::now().sub(APPROVED_PROPOSAL_EXPIRATION)),
                 Filter::new()
                     .pubkey(keys.public_key())
                     .kind(BROADCASTED_PROPOSAL_KIND),
