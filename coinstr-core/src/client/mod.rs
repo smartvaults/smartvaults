@@ -14,6 +14,7 @@ use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
+use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
     nips, Client, Event, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, Timestamp,
@@ -28,7 +29,7 @@ use crate::constants::{
     SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
 };
 use crate::policy::{self, Policy};
-use crate::proposal::{ApprovedProposal, BroadcastedProposal, SpendingProposal};
+use crate::proposal::{ApprovedProposal, CompletedProposal, SpendingProposal};
 use crate::{util, Amount, Encryption, EncryptionError, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
@@ -371,6 +372,50 @@ impl CoinstrClient {
         Ok(proposals)
     }
 
+    pub async fn get_completed_proposals(
+        &self,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<(EventId, CompletedProposal, EventId)>, Error> {
+        let keys = self.client.keys();
+
+        // Get completed proposals
+        let filter = Filter::new()
+            .pubkey(keys.public_key())
+            .kind(COMPLETED_PROPOSAL_KIND);
+        let completed_proposals_events = self.client.get_events_of(vec![filter], timeout).await?;
+
+        // Get shared keys
+        let shared_keys: HashMap<EventId, Keys> = self.get_shared_keys(timeout).await?;
+
+        let mut proposals: Vec<(EventId, CompletedProposal, EventId)> = Vec::new();
+
+        for event in completed_proposals_events.into_iter() {
+            if !event.is_expired() {
+                let policy_id = util::extract_tags_by_kind(&event, TagKind::E)
+                    .get(1)
+                    .map(|t| {
+                        if let Tag::Event(event_id, ..) = t {
+                            Some(event_id)
+                        } else {
+                            None
+                        }
+                    })
+                    .ok_or(Error::PolicyNotFound)?
+                    .ok_or(Error::PolicyNotFound)?;
+                let shared_key: &Keys = shared_keys
+                    .get(policy_id)
+                    .ok_or(Error::SharedKeysNotFound)?;
+                proposals.push((
+                    event.id,
+                    CompletedProposal::decrypt(shared_key, &event.content)?,
+                    *policy_id,
+                ));
+            }
+        }
+
+        Ok(proposals)
+    }
+
     pub async fn save_policy<S>(
         &self,
         name: S,
@@ -665,10 +710,10 @@ impl CoinstrClient {
         let txid: Txid = finalized_tx.txid();
 
         // Build the broadcasted proposal
-        let broadcasted_proposal = BroadcastedProposal::new(txid, proposal.memo, approvals);
+        let completed_proposal = CompletedProposal::new(txid, proposal.memo, approvals);
 
         // Compose the event
-        let content = broadcasted_proposal.encrypt(&shared_keys)?;
+        let content = completed_proposal.encrypt(&shared_keys)?;
         let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
         tags.push(Tag::Event(proposal_id, None, None));
         tags.push(Tag::Event(policy_id, None, None));

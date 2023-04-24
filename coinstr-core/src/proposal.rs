@@ -69,13 +69,13 @@ impl ApprovedProposal {
 impl Encryption for ApprovedProposal {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BroadcastedProposal {
+pub struct CompletedProposal {
     pub txid: Txid,
     pub description: String,
     pub approvals: Vec<XOnlyPublicKey>,
 }
 
-impl BroadcastedProposal {
+impl CompletedProposal {
     pub fn new<S>(txid: Txid, description: S, approvals: Vec<XOnlyPublicKey>) -> Self
     where
         S: Into<String>,
@@ -101,7 +101,7 @@ impl BroadcastedProposal {
     }
 }
 
-impl Encryption for BroadcastedProposal {}
+impl Encryption for CompletedProposal {}
 
 fn serialize_psbt<S>(psbt: &PartiallySignedTransaction, serializer: S) -> Result<S::Ok, S::Error>
 where
