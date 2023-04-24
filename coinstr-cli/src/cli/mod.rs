@@ -180,6 +180,9 @@ pub enum GetCommand {
         /// Keychain name
         #[arg(required = true)]
         name: String,
+        /// Get completed proposals
+        #[arg(long)]
+        completed: bool,
     },
     /// Get proposal by id
     Proposal {

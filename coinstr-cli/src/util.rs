@@ -14,10 +14,10 @@ use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Metadata, SECP256K1};
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::{CompletedProposal, SpendingProposal};
 use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
-use coinstr_core::util::format;
+use coinstr_core::util::{self, format};
 use coinstr_core::{Keychain, Result};
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
@@ -292,10 +292,28 @@ pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal, EventId)>) {
         table.add_row(row![
             index + 1,
             proposal_id,
-            policy_id.to_hex()[..9],
+            util::cut_event_id(policy_id),
             proposal.memo,
             proposal.to_address,
             format!("{} sat", format::number(proposal.amount))
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_completed_proposals(proposals: Vec<(EventId, CompletedProposal, EventId)>) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "ID", "Policy ID", "Txid", "Description"]);
+
+    for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            util::cut_event_id(proposal_id),
+            util::cut_event_id(policy_id),
+            proposal.txid,
+            proposal.description,
         ]);
     }
 

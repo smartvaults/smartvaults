@@ -248,12 +248,17 @@ async fn run() -> Result<()> {
                     util::print_policy(policy, policy_id, wallet, bitcoin_endpoint)
                 }
             }
-            GetCommand::Proposals { name } => {
+            GetCommand::Proposals { name, completed } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 let client = coinstr.client(relays).await?;
-                let proposals = client.get_proposals(TIMEOUT).await?;
-                util::print_proposals(proposals);
+                if completed {
+                    let proposals = client.get_completed_proposals(TIMEOUT).await?;
+                    util::print_completed_proposals(proposals);
+                } else {
+                    let proposals = client.get_proposals(TIMEOUT).await?;
+                    util::print_proposals(proposals);
+                }
                 Ok(())
             }
             GetCommand::Proposal { name, proposal_id } => {
