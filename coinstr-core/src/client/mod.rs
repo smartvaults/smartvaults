@@ -29,7 +29,7 @@ use crate::constants::{
 };
 use crate::policy::{self, Policy};
 use crate::proposal::{ApprovedProposal, BroadcastedProposal, SpendingProposal};
-use crate::{util, Amount, FeeRate};
+use crate::{util, Amount, Encryption, EncryptionError, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -51,7 +51,7 @@ pub enum Error {
     #[error(transparent)]
     Secp256k1(#[from] keechain_core::bitcoin::secp256k1::Error),
     #[error(transparent)]
-    JSON(#[from] serde_json::Error),
+    Encryption(#[from] EncryptionError),
     #[error(transparent)]
     Psbt(#[from] keechain_core::bitcoin::psbt::Error),
     #[error(transparent)]
@@ -185,13 +185,11 @@ impl CoinstrClient {
         // Get shared key
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
-        // Decrypt and deserialize the policy
-        let content = nips::nip04::decrypt(
-            &shared_keys.secret_key()?,
-            &shared_keys.public_key(),
-            &policy_event.content,
-        )?;
-        Ok((Policy::from_json(content)?, shared_keys))
+        // Decrypt the policy
+        Ok((
+            Policy::decrypt(&shared_keys, &policy_event.content)?,
+            shared_keys,
+        ))
     }
 
     pub async fn get_proposal_by_id(
@@ -209,14 +207,9 @@ impl CoinstrClient {
         // Get shared key
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
-        // Decrypt and deserialize the spending proposal
-        let content = nips::nip04::decrypt(
-            &shared_keys.secret_key()?,
-            &shared_keys.public_key(),
-            &proposal_event.content,
-        )?;
+        // Decrypt the spending proposal
         Ok((
-            SpendingProposal::from_json(content)?,
+            SpendingProposal::decrypt(&shared_keys, &proposal_event.content)?,
             policy_id,
             shared_keys,
         ))
@@ -249,12 +242,7 @@ impl CoinstrClient {
         for event in approvaed_proposal_events.into_iter() {
             approvals.push(event.pubkey);
 
-            let content = nips::nip04::decrypt(
-                &shared_keys.secret_key()?,
-                &shared_keys.public_key(),
-                &event.content,
-            )?;
-            let approved_proposal = ApprovedProposal::from_json(&content)?;
+            let approved_proposal = ApprovedProposal::decrypt(&shared_keys, &event.content)?;
             psbts.push(approved_proposal.psbt());
 
             for tag in event.tags.into_iter() {
@@ -342,12 +330,7 @@ impl CoinstrClient {
 
         for event in policies_events.into_iter() {
             if let Some(shared_key) = shared_keys.get(&event.id) {
-                let content = nips::nip04::decrypt(
-                    &shared_key.secret_key()?,
-                    &shared_key.public_key(),
-                    &event.content,
-                )?;
-                policies.push((event.id, Policy::from_json(&content)?));
+                policies.push((event.id, Policy::decrypt(shared_key, &event.content)?));
             } else {
                 log::error!("Shared key not found for policy {}", event.id);
             }
@@ -375,17 +358,14 @@ impl CoinstrClient {
 
         for event in proposals_events.into_iter() {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
-            let global_key: &Keys = shared_keys
+            let shared_key: &Keys = shared_keys
                 .get(&policy_id)
                 .ok_or(Error::SharedKeysNotFound)?;
-
-            let content = nips::nip04::decrypt(
-                &global_key.secret_key()?,
-                &global_key.public_key(),
-                &event.content,
-            )?;
-
-            proposals.push((event.id, SpendingProposal::from_json(&content)?, policy_id));
+            proposals.push((
+                event.id,
+                SpendingProposal::decrypt(shared_key, &event.content)?,
+                policy_id,
+            ));
         }
 
         Ok(proposals)
@@ -408,11 +388,9 @@ impl CoinstrClient {
         // Generate a shared key
         let shared_key = Keys::generate();
         let policy = Policy::from_desc_or_policy(name, description, descriptor)?;
-        let content = nips::nip04::encrypt(
-            &shared_key.secret_key()?,
-            &shared_key.public_key(),
-            policy.as_json(),
-        )?;
+
+        // Compose the event
+        let content = policy.encrypt(&shared_key)?;
         let tags: Vec<Tag> = extracted_pubkeys
             .iter()
             .map(|p| Tag::PubKey(*p, None))
@@ -438,6 +416,7 @@ impl CoinstrClient {
             log::info!("Published shared key for {pubkey} at event {event_id}");
         }
 
+        // Publish the event
         self.client.send_event(policy_event).await?;
 
         Ok((policy_id, policy))
@@ -522,18 +501,14 @@ impl CoinstrClient {
             .build_spending_proposal(&policy, to_address, amount, memo, fee_rate, blockchain)
             .await?;
 
-        // Create spending proposal
+        // Compose the event
         let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
         let mut tags: Vec<Tag> = extracted_pubkeys
             .iter()
             .map(|p| Tag::PubKey(*p, None))
             .collect();
         tags.push(Tag::Event(policy_id, None, None));
-        let content = nips::nip04::encrypt(
-            &shared_keys.secret_key()?,
-            &shared_keys.public_key(),
-            proposal.as_json(),
-        )?;
+        let content = proposal.encrypt(&shared_keys)?;
         // Publish proposal with `shared_key` so every owner can delete it
         let event =
             EventBuilder::new(SPENDING_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
@@ -616,12 +591,8 @@ impl CoinstrClient {
         // Sign PSBT
         let approved_proposal = self.approve_spending_proposal(&policy, &proposal)?;
 
-        let content = nips::nip04::encrypt(
-            &shared_keys.secret_key()?,
-            &shared_keys.public_key(),
-            approved_proposal.as_json(),
-        )?;
-
+        // Compose the event
+        let content = approved_proposal.encrypt(&shared_keys)?;
         let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
         let mut tags: Vec<Tag> = extracted_pubkeys
             .iter()
@@ -634,6 +605,8 @@ impl CoinstrClient {
         ));
 
         let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+
+        // Publish the event
         self.client.send_event(event.clone()).await?;
 
         Ok((event, approved_proposal))
@@ -691,20 +664,18 @@ impl CoinstrClient {
 
         let txid: Txid = finalized_tx.txid();
 
+        // Build the broadcasted proposal
+        let broadcasted_proposal = BroadcastedProposal::new(txid, proposal.memo, approvals);
+
+        // Compose the event
+        let content = broadcasted_proposal.encrypt(&shared_keys)?;
         let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
         tags.push(Tag::Event(proposal_id, None, None));
         tags.push(Tag::Event(policy_id, None, None));
-
-        let broadcasted_proposal = BroadcastedProposal::new(txid, proposal.memo, approvals);
-
-        let content = nips::nip04::encrypt(
-            &shared_keys.secret_key()?,
-            &shared_keys.public_key(),
-            broadcasted_proposal.as_json(),
-        )?;
-
         let event =
             EventBuilder::new(BROADCASTED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+
+        // Publish the event
         self.client.send_event(event).await?;
 
         // Delete the proposal

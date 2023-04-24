@@ -16,11 +16,11 @@ use coinstr_core::constants::{
 };
 use coinstr_core::nostr_sdk::prelude::TagKind;
 use coinstr_core::nostr_sdk::{
-    nips, Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag, Timestamp,
+    Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag, Timestamp,
 };
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{ApprovedProposal, SpendingProposal};
-use coinstr_core::{util, CoinstrClient};
+use coinstr_core::{util, CoinstrClient, Encryption};
 use futures_util::future::{AbortHandle, Abortable};
 use iced::Subscription;
 use iced_futures::BoxStream;
@@ -157,12 +157,7 @@ async fn handle_event(
 ) -> Result<()> {
     if event.kind == POLICY_KIND && !cache.policy_exists(event.id).await {
         if let Some(shared_key) = shared_keys.get(&event.id) {
-            let content = nips::nip04::decrypt(
-                &shared_key.secret_key()?,
-                &shared_key.public_key(),
-                &event.content,
-            )?;
-            let policy = Policy::from_json(content)?;
+            let policy = Policy::decrypt(shared_key, &event.content)?;
             cache
                 .cache_policy(event.id, policy, client.network())
                 .await?;
@@ -178,12 +173,7 @@ async fn handle_event(
     } else if event.kind == SPENDING_PROPOSAL_KIND && !cache.proposal_exists(event.id).await {
         if let Some(policy_id) = util::extract_first_event_id(&event) {
             if let Some(shared_key) = shared_keys.get(&policy_id) {
-                let content = nips::nip04::decrypt(
-                    &shared_key.secret_key()?,
-                    &shared_key.public_key(),
-                    &event.content,
-                )?;
-                let proposal = SpendingProposal::from_json(content)?;
+                let proposal = SpendingProposal::decrypt(shared_key, &event.content)?;
                 cache.cache_proposal(event.id, policy_id, proposal).await;
             } else {
                 log::info!("Requesting shared key for proposal {}", event.id);
@@ -203,12 +193,7 @@ async fn handle_event(
                 util::extract_tags_by_kind(&event, TagKind::E).get(1)
             {
                 if let Some(shared_key) = shared_keys.get(policy_id) {
-                    let content = nips::nip04::decrypt(
-                        &shared_key.secret_key()?,
-                        &shared_key.public_key(),
-                        &event.content,
-                    )?;
-                    let approved_proposal = ApprovedProposal::from_json(&content)?;
+                    let approved_proposal = ApprovedProposal::decrypt(shared_key, &event.content)?;
                     cache
                         .cache_approved_proposal(
                             proposal_id,

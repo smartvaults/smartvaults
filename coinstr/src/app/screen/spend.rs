@@ -373,7 +373,7 @@ impl State for SpendState {
                 }
 
                 let amount = if self.send_all {
-                    TextInput::new("Amount (sats)", "Send all")
+                    TextInput::new("Amount (sat)", "Send all")
                         .button(send_all_btn)
                         .view()
                 } else {

@@ -9,6 +9,7 @@ use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
 
 use crate::util::Unspendable;
+use crate::Encryption;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -86,17 +87,6 @@ impl Policy {
             },
         }
     }
-
-    /// Deserialize from `JSON` string
-    pub fn from_json<S>(json: S) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
-        Ok(serde_json::from_str(&json.into())?)
-    }
-
-    /// Serialize to `JSON` string
-    pub fn as_json(&self) -> String {
-        serde_json::json!(self).to_string()
-    }
 }
+
+impl Encryption for Policy {}

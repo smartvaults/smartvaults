@@ -8,6 +8,8 @@ use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::Address;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::Encryption;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpendingProposal {
     pub to_address: Address,
@@ -41,20 +43,9 @@ impl SpendingProposal {
     pub fn psbt(&self) -> PartiallySignedTransaction {
         self.psbt.clone()
     }
-
-    /// Deserialize from `JSON` string
-    pub fn from_json<S>(json: S) -> Result<Self, serde_json::Error>
-    where
-        S: Into<String>,
-    {
-        serde_json::from_str(&json.into())
-    }
-
-    /// Serialize to `JSON` string
-    pub fn as_json(&self) -> String {
-        serde_json::json!(self).to_string()
-    }
 }
+
+impl Encryption for SpendingProposal {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApprovedProposal {
@@ -73,36 +64,25 @@ impl ApprovedProposal {
     pub fn psbt(&self) -> PartiallySignedTransaction {
         self.psbt.clone()
     }
-
-    /// Deserialize from `JSON` string
-    pub fn from_json<S>(json: S) -> Result<Self, serde_json::Error>
-    where
-        S: Into<String>,
-    {
-        serde_json::from_str(&json.into())
-    }
-
-    /// Serialize to `JSON` string
-    pub fn as_json(&self) -> String {
-        serde_json::json!(self).to_string()
-    }
 }
+
+impl Encryption for ApprovedProposal {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BroadcastedProposal {
     pub txid: Txid,
-    pub memo: String,
+    pub description: String,
     pub approvals: Vec<XOnlyPublicKey>,
 }
 
 impl BroadcastedProposal {
-    pub fn new<S>(txid: Txid, memo: S, approvals: Vec<XOnlyPublicKey>) -> Self
+    pub fn new<S>(txid: Txid, description: S, approvals: Vec<XOnlyPublicKey>) -> Self
     where
         S: Into<String>,
     {
         Self {
             txid,
-            memo: memo.into(),
+            description: description.into(),
             approvals,
         }
     }
@@ -120,6 +100,8 @@ impl BroadcastedProposal {
         serde_json::json!(self).to_string()
     }
 }
+
+impl Encryption for BroadcastedProposal {}
 
 fn serialize_psbt<S>(psbt: &PartiallySignedTransaction, serializer: S) -> Result<S::Ok, S::Error>
 where
