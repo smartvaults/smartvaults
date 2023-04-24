@@ -24,7 +24,7 @@ use nostr_sdk::{
 pub mod blocking;
 
 use crate::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
 };
 use crate::policy::{self, Policy};
@@ -673,7 +673,7 @@ impl CoinstrClient {
         tags.push(Tag::Event(proposal_id, None, None));
         tags.push(Tag::Event(policy_id, None, None));
         let event =
-            EventBuilder::new(BROADCASTED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+            EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
 
         // Publish the event
         self.client.send_event(event).await?;

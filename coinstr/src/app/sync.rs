@@ -11,7 +11,7 @@ use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, BROADCASTED_PROPOSAL_KIND, POLICY_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     SPENDING_PROPOSAL_KIND,
 };
 use coinstr_core::nostr_sdk::prelude::TagKind;
@@ -101,7 +101,7 @@ where
                     .since(Timestamp::now().sub(APPROVED_PROPOSAL_EXPIRATION)),
                 Filter::new()
                     .pubkey(keys.public_key())
-                    .kind(BROADCASTED_PROPOSAL_KIND),
+                    .kind(COMPLETED_PROPOSAL_KIND),
             ];
 
             nostr_client.subscribe(filters).await;
@@ -221,7 +221,7 @@ async fn handle_event(
                 event.id
             );
         }
-    } else if event.kind == BROADCASTED_PROPOSAL_KIND {
+    } else if event.kind == COMPLETED_PROPOSAL_KIND {
         if let Some(proposal_id) = util::extract_first_event_id(&event) {
             cache.uncache_proposal(proposal_id).await;
         }
