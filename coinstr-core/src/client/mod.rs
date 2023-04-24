@@ -302,11 +302,17 @@ impl CoinstrClient {
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         // Get all events linked to the proposal
-        let filter = Filter::new().event(proposal_id);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
+        /* let filter = Filter::new().event(proposal_id);
+        let events = self.client.get_events_of(vec![filter], timeout).await?; */
 
-        let mut ids: Vec<EventId> = events.iter().map(|e| e.id).collect();
-        ids.push(proposal_id);
+        let ids: Vec<EventId> = vec![proposal_id];
+        /* let mut ids: Vec<EventId> = vec![proposal_id];
+
+        for event in events.into_iter() {
+            if event.kind != COMPLETED_PROPOSAL_KIND {
+                ids.push(event.id);
+            }
+        } */
 
         let event = EventBuilder::delete::<String>(ids, None).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
