@@ -111,11 +111,15 @@ where
                 match notification {
                     RelayPoolNotification::Event(_, event) => {
                         let event_id = event.id;
-                        match handle_event(&client, &cache, &mut shared_keys, event).await {
-                            Ok(_) => {
-                                sender.send(()).ok();
+                        if event.is_expired() {
+                            log::warn!("Event {event_id} expired");
+                        } else {
+                            match handle_event(&client, &cache, &mut shared_keys, event).await {
+                                Ok(_) => {
+                                    sender.send(()).ok();
+                                }
+                                Err(e) => log::error!("Impossible to handle event {event_id}: {e}"),
                             }
-                            Err(e) => log::error!("Impossible to handle event {event_id}: {e}"),
                         }
                     }
                     RelayPoolNotification::Shutdown => {
