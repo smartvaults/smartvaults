@@ -117,7 +117,7 @@ Use the [testnet bitcoin faucet](https://testnet-faucet.com/btc-testnet/) to req
 ## Step 5: Generate a Spend Proposal
 We will create the spend proposal from Alice's perspective. to create a spend proposal: 
 ```
-Usage: coinstr-cli spend <NAME> <POLICY_ID> <TO_ADDRESS> <AMOUNT> <MEMO>
+Usage: coinstr-cli spend <NAME> <POLICY_ID> <TO_ADDRESS> <AMOUNT> <DESCRIPTION>
 ```
 ```
 ./target/release/coinstr-cli --network testnet spend \
@@ -134,7 +134,7 @@ You can now view the spend proposal:
 Create the below table: 
 ```
 +---+------------------------------------------------------------------+-----------+-------------------------+------------------------------------+------------+
-| # | ID                                                               | Policy ID | Memo                    | Address                            | Amount     |
+| # | ID                                                               | Policy ID | Description             | Address                            | Amount     |
 +===+==================================================================+===========+=========================+====================================+============+
 | 1 | c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6 | 0a24f8f6f | Send back to the faucet | mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78 | 1 000 sat |
 +---+------------------------------------------------------------------+-----------+-------------------------+------------------------------------+------------+

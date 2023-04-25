@@ -14,7 +14,7 @@ use crate::Encryption;
 pub struct SpendingProposal {
     pub to_address: Address,
     pub amount: u64,
-    pub memo: String,
+    pub description: String,
     #[serde(
         serialize_with = "serialize_psbt",
         deserialize_with = "deserialize_psbt"
@@ -26,7 +26,7 @@ impl SpendingProposal {
     pub fn new<S>(
         to_address: Address,
         amount: u64,
-        memo: S,
+        description: S,
         psbt: PartiallySignedTransaction,
     ) -> Self
     where
@@ -35,7 +35,7 @@ impl SpendingProposal {
         Self {
             to_address,
             amount,
-            memo: memo.into(),
+            description: description.into(),
             psbt,
         }
     }

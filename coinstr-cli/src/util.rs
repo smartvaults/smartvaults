@@ -277,7 +277,7 @@ pub fn print_proposal(proposal_id: EventId, proposal: SpendingProposal, policy_i
     println!();
     println!("- Proposal id: {proposal_id}");
     println!("- Policy id: {policy_id}");
-    println!("- Memo: {}", proposal.memo);
+    println!("- Description: {}", proposal.description);
     println!("- To address: {}", proposal.to_address);
     println!("- Amount: {}", proposal.amount);
     println!();
@@ -286,14 +286,21 @@ pub fn print_proposal(proposal_id: EventId, proposal: SpendingProposal, policy_i
 pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal, EventId)>) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "ID", "Policy ID", "Memo", "Address", "Amount"]);
+    table.set_titles(row![
+        "#",
+        "ID",
+        "Policy ID",
+        "Description",
+        "Address",
+        "Amount"
+    ]);
 
     for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
             proposal_id,
             util::cut_event_id(policy_id),
-            proposal.memo,
+            proposal.description,
             proposal.to_address,
             format!("{} sat", format::number(proposal.amount))
         ]);

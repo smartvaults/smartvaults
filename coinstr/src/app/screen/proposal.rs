@@ -218,7 +218,7 @@ impl State for ProposalState {
                     ))
                     .view(),
                 )
-                .push(Text::new(format!("Memo: {}", &self.proposal.memo)).view());
+                .push(Text::new(format!("Description: {}", &self.proposal.description)).view());
 
             let mut status = Row::new().push(Text::new("Status: ").view());
 

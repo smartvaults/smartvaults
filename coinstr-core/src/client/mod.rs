@@ -478,7 +478,7 @@ impl CoinstrClient {
         policy: &Policy,
         to_address: Address,
         amount: Amount,
-        memo: S,
+        description: S,
         fee_rate: FeeRate,
         blockchain: &B,
     ) -> Result<(SpendingProposal, TransactionDetails), Error>
@@ -521,7 +521,7 @@ impl CoinstrClient {
         };
 
         let amount: u64 = details.sent.saturating_sub(details.received);
-        let proposal = SpendingProposal::new(to_address, amount, memo, psbt);
+        let proposal = SpendingProposal::new(to_address, amount, description, psbt);
 
         Ok((proposal, details))
     }
@@ -533,7 +533,7 @@ impl CoinstrClient {
         policy_id: EventId,
         to_address: Address,
         amount: Amount,
-        memo: S,
+        description: S,
         fee_rate: FeeRate,
         blockchain: &B,
         timeout: Option<Duration>,
@@ -545,11 +545,18 @@ impl CoinstrClient {
         // Get policy
         let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
 
-        let memo: &str = &memo.into();
+        let description: &str = &description.into();
 
         // Build spending proposal
         let (proposal, _details) = self
-            .build_spending_proposal(&policy, to_address, amount, memo, fee_rate, blockchain)
+            .build_spending_proposal(
+                &policy,
+                to_address,
+                amount,
+                description,
+                fee_rate,
+                blockchain,
+            )
             .await?;
 
         // Compose the event
@@ -572,7 +579,7 @@ impl CoinstrClient {
             "- Amount: {} sat\n",
             util::format::big_number(proposal.amount)
         ));
-        msg.push_str(&format!("- Memo: {memo}"));
+        msg.push_str(&format!("- Description: {description}"));
         for pubkey in extracted_pubkeys.into_iter() {
             if sender != pubkey {
                 self.client.send_direct_msg(pubkey, &msg).await?;
@@ -716,7 +723,7 @@ impl CoinstrClient {
         let txid: Txid = finalized_tx.txid();
 
         // Build the broadcasted proposal
-        let completed_proposal = CompletedProposal::new(txid, proposal.memo, approvals);
+        let completed_proposal = CompletedProposal::new(txid, proposal.description, approvals);
 
         // Compose the event
         let content = completed_proposal.encrypt(&shared_keys)?;

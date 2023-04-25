@@ -87,9 +87,9 @@ pub enum Command {
         /// Amount in sat
         #[arg(required = true)]
         amount: u64,
-        /// Memo
+        /// Description
         #[arg(required = true)]
-        memo: String,
+        description: String,
         /// Taget blocks
         #[clap(short, long, default_value_t = 6)]
         target_blocks: usize,
@@ -105,9 +105,9 @@ pub enum Command {
         /// To address
         #[arg(required = true)]
         to_address: Address,
-        /// Memo
+        /// Description
         #[arg(required = true)]
-        memo: String,
+        description: String,
         /// Taget blocks
         #[clap(short, long, default_value_t = 6)]
         target_blocks: usize,

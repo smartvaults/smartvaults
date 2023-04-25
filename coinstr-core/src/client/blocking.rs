@@ -112,7 +112,7 @@ impl CoinstrClient {
         policy_id: EventId,
         to_address: Address,
         amount: Amount,
-        memo: S,
+        description: S,
         fee_rate: FeeRate,
         blockchain: &B,
         timeout: Option<Duration>,
@@ -124,7 +124,13 @@ impl CoinstrClient {
         block_on(async {
             self.client
                 .spend(
-                    policy_id, to_address, amount, memo, fee_rate, blockchain, timeout,
+                    policy_id,
+                    to_address,
+                    amount,
+                    description,
+                    fee_rate,
+                    blockchain,
+                    timeout,
                 )
                 .await
         })

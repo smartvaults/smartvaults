@@ -55,7 +55,13 @@ impl SpendingProposalsList {
                             .width(Length::Fixed(125.0))
                             .view(),
                     )
-                    .push(Text::new("Memo").bold().bigger().width(Length::Fill).view())
+                    .push(
+                        Text::new("Description")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
@@ -85,7 +91,7 @@ impl SpendingProposalsList {
                             .width(Length::Fixed(125.0))
                             .view(),
                     )
-                    .push(Text::new(&proposal.memo).width(Length::Fill).view())
+                    .push(Text::new(&proposal.description).width(Length::Fill).view())
                     .push(
                         button::primary_only_icon(FULLSCREEN)
                             .on_press(Message::View(Stage::Proposal(

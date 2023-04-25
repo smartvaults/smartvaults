@@ -48,7 +48,7 @@ pub enum SpendMessage {
     AddressChanged(String),
     AmountChanged(Option<u64>),
     SendAllBtnPressed,
-    MemoChanged(String),
+    DescriptionChanged(String),
     FeeRateChanged(FeeRate),
     BalanceChanged(Option<Balance>),
     ErrorChanged(Option<String>),
@@ -64,7 +64,7 @@ pub struct SpendState {
     to_address: String,
     amount: Option<u64>,
     send_all: bool,
-    memo: String,
+    description: String,
     fee_rate: FeeRate,
     balance: Option<Balance>,
     reviewing: bool,
@@ -84,7 +84,7 @@ impl SpendState {
             to_address: String::new(),
             amount: None,
             send_all: false,
-            memo: String::new(),
+            description: String::new(),
             fee_rate: FeeRate::default(),
             balance: None,
             reviewing: false,
@@ -105,7 +105,7 @@ impl SpendState {
 
         let client = ctx.client.clone();
         let cache = ctx.cache.clone();
-        let memo = self.memo.clone();
+        let description = self.description.clone();
         let fee_rate = self.fee_rate;
 
         // TODO: get electrum endpoint from config file
@@ -123,7 +123,7 @@ impl SpendState {
                         policy_id,
                         to_address,
                         amount,
-                        memo,
+                        description,
                         fee_rate,
                         &blockchain,
                         None,
@@ -203,7 +203,7 @@ impl State for SpendState {
                 SpendMessage::AddressChanged(value) => self.to_address = value,
                 SpendMessage::AmountChanged(value) => self.amount = value,
                 SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
-                SpendMessage::MemoChanged(value) => self.memo = value,
+                SpendMessage::DescriptionChanged(value) => self.description = value,
                 SpendMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
                 SpendMessage::ErrorChanged(error) => {
                     self.loading = false;
@@ -296,9 +296,9 @@ impl State for SpendState {
                     .spacing(5)
                     .width(Length::Fill);
 
-                let memo = Column::new()
-                    .push(Row::new().push(Text::new("Memo").bold().view()))
-                    .push(Row::new().push(Text::new(&self.memo).view()))
+                let description = Column::new()
+                    .push(Row::new().push(Text::new("Description").bold().view()))
+                    .push(Row::new().push(Text::new(&self.description).view()))
                     .spacing(5)
                     .width(Length::Fill);
 
@@ -337,7 +337,7 @@ impl State for SpendState {
                     .push(policy)
                     .push(address)
                     .push(amount)
-                    .push(memo)
+                    .push(description)
                     .push(priority)
                     .push(error)
                     .push(Space::with_height(Length::Fixed(15.0)))
@@ -409,9 +409,9 @@ impl State for SpendState {
                     Text::new("").view()
                 };
 
-                let memo = TextInput::new("Memo", &self.memo)
-                    .on_input(|s| SpendMessage::MemoChanged(s).into())
-                    .placeholder("Memo")
+                let description = TextInput::new("Description", &self.description)
+                    .on_input(|s| SpendMessage::DescriptionChanged(s).into())
+                    .placeholder("Description")
                     .view();
 
                 let fee_high_priority = Row::new()
@@ -500,7 +500,7 @@ impl State for SpendState {
                     .push(address)
                     .push(amount)
                     .push(your_balance)
-                    .push(memo)
+                    .push(description)
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(fee_selector)
                     .push(Space::with_height(Length::Fixed(5.0)))

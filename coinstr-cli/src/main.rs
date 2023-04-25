@@ -134,7 +134,7 @@ async fn run() -> Result<()> {
             policy_id,
             to_address,
             amount,
-            memo,
+            description,
             target_blocks,
         } => {
             let path = get_keychain_file(keychains, name)?;
@@ -146,7 +146,7 @@ async fn run() -> Result<()> {
                     policy_id,
                     to_address,
                     Amount::Custom(amount),
-                    memo,
+                    description,
                     FeeRate::Custom(target_blocks),
                     &blockchain,
                     TIMEOUT,
@@ -159,7 +159,7 @@ async fn run() -> Result<()> {
             name,
             policy_id,
             to_address,
-            memo,
+            description,
             target_blocks,
         } => {
             let path = get_keychain_file(keychains, name)?;
@@ -171,7 +171,7 @@ async fn run() -> Result<()> {
                     policy_id,
                     to_address,
                     Amount::Max,
-                    memo,
+                    description,
                     FeeRate::Custom(target_blocks),
                     &blockchain,
                     TIMEOUT,
