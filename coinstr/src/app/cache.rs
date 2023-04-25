@@ -299,6 +299,16 @@ impl Cache {
         map
     }
 
+    pub async fn schedule_for_sync(&self, policy_id: EventId) {
+        let mut policies = self.policies.lock().await;
+        match policies.get_mut(&policy_id) {
+            Some(pw) => {
+                pw.last_sync = None;
+            }
+            None => log::error!("Policy {policy_id} not found"),
+        }
+    }
+
     pub async fn sync_with_timechain<B>(
         &self,
         blockchain: &B,

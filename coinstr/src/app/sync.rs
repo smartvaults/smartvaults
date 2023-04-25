@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::HashMap;
-use std::ops::Sub;
+use std::ops::{Add, Sub};
 use std::time::Duration;
 
 use async_recursion::async_recursion;
@@ -231,6 +231,11 @@ async fn handle_event(
             if let Some(Tag::Event(policy_id, ..)) =
                 util::extract_tags_by_kind(&event, TagKind::E).get(1)
             {
+                // Schedule policy for sync if the event was created in the last 60 secs
+                if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
+                    cache.schedule_for_sync(*policy_id).await;
+                }
+
                 if let Some(shared_key) = shared_keys.get(policy_id) {
                     let completed_proposal =
                         CompletedProposal::decrypt(shared_key, &event.content)?;
