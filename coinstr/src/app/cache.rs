@@ -21,11 +21,41 @@ use coinstr_core::proposal::{CompletedProposal, SpendingProposal};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
+const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
 pub type Transactions = Vec<(TransactionDetails, Option<String>)>;
 type ApprovedProposals =
     BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>>;
+
+#[derive(Debug, Clone, Default)]
+pub struct BlockHeight {
+    height: Arc<AtomicU32>,
+    last_sync: Arc<Mutex<Option<Timestamp>>>,
+}
+
+impl BlockHeight {
+    pub fn block_height(&self) -> u32 {
+        self.height.load(Ordering::SeqCst)
+    }
+
+    pub fn set_block_height(&self, block_height: u32) {
+        let _ = self
+            .height
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(block_height));
+    }
+
+    pub async fn is_synced(&self) -> bool {
+        let last_sync = self.last_sync.lock().await;
+        let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
+        last_sync.add(BLOCK_HEIGHT_SYNC_INTERVAL) <= Timestamp::now()
+    }
+
+    pub async fn just_synced(&self) {
+        let mut last_sync = self.last_sync.lock().await;
+        *last_sync = Some(Timestamp::now());
+    }
+}
 
 #[derive(Debug)]
 pub struct PolicyWallet {
@@ -36,7 +66,7 @@ pub struct PolicyWallet {
 
 #[derive(Debug, Clone)]
 pub struct Cache {
-    pub block_height: Arc<AtomicU32>,
+    pub block_height: BlockHeight,
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
     pub approved_proposals: Arc<Mutex<ApprovedProposals>>,
@@ -52,7 +82,7 @@ impl Default for Cache {
 impl Cache {
     pub fn new() -> Self {
         Self {
-            block_height: Arc::new(AtomicU32::new(0)),
+            block_height: BlockHeight::default(),
             policies: Arc::new(Mutex::new(BTreeMap::new())),
             proposals: Arc::new(Mutex::new(BTreeMap::new())),
             approved_proposals: Arc::new(Mutex::new(BTreeMap::new())),
@@ -61,13 +91,11 @@ impl Cache {
     }
 
     pub fn block_height(&self) -> u32 {
-        self.block_height.load(Ordering::SeqCst)
+        self.block_height.block_height()
     }
 
     pub fn cache_block_height(&self, block_height: u32) {
-        let _ = self
-            .block_height
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(block_height));
+        self.block_height.set_block_height(block_height);
     }
 
     pub async fn policy_exists(&self, policy_id: EventId) -> bool {
@@ -271,7 +299,7 @@ impl Cache {
         map
     }
 
-    pub async fn sync_wallets<B>(
+    pub async fn sync_with_timechain<B>(
         &self,
         blockchain: &B,
         sender: Option<&UnboundedSender<()>>,
@@ -280,8 +308,11 @@ impl Cache {
     where
         B: Blockchain,
     {
-        let block_height: u32 = blockchain.get_height()?;
-        self.cache_block_height(block_height);
+        if !self.block_height.is_synced().await {
+            let block_height: u32 = blockchain.get_height()?;
+            self.cache_block_height(block_height);
+            self.block_height.just_synced().await;
+        }
 
         let mut policies = self.policies.lock().await;
         for (policy_id, pw) in policies.iter_mut() {

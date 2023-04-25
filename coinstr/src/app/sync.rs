@@ -66,7 +66,7 @@ where
                 let blockchain = ElectrumBlockchain::from(electrum_client);
                 loop {
                     if let Err(e) = ccache
-                        .sync_wallets(&blockchain, Some(&ssender), false)
+                        .sync_with_timechain(&blockchain, Some(&ssender), false)
                         .await
                     {
                         log::error!("Impossible to sync wallets: {e}");

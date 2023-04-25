@@ -160,7 +160,7 @@ impl State for ProposalState {
                                 ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
                             let txid = client.broadcast(proposal_id, &blockchain, None).await?;
                             cache.uncache_proposal(proposal_id).await;
-                            cache.sync_wallets(&blockchain, None, true).await?;
+                            cache.sync_with_timechain(&blockchain, None, true).await?;
                             Ok::<Txid, Box<dyn std::error::Error>>(txid)
                         },
                         |res| match res {
