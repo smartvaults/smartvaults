@@ -193,15 +193,22 @@ async fn run() -> Result<()> {
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let txid = client.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
-            println!("Transaction {txid} broadcasted");
+            let (_, _, completed_proposal) =
+                client.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
+            println!("Transaction {} broadcasted", completed_proposal.txid);
 
             match network {
                 Network::Bitcoin => {
-                    println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                    println!(
+                        "\nExplorer: https://blockstream.info/tx/{} \n",
+                        completed_proposal.txid
+                    )
                 }
                 Network::Testnet => {
-                    println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
+                    println!(
+                        "\nExplorer: https://blockstream.info/testnet/tx/{} \n",
+                        completed_proposal.txid
+                    )
                 }
                 _ => (),
             };

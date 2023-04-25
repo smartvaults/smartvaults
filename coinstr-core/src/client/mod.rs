@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, PrivateKey, Transaction, Txid, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, PrivateKey, Transaction, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
@@ -695,7 +695,7 @@ impl CoinstrClient {
         proposal_id: EventId,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<Txid, Error>
+    ) -> Result<(EventId, EventId, CompletedProposal), Error>
     where
         B: Blockchain,
     {
@@ -720,10 +720,9 @@ impl CoinstrClient {
         #[cfg(target_arch = "wasm32")]
         blockchain.broadcast(&finalized_tx).await?;
 
-        let txid: Txid = finalized_tx.txid();
-
         // Build the broadcasted proposal
-        let completed_proposal = CompletedProposal::new(txid, proposal.description, approvals);
+        let completed_proposal =
+            CompletedProposal::new(finalized_tx.txid(), proposal.description, approvals);
 
         // Compose the event
         let content = completed_proposal.encrypt(&shared_keys)?;
@@ -734,14 +733,14 @@ impl CoinstrClient {
             EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
 
         // Publish the event
-        self.client.send_event(event).await?;
+        let event_id = self.client.send_event(event).await?;
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
             log::error!("Impossibe to delete proposal {proposal_id}: {e}");
         }
 
-        Ok(txid)
+        Ok((event_id, policy_id, completed_proposal))
     }
 
     pub fn inner(&self) -> Client {

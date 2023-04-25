@@ -158,9 +158,14 @@ impl State for ProposalState {
                         async move {
                             let blockchain =
                                 ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                            let txid = client.broadcast(proposal_id, &blockchain, None).await?;
+                            let (event_id, policy_id, completed_proposal) =
+                                client.broadcast(proposal_id, &blockchain, None).await?;
+                            let txid = completed_proposal.txid;
                             cache.uncache_proposal(proposal_id).await;
                             cache.sync_with_timechain(&blockchain, None, true).await?;
+                            cache
+                                .cache_completed_proposal(event_id, policy_id, completed_proposal)
+                                .await;
                             Ok::<Txid, Box<dyn std::error::Error>>(txid)
                         },
                         |res| match res {
