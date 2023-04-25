@@ -7,19 +7,20 @@ use coinstr_core::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
+use crate::app::cache::Transactions;
 use crate::app::{Message, Stage};
 use crate::component::{button, rule, Icon, Text};
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
 pub struct TransactionsList {
-    list: Option<Vec<TransactionDetails>>,
+    list: Option<Transactions>,
     take: Option<usize>,
     policy_id: Option<EventId>,
 }
 
 impl TransactionsList {
-    pub fn new(list: Option<Vec<TransactionDetails>>) -> Self {
+    pub fn new(list: Option<Transactions>) -> Self {
         Self {
             list,
             take: None,
@@ -41,9 +42,9 @@ impl TransactionsList {
         }
     }
 
-    fn list(self) -> Box<dyn Iterator<Item = TransactionDetails>> {
+    fn list(self) -> Box<dyn Iterator<Item = (TransactionDetails, Option<String>)>> {
         let mut list = self.list.unwrap_or_default();
-        list.sort_by(|a, b| {
+        list.sort_by(|(a, _), (b, _)| {
             b.confirmation_time
                 .as_ref()
                 .map(|t| t.height)
@@ -81,6 +82,13 @@ impl TransactionsList {
                             .view(),
                     )
                     .push(
+                        Text::new("Description")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(
                         Text::new("Amount")
                             .bold()
                             .bigger()
@@ -107,7 +115,7 @@ impl TransactionsList {
                     let take = self.take;
                     let policy_id = self.policy_id;
 
-                    for tx in self.list() {
+                    for (tx, description) in self.list() {
                         let status = if tx.confirmation_time.is_some() {
                             Icon::new(CHECK).color(GREEN)
                         } else {
@@ -132,6 +140,11 @@ impl TransactionsList {
                                 )
                                 .width(Length::Fill)
                                 .view(),
+                            )
+                            .push(
+                                Text::new(description.unwrap_or_default())
+                                    .width(Length::Fill)
+                                    .view(),
                             )
                             .push(
                                 Text::new(format!(

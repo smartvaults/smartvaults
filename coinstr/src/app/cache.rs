@@ -2,7 +2,8 @@
 // Distributed under the MIT software license
 
 use std::collections::btree_map::Entry;
-use std::collections::BTreeMap;
+use std::collections::hash_map::Entry as HashMapEntry;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Add;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
@@ -16,12 +17,13 @@ use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Result, Timestamp};
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::{CompletedProposal, SpendingProposal};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
+pub type Transactions = Vec<(TransactionDetails, Option<String>)>;
 type ApprovedProposals =
     BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>>;
 
@@ -38,6 +40,7 @@ pub struct Cache {
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
     pub approved_proposals: Arc<Mutex<ApprovedProposals>>,
+    pub completed_proposals: Arc<Mutex<BTreeMap<EventId, (EventId, CompletedProposal)>>>,
 }
 
 impl Default for Cache {
@@ -53,6 +56,7 @@ impl Cache {
             policies: Arc::new(Mutex::new(BTreeMap::new())),
             proposals: Arc::new(Mutex::new(BTreeMap::new())),
             approved_proposals: Arc::new(Mutex::new(BTreeMap::new())),
+            completed_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
@@ -103,13 +107,21 @@ impl Cache {
     ) -> Option<(
         Policy,
         Option<Balance>,
-        Option<Vec<TransactionDetails>>,
+        Option<Transactions>,
         Option<Timestamp>,
     )> {
         let policies = self.policies.lock().await;
+        let descriptions = self.get_txs_descriptions().await;
         let pw = policies.get(&policy_id)?;
         let balance = pw.wallet.get_balance().ok();
-        let list = pw.wallet.list_transactions(false).ok();
+        let list = pw.wallet.list_transactions(false).ok().map(|list| {
+            list.into_iter()
+                .map(|tx| {
+                    let txid = tx.txid;
+                    (tx, descriptions.get(&txid).cloned())
+                })
+                .collect()
+        });
         Some((pw.policy.clone(), balance, list, pw.last_sync))
     }
 
@@ -215,6 +227,40 @@ impl Cache {
             });
     }
 
+    pub async fn completed_proposal_exists(&self, completed_proposal_id: EventId) -> bool {
+        let completed_proposals = self.completed_proposals.lock().await;
+        completed_proposals.contains_key(&completed_proposal_id)
+    }
+
+    pub async fn completed_proposals(&self) -> BTreeMap<EventId, (EventId, CompletedProposal)> {
+        let completed_proposals = self.completed_proposals.lock().await;
+        completed_proposals.clone()
+    }
+
+    pub async fn cache_completed_proposal(
+        &self,
+        completed_proposal_id: EventId,
+        policy_id: EventId,
+        completed_proposal: CompletedProposal,
+    ) {
+        let mut completed_proposals = self.completed_proposals.lock().await;
+        if let Entry::Vacant(e) = completed_proposals.entry(completed_proposal_id) {
+            e.insert((policy_id, completed_proposal));
+            log::info!("Cached completed proposal {completed_proposal_id}");
+        }
+    }
+
+    pub async fn get_txs_descriptions(&self) -> HashMap<Txid, String> {
+        let completed_proposals = self.completed_proposals.lock().await;
+        let mut map = HashMap::new();
+        for (_, (_, proposal)) in completed_proposals.iter() {
+            if let HashMapEntry::Vacant(e) = map.entry(proposal.txid) {
+                e.insert(proposal.description.clone());
+            }
+        }
+        map
+    }
+
     pub async fn sync_wallets<B>(
         &self,
         blockchain: &B,
@@ -248,10 +294,18 @@ impl Cache {
         pw.wallet.get_balance().ok()
     }
 
-    pub async fn get_transactions(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
+    pub async fn get_transactions(&self, policy_id: EventId) -> Option<Transactions> {
         let policies = self.policies.lock().await;
+        let descriptions = self.get_txs_descriptions().await;
         let pw = policies.get(&policy_id)?;
-        pw.wallet.list_transactions(false).ok()
+        pw.wallet.list_transactions(false).ok().map(|list| {
+            list.into_iter()
+                .map(|tx| {
+                    let txid = tx.txid;
+                    (tx, descriptions.get(&txid).cloned())
+                })
+                .collect()
+        })
     }
 
     pub async fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
@@ -282,14 +336,17 @@ impl Cache {
         Ok((total_balance, synced))
     }
 
-    pub async fn get_all_transactions(&self) -> Result<Vec<TransactionDetails>> {
+    pub async fn get_all_transactions(&self) -> Result<Vec<(TransactionDetails, Option<String>)>> {
         let policies = self.policies.lock().await;
+        let descriptions = self.get_txs_descriptions().await;
         let mut transactions = Vec::new();
         let mut already_seen = Vec::new();
         for (_, pw) in policies.iter() {
             if !already_seen.contains(&&pw.policy.descriptor) {
-                let mut list = pw.wallet.list_transactions(false)?;
-                transactions.append(&mut list);
+                for tx in pw.wallet.list_transactions(false)?.into_iter() {
+                    let desc: Option<String> = descriptions.get(&tx.txid).cloned();
+                    transactions.push((tx, desc))
+                }
                 already_seen.push(&pw.policy.descriptor);
             }
         }

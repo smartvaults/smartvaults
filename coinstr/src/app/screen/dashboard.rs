@@ -4,12 +4,13 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_core::bdk::{Balance, TransactionDetails};
+use coinstr_core::bdk::Balance;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::SpendingProposal;
 use iced::widget::{Column, Space};
 use iced::{time, Command, Element, Length, Subscription};
 
+use crate::app::cache::Transactions;
 use crate::app::component::{Balances, Dashboard, SpendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
@@ -22,7 +23,7 @@ pub enum DashboardMessage {
     Load(
         Option<Balance>,
         BTreeMap<EventId, (EventId, SpendingProposal)>,
-        Option<Vec<TransactionDetails>>,
+        Option<Transactions>,
     ),
     Reload,
 }
@@ -33,7 +34,7 @@ pub struct DashboardState {
     loaded: bool,
     balance: Option<Balance>,
     proposals: BTreeMap<EventId, (EventId, SpendingProposal)>,
-    transactions: Option<Vec<TransactionDetails>>,
+    transactions: Option<Transactions>,
 }
 
 impl DashboardState {

@@ -3,13 +3,14 @@
 
 use std::time::Duration;
 
-use coinstr_core::bdk::{Balance, TransactionDetails};
+use coinstr_core::bdk::Balance;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
+use crate::app::cache::Transactions;
 use crate::app::component::{Balances, Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Text};
@@ -22,7 +23,7 @@ pub enum PolicyMessage {
     LoadPolicy(
         Policy,
         Option<Balance>,
-        Option<Vec<TransactionDetails>>,
+        Option<Transactions>,
         Option<Timestamp>,
     ),
     Reload,
@@ -35,7 +36,7 @@ pub struct PolicyState {
     policy_id: EventId,
     policy: Option<Policy>,
     balance: Option<Balance>,
-    transactions: Option<Vec<TransactionDetails>>,
+    transactions: Option<Transactions>,
     last_sync: Option<Timestamp>,
 }
 

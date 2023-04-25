@@ -19,7 +19,7 @@ use coinstr_core::nostr_sdk::{
     Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag, Timestamp,
 };
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::{ApprovedProposal, SpendingProposal};
+use coinstr_core::proposal::{ApprovedProposal, CompletedProposal, SpendingProposal};
 use coinstr_core::{util, CoinstrClient, Encryption};
 use futures_util::future::{AbortHandle, Abortable};
 use iced::Subscription;
@@ -228,6 +228,30 @@ async fn handle_event(
     } else if event.kind == COMPLETED_PROPOSAL_KIND {
         if let Some(proposal_id) = util::extract_first_event_id(&event) {
             cache.uncache_proposal(proposal_id).await;
+            if let Some(Tag::Event(policy_id, ..)) =
+                util::extract_tags_by_kind(&event, TagKind::E).get(1)
+            {
+                if let Some(shared_key) = shared_keys.get(policy_id) {
+                    let completed_proposal =
+                        CompletedProposal::decrypt(shared_key, &event.content)?;
+                    cache
+                        .cache_completed_proposal(event.id, *policy_id, completed_proposal)
+                        .await;
+                } else {
+                    log::info!("Requesting shared key for completed proposal {}", event.id);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    let shared_key = client
+                        .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
+                        .await?;
+                    shared_keys.insert(*policy_id, shared_key);
+                    handle_event(client, cache, shared_keys, event).await?;
+                }
+            } else {
+                log::error!(
+                    "Impossible to find policy id in completed proposal {}",
+                    event.id
+                );
+            }
         }
     }
 
