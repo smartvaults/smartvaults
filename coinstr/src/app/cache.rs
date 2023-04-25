@@ -48,7 +48,7 @@ impl BlockHeight {
     pub async fn is_synced(&self) -> bool {
         let last_sync = self.last_sync.lock().await;
         let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
-        last_sync.add(BLOCK_HEIGHT_SYNC_INTERVAL) <= Timestamp::now()
+        last_sync.add(BLOCK_HEIGHT_SYNC_INTERVAL) > Timestamp::now()
     }
 
     pub async fn just_synced(&self) {
