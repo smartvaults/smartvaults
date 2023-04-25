@@ -190,12 +190,24 @@ impl Cache {
         approved_proposals
             .entry(proposal_id)
             .and_modify(|map| {
-                if let Entry::Vacant(e) = map.entry(author) {
-                    e.insert((approved_proposal_id, psbt.clone(), timestamp));
-                    log::info!(
-                        "Cached approved proposal {proposal_id} for pubkey {author} (append)"
-                    );
-                }
+                match map.get_mut(&author) {
+                    Some(value) => {
+                        if timestamp > value.2 {
+                            value.0 = approved_proposal_id;
+                            value.1 = psbt.clone();
+                            value.2 = timestamp;
+                            log::info!(
+                                "Cached approved proposal {proposal_id} for pubkey {author} (updated)"
+                            );
+                        }
+                    }
+                    None => {
+                        map.insert(author, (approved_proposal_id, psbt.clone(), timestamp));
+                        log::info!(
+                            "Cached approved proposal {proposal_id} for pubkey {author} (append)"
+                        );
+                    }
+                };
             })
             .or_insert_with(|| {
                 log::info!("Cached approved proposal {proposal_id} for pubkey {author}");
