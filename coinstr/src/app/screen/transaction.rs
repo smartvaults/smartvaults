@@ -18,7 +18,7 @@ use crate::theme::color::{GREEN, RED};
 
 #[derive(Debug, Clone)]
 pub enum TransactionMessage {
-    LoadTx(TransactionDetails),
+    LoadTx((TransactionDetails, Option<String>)),
     Reload,
 }
 
@@ -27,7 +27,7 @@ pub struct TransactionState {
     loading: bool,
     loaded: bool,
     txid: Txid,
-    tx: Option<TransactionDetails>,
+    tx: Option<(TransactionDetails, Option<String>)>,
 }
 
 impl TransactionState {
@@ -89,7 +89,7 @@ impl State for TransactionState {
         let mut center_y = true;
         let mut center_x = true;
 
-        if let Some(tx) = &self.tx {
+        if let Some((tx, description)) = &self.tx {
             center_y = false;
             center_x = false;
 
@@ -101,80 +101,79 @@ impl State for TransactionState {
                 (tot.unsigned_abs(), positive)
             };
 
-            let (inputs, outputs) =
-                if let Some(Some(tx)) = self.tx.as_ref().map(|t| t.transaction.as_ref()) {
-                    let mut inputs = Column::new()
-                        .push(
-                            Text::new(format!("{} inputs", tx.input.len()))
-                                .bold()
-                                .size(30)
-                                .view(),
-                        )
-                        .push(rule::horizontal_bold());
-
-                    for txin in tx.input.iter() {
-                        let txid: String = txin.previous_output.txid.to_string();
-                        inputs = inputs
-                            .push(
-                                Column::new()
-                                    .push(
-                                        Text::new(format!(
-                                            "{}..{}:{}",
-                                            &txid[..8],
-                                            &txid[txid.len() - 8..],
-                                            txin.previous_output.vout
-                                        ))
-                                        .view(),
-                                    )
-                                    .spacing(5),
-                            )
-                            .push(rule::horizontal());
-                    }
-
-                    let mut outputs = Column::new()
-                        .push(
-                            Text::new(format!("{} outputs", tx.output.len()))
-                                .bold()
-                                .size(30)
-                                .view(),
-                        )
-                        .push(rule::horizontal_bold());
-
-                    for txout in tx.output.iter() {
-                        outputs = outputs
-                            .push(
-                                Column::new()
-                                    .push(
-                                        Text::new(
-                                            Address::from_script(
-                                                &txout.script_pubkey,
-                                                ctx.coinstr.network(),
-                                            )
-                                            .map(|a| {
-                                                let a = a.to_string();
-                                                format!("{}..{}", &a[..8], &a[a.len() - 8..])
-                                            })
-                                            .unwrap_or_else(|_| "Error".to_string()),
-                                        )
-                                        .view(),
-                                    )
-                                    .push(
-                                        Text::new(format!("{} sat", format::number(txout.value)))
-                                            .extra_light()
-                                            .view(),
-                                    )
-                                    .spacing(5),
-                            )
-                            .push(rule::horizontal());
-                    }
-
-                    (inputs, outputs)
-                } else {
-                    (
-                        Column::new().push(Text::new("Inputs unavailable").bold().size(30).view()),
-                        Column::new().push(Text::new("Outputs unavailable").bold().size(30).view()),
+            let (inputs, outputs) = if let Some(transaction) = &tx.transaction {
+                let mut inputs = Column::new()
+                    .push(
+                        Text::new(format!("{} inputs", transaction.input.len()))
+                            .bold()
+                            .size(30)
+                            .view(),
                     )
-                };
+                    .push(rule::horizontal_bold());
+
+                for txin in transaction.input.iter() {
+                    let txid: String = txin.previous_output.txid.to_string();
+                    inputs = inputs
+                        .push(
+                            Column::new()
+                                .push(
+                                    Text::new(format!(
+                                        "{}..{}:{}",
+                                        &txid[..8],
+                                        &txid[txid.len() - 8..],
+                                        txin.previous_output.vout
+                                    ))
+                                    .view(),
+                                )
+                                .spacing(5),
+                        )
+                        .push(rule::horizontal());
+                }
+
+                let mut outputs = Column::new()
+                    .push(
+                        Text::new(format!("{} outputs", transaction.output.len()))
+                            .bold()
+                            .size(30)
+                            .view(),
+                    )
+                    .push(rule::horizontal_bold());
+
+                for txout in transaction.output.iter() {
+                    outputs = outputs
+                        .push(
+                            Column::new()
+                                .push(
+                                    Text::new(
+                                        Address::from_script(
+                                            &txout.script_pubkey,
+                                            ctx.coinstr.network(),
+                                        )
+                                        .map(|a| {
+                                            let a = a.to_string();
+                                            format!("{}..{}", &a[..8], &a[a.len() - 8..])
+                                        })
+                                        .unwrap_or_else(|_| "Error".to_string()),
+                                    )
+                                    .view(),
+                                )
+                                .push(
+                                    Text::new(format!("{} sat", format::number(txout.value)))
+                                        .extra_light()
+                                        .view(),
+                                )
+                                .spacing(5),
+                        )
+                        .push(rule::horizontal());
+                }
+
+                (inputs, outputs)
+            } else {
+                (
+                    Column::new().push(Text::new("Inputs unavailable").bold().size(30).view()),
+                    Column::new().push(Text::new("Outputs unavailable").bold().size(30).view()),
+                )
+            };
 
             let txid: String = self.txid.to_string();
             let title = format!("Txid {}..{}", &txid[..6], &txid[txid.len() - 6..]);
@@ -278,13 +277,30 @@ impl State for TransactionState {
                         .width(Length::Fill),
                 )
                 .push(
-                    Row::new().push(
-                        Column::new()
-                            .push(Text::new("Date/Time").bigger().extra_light().view())
-                            .push(Text::new(confirmed_at_time).size(25).view())
-                            .spacing(10)
-                            .width(Length::Fill),
-                    ),
+                    Row::new()
+                        .push(
+                            Column::new()
+                                .push(Text::new("Date/Time").bigger().extra_light().view())
+                                .push(Text::new(confirmed_at_time).size(25).view())
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Description").bigger().extra_light().view())
+                                .push(
+                                    Text::new(
+                                        description
+                                            .as_ref()
+                                            .map(|s| s.as_str())
+                                            .unwrap_or_default(),
+                                    )
+                                    .size(25)
+                                    .view(),
+                                )
+                                .spacing(10)
+                                .width(Length::FillPortion(2)),
+                        ),
                 )
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(

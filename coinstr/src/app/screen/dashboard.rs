@@ -134,7 +134,7 @@ impl State for DashboardState {
                         .view(),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Spending proposals").bold().size(25).view())
+                .push(Text::new("Pending proposals").bold().size(25).view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
                     SpendingProposalsList::new(self.proposals.clone())

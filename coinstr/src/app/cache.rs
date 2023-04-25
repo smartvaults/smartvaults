@@ -250,6 +250,16 @@ impl Cache {
         }
     }
 
+    pub async fn get_description_by_txid(&self, txid: Txid) -> Option<String> {
+        let completed_proposals = self.completed_proposals.lock().await;
+        for (_, (_, proposal)) in completed_proposals.iter() {
+            if proposal.txid == txid {
+                return Some(proposal.description.clone());
+            }
+        }
+        None
+    }
+
     pub async fn get_txs_descriptions(&self) -> HashMap<Txid, String> {
         let completed_proposals = self.completed_proposals.lock().await;
         let mut map = HashMap::new();
@@ -353,15 +363,16 @@ impl Cache {
         Ok(transactions)
     }
 
-    pub async fn get_tx(&self, txid: Txid) -> Option<TransactionDetails> {
+    pub async fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
         let policies = self.policies.lock().await;
+        let desc = self.get_description_by_txid(txid).await;
         let mut already_seen = Vec::new();
         for (_, pw) in policies.iter() {
             if !already_seen.contains(&&pw.policy.descriptor) {
                 let txs = pw.wallet.list_transactions(true).ok()?;
                 for tx in txs.into_iter() {
                     if tx.txid == txid {
-                        return Some(tx);
+                        return Some((tx, desc));
                     }
                 }
                 already_seen.push(&pw.policy.descriptor);
