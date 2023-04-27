@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
 use std::ops::{Add, Sub};
 use std::time::Duration;
 
@@ -15,9 +14,7 @@ use coinstr_core::constants::{
     SPENDING_PROPOSAL_KIND,
 };
 use coinstr_core::nostr_sdk::prelude::TagKind;
-use coinstr_core::nostr_sdk::{
-    Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag, Timestamp,
-};
+use coinstr_core::nostr_sdk::{Event, Filter, RelayPoolNotification, Result, Tag, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{ApprovedProposal, CompletedProposal, SpendingProposal};
 use coinstr_core::{util, CoinstrClient, Encryption};
@@ -80,13 +77,13 @@ where
                 log::debug!("Exited from wallet sync thread");
             });
 
-            let nostr_client = client.inner();
-            let keys = nostr_client.keys();
+            let keys = client.keys();
 
-            let mut shared_keys = client
+            let shared_keys = client
                 .get_shared_keys(Some(Duration::from_secs(60)))
                 .await
                 .unwrap_or_default();
+            cache.cache_shared_keys(shared_keys).await;
 
             log::info!("Got shared keys");
 
@@ -104,31 +101,35 @@ where
                     .kind(COMPLETED_PROPOSAL_KIND),
             ];
 
+            let nostr_client = client.inner();
             nostr_client.subscribe(filters).await;
-
-            let mut notifications = nostr_client.notifications();
-            while let Ok(notification) = notifications.recv().await {
-                match notification {
-                    RelayPoolNotification::Event(_, event) => {
-                        let event_id = event.id;
-                        if event.is_expired() {
-                            log::warn!("Event {event_id} expired");
-                        } else {
-                            match handle_event(&client, &cache, &mut shared_keys, event).await {
-                                Ok(_) => {
-                                    sender.send(()).ok();
+            let _ = nostr_client
+                .handle_notifications(|notification| async {
+                    match notification {
+                        RelayPoolNotification::Event(_, event) => {
+                            let event_id = event.id;
+                            if event.is_expired() {
+                                log::warn!("Event {event_id} expired");
+                            } else {
+                                match handle_event(&client, &cache, event).await {
+                                    Ok(_) => {
+                                        sender.send(()).ok();
+                                    }
+                                    Err(e) => {
+                                        log::error!("Impossible to handle event {event_id}: {e}")
+                                    }
                                 }
-                                Err(e) => log::error!("Impossible to handle event {event_id}: {e}"),
                             }
                         }
+                        RelayPoolNotification::Shutdown => {
+                            abort_handle.abort();
+                        }
+                        _ => (),
                     }
-                    RelayPoolNotification::Shutdown => {
-                        abort_handle.abort();
-                        break;
-                    }
-                    _ => (),
-                }
-            }
+
+                    Ok(())
+                })
+                .await;
             log::debug!("Exited from nostr sync thread");
         });
 
@@ -153,15 +154,10 @@ impl CoinstrSync {
 }
 
 #[async_recursion]
-async fn handle_event(
-    client: &CoinstrClient,
-    cache: &Cache,
-    shared_keys: &mut HashMap<EventId, Keys>,
-    event: Event,
-) -> Result<()> {
+async fn handle_event(client: &CoinstrClient, cache: &Cache, event: Event) -> Result<()> {
     if event.kind == POLICY_KIND && !cache.policy_exists(event.id).await {
-        if let Some(shared_key) = shared_keys.get(&event.id) {
-            let policy = Policy::decrypt(shared_key, &event.content)?;
+        if let Some(shared_key) = cache.shared_key_by_policy_id(event.id).await {
+            let policy = Policy::decrypt(&shared_key, &event.content)?;
             cache
                 .cache_policy(event.id, policy, client.network())
                 .await?;
@@ -171,13 +167,13 @@ async fn handle_event(
             let shared_key = client
                 .get_shared_key_by_policy_id(event.id, Some(Duration::from_secs(30)))
                 .await?;
-            shared_keys.insert(event.id, shared_key);
-            handle_event(client, cache, shared_keys, event).await?;
+            cache.cache_shared_key(event.id, shared_key).await;
+            handle_event(client, cache, event).await?;
         }
     } else if event.kind == SPENDING_PROPOSAL_KIND && !cache.proposal_exists(event.id).await {
         if let Some(policy_id) = util::extract_first_event_id(&event) {
-            if let Some(shared_key) = shared_keys.get(&policy_id) {
-                let proposal = SpendingProposal::decrypt(shared_key, &event.content)?;
+            if let Some(shared_key) = cache.shared_key_by_policy_id(policy_id).await {
+                let proposal = SpendingProposal::decrypt(&shared_key, &event.content)?;
                 cache.cache_proposal(event.id, policy_id, proposal).await;
             } else {
                 log::info!("Requesting shared key for proposal {}", event.id);
@@ -185,8 +181,8 @@ async fn handle_event(
                 let shared_key = client
                     .get_shared_key_by_policy_id(policy_id, Some(Duration::from_secs(30)))
                     .await?;
-                shared_keys.insert(policy_id, shared_key);
-                handle_event(client, cache, shared_keys, event).await?;
+                cache.cache_shared_key(policy_id, shared_key).await;
+                handle_event(client, cache, event).await?;
             }
         } else {
             log::error!("Impossible to find policy id in proposal {}", event.id);
@@ -196,8 +192,8 @@ async fn handle_event(
             if let Some(Tag::Event(policy_id, ..)) =
                 util::extract_tags_by_kind(&event, TagKind::E).get(1)
             {
-                if let Some(shared_key) = shared_keys.get(policy_id) {
-                    let approved_proposal = ApprovedProposal::decrypt(shared_key, &event.content)?;
+                if let Some(shared_key) = cache.shared_key_by_policy_id(*policy_id).await {
+                    let approved_proposal = ApprovedProposal::decrypt(&shared_key, &event.content)?;
                     cache
                         .cache_approved_proposal(
                             proposal_id,
@@ -213,8 +209,8 @@ async fn handle_event(
                     let shared_key = client
                         .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
                         .await?;
-                    shared_keys.insert(*policy_id, shared_key);
-                    handle_event(client, cache, shared_keys, event).await?;
+                    cache.cache_shared_key(*policy_id, shared_key).await;
+                    handle_event(client, cache, event).await?;
                 }
             } else {
                 log::error!("Impossible to find policy id in proposal {}", event.id);
@@ -236,9 +232,9 @@ async fn handle_event(
                     cache.schedule_for_sync(*policy_id).await;
                 }
 
-                if let Some(shared_key) = shared_keys.get(policy_id) {
+                if let Some(shared_key) = cache.shared_key_by_policy_id(*policy_id).await {
                     let completed_proposal =
-                        CompletedProposal::decrypt(shared_key, &event.content)?;
+                        CompletedProposal::decrypt(&shared_key, &event.content)?;
                     cache
                         .cache_completed_proposal(event.id, *policy_id, completed_proposal)
                         .await;
@@ -248,8 +244,8 @@ async fn handle_event(
                     let shared_key = client
                         .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
                         .await?;
-                    shared_keys.insert(*policy_id, shared_key);
-                    handle_event(client, cache, shared_keys, event).await?;
+                    cache.cache_shared_key(*policy_id, shared_key).await;
+                    handle_event(client, cache, event).await?;
                 }
             } else {
                 log::error!(

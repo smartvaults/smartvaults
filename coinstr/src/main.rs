@@ -109,7 +109,7 @@ impl Application for CoinstrApp {
             }
             (State::App(app), Message::App(msg)) => match *msg {
                 app::Message::Lock => {
-                    let client = app.context.client.inner();
+                    let client = app.context.client.clone();
                     tokio::task::spawn(async move {
                         if let Err(e) = client.shutdown().await {
                             log::error!("Impossible to shutdown client: {}", e.to_string());

@@ -15,7 +15,7 @@ use coinstr_core::bdk::wallet::AddressIndex;
 use coinstr_core::bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
-use coinstr_core::nostr_sdk::{EventId, Result, Timestamp};
+use coinstr_core::nostr_sdk::{EventId, Keys, Result, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{CompletedProposal, SpendingProposal};
 use tokio::sync::mpsc::UnboundedSender;
@@ -64,30 +64,19 @@ pub struct PolicyWallet {
     last_sync: Option<Timestamp>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Cache {
     pub block_height: BlockHeight,
+    shared_keys: Arc<Mutex<HashMap<EventId, Keys>>>,
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
     pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
     pub approved_proposals: Arc<Mutex<ApprovedProposals>>,
     pub completed_proposals: Arc<Mutex<BTreeMap<EventId, (EventId, CompletedProposal)>>>,
 }
 
-impl Default for Cache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Cache {
     pub fn new() -> Self {
-        Self {
-            block_height: BlockHeight::default(),
-            policies: Arc::new(Mutex::new(BTreeMap::new())),
-            proposals: Arc::new(Mutex::new(BTreeMap::new())),
-            approved_proposals: Arc::new(Mutex::new(BTreeMap::new())),
-            completed_proposals: Arc::new(Mutex::new(BTreeMap::new())),
-        }
+        Self::default()
     }
 
     pub fn block_height(&self) -> u32 {
@@ -96,6 +85,25 @@ impl Cache {
 
     pub fn cache_block_height(&self, block_height: u32) {
         self.block_height.set_block_height(block_height);
+    }
+
+    pub async fn shared_key_by_policy_id(&self, policy_id: EventId) -> Option<Keys> {
+        let shared_keys = self.shared_keys.lock().await;
+        shared_keys.get(&policy_id).cloned()
+    }
+
+    pub async fn cache_shared_key(&self, policy_id: EventId, keys: Keys) {
+        let mut shared_keys = self.shared_keys.lock().await;
+        shared_keys.insert(policy_id, keys);
+    }
+
+    pub async fn cache_shared_keys(&self, map: HashMap<EventId, Keys>) {
+        let mut shared_keys = self.shared_keys.lock().await;
+        for (policy_id, keys) in map.into_iter() {
+            if let HashMapEntry::Vacant(e) = shared_keys.entry(policy_id) {
+                e.insert(keys);
+            }
+        }
     }
 
     pub async fn policy_exists(&self, policy_id: EventId) -> bool {

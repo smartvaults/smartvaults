@@ -743,6 +743,10 @@ impl CoinstrClient {
         Ok((event_id, policy_id, completed_proposal))
     }
 
+    pub async fn shutdown(self) -> Result<(), Error> {
+        Ok(self.client.shutdown().await?)
+    }
+
     pub fn inner(&self) -> Client {
         self.client.clone()
     }
