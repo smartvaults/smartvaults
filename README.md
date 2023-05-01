@@ -1,5 +1,6 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/coinstr/coinstr/master/coinstr/static/img/coinstr.svg" />
+  <img src="https://raw.githubusercontent.com/coinstr/coinstr/master/coinstr/static/img/coinstr.svg" width=200/>
+  <h2>Bitcoin Multi-Custody</h2>
 </div>
 
 ₿ Coinstr is a bitcoin multi-custody protocol for spending policies and proposal execution.
@@ -8,14 +9,28 @@
 <br/>
 👨‍👩‍👧‍👦 Coinstr eliminates friction for groups managing Bitcoin together. 
 
+## Screenshots
+Native GUI Dashboard
+<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/native-dashboard.png" width=400/>
+<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/policy-details.png" width=400/>
+      
+Policy Editor
+<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/policy-editor.png"/>
+
 ## Architecture
 ![coinstr-arch](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/coinstr/coinstr/master/docs/arch.iuml)
 
-## Quick start
+## Quick Start - Native GUI
 
 ```
 cargo build --release
-./target/release/coinstr-cli
+./target/release/coinstr
+```
+
+## Quick Start - CLI
+```
+cargo build --release
+./target/release/coinstr
 ```
 
 ```
