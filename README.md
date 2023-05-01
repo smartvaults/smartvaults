@@ -1,3 +1,13 @@
+<div align="center">
+  ![Logo](coinstr/static/img/coinstr.svg)
+  
+  ₿ Coinstr is a bitcoin multi-custody protocol for spending policies and proposal execution.
+  <br/>
+  🖆 Coinstr uses Nostr relays and clients for discovering signers, saving policies & PSBTs, and orchestrating signatures with workflow.
+  <br/>
+  👨‍👩‍👧‍👦 Coinstr eliminates friction for groups managing Bitcoin together. 
+</div>
+
 ## Architecture
 ![coinstr-arch](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/coinstr/coinstr/master/docs/arch.iuml)
 
