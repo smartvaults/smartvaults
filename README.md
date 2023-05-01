@@ -10,9 +10,9 @@
 👨‍👩‍👧‍👦 Coinstr eliminates friction for groups managing Bitcoin together. 
 
 ## Screenshots
-Native GUI Dashboard
-<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/native-dashboard.png" width=400/>
-<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/policy-details.png" width=400/>
+Native GUI Dashboard & Policy Details <br/>
+<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/native-dashboard.png" width=600/>
+<img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/policy-details.png" width=600/>
       
 Policy Editor
 <img src="https://raw.githubusercontent.com/coinstr/coinstr/master/docs/policy-editor.png"/>
