@@ -735,7 +735,7 @@ impl CoinstrClient {
 
             // Build the broadcasted proposal
             let completed_proposal =
-                CompletedProposal::new(finalized_tx.txid(), description, approvals);
+                CompletedProposal::spending(finalized_tx.txid(), description, approvals);
 
             // Compose the event
             let content = completed_proposal.encrypt(&shared_keys)?;

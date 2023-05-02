@@ -160,7 +160,7 @@ impl State for ProposalState {
                                 ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
                             let (event_id, policy_id, completed_proposal) =
                                 client.broadcast(proposal_id, &blockchain, None).await?;
-                            let txid = completed_proposal.txid;
+                            let txid = completed_proposal.txid().unwrap();
                             cache.uncache_proposal(proposal_id).await;
                             cache.sync_with_timechain(&blockchain, None, true).await?;
                             cache

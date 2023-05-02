@@ -289,8 +289,15 @@ impl Cache {
     pub async fn get_description_by_txid(&self, txid: Txid) -> Option<String> {
         let completed_proposals = self.completed_proposals.lock().await;
         for (_, (_, proposal)) in completed_proposals.iter() {
-            if proposal.txid == txid {
-                return Some(proposal.description.clone());
+            if let CompletedProposal::Spending {
+                txid: c_txid,
+                description,
+                ..
+            } = proposal
+            {
+                if *c_txid == txid {
+                    return Some(description.clone());
+                }
             }
         }
         None
@@ -300,8 +307,13 @@ impl Cache {
         let completed_proposals = self.completed_proposals.lock().await;
         let mut map = HashMap::new();
         for (_, (_, proposal)) in completed_proposals.iter() {
-            if let HashMapEntry::Vacant(e) = map.entry(proposal.txid) {
-                e.insert(proposal.description.clone());
+            if let CompletedProposal::Spending {
+                txid, description, ..
+            } = proposal
+            {
+                if let HashMapEntry::Vacant(e) = map.entry(*txid) {
+                    e.insert(description.clone());
+                }
             }
         }
         map

@@ -78,22 +78,6 @@ impl Proposal {
 impl Encryption for Proposal {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CompletedProposalType {
-    Spending {
-        txid: Txid,
-        description: String,
-    },
-    ProofOfReserve {
-        message: String,
-        #[serde(
-            serialize_with = "serialize_psbt",
-            deserialize_with = "deserialize_psbt"
-        )]
-        psbt: PartiallySignedTransaction,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApprovedProposal {
     #[serde(
         serialize_with = "serialize_psbt",
@@ -115,35 +99,55 @@ impl ApprovedProposal {
 impl Encryption for ApprovedProposal {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CompletedProposal {
-    pub txid: Txid,
-    pub description: String,
-    pub approvals: Vec<XOnlyPublicKey>,
+pub enum CompletedProposal {
+    Spending {
+        txid: Txid,
+        description: String,
+        approvals: Vec<XOnlyPublicKey>,
+    },
+    ProofOfReserve {
+        message: String,
+        approvals: Vec<XOnlyPublicKey>,
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
 }
 
 impl CompletedProposal {
-    pub fn new<S>(txid: Txid, description: S, approvals: Vec<XOnlyPublicKey>) -> Self
+    pub fn spending<S>(txid: Txid, description: S, approvals: Vec<XOnlyPublicKey>) -> Self
     where
         S: Into<String>,
     {
-        Self {
+        Self::Spending {
             txid,
             description: description.into(),
             approvals,
         }
     }
 
-    /// Deserialize from `JSON` string
-    pub fn from_json<S>(json: S) -> Result<Self, serde_json::Error>
+    pub fn proof_of_reserve<S>(
+        message: S,
+        approvals: Vec<XOnlyPublicKey>,
+        psbt: PartiallySignedTransaction,
+    ) -> Self
     where
         S: Into<String>,
     {
-        serde_json::from_str(&json.into())
+        Self::ProofOfReserve {
+            message: message.into(),
+            approvals,
+            psbt,
+        }
     }
 
-    /// Serialize to `JSON` string
-    pub fn as_json(&self) -> String {
-        serde_json::json!(self).to_string()
+    pub fn txid(&self) -> Option<Txid> {
+        match self {
+            Self::Spending { txid, .. } => Some(*txid),
+            _ => None,
+        }
     }
 }
 

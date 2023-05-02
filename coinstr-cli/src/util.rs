@@ -348,16 +348,33 @@ pub fn print_proposals(proposals: Vec<(EventId, Proposal, EventId)>) {
 pub fn print_completed_proposals(proposals: Vec<(EventId, CompletedProposal, EventId)>) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "ID", "Policy ID", "Txid", "Description"]);
+    table.set_titles(row!["#", "ID", "Policy ID", "Type", "Txid", "Description"]);
 
     for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
-        table.add_row(row![
-            index + 1,
-            util::cut_event_id(proposal_id),
-            util::cut_event_id(policy_id),
-            proposal.txid,
-            proposal.description,
-        ]);
+        match proposal {
+            CompletedProposal::Spending {
+                txid, description, ..
+            } => {
+                table.add_row(row![
+                    index + 1,
+                    util::cut_event_id(proposal_id),
+                    util::cut_event_id(policy_id),
+                    "spending",
+                    txid,
+                    description,
+                ]);
+            }
+            CompletedProposal::ProofOfReserve { message, .. } => {
+                table.add_row(row![
+                    index + 1,
+                    util::cut_event_id(proposal_id),
+                    util::cut_event_id(policy_id),
+                    "proof-of-reserve",
+                    "-",
+                    message,
+                ]);
+            }
+        }
     }
 
     table.printstd();
