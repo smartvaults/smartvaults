@@ -11,12 +11,12 @@ use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    SPENDING_PROPOSAL_KIND,
+    PROPOSAL_KIND,
 };
 use coinstr_core::nostr_sdk::prelude::TagKind;
 use coinstr_core::nostr_sdk::{Event, Filter, RelayPoolNotification, Result, Tag, Timestamp};
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::{ApprovedProposal, CompletedProposal, SpendingProposal};
+use coinstr_core::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 use coinstr_core::{util, CoinstrClient, Encryption};
 use futures_util::future::{AbortHandle, Abortable};
 use iced::Subscription;
@@ -89,9 +89,7 @@ where
 
             let filters = vec![
                 Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(SPENDING_PROPOSAL_KIND),
+                Filter::new().pubkey(keys.public_key()).kind(PROPOSAL_KIND),
                 Filter::new()
                     .pubkey(keys.public_key())
                     .kind(APPROVED_PROPOSAL_KIND)
@@ -170,10 +168,10 @@ async fn handle_event(client: &CoinstrClient, cache: &Cache, event: Event) -> Re
             cache.cache_shared_key(event.id, shared_key).await;
             handle_event(client, cache, event).await?;
         }
-    } else if event.kind == SPENDING_PROPOSAL_KIND && !cache.proposal_exists(event.id).await {
+    } else if event.kind == PROPOSAL_KIND && !cache.proposal_exists(event.id).await {
         if let Some(policy_id) = util::extract_first_event_id(&event) {
             if let Some(shared_key) = cache.shared_key_by_policy_id(policy_id).await {
-                let proposal = SpendingProposal::decrypt(&shared_key, &event.content)?;
+                let proposal = Proposal::decrypt(&shared_key, &event.content)?;
                 cache.cache_proposal(event.id, policy_id, proposal).await;
             } else {
                 log::info!("Requesting shared key for proposal {}", event.id);

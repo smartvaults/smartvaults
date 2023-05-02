@@ -14,7 +14,7 @@ use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Metadata, SECP256K1};
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::{CompletedProposal, SpendingProposal};
+use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::types::Purpose;
 use coinstr_core::util::bip::bip32::Bip32RootKey;
 use coinstr_core::util::{self, format};
@@ -273,37 +273,73 @@ pub fn print_policies(policies: Vec<(EventId, Policy)>) {
     table.printstd();
 }
 
-pub fn print_proposal(proposal_id: EventId, proposal: SpendingProposal, policy_id: EventId) {
+pub fn print_proposal(proposal_id: EventId, proposal: Proposal, policy_id: EventId) {
     println!();
     println!("- Proposal id: {proposal_id}");
     println!("- Policy id: {policy_id}");
-    println!("- Description: {}", proposal.description);
-    println!("- To address: {}", proposal.to_address);
-    println!("- Amount: {}", proposal.amount);
+    match proposal {
+        Proposal::Spending {
+            to_address,
+            amount,
+            description,
+            ..
+        } => {
+            println!("- Type: spending");
+            println!("- Description: {description}");
+            println!("- To address: {to_address}");
+            println!("- Amount: {amount}");
+        }
+        Proposal::ProofOfReserve { message, .. } => {
+            println!("- Type: proof-of-reserve");
+            println!("- Message: {message}");
+        }
+    }
     println!();
 }
 
-pub fn print_proposals(proposals: Vec<(EventId, SpendingProposal, EventId)>) {
+pub fn print_proposals(proposals: Vec<(EventId, Proposal, EventId)>) {
     let mut table = Table::new();
 
     table.set_titles(row![
         "#",
         "ID",
         "Policy ID",
-        "Description",
+        "Type",
+        "Desc/Msg",
         "Address",
         "Amount"
     ]);
 
     for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
-        table.add_row(row![
-            index + 1,
-            proposal_id,
-            util::cut_event_id(policy_id),
-            proposal.description,
-            proposal.to_address,
-            format!("{} sat", format::number(proposal.amount))
-        ]);
+        match proposal {
+            Proposal::Spending {
+                to_address,
+                amount,
+                description,
+                ..
+            } => {
+                table.add_row(row![
+                    index + 1,
+                    proposal_id,
+                    util::cut_event_id(policy_id),
+                    "spending",
+                    description,
+                    to_address,
+                    format!("{} sat", format::number(amount))
+                ]);
+            }
+            Proposal::ProofOfReserve { message, .. } => {
+                table.add_row(row![
+                    index + 1,
+                    proposal_id,
+                    util::cut_event_id(policy_id),
+                    "proof-of-reserve",
+                    message,
+                    "-",
+                    "-"
+                ]);
+            }
+        }
     }
 
     table.printstd();

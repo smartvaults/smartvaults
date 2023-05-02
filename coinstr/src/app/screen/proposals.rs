@@ -4,11 +4,11 @@
 use std::collections::BTreeMap;
 
 use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::Proposal;
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::{Dashboard, SpendingProposalsList};
+use crate::app::component::{Dashboard, PendingProposalsList};
 use crate::app::{Context, Message, State};
 use crate::component::{button, Text};
 use crate::constants::APP_NAME;
@@ -16,7 +16,7 @@ use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
 pub enum ProposalsMessage {
-    LoadProposals(BTreeMap<EventId, (EventId, SpendingProposal)>),
+    LoadProposals(BTreeMap<EventId, (EventId, Proposal)>),
     Reload,
 }
 
@@ -24,7 +24,7 @@ pub enum ProposalsMessage {
 pub struct ProposalsState {
     loading: bool,
     loaded: bool,
-    proposals: BTreeMap<EventId, (EventId, SpendingProposal)>,
+    proposals: BTreeMap<EventId, (EventId, Proposal)>,
 }
 
 impl ProposalsState {
@@ -82,7 +82,7 @@ impl State for ProposalsState {
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-                content = content.push(SpendingProposalsList::new(self.proposals.clone()).view());
+                content = content.push(PendingProposalsList::new(self.proposals.clone()).view());
             }
         } else {
             content = content.push(Text::new("Loading...").view());

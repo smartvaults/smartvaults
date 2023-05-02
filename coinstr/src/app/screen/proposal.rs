@@ -9,7 +9,7 @@ use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Network, Txid, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::Proposal;
 use coinstr_core::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
@@ -39,13 +39,13 @@ pub struct ProposalState {
     loaded: bool,
     signed: bool,
     proposal_id: EventId,
-    proposal: SpendingProposal,
+    proposal: Proposal,
     approved_proposals: BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
     error: Option<String>,
 }
 
 impl ProposalState {
-    pub fn new(proposal_id: EventId, proposal: SpendingProposal) -> Self {
+    pub fn new(proposal_id: EventId, proposal: Proposal) -> Self {
         Self {
             loading: false,
             loaded: false,
@@ -179,7 +179,7 @@ impl State for ProposalState {
                 ProposalMessage::CheckPsbts => {
                     if !self.signed {
                         let client = ctx.client.clone();
-                        let base_psbt = self.proposal.psbt.clone();
+                        let base_psbt = self.proposal.psbt();
                         let signed_psbts = self
                             .approved_proposals
                             .iter()
@@ -204,26 +204,49 @@ impl State for ProposalState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let mut content = Column::new().spacing(10).padding(20);
         let mut center_y = true;
         let mut center_x = true;
 
-        if self.loaded {
+        let content = if self.loaded {
             center_y = false;
             center_x = false;
-            let title = format!("Proposal #{}", util::cut_event_id(self.proposal_id));
-            content = content
-                .push(Text::new(title).size(40).bold().view())
-                .push(Space::with_height(Length::Fixed(40.0)))
-                .push(Text::new(format!("Address: {}", self.proposal.to_address)).view())
+
+            let mut content = Column::new()
+                .spacing(10)
+                .padding(20)
                 .push(
                     Text::new(format!(
-                        "Amount: {} sat",
-                        util::format::number(self.proposal.amount)
+                        "Proposal #{}",
+                        util::cut_event_id(self.proposal_id)
                     ))
+                    .size(40)
+                    .bold()
                     .view(),
                 )
-                .push(Text::new(format!("Description: {}", &self.proposal.description)).view());
+                .push(Space::with_height(Length::Fixed(40.0)));
+
+            match &self.proposal {
+                Proposal::Spending {
+                    to_address,
+                    amount,
+                    description,
+                    ..
+                } => {
+                    content = content
+                        .push(Text::new("Type: spending").view())
+                        .push(Text::new(format!("Address: {to_address}")).view())
+                        .push(
+                            Text::new(format!("Amount: {} sat", util::format::number(*amount)))
+                                .view(),
+                        )
+                        .push(Text::new(format!("Description: {description}")).view());
+                }
+                Proposal::ProofOfReserve { message, .. } => {
+                    content = content
+                        .push(Text::new("Type: proof-of-reserve").view())
+                        .push(Text::new(format!("Message: {message}")).view());
+                }
+            }
 
             let mut status = Row::new().push(Text::new("Status: ").view());
 
@@ -317,9 +340,11 @@ impl State for ProposalState {
                     content = content.push(row).push(rule::horizontal());
                 }
             }
+
+            content
         } else {
-            content = content.push(Text::new("Loading...").view());
-        }
+            Column::new().push(Text::new("Loading...").view())
+        };
 
         Dashboard::new().view(ctx, content, center_x, center_y)
     }

@@ -17,7 +17,7 @@ use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Keys, Result, Timestamp};
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::{CompletedProposal, SpendingProposal};
+use coinstr_core::proposal::{CompletedProposal, Proposal};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 
@@ -69,7 +69,7 @@ pub struct Cache {
     pub block_height: BlockHeight,
     shared_keys: Arc<Mutex<HashMap<EventId, Keys>>>,
     pub policies: Arc<Mutex<BTreeMap<EventId, PolicyWallet>>>,
-    pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, SpendingProposal)>>>,
+    pub proposals: Arc<Mutex<BTreeMap<EventId, (EventId, Proposal)>>>,
     pub approved_proposals: Arc<Mutex<ApprovedProposals>>,
     pub completed_proposals: Arc<Mutex<BTreeMap<EventId, (EventId, CompletedProposal)>>>,
 }
@@ -187,7 +187,7 @@ impl Cache {
         proposals.contains_key(&proposal_id)
     }
 
-    pub async fn proposals(&self) -> BTreeMap<EventId, (EventId, SpendingProposal)> {
+    pub async fn proposals(&self) -> BTreeMap<EventId, (EventId, Proposal)> {
         let proposals = self.proposals.lock().await;
         proposals.clone()
     }
@@ -196,7 +196,7 @@ impl Cache {
         &self,
         proposal_id: EventId,
         policy_id: EventId,
-        proposal: SpendingProposal,
+        proposal: Proposal,
     ) {
         let mut proposals = self.proposals.lock().await;
         if let Entry::Vacant(e) = proposals.entry(proposal_id) {

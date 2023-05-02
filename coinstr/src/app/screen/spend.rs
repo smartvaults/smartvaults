@@ -10,7 +10,7 @@ use coinstr_core::bdk::Balance;
 use coinstr_core::bitcoin::{Address, Network};
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::Proposal;
 use coinstr_core::util::format;
 use coinstr_core::{util, Amount, FeeRate};
 use iced::widget::{Column, Container, PickList, Radio, Row, Space};
@@ -132,10 +132,7 @@ impl SpendState {
                 cache
                     .cache_proposal(proposal_id, policy_id, proposal.clone())
                     .await;
-                Ok::<(EventId, SpendingProposal), Box<dyn std::error::Error>>((
-                    proposal_id,
-                    proposal,
-                ))
+                Ok::<(EventId, Proposal), Box<dyn std::error::Error>>((proposal_id, proposal))
             },
             |res| match res {
                 Ok((proposal_id, proposal)) => {

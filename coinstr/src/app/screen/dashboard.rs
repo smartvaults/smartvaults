@@ -6,12 +6,12 @@ use std::time::Duration;
 
 use coinstr_core::bdk::Balance;
 use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::Proposal;
 use iced::widget::{Column, Space};
 use iced::{time, Command, Element, Length, Subscription};
 
 use crate::app::cache::Transactions;
-use crate::app::component::{Balances, Dashboard, SpendingProposalsList, TransactionsList};
+use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
 use crate::constants::APP_NAME;
@@ -22,7 +22,7 @@ pub enum DashboardMessage {
     Deposit,
     Load(
         Option<Balance>,
-        BTreeMap<EventId, (EventId, SpendingProposal)>,
+        BTreeMap<EventId, (EventId, Proposal)>,
         Option<Transactions>,
     ),
     Reload,
@@ -33,7 +33,7 @@ pub struct DashboardState {
     loading: bool,
     loaded: bool,
     balance: Option<Balance>,
-    proposals: BTreeMap<EventId, (EventId, SpendingProposal)>,
+    proposals: BTreeMap<EventId, (EventId, Proposal)>,
     transactions: Option<Transactions>,
 }
 
@@ -137,7 +137,7 @@ impl State for DashboardState {
                 .push(Text::new("Pending proposals").bold().size(25).view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
-                    SpendingProposalsList::new(self.proposals.clone())
+                    PendingProposalsList::new(self.proposals.clone())
                         .take(3)
                         .view(),
                 )

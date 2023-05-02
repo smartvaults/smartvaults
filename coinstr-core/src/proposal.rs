@@ -11,19 +11,29 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::Encryption;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SpendingProposal {
-    pub to_address: Address,
-    pub amount: u64,
-    pub description: String,
-    #[serde(
-        serialize_with = "serialize_psbt",
-        deserialize_with = "deserialize_psbt"
-    )]
-    pub psbt: PartiallySignedTransaction,
+pub enum Proposal {
+    Spending {
+        to_address: Address,
+        amount: u64,
+        description: String,
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
+    ProofOfReserve {
+        message: String,
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
 }
 
-impl SpendingProposal {
-    pub fn new<S>(
+impl Proposal {
+    pub fn spending<S>(
         to_address: Address,
         amount: u64,
         description: S,
@@ -32,7 +42,7 @@ impl SpendingProposal {
     where
         S: Into<String>,
     {
-        Self {
+        Self::Spending {
             to_address,
             amount,
             description: description.into(),
@@ -40,12 +50,48 @@ impl SpendingProposal {
         }
     }
 
+    pub fn proof_of_reserve<S>(message: S, psbt: PartiallySignedTransaction) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::ProofOfReserve {
+            message: message.into(),
+            psbt,
+        }
+    }
+
+    pub fn desc(&self) -> String {
+        match self {
+            Self::Spending { description, .. } => description.clone(),
+            Self::ProofOfReserve { message, .. } => message.clone(),
+        }
+    }
+
     pub fn psbt(&self) -> PartiallySignedTransaction {
-        self.psbt.clone()
+        match self {
+            Self::Spending { psbt, .. } => psbt.clone(),
+            Self::ProofOfReserve { psbt, .. } => psbt.clone(),
+        }
     }
 }
 
-impl Encryption for SpendingProposal {}
+impl Encryption for Proposal {}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompletedProposalType {
+    Spending {
+        txid: Txid,
+        description: String,
+    },
+    ProofOfReserve {
+        message: String,
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApprovedProposal {

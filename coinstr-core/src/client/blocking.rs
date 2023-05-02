@@ -15,7 +15,7 @@ use nostr_sdk::{Event, EventId, Keys, Metadata, Result};
 
 use super::{Amount, Error, FeeRate};
 use crate::policy::Policy;
-use crate::proposal::{ApprovedProposal, CompletedProposal, SpendingProposal};
+use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 
 /// Blocking Coinstr Client
 #[derive(Debug, Clone)]
@@ -58,7 +58,7 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(SpendingProposal, EventId, Keys), Error> {
+    ) -> Result<(Proposal, EventId, Keys), Error> {
         block_on(async { self.client.get_proposal_by_id(proposal_id, timeout).await })
     }
 
@@ -89,7 +89,7 @@ impl CoinstrClient {
     pub fn get_proposals(
         &self,
         timeout: Option<Duration>,
-    ) -> Result<Vec<(EventId, SpendingProposal, EventId)>, Error> {
+    ) -> Result<Vec<(EventId, Proposal, EventId)>, Error> {
         block_on(async { self.client.get_proposals(timeout).await })
     }
 
@@ -116,7 +116,7 @@ impl CoinstrClient {
         fee_rate: FeeRate,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<(EventId, SpendingProposal), Error>
+    ) -> Result<(EventId, Proposal), Error>
     where
         S: Into<String>,
         B: Blockchain,

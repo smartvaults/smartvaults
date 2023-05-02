@@ -26,10 +26,10 @@ pub mod blocking;
 
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    SHARED_KEY_KIND, SPENDING_PROPOSAL_KIND,
+    PROPOSAL_KIND, SHARED_KEY_KIND,
 };
 use crate::policy::{self, Policy};
-use crate::proposal::{ApprovedProposal, CompletedProposal, SpendingProposal};
+use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 use crate::{util, Amount, Encryption, EncryptionError, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
@@ -63,8 +63,10 @@ pub enum Error {
     SharedKeysNotFound,
     #[error("policy not found")]
     PolicyNotFound,
-    #[error("spending proposal not found")]
-    SpendingProposalNotFound,
+    #[error("proposal not found")]
+    ProposalNotFound,
+    #[error("unexpected proposal")]
+    UnexpectedProposal,
     #[error("approved proposal/s not found")]
     ApprovedProposalNotFound,
     #[error("impossible to finalize the PSBT: {0:?}")]
@@ -77,7 +79,7 @@ pub enum Error {
 
 struct GetApprovedProposals {
     policy_id: EventId,
-    proposal: SpendingProposal,
+    proposal: Proposal,
     signed_psbts: Vec<PartiallySignedTransaction>,
     public_keys: Vec<XOnlyPublicKey>,
     approvals: Vec<XOnlyPublicKey>,
@@ -197,20 +199,20 @@ impl CoinstrClient {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(SpendingProposal, EventId, Keys), Error> {
+    ) -> Result<(Proposal, EventId, Keys), Error> {
         // Get proposal event
-        let filter = Filter::new().id(proposal_id).kind(SPENDING_PROPOSAL_KIND);
+        let filter = Filter::new().id(proposal_id).kind(PROPOSAL_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let proposal_event = events.first().ok_or(Error::SpendingProposalNotFound)?;
+        let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
         let policy_id =
             util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
-        // Decrypt the spending proposal
+        // Decrypt the proposal
         Ok((
-            SpendingProposal::decrypt(&shared_keys, &proposal_event.content)?,
+            Proposal::decrypt(&shared_keys, &proposal_event.content)?,
             policy_id,
             shared_keys,
         ))
@@ -294,7 +296,7 @@ impl CoinstrClient {
         // Get the proposal
         let filter = Filter::new().id(proposal_id);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let proposal_event = events.first().ok_or(Error::SpendingProposalNotFound)?;
+        let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
         let policy_id =
             util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
@@ -349,19 +351,17 @@ impl CoinstrClient {
     pub async fn get_proposals(
         &self,
         timeout: Option<Duration>,
-    ) -> Result<Vec<(EventId, SpendingProposal, EventId)>, Error> {
+    ) -> Result<Vec<(EventId, Proposal, EventId)>, Error> {
         let keys = self.client.keys();
 
         // Get proposals
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .kind(SPENDING_PROPOSAL_KIND);
+        let filter = Filter::new().pubkey(keys.public_key()).kind(PROPOSAL_KIND);
         let proposals_events = self.client.get_events_of(vec![filter], timeout).await?;
 
         // Get shared keys
         let shared_keys: HashMap<EventId, Keys> = self.get_shared_keys(timeout).await?;
 
-        let mut proposals: Vec<(EventId, SpendingProposal, EventId)> = Vec::new();
+        let mut proposals: Vec<(EventId, Proposal, EventId)> = Vec::new();
 
         for event in proposals_events.into_iter() {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
@@ -370,7 +370,7 @@ impl CoinstrClient {
                 .ok_or(Error::SharedKeysNotFound)?;
             proposals.push((
                 event.id,
-                SpendingProposal::decrypt(shared_key, &event.content)?,
+                Proposal::decrypt(shared_key, &event.content)?,
                 policy_id,
             ));
         }
@@ -481,7 +481,7 @@ impl CoinstrClient {
         description: S,
         fee_rate: FeeRate,
         blockchain: &B,
-    ) -> Result<(SpendingProposal, TransactionDetails), Error>
+    ) -> Result<(Proposal, TransactionDetails), Error>
     where
         S: Into<String>,
         B: Blockchain,
@@ -521,7 +521,7 @@ impl CoinstrClient {
         };
 
         let amount: u64 = details.sent.saturating_sub(details.received);
-        let proposal = SpendingProposal::new(to_address, amount, description, psbt);
+        let proposal = Proposal::spending(to_address, amount, description, psbt);
 
         Ok((proposal, details))
     }
@@ -537,7 +537,7 @@ impl CoinstrClient {
         fee_rate: FeeRate,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<(EventId, SpendingProposal), Error>
+    ) -> Result<(EventId, Proposal), Error>
     where
         S: Into<String>,
         B: Blockchain,
@@ -559,34 +559,42 @@ impl CoinstrClient {
             )
             .await?;
 
-        // Compose the event
-        let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
-        let mut tags: Vec<Tag> = extracted_pubkeys
-            .iter()
-            .map(|p| Tag::PubKey(*p, None))
-            .collect();
-        tags.push(Tag::Event(policy_id, None, None));
-        let content = proposal.encrypt(&shared_keys)?;
-        // Publish proposal with `shared_key` so every owner can delete it
-        let event =
-            EventBuilder::new(SPENDING_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-        let proposal_id = self.client.send_event(event).await?;
+        if let Proposal::Spending {
+            amount,
+            description,
+            ..
+        } = &proposal
+        {
+            // Compose the event
+            let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
+            let mut tags: Vec<Tag> = extracted_pubkeys
+                .iter()
+                .map(|p| Tag::PubKey(*p, None))
+                .collect();
+            tags.push(Tag::Event(policy_id, None, None));
+            let content = proposal.encrypt(&shared_keys)?;
+            // Publish proposal with `shared_key` so every owner can delete it
+            let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+            let proposal_id = self.client.send_event(event).await?;
 
-        // Send DM msg
-        let sender = self.client.keys().public_key();
-        let mut msg = String::from("New spending proposal:\n");
-        msg.push_str(&format!(
-            "- Amount: {} sat\n",
-            util::format::big_number(proposal.amount)
-        ));
-        msg.push_str(&format!("- Description: {description}"));
-        for pubkey in extracted_pubkeys.into_iter() {
-            if sender != pubkey {
-                self.client.send_direct_msg(pubkey, &msg).await?;
+            // Send DM msg
+            let sender = self.client.keys().public_key();
+            let mut msg = String::from("New spending proposal:\n");
+            msg.push_str(&format!(
+                "- Amount: {} sat\n",
+                util::format::big_number(*amount)
+            ));
+            msg.push_str(&format!("- Description: {description}"));
+            for pubkey in extracted_pubkeys.into_iter() {
+                if sender != pubkey {
+                    self.client.send_direct_msg(pubkey, &msg).await?;
+                }
             }
-        }
 
-        Ok((proposal_id, proposal))
+            Ok((proposal_id, proposal))
+        } else {
+            Err(Error::UnexpectedProposal)
+        }
     }
 
     fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
@@ -604,7 +612,7 @@ impl CoinstrClient {
     pub fn approve_spending_proposal(
         &self,
         policy: &Policy,
-        proposal: &SpendingProposal,
+        proposal: &Proposal,
     ) -> Result<ApprovedProposal, Error> {
         let keys = self.client.keys();
 
@@ -623,9 +631,9 @@ impl CoinstrClient {
         wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
 
         // Sign the transaction
-        let mut psbt = proposal.psbt.clone();
+        let mut psbt = proposal.psbt();
         let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
-        if psbt != proposal.psbt {
+        if psbt != proposal.psbt() {
             Ok(ApprovedProposal::new(psbt))
         } else {
             Err(Error::PsbtNotSigned)
@@ -711,36 +719,43 @@ impl CoinstrClient {
             .get_approved_proposals_by_id(proposal_id, timeout)
             .await?;
 
-        // Combine PSBTs
-        let finalized_tx = self.combine_psbts(proposal.psbt, signed_psbts)?;
+        if let Proposal::Spending {
+            description, psbt, ..
+        } = proposal
+        {
+            // Combine PSBTs
+            let finalized_tx = self.combine_psbts(psbt, signed_psbts)?;
 
-        // Broadcast
-        #[cfg(not(target_arch = "wasm32"))]
-        blockchain.broadcast(&finalized_tx)?;
-        #[cfg(target_arch = "wasm32")]
-        blockchain.broadcast(&finalized_tx).await?;
+            // Broadcast
+            #[cfg(not(target_arch = "wasm32"))]
+            blockchain.broadcast(&finalized_tx)?;
+            #[cfg(target_arch = "wasm32")]
+            blockchain.broadcast(&finalized_tx).await?;
 
-        // Build the broadcasted proposal
-        let completed_proposal =
-            CompletedProposal::new(finalized_tx.txid(), proposal.description, approvals);
+            // Build the broadcasted proposal
+            let completed_proposal =
+                CompletedProposal::new(finalized_tx.txid(), description, approvals);
 
-        // Compose the event
-        let content = completed_proposal.encrypt(&shared_keys)?;
-        let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
-        tags.push(Tag::Event(proposal_id, None, None));
-        tags.push(Tag::Event(policy_id, None, None));
-        let event =
-            EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+            // Compose the event
+            let content = completed_proposal.encrypt(&shared_keys)?;
+            let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
+            tags.push(Tag::Event(proposal_id, None, None));
+            tags.push(Tag::Event(policy_id, None, None));
+            let event = EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags)
+                .to_event(&shared_keys)?;
 
-        // Publish the event
-        let event_id = self.client.send_event(event).await?;
+            // Publish the event
+            let event_id = self.client.send_event(event).await?;
 
-        // Delete the proposal
-        if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
-            log::error!("Impossibe to delete proposal {proposal_id}: {e}");
+            // Delete the proposal
+            if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
+                log::error!("Impossibe to delete proposal {proposal_id}: {e}");
+            }
+
+            Ok((event_id, policy_id, completed_proposal))
+        } else {
+            Err(Error::UnexpectedProposal)
         }
-
-        Ok((event_id, policy_id, completed_proposal))
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
@@ -797,7 +812,7 @@ mod test {
 
         // Combine PSBTs
         let _tx = client_b.combine_psbts(
-            proposal.psbt,
+            proposal.psbt(),
             vec![approved_proposal_a.psbt(), approved_proposal_b.psbt()],
         )?;
 

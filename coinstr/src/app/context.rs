@@ -4,7 +4,7 @@
 use coinstr_core::bitcoin::Txid;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::SpendingProposal;
+use coinstr_core::proposal::Proposal;
 use coinstr_core::{Coinstr, CoinstrClient};
 
 use super::cache::Cache;
@@ -20,7 +20,7 @@ pub enum Stage {
     Spend(Option<(EventId, Policy)>),
     Receive(Option<(EventId, Policy)>),
     Proposals,
-    Proposal(EventId, SpendingProposal),
+    Proposal(EventId, Proposal),
     Transaction(Txid),
     Transactions(Option<EventId>),
     Setting,
