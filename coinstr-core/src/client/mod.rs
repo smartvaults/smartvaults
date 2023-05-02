@@ -512,7 +512,8 @@ impl CoinstrClient {
             let mut builder = wallet.build_tx();
             builder
                 .policy_path(path, KeychainKind::External)
-                .fee_rate(fee_rate);
+                .fee_rate(fee_rate)
+                .enable_rbf();
             match amount {
                 Amount::Max => builder.drain_wallet().drain_to(to_address.script_pubkey()),
                 Amount::Custom(amount) => builder.add_recipient(to_address.script_pubkey(), amount),
