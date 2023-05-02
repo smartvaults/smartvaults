@@ -3,12 +3,12 @@
 
 use std::time::Duration;
 
+use coinstr_core::cache::Transactions;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::util;
 use iced::widget::{Column, Space};
 use iced::{time, Command, Element, Length, Subscription};
 
-use crate::app::cache::Transactions;
 use crate::app::component::{Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
@@ -51,7 +51,7 @@ impl State for TransactionsState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(

@@ -47,7 +47,7 @@ impl State for PoliciesState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         Command::perform(async move { cache.policies_with_balance().await }, |p| {
             PoliciesMessage::LoadPolicies(p).into()
         })

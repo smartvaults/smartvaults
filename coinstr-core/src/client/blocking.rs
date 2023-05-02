@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use bdk::bitcoin::{Address, Network, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
 use bdk::Wallet;
@@ -15,7 +15,7 @@ use nostr_sdk::{Event, EventId, Keys, Metadata, Result};
 
 use super::{Amount, Error, FeeRate};
 use crate::policy::Policy;
-use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
+use crate::proposal::{ApprovedProposal, Proposal};
 
 /// Blocking Coinstr Client
 #[derive(Debug, Clone)]
@@ -149,7 +149,7 @@ impl CoinstrClient {
         proposal_id: EventId,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<(EventId, EventId, CompletedProposal), Error>
+    ) -> Result<Txid, Error>
     where
         B: Blockchain,
     {

@@ -40,7 +40,7 @@ impl State for ProposalsState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         Command::perform(async move { cache.proposals().await }, |p| {
             ProposalsMessage::LoadProposals(p).into()
         })

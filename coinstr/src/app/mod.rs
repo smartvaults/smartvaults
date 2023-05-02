@@ -4,7 +4,6 @@
 use coinstr_core::Coinstr;
 use iced::{clipboard, Command, Element, Subscription};
 
-mod cache;
 mod component;
 mod context;
 mod message;
@@ -86,9 +85,7 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        let sync =
-            CoinstrSync::subscription(self.context.client.clone(), self.context.cache.clone())
-                .map(|_| Message::Sync);
+        let sync = CoinstrSync::subscription(self.context.client.clone()).map(|_| Message::Sync);
         Subscription::batch(vec![sync, self.state.subscription()])
     }
 

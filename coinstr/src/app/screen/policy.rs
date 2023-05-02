@@ -4,13 +4,13 @@
 use std::time::Duration;
 
 use coinstr_core::bdk::Balance;
+use coinstr_core::cache::Transactions;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
-use crate::app::cache::Transactions;
 use crate::app::component::{Balances, Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Text};
@@ -69,7 +69,7 @@ impl State for PolicyState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(

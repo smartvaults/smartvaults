@@ -79,7 +79,7 @@ impl State for ReceiveState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         Command::perform(
             async move {
                 cache
@@ -111,7 +111,7 @@ impl State for ReceiveState {
                     }
                 }
                 ReceiveMessage::LoadAddress(policy_id) => {
-                    let cache = ctx.cache.clone();
+                    let cache = ctx.client.cache.clone();
                     return Command::perform(
                         async move { cache.get_last_unused_address(policy_id).await },
                         |address| ReceiveMessage::AddressChanged(address).into(),

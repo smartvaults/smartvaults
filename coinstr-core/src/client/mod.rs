@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, PrivateKey, Transaction, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, PrivateKey, Transaction, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
@@ -24,6 +24,8 @@ use nostr_sdk::{
 #[cfg(feature = "blocking")]
 pub mod blocking;
 
+#[cfg(feature = "cache")]
+use crate::cache::Cache;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND,
@@ -59,6 +61,9 @@ pub enum Error {
     PsbtParse(#[from] keechain_core::bitcoin::psbt::PsbtParseError),
     #[error(transparent)]
     Util(#[from] util::Error),
+    #[cfg(feature = "cache")]
+    #[error(transparent)]
+    Cache(#[from] crate::cache::Error),
     #[error("shared keys not found")]
     SharedKeysNotFound,
     #[error("policy not found")]
@@ -90,7 +95,9 @@ struct GetApprovedProposals {
 #[derive(Debug, Clone)]
 pub struct CoinstrClient {
     network: Network,
-    client: Client,
+    pub(crate) client: Client,
+    #[cfg(feature = "cache")]
+    pub cache: Cache,
 }
 
 impl CoinstrClient {
@@ -100,7 +107,12 @@ impl CoinstrClient {
         let relays = relays.iter().map(|url| (url, None)).collect();
         client.add_relays(relays).await?;
         client.connect().await;
-        Ok(Self { network, client })
+        Ok(Self {
+            network,
+            client,
+            #[cfg(feature = "cache")]
+            cache: Cache::new(),
+        })
     }
 
     pub fn network(&self) -> Network {
@@ -470,6 +482,12 @@ impl CoinstrClient {
         // Publish the event
         self.client.send_event(policy_event).await?;
 
+        // Cache policy
+        #[cfg(feature = "cache")]
+        self.cache
+            .cache_policy(policy_id, policy.clone(), self.network())
+            .await?;
+
         Ok((policy_id, policy))
     }
 
@@ -592,6 +610,12 @@ impl CoinstrClient {
                 }
             }
 
+            // Cache proposal
+            #[cfg(feature = "cache")]
+            self.cache
+                .cache_proposal(proposal_id, policy_id, proposal.clone())
+                .await;
+
             Ok((proposal_id, proposal))
         } else {
             Err(Error::UnexpectedProposal)
@@ -676,6 +700,18 @@ impl CoinstrClient {
         // Publish the event
         self.client.send_event(event.clone()).await?;
 
+        // Cache approved proposal
+        #[cfg(feature = "cache")]
+        self.cache
+            .cache_approved_proposal(
+                proposal_id,
+                keys.public_key(),
+                event.id,
+                approved_proposal.psbt(),
+                event.created_at,
+            )
+            .await;
+
         Ok((event, approved_proposal))
     }
 
@@ -704,7 +740,7 @@ impl CoinstrClient {
         proposal_id: EventId,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<(EventId, EventId, CompletedProposal), Error>
+    ) -> Result<Txid, Error>
     where
         B: Blockchain,
     {
@@ -733,9 +769,10 @@ impl CoinstrClient {
             #[cfg(target_arch = "wasm32")]
             blockchain.broadcast(&finalized_tx).await?;
 
+            let txid = finalized_tx.txid();
+
             // Build the broadcasted proposal
-            let completed_proposal =
-                CompletedProposal::spending(finalized_tx.txid(), description, approvals);
+            let completed_proposal = CompletedProposal::spending(txid, description, approvals);
 
             // Compose the event
             let content = completed_proposal.encrypt(&shared_keys)?;
@@ -746,6 +783,7 @@ impl CoinstrClient {
                 .to_event(&shared_keys)?;
 
             // Publish the event
+            #[allow(unused_variables)]
             let event_id = self.client.send_event(event).await?;
 
             // Delete the proposal
@@ -753,7 +791,19 @@ impl CoinstrClient {
                 log::error!("Impossibe to delete proposal {proposal_id}: {e}");
             }
 
-            Ok((event_id, policy_id, completed_proposal))
+            // Cache
+            #[cfg(feature = "cache")]
+            {
+                self.cache.uncache_proposal(proposal_id).await;
+                self.cache
+                    .sync_with_timechain(blockchain, None, true)
+                    .await?;
+                self.cache
+                    .cache_completed_proposal(event_id, policy_id, completed_proposal)
+                    .await;
+            }
+
+            Ok(txid)
         } else {
             Err(Error::UnexpectedProposal)
         }

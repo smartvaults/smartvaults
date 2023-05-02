@@ -149,6 +149,13 @@ impl CompletedProposal {
             _ => None,
         }
     }
+
+    pub fn desc(&self) -> String {
+        match self {
+            Self::Spending { description, .. } => description.clone(),
+            Self::ProofOfReserve { message, .. } => message.clone(),
+        }
+    }
 }
 
 impl Encryption for CompletedProposal {}

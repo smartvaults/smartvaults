@@ -53,7 +53,7 @@ impl State for TransactionState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         let txid = self.txid;
         self.loading = true;
         Command::perform(async move { cache.get_tx(txid).await }, |res| match res {
@@ -181,8 +181,12 @@ impl State for TransactionState {
             let (confirmed_at_block, confirmed_at_time, confirmations) =
                 match tx.confirmation_time.as_ref() {
                     Some(block_time) => {
-                        let confirmations: u32 =
-                            ctx.cache.block_height().saturating_sub(block_time.height) + 1;
+                        let confirmations: u32 = ctx
+                            .client
+                            .cache
+                            .block_height()
+                            .saturating_sub(block_time.height)
+                            + 1;
                         (
                             format::number(block_time.height as u64),
                             Timestamp::from(block_time.timestamp).to_human_datetime(),

@@ -11,7 +11,6 @@ use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::proposal::CompletedProposal;
 use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
 use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
 
@@ -194,22 +193,19 @@ async fn run() -> Result<()> {
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let (_, _, completed_proposal) =
-                client.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
+            let txid = client.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
 
-            if let CompletedProposal::Spending { txid, .. } = completed_proposal {
-                println!("Transaction {txid} broadcasted");
+            println!("Transaction {txid} broadcasted");
 
-                match network {
-                    Network::Bitcoin => {
-                        println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
-                    }
-                    Network::Testnet => {
-                        println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
-                    }
-                    _ => (),
-                };
-            }
+            match network {
+                Network::Bitcoin => {
+                    println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                }
+                Network::Testnet => {
+                    println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
+                }
+                _ => (),
+            };
 
             Ok(())
         }

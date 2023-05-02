@@ -47,18 +47,11 @@ impl State for AddPolicyState {
                 AddPolicyMessage::ErrorChanged(error) => self.error = error,
                 AddPolicyMessage::SavePolicy => {
                     let client = ctx.client.clone();
-                    let cache = ctx.cache.clone();
                     let name = self.name.clone();
                     let description = self.description.clone();
                     let descriptor = self.descriptor.clone();
                     return Command::perform(
-                        async move {
-                            let (policy_id, policy) =
-                                client.save_policy(name, description, descriptor).await?;
-                            cache
-                                .cache_policy(policy_id, policy, client.network())
-                                .await
-                        },
+                        async move { client.save_policy(name, description, descriptor).await },
                         |res| match res {
                             Ok(_) => Message::View(Stage::Policies),
                             Err(e) => AddPolicyMessage::ErrorChanged(Some(e.to_string())).into(),

@@ -12,6 +12,8 @@ pub use keechain_core::*;
 use nostr_sdk::{nips::nip04, Keys};
 use serde::{de::DeserializeOwned, Serialize};
 
+#[cfg(feature = "cache")]
+pub mod cache;
 pub mod client;
 pub mod constants;
 #[cfg(not(target_arch = "wasm32"))]

@@ -2,12 +2,12 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::TransactionDetails;
+use coinstr_core::cache::Transactions;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
-use crate::app::cache::Transactions;
 use crate::app::{Message, Stage};
 use crate::component::{button, rule, Icon, Text};
 use crate::theme::color::{GREEN, RED, YELLOW};

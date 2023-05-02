@@ -5,12 +5,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use coinstr_core::bdk::Balance;
+use coinstr_core::cache::Transactions;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::Proposal;
 use iced::widget::{Column, Space};
 use iced::{time, Command, Element, Length, Subscription};
 
-use crate::app::cache::Transactions;
 use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
@@ -61,7 +61,7 @@ impl State for DashboardState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         self.loading = true;
         Command::perform(
             async move {

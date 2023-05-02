@@ -7,7 +7,6 @@ use coinstr_core::policy::Policy;
 use coinstr_core::proposal::Proposal;
 use coinstr_core::{Coinstr, CoinstrClient};
 
-use super::cache::Cache;
 use crate::theme::Theme;
 use crate::RUNTIME;
 
@@ -36,7 +35,6 @@ pub struct Context {
     pub stage: Stage,
     pub coinstr: Coinstr,
     pub client: CoinstrClient,
-    pub cache: Cache,
     pub theme: Theme,
 }
 
@@ -54,7 +52,6 @@ impl Context {
             stage,
             coinstr,
             client,
-            cache: Cache::new(),
             theme,
         }
     }

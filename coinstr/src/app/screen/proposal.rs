@@ -7,7 +7,7 @@ use std::time::Duration;
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Network, Txid, XOnlyPublicKey};
+use coinstr_core::bitcoin::{Network, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::proposal::Proposal;
 use coinstr_core::util;
@@ -74,7 +74,7 @@ impl State for ProposalState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         let proposal_id = self.proposal_id;
         self.loading = true;
         Command::perform(
@@ -117,23 +117,9 @@ impl State for ProposalState {
                 ProposalMessage::Approve => {
                     self.loading = true;
                     let client = ctx.client.clone();
-                    let cache = ctx.cache.clone();
                     let proposal_id = self.proposal_id;
                     return Command::perform(
-                        async move {
-                            let (event, approved_proposal) =
-                                client.approve(proposal_id, None).await?;
-                            cache
-                                .cache_approved_proposal(
-                                    proposal_id,
-                                    client.keys().public_key(),
-                                    event.id,
-                                    approved_proposal.psbt(),
-                                    event.created_at,
-                                )
-                                .await;
-                            Ok::<(), Box<dyn std::error::Error>>(())
-                        },
+                        async move { client.approve(proposal_id, None).await },
                         |res| match res {
                             Ok(_) => ProposalMessage::Reload.into(),
                             Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
@@ -144,7 +130,6 @@ impl State for ProposalState {
                     self.loading = true;
 
                     let client = ctx.client.clone();
-                    let cache = ctx.cache.clone();
                     let proposal_id = self.proposal_id;
 
                     // TODO: get electrum endpoint from config file
@@ -158,15 +143,7 @@ impl State for ProposalState {
                         async move {
                             let blockchain =
                                 ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                            let (event_id, policy_id, completed_proposal) =
-                                client.broadcast(proposal_id, &blockchain, None).await?;
-                            let txid = completed_proposal.txid().unwrap();
-                            cache.uncache_proposal(proposal_id).await;
-                            cache.sync_with_timechain(&blockchain, None, true).await?;
-                            cache
-                                .cache_completed_proposal(event_id, policy_id, completed_proposal)
-                                .await;
-                            Ok::<Txid, Box<dyn std::error::Error>>(txid)
+                            client.broadcast(proposal_id, &blockchain, None).await
                         },
                         |res| match res {
                             Ok(txid) => Message::View(Stage::Transaction(txid)),

@@ -104,7 +104,6 @@ impl SpendState {
         self.loading = true;
 
         let client = ctx.client.clone();
-        let cache = ctx.cache.clone();
         let description = self.description.clone();
         let fee_rate = self.fee_rate;
 
@@ -129,9 +128,6 @@ impl SpendState {
                         None,
                     )
                     .await?;
-                cache
-                    .cache_proposal(proposal_id, policy_id, proposal.clone())
-                    .await;
                 Ok::<(EventId, Proposal), Box<dyn std::error::Error>>((proposal_id, proposal))
             },
             |res| match res {
@@ -151,7 +147,7 @@ impl State for SpendState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let cache = ctx.cache.clone();
+        let cache = ctx.client.cache.clone();
         Command::perform(
             async move {
                 cache
@@ -190,7 +186,7 @@ impl State for SpendState {
                     });
                 }
                 SpendMessage::LoadBalance(policy_id) => {
-                    let cache = ctx.cache.clone();
+                    let cache = ctx.client.cache.clone();
                     return Command::perform(
                         async move { cache.get_balance(policy_id).await },
                         |balance| SpendMessage::BalanceChanged(balance).into(),

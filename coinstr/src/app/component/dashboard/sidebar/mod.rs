@@ -52,7 +52,7 @@ impl Sidebar {
             Ok(fingerprint) => Text::new(fingerprint.to_string()),
             Err(_) => Text::new("error").color(DARK_RED),
         };
-        let block_height: u32 = ctx.cache.block_height();
+        let block_height: u32 = ctx.client.cache.block_height();
         let details = Column::new()
             .push(
                 Row::new()
