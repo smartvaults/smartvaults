@@ -112,18 +112,6 @@ pub enum Command {
         #[clap(short, long, default_value_t = 6)]
         target_blocks: usize,
     },
-    /// Request Proof Of Reserve
-    RequestProof {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-        /// Policy id
-        #[arg(required = true)]
-        policy_id: EventId,
-        /// Message
-        #[arg(required = true)]
-        message: String,
-    },
     /// Approve a spending proposal
     Approve {
         /// Keychain name
@@ -142,23 +130,11 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: EventId,
     },
-    /// Finalize Proof Of Reserve
-    FinalizeProof {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-        /// Proposal id
-        #[arg(required = true)]
-        proposal_id: EventId,
-    },
-    /// Verify Proof Of Reserve
-    VerifyProof {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-        /// Proposal id
-        #[arg(required = true)]
-        proposal_id: EventId,
+    /// Proof of Reserve commands
+    #[command(arg_required_else_help = true)]
+    Proof {
+        #[command(subcommand)]
+        command: ProofCommand,
     },
     /// Get data about policies and proposals
     #[command(arg_required_else_help = true)]
@@ -176,6 +152,40 @@ pub enum Command {
     Setting {
         #[command(subcommand)]
         command: SettingCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProofCommand {
+    /// New Proof Of Reserve
+    New {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Policy id
+        #[arg(required = true)]
+        policy_id: EventId,
+        /// Message
+        #[arg(required = true)]
+        message: String,
+    },
+    /// Finalize Proof Of Reserve
+    Finalize {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
+    },
+    /// Verify Proof Of Reserve
+    Verify {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
     },
 }
 

@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{DeleteCommand, GetCommand};
+use cli::{DeleteCommand, GetCommand, ProofCommand};
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
@@ -181,21 +181,6 @@ async fn run() -> Result<()> {
             println!("Spending proposal {proposal_id} sent");
             Ok(())
         }
-        Command::RequestProof {
-            name,
-            policy_id,
-            message,
-        } => {
-            let path = get_keychain_file(keychains, name)?;
-            let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let proposal_id = client
-                .request_proof(policy_id, message, &blockchain, TIMEOUT)
-                .await?;
-            println!("Proof of Reserve proposal {proposal_id} sent");
-            Ok(())
-        }
         Command::Approve { name, proposal_id } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
@@ -225,28 +210,45 @@ async fn run() -> Result<()> {
 
             Ok(())
         }
-        Command::FinalizeProof { name, proposal_id } => {
-            let path = get_keychain_file(keychains, name)?;
-            let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
-            client.finalize_proof(proposal_id, TIMEOUT).await?;
-            println!("Proof of Reserve finalized");
-            Ok(())
-        }
-        Command::VerifyProof { name, proposal_id } => {
-            let path = get_keychain_file(keychains, name)?;
-            let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let spendable = client
-                .verify_proof(proposal_id, &blockchain, TIMEOUT)
-                .await?;
-            println!(
-                "Valid Proof - Spendable amount: {} sat",
-                format::number(spendable)
-            );
-            Ok(())
-        }
+        Command::Proof { command } => match command {
+            ProofCommand::New {
+                name,
+                policy_id,
+                message,
+            } => {
+                let path = get_keychain_file(keychains, name)?;
+                let coinstr = Coinstr::open(path, io::get_password, network)?;
+                let client = coinstr.client(relays).await?;
+                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+                let proposal_id = client
+                    .request_proof(policy_id, message, &blockchain, TIMEOUT)
+                    .await?;
+                println!("Proof of Reserve proposal {proposal_id} sent");
+                Ok(())
+            }
+            ProofCommand::Finalize { name, proposal_id } => {
+                let path = get_keychain_file(keychains, name)?;
+                let coinstr = Coinstr::open(path, io::get_password, network)?;
+                let client = coinstr.client(relays).await?;
+                client.finalize_proof(proposal_id, TIMEOUT).await?;
+                println!("Proof of Reserve finalized");
+                Ok(())
+            }
+            ProofCommand::Verify { name, proposal_id } => {
+                let path = get_keychain_file(keychains, name)?;
+                let coinstr = Coinstr::open(path, io::get_password, network)?;
+                let client = coinstr.client(relays).await?;
+                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+                let spendable = client
+                    .verify_proof(proposal_id, &blockchain, TIMEOUT)
+                    .await?;
+                println!(
+                    "Valid Proof - Spendable amount: {} sat",
+                    format::number(spendable)
+                );
+                Ok(())
+            }
+        },
         Command::Get { command } => match command {
             GetCommand::Contacts { name } => {
                 let path = get_keychain_file(keychains, name)?;
