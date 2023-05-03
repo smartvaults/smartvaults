@@ -61,7 +61,9 @@ pub enum ProofError {
 /// The API for proof of reserves
 pub trait ProofOfReserves {
     /// Create a proof for all spendable UTXOs in a wallet
-    fn create_proof(&self, message: &str) -> Result<PartiallySignedTransaction, ProofError>;
+    fn create_proof<S>(&self, message: S) -> Result<PartiallySignedTransaction, ProofError>
+    where
+        S: Into<String>;
 
     /// Make sure this is a proof, and not a spendable transaction.
     /// Make sure the proof is valid.
@@ -71,19 +73,25 @@ pub trait ProofOfReserves {
     /// With the max_block_height parameter the caller can ensure that only UTXOs with sufficient confirmations are considered.
     /// If no max_block_height is provided, also UTXOs from transactions in the mempool are considered.
     /// Returns the spendable amount of the proof.
-    fn verify_proof(
+    fn verify_proof<S>(
         &self,
         psbt: &PartiallySignedTransaction,
-        message: &str,
+        message: S,
         max_block_height: Option<u32>,
-    ) -> Result<u64, ProofError>;
+    ) -> Result<u64, ProofError>
+    where
+        S: Into<String>;
 }
 
 impl<D> ProofOfReserves for Wallet<D>
 where
     D: BatchDatabase,
 {
-    fn create_proof(&self, message: &str) -> Result<PartiallySignedTransaction, ProofError> {
+    fn create_proof<S>(&self, message: S) -> Result<PartiallySignedTransaction, ProofError>
+    where
+        S: Into<String>,
+    {
+        let message: &str = &message.into();
         if message.is_empty() {
             return Err(ProofError::ChallengeInputMismatch);
         }
@@ -122,12 +130,15 @@ where
         Ok(psbt)
     }
 
-    fn verify_proof(
+    fn verify_proof<S>(
         &self,
         psbt: &PartiallySignedTransaction,
-        message: &str,
+        message: S,
         max_block_height: Option<u32>,
-    ) -> Result<u64, ProofError> {
+    ) -> Result<u64, ProofError>
+    where
+        S: Into<String>,
+    {
         // verify the proof UTXOs are still spendable
         let unspents = match self.list_unspent() {
             Ok(utxos) => utxos,
@@ -173,12 +184,15 @@ where
 /// We can currently not validate whether it was valid at a certain block height.
 /// Since the caller provides the outpoints, he is also responsible to make sure they have enough confirmations.
 /// Returns the spendable amount of the proof.
-fn verify_proof(
+fn verify_proof<S>(
     psbt: &PartiallySignedTransaction,
-    message: &str,
+    message: S,
     outpoints: Vec<(OutPoint, TxOut)>,
     network: Network,
-) -> Result<u64, ProofError> {
+) -> Result<u64, ProofError>
+where
+    S: Into<String>,
+{
     let tx = psbt.clone().extract_tx();
 
     if tx.output.len() != 1 {
@@ -306,8 +320,11 @@ fn verify_proof(
 }
 
 /// Construct a challenge input with the message
-fn challenge_txin(message: &str) -> TxIn {
-    let message = "Proof-of-Reserves: ".to_string() + message;
+fn challenge_txin<S>(message: S) -> TxIn
+where
+    S: Into<String>,
+{
+    let message = "Proof-of-Reserves: ".to_string() + &message.into();
     let message = sha256d::Hash::hash(message.as_bytes());
     TxIn {
         previous_output: OutPoint::new(Txid::from_hash(message), 0),

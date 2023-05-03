@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, PrivateKey, Transaction, Txid, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
@@ -64,6 +64,8 @@ pub enum Error {
     #[cfg(feature = "cache")]
     #[error(transparent)]
     Cache(#[from] crate::cache::Error),
+    #[error(transparent)]
+    ProofOfReserves(#[from] crate::reserves::ProofError),
     #[error("shared keys not found")]
     SharedKeysNotFound,
     #[error("policy not found")]
@@ -277,6 +279,29 @@ impl CoinstrClient {
             approvals,
             shared_keys,
         })
+    }
+
+    pub async fn get_completed_proposal_by_id(
+        &self,
+        proposal_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<(CompletedProposal, EventId, Keys), Error> {
+        // Get proposal event
+        let filter = Filter::new().id(proposal_id).kind(COMPLETED_PROPOSAL_KIND);
+        let events = self.client.get_events_of(vec![filter], timeout).await?;
+        let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
+        let policy_id =
+            util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
+
+        // Get shared key
+        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+
+        // Decrypt the proposal
+        Ok((
+            CompletedProposal::decrypt(&shared_keys, &proposal_event.content)?,
+            policy_id,
+            shared_keys,
+        ))
     }
 
     pub async fn delete_policy_by_id(
@@ -509,7 +534,7 @@ impl CoinstrClient {
         #[cfg(not(target_arch = "wasm32"))]
         wallet.sync(blockchain, SyncOptions::default())?;
         #[cfg(target_arch = "wasm32")]
-        wallet.sync(&blockchain, SyncOptions::default()).await?;
+        wallet.sync(blockchain, SyncOptions::default()).await?;
 
         // Get policies and specify which ones to use
         let wallet_policy = wallet
@@ -634,7 +659,7 @@ impl CoinstrClient {
         )
     }
 
-    pub fn approve_spending_proposal(
+    pub fn approve_proposal(
         &self,
         policy: &Policy,
         proposal: &Proposal,
@@ -680,7 +705,7 @@ impl CoinstrClient {
         let (policy, _shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
 
         // Sign PSBT
-        let approved_proposal = self.approve_spending_proposal(&policy, &proposal)?;
+        let approved_proposal = self.approve_proposal(&policy, &proposal)?;
 
         // Compose the event
         let content = approved_proposal.encrypt(&shared_keys)?;
@@ -719,7 +744,7 @@ impl CoinstrClient {
         &self,
         base_psbt: PartiallySignedTransaction,
         signed_psbts: Vec<PartiallySignedTransaction>,
-    ) -> Result<Transaction, Error> {
+    ) -> Result<PartiallySignedTransaction, Error> {
         let mut base_psbt = base_psbt;
 
         // Combine PSBTs
@@ -732,7 +757,34 @@ impl CoinstrClient {
             .finalize_mut(SECP256K1)
             .map_err(Error::ImpossibleToFinalizePsbt)?;
 
-        Ok(base_psbt.extract_tx())
+        Ok(base_psbt)
+    }
+
+    pub fn combine_non_std_psbts(
+        &self,
+        policy: &Policy,
+        base_psbt: PartiallySignedTransaction,
+        signed_psbts: Vec<PartiallySignedTransaction>,
+    ) -> Result<PartiallySignedTransaction, Error> {
+        // Create a BDK wallet
+        let wallet = self.wallet(policy.descriptor.to_string())?;
+
+        let mut base_psbt = base_psbt;
+
+        // Combine PSBTs
+        for psbt in signed_psbts {
+            base_psbt.combine(psbt)?;
+        }
+
+        // Finalize the transaction
+        let signopts = SignOptions {
+            trust_witness_utxo: true,
+            remove_partial_sigs: false,
+            ..Default::default()
+        };
+        wallet.finalize_psbt(&mut base_psbt, signopts)?;
+
+        Ok(base_psbt)
     }
 
     pub async fn broadcast<B>(
@@ -761,7 +813,8 @@ impl CoinstrClient {
         } = proposal
         {
             // Combine PSBTs
-            let finalized_tx = self.combine_psbts(psbt, signed_psbts)?;
+            let psbt = self.combine_psbts(psbt, signed_psbts)?;
+            let finalized_tx = psbt.extract_tx();
 
             // Broadcast
             #[cfg(not(target_arch = "wasm32"))]
@@ -804,6 +857,180 @@ impl CoinstrClient {
             }
 
             Ok(txid)
+        } else {
+            Err(Error::UnexpectedProposal)
+        }
+    }
+
+    pub async fn build_proof_proposal<B, S>(
+        &self,
+        policy: &Policy,
+        message: S,
+        blockchain: &B,
+    ) -> Result<Proposal, Error>
+    where
+        B: Blockchain,
+        S: Into<String>,
+    {
+        use crate::reserves::ProofOfReserves;
+
+        let message: &str = &message.into();
+
+        // Sync balance
+        let wallet = self.wallet(policy.descriptor.to_string())?;
+        #[cfg(not(target_arch = "wasm32"))]
+        wallet.sync(blockchain, SyncOptions::default())?;
+        #[cfg(target_arch = "wasm32")]
+        wallet.sync(blockchain, SyncOptions::default()).await?;
+
+        // Get policies and specify which ones to use
+        let wallet_policy = wallet
+            .policies(KeychainKind::External)?
+            .ok_or(Error::WalletSpendingPolicyNotFound)?;
+        let mut path = BTreeMap::new();
+        path.insert(wallet_policy.id, vec![1]);
+
+        let psbt: PartiallySignedTransaction = wallet.create_proof(message)?;
+
+        Ok(Proposal::proof_of_reserve(message, psbt))
+    }
+
+    pub async fn request_proof<B, S>(
+        &self,
+        policy_id: EventId,
+        message: S,
+        blockchain: &B,
+        timeout: Option<Duration>,
+    ) -> Result<EventId, Error>
+    where
+        B: Blockchain,
+        S: Into<String>,
+    {
+        let message: &str = &message.into();
+
+        // Get policy
+        let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
+
+        // Build proposal
+        let proposal = self
+            .build_proof_proposal(&policy, message, blockchain)
+            .await?;
+
+        // Compose the event
+        let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
+        let mut tags: Vec<Tag> = extracted_pubkeys
+            .iter()
+            .map(|p| Tag::PubKey(*p, None))
+            .collect();
+        tags.push(Tag::Event(policy_id, None, None));
+        let content = proposal.encrypt(&shared_keys)?;
+        // Publish proposal with `shared_key` so every owner can delete it
+        let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+        let proposal_id = self.client.send_event(event).await?;
+
+        // Send DM msg
+        let sender = self.client.keys().public_key();
+        let mut msg = String::from("New Proof of Reserve request:\n");
+        msg.push_str(&format!("- Message: {message}"));
+        for pubkey in extracted_pubkeys.into_iter() {
+            if sender != pubkey {
+                self.client.send_direct_msg(pubkey, &msg).await?;
+            }
+        }
+
+        // Cache proposal
+        #[cfg(feature = "cache")]
+        self.cache
+            .cache_proposal(proposal_id, policy_id, proposal)
+            .await;
+
+        Ok(proposal_id)
+    }
+
+    pub async fn finalize_proof(
+        &self,
+        proposal_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<(), Error> {
+        // Get PSBTs
+        let GetApprovedProposals {
+            policy_id,
+            proposal,
+            signed_psbts,
+            public_keys,
+            approvals,
+            shared_keys,
+        } = self
+            .get_approved_proposals_by_id(proposal_id, timeout)
+            .await?;
+
+        if let Proposal::ProofOfReserve { message, psbt } = proposal {
+            let (policy, ..) = self.get_policy_by_id(policy_id, timeout).await?;
+
+            // Combine PSBTs
+            let psbt = self.combine_non_std_psbts(&policy, psbt, signed_psbts)?;
+
+            // Build the completed proposal
+            let completed_proposal = CompletedProposal::proof_of_reserve(message, approvals, psbt);
+
+            // Compose the event
+            let content = completed_proposal.encrypt(&shared_keys)?;
+            let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
+            tags.push(Tag::Event(proposal_id, None, None));
+            tags.push(Tag::Event(policy_id, None, None));
+            let event = EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags)
+                .to_event(&shared_keys)?;
+
+            // Publish the event
+            #[allow(unused_variables)]
+            let event_id = self.client.send_event(event).await?;
+
+            // Delete the proposal
+            if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
+                log::error!("Impossibe to delete proposal {proposal_id}: {e}");
+            }
+
+            // Cache
+            #[cfg(feature = "cache")]
+            {
+                self.cache.uncache_proposal(proposal_id).await;
+                self.cache
+                    .cache_completed_proposal(event_id, policy_id, completed_proposal)
+                    .await;
+            }
+
+            Ok(())
+        } else {
+            Err(Error::UnexpectedProposal)
+        }
+    }
+
+    pub async fn verify_proof<B>(
+        &self,
+        proposal_id: EventId,
+        blockchain: &B,
+        timeout: Option<Duration>,
+    ) -> Result<(), Error>
+    where
+        B: Blockchain,
+    {
+        use crate::reserves::ProofOfReserves;
+
+        let (proposal, policy_id, ..) = self
+            .get_completed_proposal_by_id(proposal_id, timeout)
+            .await?;
+        let (policy, ..) = self.get_policy_by_id(policy_id, timeout).await?;
+
+        let wallet = self.wallet(policy.descriptor.to_string())?;
+        #[cfg(not(target_arch = "wasm32"))]
+        wallet.sync(blockchain, SyncOptions::default())?;
+        #[cfg(target_arch = "wasm32")]
+        wallet.sync(blockchain, SyncOptions::default()).await?;
+
+        if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
+            wallet.verify_proof(&psbt, message, None)?;
+
+            Ok(())
         } else {
             Err(Error::UnexpectedProposal)
         }
@@ -858,11 +1085,45 @@ mod test {
             .await?;
 
         // Sign
-        let approved_proposal_a = client_a.approve_spending_proposal(&policy, &proposal)?;
-        let approved_proposal_b = client_b.approve_spending_proposal(&policy, &proposal)?;
+        let approved_proposal_a = client_a.approve_proposal(&policy, &proposal)?;
+        let approved_proposal_b = client_b.approve_proposal(&policy, &proposal)?;
 
         // Combine PSBTs
         let _tx = client_b.combine_psbts(
+            proposal.psbt(),
+            vec![approved_proposal_a.psbt(), approved_proposal_b.psbt()],
+        )?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_proof_of_reserve() -> Result<()> {
+        let descriptor = "tr(38e977f65c9d4f7adafc50d7a181a5a4fcbbce3cda2f29bd123163e21e9bf307,multi_a(2,f831caf722214748c72db4829986bd0cbb2bb8b3aeade1c959624a52a9629046,3eea9e831fefdaa8df35187a204d82edb589a36b170955ac5ca6b88340befaa0))#39a2m6vn";
+
+        let keys_a =
+            Keys::from_sk_str("1614a50390bc2c2ed7d2a68caeb3f79fb8c9ec76a7fecaa6c60ded40652ab684")?;
+        let keys_b =
+            Keys::from_sk_str("d5a2db059247c393d8d11bab1374b20390c1ec162aaca3782578f2bf433ebeb7")?;
+
+        let client_a = CoinstrClient::new(keys_a, Vec::new(), NETWORK).await?;
+        let client_b = CoinstrClient::new(keys_b, Vec::new(), NETWORK).await?;
+
+        let policy = Policy::from_descriptor("Name", "Description", descriptor)?;
+
+        // Build spending proposal
+        let blockchain = ElectrumBlockchain::from(ElectrumClient::new(BITCOIN_ENDPOINT)?);
+        let proposal = client_a
+            .build_proof_proposal(&policy, "Testing", &blockchain)
+            .await?;
+
+        // Sign
+        let approved_proposal_a = client_a.approve_proposal(&policy, &proposal)?;
+        let approved_proposal_b = client_b.approve_proposal(&policy, &proposal)?;
+
+        // Combine PSBTs
+        let _tx = client_b.combine_non_std_psbts(
+            &policy,
             proposal.psbt(),
             vec![approved_proposal_a.psbt(), approved_proposal_b.psbt()],
         )?;

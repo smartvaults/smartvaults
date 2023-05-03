@@ -39,7 +39,6 @@ test:
 	$(Q)cargo test -p coinstr-core --features blocking
 	$(Q)cargo test -p coinstr-core --features cache
 	$(Q)cargo test -p coinstr-core --features electrum
-	$(Q)cargo test -p coinstr-core --features reserves
 
 clean:
 	$(Q)cargo clean

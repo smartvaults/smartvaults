@@ -20,7 +20,6 @@ pub mod constants;
 mod keychain;
 pub mod policy;
 pub mod proposal;
-#[cfg(feature = "reserves")]
 pub mod reserves;
 pub mod util;
 
