@@ -16,8 +16,9 @@ use crate::theme::Theme;
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
-    AddPolicyState, DashboardState, HistoryState, PoliciesState, PolicyState, ProposalState,
-    ProposalsState, ReceiveState, SettingState, SpendState, TransactionState, TransactionsState,
+    AddPolicyState, DashboardState, HistoryState, NewProofState, PoliciesState, PolicyState,
+    ProposalState, ProposalsState, ReceiveState, SettingState, SpendState, TransactionState,
+    TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -47,6 +48,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Policy(policy_id) => PolicyState::new(*policy_id).into(),
         Stage::Spend(policy) => SpendState::new(policy.clone()).into(),
         Stage::Receive(policy) => ReceiveState::new(policy.clone()).into(),
+        Stage::NewProof(policy) => NewProofState::new(policy.clone()).into(),
         Stage::Proposals => ProposalsState::new().into(),
         Stage::Proposal(proposal_id, proposal, policy_id) => {
             ProposalState::new(*proposal_id, proposal.clone(), *policy_id).into()

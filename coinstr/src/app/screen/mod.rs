@@ -4,6 +4,7 @@
 mod add_policy;
 mod dashboard;
 mod history;
+mod new_proof;
 mod policies;
 mod policy;
 mod proposal;
@@ -17,6 +18,7 @@ mod transactions;
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
 pub use self::dashboard::{DashboardMessage, DashboardState};
 pub use self::history::{HistoryMessage, HistoryState};
+pub use self::new_proof::{NewProofMessage, NewProofState};
 pub use self::policies::{PoliciesMessage, PoliciesState};
 pub use self::policy::{PolicyMessage, PolicyState};
 pub use self::proposal::{ProposalMessage, ProposalState};

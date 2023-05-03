@@ -18,6 +18,7 @@ pub enum Stage {
     Policy(EventId),
     Spend(Option<(EventId, Policy)>),
     Receive(Option<(EventId, Policy)>),
+    NewProof(Option<(EventId, Policy)>),
     Proposals,
     Proposal(EventId, Proposal, EventId),
     Transaction(Txid),
