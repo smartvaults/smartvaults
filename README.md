@@ -40,6 +40,10 @@
 
 ![policy](./doc/screenshots/desktop/coinstr-policy.png)
 
+### Spend
+
+![spend](./doc/screenshots/desktop/coinstr-spend.png)
+
 #### Transaction
 
 ![tx](./doc/screenshots/desktop/coinstr-tx.png)
