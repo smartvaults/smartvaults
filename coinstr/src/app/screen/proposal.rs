@@ -162,7 +162,7 @@ impl State for ProposalState {
                             Command::perform(
                                 async move { client.finalize_proof(proposal_id, None).await },
                                 |res| match res {
-                                    Ok(_) => Message::View(Stage::History), // TODO: change to completed proposal view
+                                    Ok(_) => Message::View(Stage::History), /* TODO: change to completed proposal view */
                                     Err(e) => {
                                         ProposalMessage::ErrorChanged(Some(e.to_string())).into()
                                     }
