@@ -16,8 +16,8 @@ use crate::theme::Theme;
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
-    AddPolicyState, DashboardState, PoliciesState, PolicyState, ProposalState, ProposalsState,
-    ReceiveState, SettingState, SpendState, TransactionState, TransactionsState,
+    AddPolicyState, DashboardState, HistoryState, PoliciesState, PolicyState, ProposalState,
+    ProposalsState, ReceiveState, SettingState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -53,6 +53,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         }
         Stage::Transaction(txid) => TransactionState::new(*txid).into(),
         Stage::Transactions(policy_id) => TransactionsState::new(*policy_id).into(),
+        Stage::History => HistoryState::new().into(),
         Stage::Setting => SettingState::new().into(),
     }
 }

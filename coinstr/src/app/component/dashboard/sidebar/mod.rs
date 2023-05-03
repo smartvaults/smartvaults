@@ -13,7 +13,9 @@ use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{BITCOIN, FINGERPRINT, HOME, KEY, LOCK, NETWORK, SEND_PENDING, SETTING};
+use crate::theme::icon::{
+    BITCOIN, FINGERPRINT, HISTORY, HOME, KEY, LOCK, NETWORK, SEND_PENDING, SETTING,
+};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -39,6 +41,8 @@ impl Sidebar {
             .view(ctx, Message::View(Stage::Policies));
         let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING).view())
             .view(ctx, Message::View(Stage::Proposals));
+        let history_button = SidebarButton::new("History", Icon::new(HISTORY).view())
+            .view(ctx, Message::View(Stage::History));
         let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
             .view(ctx, Message::View(Stage::Setting));
 
@@ -103,6 +107,7 @@ impl Sidebar {
                 home_button,
                 policies_button,
                 proposals_button,
+                history_button,
                 settings_button,
             ]),
             sidebar_menu(vec![

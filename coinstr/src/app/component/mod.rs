@@ -8,5 +8,5 @@ mod transactions_list;
 
 pub use self::balances::Balances;
 pub use self::dashboard::Dashboard;
-pub use self::proposals_list::PendingProposalsList;
+pub use self::proposals_list::{CompletedProposalsList, PendingProposalsList};
 pub use self::transactions_list::TransactionsList;

@@ -25,3 +25,4 @@ pub const ARROW_UP: char = '\u{F148}';
 pub const PLUS: char = '\u{F64D}';
 pub const HOURGLASS: char = '\u{F41F}';
 pub const NETWORK: char = '\u{F2EE}';
+pub const HISTORY: char = '\u{F292}';
