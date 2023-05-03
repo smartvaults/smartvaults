@@ -5,7 +5,7 @@ use iced::widget::{button, Button, Container, Row};
 use iced::{theme, Alignment, Background, Length, Theme, Vector};
 
 use super::{Icon, Text};
-use crate::theme::color::{ORANGE, TRANSPARENT};
+use crate::theme::color::TRANSPARENT;
 
 pub fn primary<S, T>(t: S) -> Button<'static, T>
 where
@@ -61,11 +61,19 @@ where
     Button::new(content(Some(icon), t)).style(DangerButtonStyle.into())
 }
 
+#[allow(dead_code)]
 pub fn danger_only_icon<T>(icon: char) -> Button<'static, T>
 where
     T: Clone + 'static,
 {
     Button::new(content(Some(icon), "")).style(DangerButtonStyle.into())
+}
+
+pub fn danger_border_only_icon<T>(icon: char) -> Button<'static, T>
+where
+    T: Clone + 'static,
+{
+    Button::new(content(Some(icon), "")).style(DangerBorderButtonStyle.into())
 }
 
 /* pub fn transparent<S, T>(t: S) -> Button<'static, T>
@@ -113,13 +121,14 @@ impl button::StyleSheet for PrimaryButtonStyle {
     type Style = Theme;
 
     fn active(&self, style: &Self::Style) -> button::Appearance {
+        let palette = style.palette();
         button::Appearance {
             shadow_offset: Vector::default(),
-            background: Some(Background::Color(ORANGE)),
+            background: Some(Background::Color(palette.primary)),
             border_radius: 10.0,
             border_width: 0.0,
             border_color: TRANSPARENT,
-            text_color: style.palette().text,
+            text_color: palette.text,
         }
     }
 }
@@ -135,14 +144,15 @@ pub struct BorderButtonStyle;
 impl button::StyleSheet for BorderButtonStyle {
     type Style = Theme;
 
-    fn active(&self, _style: &Self::Style) -> button::Appearance {
+    fn active(&self, style: &Self::Style) -> button::Appearance {
+        let palette = style.palette();
         button::Appearance {
             shadow_offset: Vector::default(),
             background: Some(Background::Color(TRANSPARENT)),
             border_radius: 10.0,
             border_width: 1.0,
-            border_color: ORANGE,
-            text_color: ORANGE,
+            border_color: palette.primary,
+            text_color: palette.primary,
         }
     }
 }
@@ -177,16 +187,41 @@ impl From<DangerButtonStyle> for theme::Button {
     }
 }
 
+pub struct DangerBorderButtonStyle;
+
+impl button::StyleSheet for DangerBorderButtonStyle {
+    type Style = Theme;
+
+    fn active(&self, style: &Self::Style) -> button::Appearance {
+        let palette = style.palette();
+        button::Appearance {
+            shadow_offset: Vector::default(),
+            background: Some(Background::Color(TRANSPARENT)),
+            border_radius: 10.0,
+            border_width: 1.0,
+            border_color: palette.danger,
+            text_color: palette.danger,
+        }
+    }
+}
+
+impl From<DangerBorderButtonStyle> for theme::Button {
+    fn from(style: DangerBorderButtonStyle) -> Self {
+        theme::Button::Custom(Box::new(style))
+    }
+}
+
 pub struct TransparentButtonStyle;
 
 impl button::StyleSheet for TransparentButtonStyle {
     type Style = Theme;
 
     fn active(&self, style: &Self::Style) -> button::Appearance {
+        let palette = style.palette();
         button::Appearance {
             background: Some(Background::Color(TRANSPARENT)),
             border_color: TRANSPARENT,
-            text_color: style.palette().text,
+            text_color: palette.text,
             ..Default::default()
         }
     }

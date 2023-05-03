@@ -188,7 +188,7 @@ impl State for PolicyState {
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(30.0)));
 
-            let mut delete_btn = button::danger_only_icon(TRASH).width(Length::Fixed(40.0));
+            let mut delete_btn = button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
 
             if !self.loading {
                 delete_btn = delete_btn.on_press(PolicyMessage::Delete.into());
