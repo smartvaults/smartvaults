@@ -290,16 +290,27 @@ impl CoinstrClient {
         let filter = Filter::new().id(proposal_id).kind(COMPLETED_PROPOSAL_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
         let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
-        let policy_id =
-            util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
+        let policy_id = util::extract_tags_by_kind(&proposal_event, TagKind::E)
+            .get(1)
+            .map(|t| {
+                if let Tag::Event(event_id, ..) = t {
+                    Some(event_id)
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::PolicyNotFound)?
+            .ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
-        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys = self
+            .get_shared_key_by_policy_id(*policy_id, timeout)
+            .await?;
 
         // Decrypt the proposal
         Ok((
             CompletedProposal::decrypt(&shared_keys, &proposal_event.content)?,
-            policy_id,
+            *policy_id,
             shared_keys,
         ))
     }
@@ -1030,7 +1041,6 @@ impl CoinstrClient {
 
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
             wallet.verify_proof(&psbt, message, None)?;
-
             Ok(())
         } else {
             Err(Error::UnexpectedProposal)
