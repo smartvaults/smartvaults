@@ -61,6 +61,13 @@ where
     Button::new(content(Some(icon), t)).style(DangerButtonStyle.into())
 }
 
+pub fn danger_only_icon<T>(icon: char) -> Button<'static, T>
+where
+    T: Clone + 'static,
+{
+    Button::new(content(Some(icon), "")).style(DangerButtonStyle.into())
+}
+
 /* pub fn transparent<S, T>(t: S) -> Button<'static, T>
 where
     S: Into<String>,

@@ -13,13 +13,15 @@ use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::{Balances, Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Text};
+use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
+use crate::theme::icon::{CLIPBOARD, PATCH_CHECK, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum PolicyMessage {
     Send,
     Deposit,
+    NewProofOfReserve,
     LoadPolicy(
         Policy,
         Option<Balance>,
@@ -106,6 +108,14 @@ impl State for PolicyState {
                         None => Message::View(Stage::Policies),
                     });
                 }
+                PolicyMessage::NewProofOfReserve => {
+                    let policy_id = self.policy_id;
+                    let policy = self.policy.clone();
+                    return Command::perform(async {}, move |_| match policy {
+                        Some(policy) => Message::View(Stage::NewProof(Some((policy_id, policy)))),
+                        None => Message::View(Stage::Policies),
+                    });
+                }
                 PolicyMessage::LoadPolicy(policy, balance, list, last_sync) => {
                     self.policy = Some(policy);
                     self.balance = balance;
@@ -170,6 +180,27 @@ impl State for PolicyState {
                                     ))
                                     .view(),
                                 )
+                                .push(
+                                    Row::new()
+                                        .push(Space::with_height(Length::Fixed(5.0)))
+                                        .push(
+                                            button::border_only_icon(CLIPBOARD)
+                                                .on_press(Message::Clipboard(
+                                                    self.policy_id.to_string(),
+                                                ))
+                                                .width(Length::Fixed(40.0)),
+                                        )
+                                        .push(
+                                            button::border_only_icon(PATCH_CHECK)
+                                                .on_press(PolicyMessage::NewProofOfReserve.into())
+                                                .width(Length::Fixed(40.0)),
+                                        )
+                                        .push(
+                                            button::danger_only_icon(TRASH)
+                                                .width(Length::Fixed(40.0)),
+                                        )
+                                        .spacing(10),
+                                )
                                 .spacing(10)
                                 .max_width(300),
                         )
@@ -177,7 +208,7 @@ impl State for PolicyState {
                         .push(
                             Column::new()
                                 .push(rule::vertical())
-                                .height(Length::Fixed(125.0))
+                                .height(Length::Fixed(135.0))
                                 .align_items(Alignment::Center),
                         )
                         .push(Space::with_width(Length::Fixed(10.0)))

@@ -26,3 +26,4 @@ pub const PLUS: char = '\u{F64D}';
 pub const HOURGLASS: char = '\u{F41F}';
 pub const NETWORK: char = '\u{F2EE}';
 pub const HISTORY: char = '\u{F292}';
+pub const PATCH_CHECK: char = '\u{F4B6}';
