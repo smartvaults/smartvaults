@@ -290,7 +290,7 @@ impl CoinstrClient {
         let filter = Filter::new().id(proposal_id).kind(COMPLETED_PROPOSAL_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
         let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
-        let policy_id = util::extract_tags_by_kind(&proposal_event, TagKind::E)
+        let policy_id = util::extract_tags_by_kind(proposal_event, TagKind::E)
             .get(1)
             .map(|t| {
                 if let Tag::Event(event_id, ..) = t {
@@ -1022,7 +1022,7 @@ impl CoinstrClient {
         proposal_id: EventId,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<(), Error>
+    ) -> Result<u64, Error>
     where
         B: Blockchain,
     {
@@ -1040,8 +1040,7 @@ impl CoinstrClient {
         wallet.sync(blockchain, SyncOptions::default()).await?;
 
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
-            wallet.verify_proof(&psbt, message, None)?;
-            Ok(())
+            Ok(wallet.verify_proof(&psbt, message, None)?)
         } else {
             Err(Error::UnexpectedProposal)
         }

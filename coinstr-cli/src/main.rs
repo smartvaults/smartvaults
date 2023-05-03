@@ -12,6 +12,7 @@ use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
+use coinstr_core::util::format;
 use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
 
 mod cli;
@@ -237,10 +238,13 @@ async fn run() -> Result<()> {
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            client
+            let spendable = client
                 .verify_proof(proposal_id, &blockchain, TIMEOUT)
                 .await?;
-            println!("Valid Proof of Reserve");
+            println!(
+                "Valid Proof - Spendable amount: {} sat",
+                format::number(spendable)
+            );
             Ok(())
         }
         Command::Get { command } => match command {
