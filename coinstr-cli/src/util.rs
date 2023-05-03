@@ -357,7 +357,7 @@ pub fn print_completed_proposals(proposals: Vec<(EventId, CompletedProposal, Eve
             } => {
                 table.add_row(row![
                     index + 1,
-                    util::cut_event_id(proposal_id),
+                    proposal_id,
                     util::cut_event_id(policy_id),
                     "spending",
                     txid,
@@ -367,7 +367,7 @@ pub fn print_completed_proposals(proposals: Vec<(EventId, CompletedProposal, Eve
             CompletedProposal::ProofOfReserve { message, .. } => {
                 table.add_row(row![
                     index + 1,
-                    util::cut_event_id(proposal_id),
+                    proposal_id,
                     util::cut_event_id(policy_id),
                     "proof-of-reserve",
                     "-",
