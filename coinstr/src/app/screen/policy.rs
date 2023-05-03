@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::fs::File;
+use std::io::Write;
 use std::time::Duration;
 
 use coinstr_core::bdk::Balance;
@@ -10,11 +12,13 @@ use coinstr_core::policy::Policy;
 use coinstr_core::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
+use rfd::FileDialog;
 
 use crate::app::component::{Balances, Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
+use crate::theme::color::RED;
 use crate::theme::icon::{CLIPBOARD, PATCH_CHECK, TRASH};
 
 #[derive(Debug, Clone)]
@@ -22,12 +26,14 @@ pub enum PolicyMessage {
     Send,
     Deposit,
     NewProofOfReserve,
+    Delete,
     LoadPolicy(
         Policy,
         Option<Balance>,
         Option<Transactions>,
         Option<Timestamp>,
     ),
+    ErrorChanged(Option<String>),
     Reload,
 }
 
@@ -40,6 +46,7 @@ pub struct PolicyState {
     balance: Option<Balance>,
     transactions: Option<Transactions>,
     last_sync: Option<Timestamp>,
+    error: Option<String>,
 }
 
 impl PolicyState {
@@ -52,6 +59,7 @@ impl PolicyState {
             balance: None,
             transactions: None,
             last_sync: None,
+            error: None,
         }
     }
 }
@@ -116,6 +124,34 @@ impl State for PolicyState {
                         None => Message::View(Stage::Policies),
                     });
                 }
+                PolicyMessage::Delete => {
+                    let client = ctx.client.clone();
+                    let policy_id = self.policy_id;
+                    if let Some(policy) = self.policy.as_ref() {
+                        let path = FileDialog::new()
+                            .set_title("Export descriptor backup")
+                            .save_file();
+
+                        if let Some(path) = path {
+                            self.loading = true;
+                            let descriptor = policy.descriptor.to_string();
+                            return Command::perform(
+                                async move {
+                                    let mut file = File::create(path)?;
+                                    file.write_all(descriptor.as_bytes())?;
+                                    client.delete_policy_by_id(policy_id, None).await?;
+                                    Ok::<(), Box<dyn std::error::Error>>(())
+                                },
+                                |res| match res {
+                                    Ok(_) => Message::View(Stage::Policies),
+                                    Err(e) => {
+                                        PolicyMessage::ErrorChanged(Some(e.to_string())).into()
+                                    }
+                                },
+                            );
+                        }
+                    }
+                }
                 PolicyMessage::LoadPolicy(policy, balance, list, last_sync) => {
                     self.policy = Some(policy);
                     self.balance = balance;
@@ -123,6 +159,10 @@ impl State for PolicyState {
                     self.last_sync = last_sync;
                     self.loading = false;
                     self.loaded = true;
+                }
+                PolicyMessage::ErrorChanged(e) => {
+                    self.loading = false;
+                    self.error = e;
                 }
                 PolicyMessage::Reload => {
                     return self.load(ctx);
@@ -147,6 +187,12 @@ impl State for PolicyState {
             content = content
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(30.0)));
+
+            let mut delete_btn = button::danger_only_icon(TRASH).width(Length::Fixed(40.0));
+
+            if !self.loading {
+                delete_btn = delete_btn.on_press(PolicyMessage::Delete.into());
+            }
 
             content = content
                 .push(
@@ -182,7 +228,6 @@ impl State for PolicyState {
                                 )
                                 .push(
                                     Row::new()
-                                        .push(Space::with_height(Length::Fixed(5.0)))
                                         .push(
                                             button::border_only_icon(CLIPBOARD)
                                                 .on_press(Message::Clipboard(
@@ -195,10 +240,7 @@ impl State for PolicyState {
                                                 .on_press(PolicyMessage::NewProofOfReserve.into())
                                                 .width(Length::Fixed(40.0)),
                                         )
-                                        .push(
-                                            button::danger_only_icon(TRASH)
-                                                .width(Length::Fixed(40.0)),
-                                        )
+                                        .push(delete_btn)
                                         .spacing(10),
                                 )
                                 .spacing(10)
@@ -222,6 +264,11 @@ impl State for PolicyState {
                         .width(Length::Fill)
                         .align_items(Alignment::Center),
                 )
+                .push(if let Some(error) = &self.error {
+                    Text::new(error).color(RED).view()
+                } else {
+                    Text::new("").view()
+                })
                 .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())
