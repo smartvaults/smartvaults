@@ -110,6 +110,7 @@ impl PendingProposalsList {
                                 .on_press(Message::View(Stage::Proposal(
                                     *proposal_id,
                                     proposal.clone(),
+                                    *policy_id,
                                 )))
                                 .width(Length::Fixed(40.0)),
                         )
@@ -140,6 +141,7 @@ impl PendingProposalsList {
                                 .on_press(Message::View(Stage::Proposal(
                                     *proposal_id,
                                     proposal.clone(),
+                                    *policy_id,
                                 )))
                                 .width(Length::Fixed(40.0)),
                         )

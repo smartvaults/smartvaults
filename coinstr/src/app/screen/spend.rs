@@ -128,11 +128,15 @@ impl SpendState {
                         None,
                     )
                     .await?;
-                Ok::<(EventId, Proposal), Box<dyn std::error::Error>>((proposal_id, proposal))
+                Ok::<(EventId, Proposal, EventId), Box<dyn std::error::Error>>((
+                    proposal_id,
+                    proposal,
+                    policy_id,
+                ))
             },
             |res| match res {
-                Ok((proposal_id, proposal)) => {
-                    Message::View(Stage::Proposal(proposal_id, proposal))
+                Ok((proposal_id, proposal, policy_id)) => {
+                    Message::View(Stage::Proposal(proposal_id, proposal, policy_id))
                 }
                 Err(e) => SpendMessage::ErrorChanged(Some(e.to_string())).into(),
             },

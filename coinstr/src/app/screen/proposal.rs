@@ -23,7 +23,7 @@ use crate::theme::color::{GREEN, RED, YELLOW};
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
     Approve,
-    Broadcast,
+    Finalize,
     Signed(bool),
     Reload,
     CheckPsbts,
@@ -40,18 +40,20 @@ pub struct ProposalState {
     signed: bool,
     proposal_id: EventId,
     proposal: Proposal,
+    policy_id: EventId,
     approved_proposals: BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
     error: Option<String>,
 }
 
 impl ProposalState {
-    pub fn new(proposal_id: EventId, proposal: Proposal) -> Self {
+    pub fn new(proposal_id: EventId, proposal: Proposal, policy_id: EventId) -> Self {
         Self {
             loading: false,
             loaded: false,
             signed: false,
             proposal_id,
             proposal,
+            policy_id,
             approved_proposals: BTreeMap::new(),
             error: None,
         }
@@ -126,36 +128,56 @@ impl State for ProposalState {
                         },
                     );
                 }
-                ProposalMessage::Broadcast => {
+                ProposalMessage::Finalize => {
                     self.loading = true;
 
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
 
-                    // TODO: get electrum endpoint from config file
-                    let bitcoin_endpoint: &str = match ctx.coinstr.network() {
-                        Network::Bitcoin => "ssl://blockstream.info:700",
-                        Network::Testnet => "ssl://blockstream.info:993",
-                        _ => panic!("Endpoints not availabe for this network"),
-                    };
+                    return match self.proposal {
+                        Proposal::Spending { .. } => {
+                            // TODO: get electrum endpoint from config file
+                            let bitcoin_endpoint: &str = match ctx.coinstr.network() {
+                                Network::Bitcoin => "ssl://blockstream.info:700",
+                                Network::Testnet => "ssl://blockstream.info:993",
+                                _ => panic!("Endpoints not availabe for this network"),
+                            };
 
-                    return Command::perform(
-                        async move {
-                            let blockchain =
-                                ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                            client.broadcast(proposal_id, &blockchain, None).await
-                        },
-                        |res| match res {
-                            Ok(txid) => Message::View(Stage::Transaction(txid)),
-                            Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
-                        },
-                    );
+                            Command::perform(
+                                async move {
+                                    let blockchain = ElectrumBlockchain::from(ElectrumClient::new(
+                                        bitcoin_endpoint,
+                                    )?);
+                                    client.broadcast(proposal_id, &blockchain, None).await
+                                },
+                                |res| match res {
+                                    Ok(txid) => Message::View(Stage::Transaction(txid)),
+                                    Err(e) => {
+                                        ProposalMessage::ErrorChanged(Some(e.to_string())).into()
+                                    }
+                                },
+                            )
+                        }
+                        Proposal::ProofOfReserve { .. } => {
+                            Command::perform(
+                                async move { client.finalize_proof(proposal_id, None).await },
+                                |res| match res {
+                                    Ok(_) => Message::View(Stage::Dashboard), // TODO: change to completed proposal view
+                                    Err(e) => {
+                                        ProposalMessage::ErrorChanged(Some(e.to_string())).into()
+                                    }
+                                },
+                            )
+                        }
+                    };
                 }
                 ProposalMessage::Signed(value) => self.signed = value,
                 ProposalMessage::Reload => return self.load(ctx),
                 ProposalMessage::CheckPsbts => {
                     if !self.signed {
                         let client = ctx.client.clone();
+                        let policy_id = self.policy_id;
+                        let proposal = self.proposal.clone();
                         let base_psbt = self.proposal.psbt();
                         let signed_psbts = self
                             .approved_proposals
@@ -164,12 +186,21 @@ impl State for ProposalState {
                             .collect();
                         return Command::perform(
                             async move {
-                                client.combine_psbts(base_psbt, signed_psbts)?;
-                                Ok::<(), Box<dyn std::error::Error>>(())
+                                match proposal {
+                                    Proposal::Spending { .. } => {
+                                        client.combine_psbts(base_psbt, signed_psbts).ok()
+                                    }
+                                    Proposal::ProofOfReserve { .. } => {
+                                        let policy = client.cache.policy_by_id(policy_id).await?;
+                                        client
+                                            .combine_non_std_psbts(&policy, base_psbt, signed_psbts)
+                                            .ok()
+                                    }
+                                }
                             },
                             |res| match res {
-                                Ok(_) => ProposalMessage::Signed(true).into(),
-                                Err(_) => ProposalMessage::Signed(false).into(),
+                                Some(_) => ProposalMessage::Signed(true).into(),
+                                None => ProposalMessage::Signed(false).into(),
                             },
                         );
                     }
@@ -200,9 +231,14 @@ impl State for ProposalState {
                     .bold()
                     .view(),
                 )
-                .push(Space::with_height(Length::Fixed(40.0)));
+                .push(Space::with_height(Length::Fixed(40.0)))
+                .push(
+                    Text::new(format!("Policy ID: {}", util::cut_event_id(self.policy_id)))
+                        .on_press(Message::View(Stage::Policy(self.policy_id)))
+                        .view(),
+                );
 
-            match &self.proposal {
+            let finalize_btn_text: &str = match &self.proposal {
                 Proposal::Spending {
                     to_address,
                     amount,
@@ -217,13 +253,17 @@ impl State for ProposalState {
                                 .view(),
                         )
                         .push(Text::new(format!("Description: {description}")).view());
+
+                    "Broadcast"
                 }
                 Proposal::ProofOfReserve { message, .. } => {
                     content = content
                         .push(Text::new("Type: proof-of-reserve").view())
                         .push(Text::new(format!("Message: {message}")).view());
+
+                    "Finalize"
                 }
-            }
+            };
 
             let mut status = Row::new().push(Text::new("Status: ").view());
 
@@ -235,32 +275,32 @@ impl State for ProposalState {
 
             content = content.push(status);
 
-            let (approve_btn, mut broadcast_btn) =
+            let (approve_btn, mut finalize_btn) =
                 match self.approved_proposals.get(&ctx.client.keys().public_key()) {
                     Some(_) => {
                         let approve_btn = button::border("Approve");
-                        let broadcast_btn = button::primary("Broadcast");
-                        (approve_btn, broadcast_btn)
+                        let finalize_btn = button::primary(finalize_btn_text);
+                        (approve_btn, finalize_btn)
                     }
                     None => {
                         let mut approve_btn = button::primary("Approve");
-                        let broadcast_btn = button::border("Broadcast");
+                        let finalize_btn = button::border(finalize_btn_text);
 
                         if !self.loading {
                             approve_btn = approve_btn.on_press(ProposalMessage::Approve.into());
                         }
 
-                        (approve_btn, broadcast_btn)
+                        (approve_btn, finalize_btn)
                     }
                 };
 
             if self.signed && !self.loading {
-                broadcast_btn = broadcast_btn.on_press(ProposalMessage::Broadcast.into());
+                finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
             }
 
             content = content
                 .push(Space::with_height(10.0))
-                .push(Row::new().push(approve_btn).push(broadcast_btn).spacing(10))
+                .push(Row::new().push(approve_btn).push(finalize_btn).spacing(10))
                 .push(Space::with_height(20.0));
 
             if let Some(error) = &self.error {

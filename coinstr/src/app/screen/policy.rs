@@ -73,7 +73,7 @@ impl State for PolicyState {
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
-            async move { cache.policy(policy_id).await },
+            async move { cache.policy_with_details(policy_id).await },
             |res| match res {
                 Some((policy, balance, list, last_sync)) => {
                     PolicyMessage::LoadPolicy(policy, balance, list, last_sync).into()

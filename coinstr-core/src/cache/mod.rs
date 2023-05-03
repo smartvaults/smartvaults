@@ -159,7 +159,12 @@ impl Cache {
         new_policies
     }
 
-    pub async fn policy(
+    pub async fn policy_by_id(&self, policy_id: EventId) -> Option<Policy> {
+        let policies = self.policies.lock().await;
+        policies.get(&policy_id).map(|pw| pw.policy.clone())
+    }
+
+    pub async fn policy_with_details(
         &self,
         policy_id: EventId,
     ) -> Option<(
