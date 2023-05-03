@@ -17,8 +17,8 @@ use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
-    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Metadata, Result, Tag, Timestamp,
-    SECP256K1,
+    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Result, Tag,
+    Timestamp, SECP256K1,
 };
 
 #[cfg(feature = "blocking")]
@@ -321,17 +321,28 @@ impl CoinstrClient {
         timeout: Option<Duration>,
     ) -> Result<(), Error> {
         // Get shared key
-        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
+
+        // Extract pubkeys to notify users about proposal deletion
+        let mut tags: Vec<Tag> = util::extract_public_keys(policy.descriptor.to_string())?
+            .into_iter()
+            .map(|p| Tag::PubKey(p, None))
+            .collect();
 
         // Get all events linked to the policy
         let filter = Filter::new().event(policy_id);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
 
-        let mut ids: Vec<EventId> = events.iter().map(|e| e.id).collect();
-        ids.push(policy_id);
+        tags.push(Tag::Event(policy_id, None, None));
+        events
+            .into_iter()
+            .for_each(|e| tags.push(Tag::Event(e.id, None, None)));
 
-        let event = EventBuilder::delete::<String>(ids, None).to_event(&shared_keys)?;
+        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
+
+        #[cfg(feature = "cache")]
+        self.cache.uncache_policy(policy_id).await;
 
         Ok(())
     }
@@ -351,11 +362,17 @@ impl CoinstrClient {
         // Get shared key
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
+        // Extract `p` tags from proposal event to notify users about proposal deletion
+        let mut tags: Vec<Tag> = util::extract_tags_by_kind(proposal_event, TagKind::P)
+            .into_iter()
+            .cloned()
+            .collect();
+
         // Get all events linked to the proposal
         /* let filter = Filter::new().event(proposal_id);
         let events = self.client.get_events_of(vec![filter], timeout).await?; */
 
-        let ids: Vec<EventId> = vec![proposal_id];
+        tags.push(Tag::Event(proposal_id, None, None));
         /* let mut ids: Vec<EventId> = vec![proposal_id];
 
         for event in events.into_iter() {
@@ -364,8 +381,11 @@ impl CoinstrClient {
             }
         } */
 
-        let event = EventBuilder::delete::<String>(ids, None).to_event(&shared_keys)?;
+        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
+
+        #[cfg(feature = "cache")]
+        self.cache.uncache_proposal(proposal_id).await;
 
         Ok(())
     }

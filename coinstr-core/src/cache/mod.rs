@@ -128,6 +128,12 @@ impl Cache {
         }
     }
 
+    pub async fn uncache_shared_key(&self, policy_id: EventId) {
+        let mut shared_keys = self.shared_keys.lock().await;
+        shared_keys.remove(&policy_id);
+        log::info!("Shared key for policy {policy_id} uncached");
+    }
+
     pub async fn policy_exists(&self, policy_id: EventId) -> bool {
         let policies = self.policies.lock().await;
         policies.contains_key(&policy_id)
@@ -209,6 +215,32 @@ impl Cache {
         Ok(())
     }
 
+    pub async fn uncache_policy(&self, policy_id: EventId) {
+        // Remove policy
+        let mut policies = self.policies.lock().await;
+        policies.remove(&policy_id);
+        log::info!("Policy {policy_id} uncached");
+
+        // Remove shared key
+        self.uncache_shared_key(policy_id).await;
+
+        // Remove proposals
+        let proposals = self.proposals.lock().await;
+        for (proposal_id, ..) in proposals.iter().filter(|(_, (p_id, _))| *p_id == policy_id) {
+            self.uncache_proposal(*proposal_id).await;
+        }
+
+        // Remove completed proposals
+        let completed_proposals = self.completed_proposals.lock().await;
+        for (completed_proposal_id, ..) in completed_proposals
+            .iter()
+            .filter(|(_, (p_id, _))| *p_id == policy_id)
+        {
+            self.uncache_completed_proposal(*completed_proposal_id)
+                .await;
+        }
+    }
+
     pub async fn proposal_exists(&self, proposal_id: EventId) -> bool {
         let proposals = self.proposals.lock().await;
         proposals.contains_key(&proposal_id)
@@ -237,7 +269,7 @@ impl Cache {
         proposals.remove(&proposal_id);
         let mut approved_proposals = self.approved_proposals.lock().await;
         approved_proposals.remove(&proposal_id);
-        log::info!("Proposal {proposal_id} removed");
+        log::info!("Proposal {proposal_id} uncached");
     }
 
     pub async fn approved_proposals(&self) -> ApprovedProposals {
@@ -311,6 +343,12 @@ impl Cache {
             e.insert((policy_id, completed_proposal));
             log::info!("Cached completed proposal {completed_proposal_id}");
         }
+    }
+
+    pub async fn uncache_completed_proposal(&self, completed_proposal_id: EventId) {
+        let mut completed_proposals = self.completed_proposals.lock().await;
+        completed_proposals.remove(&completed_proposal_id);
+        log::info!("Completed proposal {completed_proposal_id} uncached");
     }
 
     pub async fn get_description_by_txid(&self, txid: Txid) -> Option<String> {
