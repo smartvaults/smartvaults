@@ -20,7 +20,9 @@ use futures_util::future::{AbortHandle, Abortable};
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use nostr_sdk::event::tag::TagKind;
-use nostr_sdk::{Event, EventId, Filter, Keys, RelayPoolNotification, Result, Tag, Timestamp};
+use nostr_sdk::{
+    Event, EventId, Filter, Keys, Kind, RelayPoolNotification, Result, Tag, Timestamp,
+};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
@@ -508,6 +510,16 @@ impl Cache {
         }
         None
     }
+
+    pub async fn uncache_generic_event_id(&self, event_id: EventId) {
+        if self.policy_exists(event_id).await {
+            self.uncache_policy(event_id).await;
+        } else if self.proposal_exists(event_id).await {
+            self.uncache_proposal(event_id).await;
+        } else if self.completed_proposal_exists(event_id).await {
+            self.uncache_completed_proposal(event_id).await;
+        }
+    }
 }
 
 impl CoinstrClient {
@@ -565,6 +577,9 @@ impl CoinstrClient {
                 Filter::new()
                     .pubkey(keys.public_key())
                     .kind(COMPLETED_PROPOSAL_KIND),
+                Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(Kind::EventDeletion),
             ];
 
             this.client.subscribe(filters).await;
@@ -704,6 +719,12 @@ impl CoinstrClient {
                         "Impossible to find policy id in completed proposal {}",
                         event.id
                     );
+                }
+            }
+        } else if event.kind == Kind::EventDeletion {
+            for tag in event.tags.iter() {
+                if let Tag::Event(event_id, ..) = tag {
+                    self.cache.uncache_generic_event_id(*event_id).await;
                 }
             }
         }
