@@ -221,7 +221,7 @@ async fn run() -> Result<()> {
                 let client = coinstr.client(relays).await?;
                 let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
                 let proposal_id = client
-                    .request_proof(policy_id, message, &blockchain, TIMEOUT)
+                    .new_proof_proposal(policy_id, message, &blockchain, TIMEOUT)
                     .await?;
                 println!("Proof of Reserve proposal {proposal_id} sent");
                 Ok(())

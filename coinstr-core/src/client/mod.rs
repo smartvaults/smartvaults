@@ -927,7 +927,7 @@ impl CoinstrClient {
         Ok(Proposal::proof_of_reserve(message, psbt))
     }
 
-    pub async fn request_proof<B, S>(
+    pub async fn new_proof_proposal<B, S>(
         &self,
         policy_id: EventId,
         message: S,
