@@ -53,6 +53,14 @@ where
     Button::new(content(Some(icon), t)).style(BorderButtonStyle.into())
 }
 
+pub fn danger_with_icon<S, T>(icon: char, t: S) -> Button<'static, T>
+where
+    S: Into<String>,
+    T: Clone + 'static,
+{
+    Button::new(content(Some(icon), t)).style(DangerButtonStyle.into())
+}
+
 /* pub fn transparent<S, T>(t: S) -> Button<'static, T>
 where
     S: Into<String>,
@@ -134,6 +142,30 @@ impl button::StyleSheet for BorderButtonStyle {
 
 impl From<BorderButtonStyle> for theme::Button {
     fn from(style: BorderButtonStyle) -> Self {
+        theme::Button::Custom(Box::new(style))
+    }
+}
+
+pub struct DangerButtonStyle;
+
+impl button::StyleSheet for DangerButtonStyle {
+    type Style = Theme;
+
+    fn active(&self, style: &Self::Style) -> button::Appearance {
+        let palette = style.palette();
+        button::Appearance {
+            shadow_offset: Vector::default(),
+            background: Some(Background::Color(palette.danger)),
+            border_radius: 10.0,
+            border_width: 0.0,
+            border_color: TRANSPARENT,
+            text_color: palette.text,
+        }
+    }
+}
+
+impl From<DangerButtonStyle> for theme::Button {
+    fn from(style: DangerButtonStyle) -> Self {
         theme::Button::Custom(Box::new(style))
     }
 }

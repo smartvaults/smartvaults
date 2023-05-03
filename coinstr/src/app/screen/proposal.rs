@@ -19,6 +19,7 @@ use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, RED, YELLOW};
+use crate::theme::icon::TRASH;
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
@@ -30,6 +31,7 @@ pub enum ProposalMessage {
     LoadApprovedProposals(
         BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
     ),
+    Delete,
     ErrorChanged(Option<String>),
 }
 
@@ -205,6 +207,17 @@ impl State for ProposalState {
                         );
                     }
                 }
+                ProposalMessage::Delete => {
+                    let client = ctx.client.clone();
+                    let proposal_id = self.proposal_id;
+                    return Command::perform(
+                        async move { client.delete_proposal_by_id(proposal_id, None).await },
+                        |res| match res {
+                            Ok(_) => Message::View(Stage::Proposals),
+                            Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
+                }
             }
         }
 
@@ -298,9 +311,21 @@ impl State for ProposalState {
                 finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
             }
 
+            let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
+
+            if !self.loading {
+                delete_btn = delete_btn.on_press(ProposalMessage::Delete.into());
+            }
+
             content = content
                 .push(Space::with_height(10.0))
-                .push(Row::new().push(approve_btn).push(finalize_btn).spacing(10))
+                .push(
+                    Row::new()
+                        .push(approve_btn)
+                        .push(finalize_btn)
+                        .push(delete_btn)
+                        .spacing(10),
+                )
                 .push(Space::with_height(20.0));
 
             if let Some(error) = &self.error {
