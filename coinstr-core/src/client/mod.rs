@@ -448,11 +448,12 @@ impl CoinstrClient {
                 let shared_key: &Keys = shared_keys
                     .get(policy_id)
                     .ok_or(Error::SharedKeysNotFound)?;
-                proposals.push((
-                    event.id,
-                    CompletedProposal::decrypt(shared_key, &event.content)?,
-                    *policy_id,
-                ));
+                match CompletedProposal::decrypt(shared_key, &event.content) {
+                    Ok(proposal) => proposals.push((event.id, proposal, *policy_id)),
+                    Err(e) => {
+                        log::error!("impossible to decrypt completed proposal {}: {e}", event.id)
+                    }
+                }
             }
         }
 
