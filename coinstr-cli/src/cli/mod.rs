@@ -112,6 +112,18 @@ pub enum Command {
         #[clap(short, long, default_value_t = 6)]
         target_blocks: usize,
     },
+    /// Request Proof Of Reserve
+    RequestProof {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Policy id
+        #[arg(required = true)]
+        policy_id: EventId,
+        /// Message
+        #[arg(required = true)]
+        message: String,
+    },
     /// Approve a spending proposal
     Approve {
         /// Keychain name
@@ -123,6 +135,24 @@ pub enum Command {
     },
     /// Combine and broadcast the transaction
     Broadcast {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
+    },
+    /// Finalize Proof Of Reserve
+    FinalizeProof {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Proposal id
+        #[arg(required = true)]
+        proposal_id: EventId,
+    },
+    /// Verify Proof Of Reserve
+    VerifyProof {
         /// Keychain name
         #[arg(required = true)]
         name: String,

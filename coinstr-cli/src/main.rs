@@ -180,12 +180,27 @@ async fn run() -> Result<()> {
             println!("Spending proposal {proposal_id} sent");
             Ok(())
         }
+        Command::RequestProof {
+            name,
+            policy_id,
+            message,
+        } => {
+            let path = get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.client(relays).await?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+            let proposal_id = client
+                .request_proof(policy_id, message, &blockchain, TIMEOUT)
+                .await?;
+            println!("Proof of Reserve proposal {proposal_id} sent");
+            Ok(())
+        }
         Command::Approve { name, proposal_id } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             let client = coinstr.client(relays).await?;
             let (event, _) = client.approve(proposal_id, TIMEOUT).await?;
-            println!("Spending proposal {proposal_id} approved: {}", event.id);
+            println!("Proposal {proposal_id} approved: {}", event.id);
             Ok(())
         }
         Command::Broadcast { name, proposal_id } => {
@@ -207,6 +222,25 @@ async fn run() -> Result<()> {
                 _ => (),
             };
 
+            Ok(())
+        }
+        Command::FinalizeProof { name, proposal_id } => {
+            let path = get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.client(relays).await?;
+            client.finalize_proof(proposal_id, TIMEOUT).await?;
+            println!("Proof of Reserve finalized");
+            Ok(())
+        }
+        Command::VerifyProof { name, proposal_id } => {
+            let path = get_keychain_file(keychains, name)?;
+            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let client = coinstr.client(relays).await?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+            client
+                .verify_proof(proposal_id, &blockchain, TIMEOUT)
+                .await?;
+            println!("Valid Proof of Reserve");
             Ok(())
         }
         Command::Get { command } => match command {
