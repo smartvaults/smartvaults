@@ -78,6 +78,8 @@ pub enum Error {
     ApprovedProposalNotFound,
     #[error("impossible to finalize the PSBT: {0:?}")]
     ImpossibleToFinalizePsbt(Vec<bdk::miniscript::psbt::Error>),
+    #[error("impossible to finalize the non-std PSBT")]
+    ImpossibleToFinalizeNonStdPsbt,
     #[error("PSBT not signed")]
     PsbtNotSigned,
     #[error("wallet spending policy not found")]
@@ -814,9 +816,11 @@ impl CoinstrClient {
             remove_partial_sigs: false,
             ..Default::default()
         };
-        wallet.finalize_psbt(&mut base_psbt, signopts)?;
-
-        Ok(base_psbt)
+        if wallet.finalize_psbt(&mut base_psbt, signopts)? {
+            Ok(base_psbt)
+        } else {
+            Err(Error::ImpossibleToFinalizeNonStdPsbt)
+        }
     }
 
     pub async fn broadcast<B>(
@@ -933,7 +937,7 @@ impl CoinstrClient {
         message: S,
         blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<EventId, Error>
+    ) -> Result<(EventId, Proposal, EventId), Error>
     where
         B: Blockchain,
         S: Into<String>,
@@ -973,10 +977,10 @@ impl CoinstrClient {
         // Cache proposal
         #[cfg(feature = "cache")]
         self.cache
-            .cache_proposal(proposal_id, policy_id, proposal)
+            .cache_proposal(proposal_id, policy_id, proposal.clone())
             .await;
 
-        Ok(proposal_id)
+        Ok((proposal_id, proposal, policy_id))
     }
 
     pub async fn finalize_proof(
