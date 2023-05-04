@@ -3,9 +3,6 @@
 
 use std::fmt;
 
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
-use coinstr_core::bitcoin::Network;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
@@ -119,23 +116,9 @@ impl State for NewProofState {
                         let policy_id = policy.policy_id;
                         let message = self.message.clone();
 
-                        // TODO: get electrum endpoint from config file
-                        let bitcoin_endpoint: &str = match ctx.client.network() {
-                            Network::Bitcoin => "ssl://blockstream.info:700",
-                            Network::Testnet => "ssl://blockstream.info:993",
-                            _ => panic!("Endpoints not availabe for this network"),
-                        };
-
                         if !self.message.is_empty() {
                             return Command::perform(
-                                async move {
-                                    let blockchain = ElectrumBlockchain::from(ElectrumClient::new(
-                                        bitcoin_endpoint,
-                                    )?);
-                                    client
-                                        .new_proof_proposal(policy_id, message, &blockchain, None)
-                                        .await
-                                },
+                                async move { client.new_proof_proposal(policy_id, message, None).await },
                                 |res| match res {
                                     Ok((event_id, proposal, policy_id)) => Message::View(
                                         Stage::Proposal(event_id, proposal, policy_id),

@@ -16,8 +16,7 @@ use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use nostr_sdk::{EventId, Keys, Result, Timestamp};
-use tokio::sync::mpsc::error::SendError;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
 use crate::policy::Policy;
@@ -34,8 +33,6 @@ type ApprovedProposals =
 pub enum Error {
     #[error(transparent)]
     Bdk(#[from] bdk::Error),
-    #[error("channel send error")]
-    SendError(#[from] SendError<()>),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -97,7 +94,7 @@ impl Cache {
         self.block_height.set_block_height(block_height);
     }
 
-    pub async fn shared_key_by_policy_id(&self, policy_id: EventId) -> Option<Keys> {
+    pub async fn get_shared_key_by_policy_id(&self, policy_id: EventId) -> Option<Keys> {
         let shared_keys = self.shared_keys.lock().await;
         shared_keys.get(&policy_id).cloned()
     }
@@ -153,7 +150,7 @@ impl Cache {
         new_policies
     }
 
-    pub async fn policy_by_id(&self, policy_id: EventId) -> Option<Policy> {
+    pub async fn get_policy_by_id(&self, policy_id: EventId) -> Option<Policy> {
         let policies = self.policies.lock().await;
         policies.get(&policy_id).map(|pw| pw.policy.clone())
     }
@@ -203,7 +200,7 @@ impl Cache {
         Ok(())
     }
 
-    pub async fn uncache_policy(&self, policy_id: EventId) {
+    pub async fn delete_policy_by_id(&self, policy_id: EventId) {
         // Remove policy
         let mut policies = self.policies.lock().await;
         policies.remove(&policy_id);
@@ -215,7 +212,7 @@ impl Cache {
         // Remove proposals
         let proposals = self.proposals.lock().await;
         for (proposal_id, ..) in proposals.iter().filter(|(_, (p_id, _))| *p_id == policy_id) {
-            self.uncache_proposal(*proposal_id).await;
+            self.delete_proposal_by_id(*proposal_id).await;
         }
 
         // Remove completed proposals
@@ -239,6 +236,11 @@ impl Cache {
         proposals.clone()
     }
 
+    pub async fn get_proposal_by_id(&self, proposal_id: EventId) -> Option<(EventId, Proposal)> {
+        let proposals = self.proposals.lock().await;
+        proposals.get(&proposal_id).cloned()
+    }
+
     pub async fn cache_proposal(
         &self,
         proposal_id: EventId,
@@ -252,7 +254,7 @@ impl Cache {
         }
     }
 
-    pub async fn uncache_proposal(&self, proposal_id: EventId) {
+    pub async fn delete_proposal_by_id(&self, proposal_id: EventId) {
         let mut proposals = self.proposals.lock().await;
         proposals.remove(&proposal_id);
         let mut approved_proposals = self.approved_proposals.lock().await;
@@ -385,7 +387,7 @@ impl Cache {
     pub async fn sync_with_timechain<B>(
         &self,
         blockchain: &B,
-        sender: Option<&UnboundedSender<()>>,
+        sender: Option<&Sender<()>>,
         force: bool,
     ) -> Result<(), Error>
     where
@@ -405,7 +407,7 @@ impl Cache {
                 pw.wallet.sync(blockchain, SyncOptions::default())?;
                 pw.last_sync = Some(Timestamp::now());
                 if let Some(sender) = sender {
-                    sender.send(())?;
+                    let _ = sender.try_send(());
                 }
             }
         }
@@ -499,9 +501,9 @@ impl Cache {
 
     pub async fn uncache_generic_event_id(&self, event_id: EventId) {
         if self.policy_exists(event_id).await {
-            self.uncache_policy(event_id).await;
+            self.delete_policy_by_id(event_id).await;
         } else if self.proposal_exists(event_id).await {
-            self.uncache_proposal(event_id).await;
+            self.delete_proposal_by_id(event_id).await;
         } else if self.completed_proposal_exists(event_id).await {
             self.uncache_completed_proposal(event_id).await;
         }

@@ -4,10 +4,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bdk::Balance;
-use coinstr_core::bitcoin::{Address, Network};
+use coinstr_core::bitcoin::Address;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::Proposal;
@@ -107,26 +105,10 @@ impl SpendState {
         let description = self.description.clone();
         let fee_rate = self.fee_rate;
 
-        // TODO: get electrum endpoint from config file
-        let bitcoin_endpoint: &str = match ctx.client.network() {
-            Network::Bitcoin => "ssl://blockstream.info:700",
-            Network::Testnet => "ssl://blockstream.info:993",
-            _ => panic!("Endpoints not availabe for this network"),
-        };
-
         Command::perform(
             async move {
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
                 let (proposal_id, proposal) = client
-                    .spend(
-                        policy_id,
-                        to_address,
-                        amount,
-                        description,
-                        fee_rate,
-                        &blockchain,
-                        None,
-                    )
+                    .spend(policy_id, to_address, amount, description, fee_rate, None)
                     .await?;
                 Ok::<(EventId, Proposal, EventId), Box<dyn std::error::Error>>((
                     proposal_id,

@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bitcoin::Txid;
+use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::Proposal;
@@ -41,12 +41,18 @@ pub struct Context {
 
 impl Context {
     pub fn new(stage: Stage, coinstr: Coinstr, theme: Theme) -> Self {
-        // TODO: let choose the relay and network
+        // TODO: let choose the relay, network and electrum endpoint
         RUNTIME.block_on(async {
+            let endpoint: &str = match coinstr.network() {
+                Network::Bitcoin => "ssl://blockstream.info:700",
+                Network::Testnet => "ssl://blockstream.info:993",
+                _ => panic!("Endpoints not availabe for this network"),
+            };
             coinstr
                 .add_relays_and_connect(vec!["wss://relay.rip".to_string()])
                 .await
-                .expect("Impossible to build client")
+                .expect("Impossible to build client");
+            coinstr.set_electrum_endpoint(endpoint).await;
         });
 
         Self {

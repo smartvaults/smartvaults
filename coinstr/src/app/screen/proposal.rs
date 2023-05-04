@@ -4,10 +4,8 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Network, XOnlyPublicKey};
+use coinstr_core::bitcoin::XOnlyPublicKey;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::proposal::Proposal;
 use coinstr_core::util;
@@ -137,29 +135,13 @@ impl State for ProposalState {
                     let proposal_id = self.proposal_id;
 
                     return match self.proposal {
-                        Proposal::Spending { .. } => {
-                            // TODO: get electrum endpoint from config file
-                            let bitcoin_endpoint: &str = match ctx.client.network() {
-                                Network::Bitcoin => "ssl://blockstream.info:700",
-                                Network::Testnet => "ssl://blockstream.info:993",
-                                _ => panic!("Endpoints not availabe for this network"),
-                            };
-
-                            Command::perform(
-                                async move {
-                                    let blockchain = ElectrumBlockchain::from(ElectrumClient::new(
-                                        bitcoin_endpoint,
-                                    )?);
-                                    client.broadcast(proposal_id, &blockchain, None).await
-                                },
-                                |res| match res {
-                                    Ok(txid) => Message::View(Stage::Transaction(txid)),
-                                    Err(e) => {
-                                        ProposalMessage::ErrorChanged(Some(e.to_string())).into()
-                                    }
-                                },
-                            )
-                        }
+                        Proposal::Spending { .. } => Command::perform(
+                            async move { client.broadcast(proposal_id, None).await },
+                            |res| match res {
+                                Ok(txid) => Message::View(Stage::Transaction(txid)),
+                                Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        ),
                         Proposal::ProofOfReserve { .. } => {
                             Command::perform(
                                 async move { client.finalize_proof(proposal_id, None).await },
@@ -193,7 +175,8 @@ impl State for ProposalState {
                                         client.combine_psbts(base_psbt, signed_psbts).ok()
                                     }
                                     Proposal::ProofOfReserve { .. } => {
-                                        let policy = client.cache.policy_by_id(policy_id).await?;
+                                        let policy =
+                                            client.cache.get_policy_by_id(policy_id).await?;
                                         client
                                             .combine_non_std_psbts(&policy, base_psbt, signed_psbts)
                                             .ok()

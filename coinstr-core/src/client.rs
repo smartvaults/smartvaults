@@ -12,10 +12,8 @@ use std::time::Duration;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
-#[cfg(feature = "cache")]
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::MemoryDatabase;
-#[cfg(feature = "cache")]
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::psbt::PsbtExt;
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
@@ -34,9 +32,8 @@ use nostr_sdk::{
     Timestamp, Url, SECP256K1,
 };
 #[cfg(feature = "cache")]
-use tokio::sync::mpsc::UnboundedSender;
-#[cfg(feature = "cache")]
-use tokio::task::JoinHandle;
+use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::RwLock;
 
 #[cfg(feature = "cache")]
 use crate::cache::Cache;
@@ -102,6 +99,8 @@ pub enum Error {
     PsbtNotSigned,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
+    #[error("electrum endpoint not set")]
+    ElectrumEndpointNotSet,
     #[error("{0}")]
     Generic(String),
 }
@@ -121,6 +120,7 @@ pub struct Coinstr {
     network: Network,
     keechain: KeeChain,
     client: Client,
+    endpoint: Arc<RwLock<Option<String>>>,
     #[cfg(feature = "cache")]
     pub cache: Cache,
 }
@@ -147,6 +147,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::new(&keys),
+            endpoint: Arc::new(RwLock::new(None)),
             #[cfg(feature = "cache")]
             cache: Cache::new(),
         })
@@ -186,6 +187,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::new(&keys),
+            endpoint: Arc::new(RwLock::new(None)),
             #[cfg(feature = "cache")]
             cache: Cache::new(),
         })
@@ -225,6 +227,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::new(&keys),
+            endpoint: Arc::new(RwLock::new(None)),
             #[cfg(feature = "cache")]
             cache: Cache::new(),
         })
@@ -292,11 +295,11 @@ impl Coinstr {
         Ok(())
     }
 
-    pub async fn disconnect_relay<S>(&self, url: S) -> Result<(), Error>
+    pub async fn remove_relay<S>(&self, url: S) -> Result<(), Error>
     where
         S: Into<String>,
     {
-        Ok(self.client.disconnect_relay(url).await?)
+        Ok(self.client.remove_relay(url).await?)
     }
 
     pub async fn relays(&self) -> HashMap<Url, Relay> {
@@ -305,6 +308,19 @@ impl Coinstr {
 
     pub async fn shutdown(self) -> Result<(), Error> {
         Ok(self.client.shutdown().await?)
+    }
+
+    pub async fn set_electrum_endpoint<S>(&self, endpoint: S)
+    where
+        S: Into<String>,
+    {
+        let mut e = self.endpoint.write().await;
+        *e = Some(endpoint.into());
+    }
+
+    pub async fn electrum_endpoint(&self) -> Result<String, Error> {
+        let endpoint = self.endpoint.read().await;
+        endpoint.clone().ok_or(Error::ElectrumEndpointNotSet)
     }
 
     pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
@@ -525,7 +541,7 @@ impl Coinstr {
         self.client.send_event(event).await?;
 
         #[cfg(feature = "cache")]
-        self.cache.uncache_policy(policy_id).await;
+        self.cache.delete_policy_by_id(policy_id).await;
 
         Ok(())
     }
@@ -568,7 +584,7 @@ impl Coinstr {
         self.client.send_event(event).await?;
 
         #[cfg(feature = "cache")]
-        self.cache.uncache_proposal(proposal_id).await;
+        self.cache.delete_proposal_by_id(proposal_id).await;
 
         Ok(())
     }
@@ -786,20 +802,17 @@ impl Coinstr {
     }
 
     /// Make a spending proposal
-    #[allow(clippy::too_many_arguments)]
-    pub async fn spend<S, B>(
+    pub async fn spend<S>(
         &self,
         policy_id: EventId,
         to_address: Address,
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
-        blockchain: &B,
         timeout: Option<Duration>,
     ) -> Result<(EventId, Proposal), Error>
     where
         S: Into<String>,
-        B: Blockchain,
     {
         // Get policy
         let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
@@ -807,6 +820,8 @@ impl Coinstr {
         let description: &str = &description.into();
 
         // Build spending proposal
+        let endpoint = self.electrum_endpoint().await?;
+        let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
         let (proposal, _details) = self
             .build_spending_proposal(
                 &policy,
@@ -814,7 +829,7 @@ impl Coinstr {
                 amount,
                 description,
                 fee_rate,
-                blockchain,
+                &blockchain,
             )
             .await?;
 
@@ -1004,15 +1019,11 @@ impl Coinstr {
         }
     }
 
-    pub async fn broadcast<B>(
+    pub async fn broadcast(
         &self,
         proposal_id: EventId,
-        blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<Txid, Error>
-    where
-        B: Blockchain,
-    {
+    ) -> Result<Txid, Error> {
         // Get PSBTs
         let GetApprovedProposals {
             policy_id,
@@ -1034,11 +1045,9 @@ impl Coinstr {
             let finalized_tx = psbt.extract_tx();
 
             // Broadcast
-            #[cfg(not(target_arch = "wasm32"))]
+            let endpoint = self.electrum_endpoint().await?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             blockchain.broadcast(&finalized_tx)?;
-            #[cfg(target_arch = "wasm32")]
-            blockchain.broadcast(&finalized_tx).await?;
-
             let txid = finalized_tx.txid();
 
             // Build the broadcasted proposal
@@ -1064,9 +1073,9 @@ impl Coinstr {
             // Cache
             #[cfg(feature = "cache")]
             {
-                self.cache.uncache_proposal(proposal_id).await;
+                self.cache.delete_proposal_by_id(proposal_id).await;
                 self.cache
-                    .sync_with_timechain(blockchain, None, true)
+                    .sync_with_timechain(&blockchain, None, true)
                     .await?;
                 self.cache
                     .cache_completed_proposal(event_id, policy_id, completed_proposal)
@@ -1112,15 +1121,13 @@ impl Coinstr {
         Ok(Proposal::proof_of_reserve(message, psbt))
     }
 
-    pub async fn new_proof_proposal<B, S>(
+    pub async fn new_proof_proposal<S>(
         &self,
         policy_id: EventId,
         message: S,
-        blockchain: &B,
         timeout: Option<Duration>,
     ) -> Result<(EventId, Proposal, EventId), Error>
     where
-        B: Blockchain,
         S: Into<String>,
     {
         let message: &str = &message.into();
@@ -1129,8 +1136,10 @@ impl Coinstr {
         let (policy, shared_keys) = self.get_policy_by_id(policy_id, timeout).await?;
 
         // Build proposal
+        let endpoint = self.electrum_endpoint().await?;
+        let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
         let proposal = self
-            .build_proof_proposal(&policy, message, blockchain)
+            .build_proof_proposal(&policy, message, &blockchain)
             .await?;
 
         // Compose the event
@@ -1210,7 +1219,7 @@ impl Coinstr {
             // Cache
             #[cfg(feature = "cache")]
             {
-                self.cache.uncache_proposal(proposal_id).await;
+                self.cache.delete_proposal_by_id(proposal_id).await;
                 self.cache
                     .cache_completed_proposal(event_id, policy_id, completed_proposal)
                     .await;
@@ -1222,15 +1231,11 @@ impl Coinstr {
         }
     }
 
-    pub async fn verify_proof<B>(
+    pub async fn verify_proof(
         &self,
         proposal_id: EventId,
-        blockchain: &B,
         timeout: Option<Duration>,
-    ) -> Result<u64, Error>
-    where
-        B: Blockchain,
-    {
+    ) -> Result<u64, Error> {
         use crate::reserves::ProofOfReserves;
 
         let (proposal, policy_id, ..) = self
@@ -1238,11 +1243,10 @@ impl Coinstr {
             .await?;
         let (policy, ..) = self.get_policy_by_id(policy_id, timeout).await?;
 
+        let endpoint = self.electrum_endpoint().await?;
+        let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
         let wallet = self.wallet(policy.descriptor.to_string())?;
-        #[cfg(not(target_arch = "wasm32"))]
-        wallet.sync(blockchain, SyncOptions::default())?;
-        #[cfg(target_arch = "wasm32")]
-        wallet.sync(blockchain, SyncOptions::default()).await?;
+        wallet.sync(&blockchain, SyncOptions::default())?;
 
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
             Ok(wallet.verify_proof(&psbt, message, None)?)
@@ -1254,39 +1258,51 @@ impl Coinstr {
 
 #[cfg(feature = "cache")]
 impl Coinstr {
-    pub fn sync<S>(
-        &self,
-        electrum_endpoint: S,
-        sender: Option<UnboundedSender<()>>,
-    ) -> JoinHandle<()>
-    where
-        S: Into<String>,
-    {
+    #[async_recursion::async_recursion]
+    async fn wait_for_endpoint(&self) -> String {
+        match self.electrum_endpoint().await {
+            Ok(endpoint) => endpoint,
+            Err(_) => {
+                tokio::time::sleep(Duration::from_secs(3)).await;
+                self.wait_for_endpoint().await
+            }
+        }
+    }
+
+    fn sync_with_timechain(&self, sender: Sender<()>) -> AbortHandle {
         let this = self.clone();
-        let electrum_endpoint: String = electrum_endpoint.into();
-        tokio::task::spawn(async move {
-            // Sync wallet thread
-            let ccache = this.cache.clone();
-            let ssender = sender.clone();
-            let (abort_handle, abort_registration) = AbortHandle::new_pair();
-            let wallet_sync = async move {
-                let electrum_client = ElectrumClient::new(&electrum_endpoint).unwrap();
-                let blockchain = ElectrumBlockchain::from(electrum_client);
-                loop {
-                    if let Err(e) = ccache
-                        .sync_with_timechain(&blockchain, ssender.as_ref(), false)
-                        .await
-                    {
-                        log::error!("Impossible to sync wallets: {e}");
-                    }
-                    tokio::time::sleep(Duration::from_secs(3)).await;
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        let timechain_sync = async move {
+            let endpoint = this.wait_for_endpoint().await;
+            let electrum_client = ElectrumClient::new(&endpoint).unwrap();
+            let blockchain = ElectrumBlockchain::from(electrum_client);
+            loop {
+                if let Err(e) = this
+                    .cache
+                    .sync_with_timechain(&blockchain, Some(&sender), false)
+                    .await
+                {
+                    log::error!("Impossible to sync wallets: {e}");
                 }
-            };
-            let future = Abortable::new(wallet_sync, abort_registration);
-            tokio::task::spawn(async {
-                let _ = future.await;
-                log::debug!("Exited from wallet sync thread");
-            });
+                tokio::time::sleep(Duration::from_secs(3)).await;
+            }
+        };
+
+        let future = Abortable::new(timechain_sync, abort_registration);
+        tokio::task::spawn(async {
+            let _ = future.await;
+            log::debug!("Exited from wallet sync thread");
+        });
+
+        abort_handle
+    }
+
+    pub fn sync(&self) -> Receiver<()> {
+        let (sender, receiver) = mpsc::channel(1024);
+        let this = self.clone();
+        tokio::task::spawn(async move {
+            // Sync timechain
+            let abort_handle: AbortHandle = this.sync_with_timechain(sender.clone());
 
             let keys = this.client.keys();
 
@@ -1325,12 +1341,10 @@ impl Coinstr {
                             } else {
                                 match this.handle_event(event).await {
                                     Ok(_) => {
-                                        if let Some(sender) = sender.as_ref() {
-                                            sender.send(()).ok();
-                                        }
+                                        sender.try_send(()).ok();
                                     }
                                     Err(e) => {
-                                        log::error!("Impossible to handle event {event_id}: {e}")
+                                        log::error!("Impossible to handle event {event_id}: {e}");
                                     }
                                 }
                             }
@@ -1345,13 +1359,14 @@ impl Coinstr {
                 })
                 .await;
             log::debug!("Exited from nostr sync thread");
-        })
+        });
+        receiver
     }
 
     #[async_recursion::async_recursion]
     async fn handle_event(&self, event: Event) -> Result<()> {
         if event.kind == POLICY_KIND && !self.cache.policy_exists(event.id).await {
-            if let Some(shared_key) = self.cache.shared_key_by_policy_id(event.id).await {
+            if let Some(shared_key) = self.cache.get_shared_key_by_policy_id(event.id).await {
                 let policy = Policy::decrypt(&shared_key, &event.content)?;
                 self.cache
                     .cache_policy(event.id, policy, self.network())
@@ -1367,7 +1382,7 @@ impl Coinstr {
             }
         } else if event.kind == PROPOSAL_KIND && !self.cache.proposal_exists(event.id).await {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
-                if let Some(shared_key) = self.cache.shared_key_by_policy_id(policy_id).await {
+                if let Some(shared_key) = self.cache.get_shared_key_by_policy_id(policy_id).await {
                     let proposal = Proposal::decrypt(&shared_key, &event.content)?;
                     self.cache
                         .cache_proposal(event.id, policy_id, proposal)
@@ -1389,7 +1404,9 @@ impl Coinstr {
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
-                    if let Some(shared_key) = self.cache.shared_key_by_policy_id(*policy_id).await {
+                    if let Some(shared_key) =
+                        self.cache.get_shared_key_by_policy_id(*policy_id).await
+                    {
                         let approved_proposal =
                             ApprovedProposal::decrypt(&shared_key, &event.content)?;
                         self.cache
@@ -1421,7 +1438,7 @@ impl Coinstr {
             }
         } else if event.kind == COMPLETED_PROPOSAL_KIND {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
-                self.cache.uncache_proposal(proposal_id).await;
+                self.cache.delete_proposal_by_id(proposal_id).await;
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
@@ -1430,7 +1447,9 @@ impl Coinstr {
                         self.cache.schedule_for_sync(*policy_id).await;
                     }
 
-                    if let Some(shared_key) = self.cache.shared_key_by_policy_id(*policy_id).await {
+                    if let Some(shared_key) =
+                        self.cache.get_shared_key_by_policy_id(*policy_id).await
+                    {
                         let completed_proposal =
                             CompletedProposal::decrypt(&shared_key, &event.content)?;
                         self.cache

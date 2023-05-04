@@ -6,9 +6,6 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{DeleteCommand, GetCommand, ProofCommand};
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
@@ -18,7 +15,7 @@ use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
 mod cli;
 mod util;
 
-use self::cli::{io, Cli, Command, SettingCommand};
+use self::cli::{io, Cli, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand};
 
 const DEFAULT_RELAY: &str = "wss://relay.rip";
 const TIMEOUT: Option<Duration> = Some(Duration::from_secs(300));
@@ -38,7 +35,7 @@ async fn run() -> Result<()> {
     let relays: Vec<String> = vec![args.relay];
     let keychains: PathBuf = coinstr_common::keychains()?;
 
-    let bitcoin_endpoint: &str = match network {
+    let endpoint: &str = match network {
         Network::Bitcoin => "ssl://blockstream.info:700",
         Network::Testnet => "ssl://blockstream.info:993",
         _ => panic!("Endpoints not availabe for this network"),
@@ -141,7 +138,6 @@ async fn run() -> Result<()> {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             coinstr.add_relays_and_connect(relays).await?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
             let (proposal_id, _proposal) = coinstr
                 .spend(
                     policy_id,
@@ -149,7 +145,6 @@ async fn run() -> Result<()> {
                     Amount::Custom(amount),
                     description,
                     FeeRate::Custom(target_blocks),
-                    &blockchain,
                     TIMEOUT,
                 )
                 .await?;
@@ -166,7 +161,7 @@ async fn run() -> Result<()> {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             coinstr.add_relays_and_connect(relays).await?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+            coinstr.set_electrum_endpoint(endpoint).await;
             let (proposal_id, _proposal) = coinstr
                 .spend(
                     policy_id,
@@ -174,7 +169,6 @@ async fn run() -> Result<()> {
                     Amount::Max,
                     description,
                     FeeRate::Custom(target_blocks),
-                    &blockchain,
                     TIMEOUT,
                 )
                 .await?;
@@ -193,8 +187,8 @@ async fn run() -> Result<()> {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
             coinstr.add_relays_and_connect(relays).await?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let txid = coinstr.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
+            coinstr.set_electrum_endpoint(endpoint).await;
+            let txid = coinstr.broadcast(proposal_id, TIMEOUT).await?;
 
             println!("Transaction {txid} broadcasted");
 
@@ -219,9 +213,9 @@ async fn run() -> Result<()> {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 coinstr.add_relays_and_connect(relays).await?;
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
+                coinstr.set_electrum_endpoint(endpoint).await;
                 let (proposal_id, ..) = coinstr
-                    .new_proof_proposal(policy_id, message, &blockchain, TIMEOUT)
+                    .new_proof_proposal(policy_id, message, TIMEOUT)
                     .await?;
                 println!("Proof of Reserve proposal {proposal_id} sent");
                 Ok(())
@@ -238,10 +232,8 @@ async fn run() -> Result<()> {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 coinstr.add_relays_and_connect(relays).await?;
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                let spendable = coinstr
-                    .verify_proof(proposal_id, &blockchain, TIMEOUT)
-                    .await?;
+                coinstr.set_electrum_endpoint(endpoint).await;
+                let spendable = coinstr.verify_proof(proposal_id, TIMEOUT).await?;
                 println!(
                     "Valid Proof - Spendable amount: {} sat",
                     format::number(spendable)
@@ -286,7 +278,7 @@ async fn run() -> Result<()> {
                     println!("\n{}\n", policy.descriptor);
                     Ok(())
                 } else {
-                    util::print_policy(policy, policy_id, wallet, bitcoin_endpoint)
+                    util::print_policy(policy, policy_id, wallet, endpoint)
                 }
             }
             GetCommand::Proposals { name, completed } => {
