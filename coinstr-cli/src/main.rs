@@ -123,8 +123,8 @@ async fn run() -> Result<()> {
         } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
-            let (policy_id, _policy) = client
+            coinstr.add_relays_and_connect(relays).await?;
+            let (policy_id, _policy) = coinstr
                 .save_policy(policy_name, policy_description, policy_descriptor)
                 .await?;
             println!("Policy saved: {policy_id}");
@@ -140,9 +140,9 @@ async fn run() -> Result<()> {
         } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
+            coinstr.add_relays_and_connect(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let (proposal_id, _proposal) = client
+            let (proposal_id, _proposal) = coinstr
                 .spend(
                     policy_id,
                     to_address,
@@ -165,9 +165,9 @@ async fn run() -> Result<()> {
         } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
+            coinstr.add_relays_and_connect(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let (proposal_id, _proposal) = client
+            let (proposal_id, _proposal) = coinstr
                 .spend(
                     policy_id,
                     to_address,
@@ -184,17 +184,17 @@ async fn run() -> Result<()> {
         Command::Approve { name, proposal_id } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
-            let (event, _) = client.approve(proposal_id, TIMEOUT).await?;
+            coinstr.add_relays_and_connect(relays).await?;
+            let (event, _) = coinstr.approve(proposal_id, TIMEOUT).await?;
             println!("Proposal {proposal_id} approved: {}", event.id);
             Ok(())
         }
         Command::Broadcast { name, proposal_id } => {
             let path = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::open(path, io::get_password, network)?;
-            let client = coinstr.client(relays).await?;
+            coinstr.add_relays_and_connect(relays).await?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-            let txid = client.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
+            let txid = coinstr.broadcast(proposal_id, &blockchain, TIMEOUT).await?;
 
             println!("Transaction {txid} broadcasted");
 
@@ -218,9 +218,9 @@ async fn run() -> Result<()> {
             } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
+                coinstr.add_relays_and_connect(relays).await?;
                 let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                let (proposal_id, ..) = client
+                let (proposal_id, ..) = coinstr
                     .new_proof_proposal(policy_id, message, &blockchain, TIMEOUT)
                     .await?;
                 println!("Proof of Reserve proposal {proposal_id} sent");
@@ -229,17 +229,17 @@ async fn run() -> Result<()> {
             ProofCommand::Finalize { name, proposal_id } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
-                client.finalize_proof(proposal_id, TIMEOUT).await?;
+                coinstr.add_relays_and_connect(relays).await?;
+                coinstr.finalize_proof(proposal_id, TIMEOUT).await?;
                 println!("Proof of Reserve finalized");
                 Ok(())
             }
             ProofCommand::Verify { name, proposal_id } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
+                coinstr.add_relays_and_connect(relays).await?;
                 let blockchain = ElectrumBlockchain::from(ElectrumClient::new(bitcoin_endpoint)?);
-                let spendable = client
+                let spendable = coinstr
                     .verify_proof(proposal_id, &blockchain, TIMEOUT)
                     .await?;
                 println!(
@@ -253,16 +253,16 @@ async fn run() -> Result<()> {
             GetCommand::Contacts { name } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
-                let contacts = client.get_contacts(TIMEOUT).await?;
+                coinstr.add_relays_and_connect(relays).await?;
+                let contacts = coinstr.get_contacts(TIMEOUT).await?;
                 util::print_contacts(contacts);
                 Ok(())
             }
             GetCommand::Policies { name } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
-                let policies = client.get_policies(TIMEOUT).await?;
+                coinstr.add_relays_and_connect(relays).await?;
+                let policies = coinstr.get_policies(TIMEOUT).await?;
                 util::print_policies(policies);
                 Ok(())
             }
@@ -273,13 +273,13 @@ async fn run() -> Result<()> {
             } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
+                coinstr.add_relays_and_connect(relays).await?;
 
                 // Get policy
-                let (policy, _shared_keys) = client.get_policy_by_id(policy_id, TIMEOUT).await?;
+                let (policy, _shared_keys) = coinstr.get_policy_by_id(policy_id, TIMEOUT).await?;
 
                 // Open wallet
-                let wallet = client.wallet(policy.descriptor.to_string())?;
+                let wallet = coinstr.wallet(policy.descriptor.to_string())?;
 
                 // Print result
                 if export {
@@ -292,12 +292,12 @@ async fn run() -> Result<()> {
             GetCommand::Proposals { name, completed } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
+                coinstr.add_relays_and_connect(relays).await?;
                 if completed {
-                    let proposals = client.get_completed_proposals(TIMEOUT).await?;
+                    let proposals = coinstr.get_completed_proposals(TIMEOUT).await?;
                     util::print_completed_proposals(proposals);
                 } else {
-                    let proposals = client.get_proposals(TIMEOUT).await?;
+                    let proposals = coinstr.get_proposals(TIMEOUT).await?;
                     util::print_proposals(proposals);
                 }
                 Ok(())
@@ -305,9 +305,9 @@ async fn run() -> Result<()> {
             GetCommand::Proposal { name, proposal_id } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
+                coinstr.add_relays_and_connect(relays).await?;
                 let (proposal, policy_id, _shared_keys) =
-                    client.get_proposal_by_id(proposal_id, TIMEOUT).await?;
+                    coinstr.get_proposal_by_id(proposal_id, TIMEOUT).await?;
                 util::print_proposal(proposal_id, proposal, policy_id);
                 Ok(())
             }
@@ -316,14 +316,14 @@ async fn run() -> Result<()> {
             DeleteCommand::Policy { name, policy_id } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
-                Ok(client.delete_policy_by_id(policy_id, TIMEOUT).await?)
+                coinstr.add_relays_and_connect(relays).await?;
+                Ok(coinstr.delete_policy_by_id(policy_id, TIMEOUT).await?)
             }
             DeleteCommand::Proposal { name, proposal_id } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
-                let client = coinstr.client(relays).await?;
-                Ok(client.delete_proposal_by_id(proposal_id, TIMEOUT).await?)
+                coinstr.add_relays_and_connect(relays).await?;
+                Ok(coinstr.delete_proposal_by_id(proposal_id, TIMEOUT).await?)
             }
         },
         Command::Setting { command } => match command {

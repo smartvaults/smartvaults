@@ -31,14 +31,8 @@ x86_64-unknown-linux-musl:
 dev: precommit
 	$(Q)cargo build
 
-precommit: test
-	$(Q)cargo fmt --all -- --config format_code_in_doc_comments=true && cargo clippy
-
-test:
-	$(Q)cargo test -p coinstr-core
-	$(Q)cargo test -p coinstr-core --features blocking
-	$(Q)cargo test -p coinstr-core --features cache
-	$(Q)cargo test -p coinstr-core --features electrum
+precommit:
+	$(Q)sh .githooks/pre-push
 
 clean:
 	$(Q)cargo clean

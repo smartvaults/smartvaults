@@ -73,8 +73,8 @@ impl Application for CoinstrApp {
 
     fn title(&self) -> String {
         let (title, network) = match &self.state {
-            State::Start(auth) => (auth.title(), auth.context.network),
-            State::App(app) => (app.title(), app.context.coinstr.network()),
+            State::Start(auth) => (auth.title(), auth.ctx.network),
+            State::App(app) => (app.title(), app.ctx.client.network()),
         };
 
         if network == Network::Bitcoin {
@@ -109,13 +109,13 @@ impl Application for CoinstrApp {
             }
             (State::App(app), Message::App(msg)) => match *msg {
                 app::Message::Lock => {
-                    let client = app.context.client.clone();
+                    let client = app.ctx.client.clone();
                     tokio::task::spawn(async move {
                         if let Err(e) = client.shutdown().await {
                             log::error!("Impossible to shutdown client: {}", e.to_string());
                         }
                     });
-                    let new = Self::new(app.context.coinstr.network());
+                    let new = Self::new(app.ctx.client.network());
                     *self = new.0;
                     new.1
                 }

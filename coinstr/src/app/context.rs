@@ -5,7 +5,7 @@ use coinstr_core::bitcoin::Txid;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::Proposal;
-use coinstr_core::{Coinstr, CoinstrClient};
+use coinstr_core::Coinstr;
 
 use crate::theme::Theme;
 use crate::RUNTIME;
@@ -35,25 +35,23 @@ impl Default for Stage {
 
 pub struct Context {
     pub stage: Stage,
-    pub coinstr: Coinstr,
-    pub client: CoinstrClient,
+    pub client: Coinstr,
     pub theme: Theme,
 }
 
 impl Context {
     pub fn new(stage: Stage, coinstr: Coinstr, theme: Theme) -> Self {
         // TODO: let choose the relay and network
-        let client = RUNTIME.block_on(async {
+        RUNTIME.block_on(async {
             coinstr
-                .client(vec!["wss://relay.rip".to_string()])
+                .add_relays_and_connect(vec!["wss://relay.rip".to_string()])
                 .await
                 .expect("Impossible to build client")
         });
 
         Self {
             stage,
-            coinstr,
-            client,
+            client: coinstr,
             theme,
         }
     }

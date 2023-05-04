@@ -47,12 +47,7 @@ impl Sidebar {
             .view(ctx, Message::View(Stage::Setting));
 
         // Identity
-        let fingerprint = match ctx
-            .coinstr
-            .keychain()
-            .seed
-            .fingerprint(ctx.coinstr.network())
-        {
+        let fingerprint = match ctx.client.keychain().seed.fingerprint(ctx.client.network()) {
             Ok(fingerprint) => Text::new(fingerprint.to_string()),
             Err(_) => Text::new("error").color(DARK_RED),
         };
@@ -67,7 +62,7 @@ impl Sidebar {
             .push(
                 Row::new()
                     .push(Icon::new(NETWORK).view())
-                    .push(Text::new(ctx.coinstr.network().to_string()).view())
+                    .push(Text::new(ctx.client.network().to_string()).view())
                     .spacing(10),
             )
             .push(

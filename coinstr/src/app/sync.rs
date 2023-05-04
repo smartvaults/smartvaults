@@ -3,13 +3,13 @@
 
 use async_stream::stream;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::CoinstrClient;
+use coinstr_core::Coinstr;
 use iced::Subscription;
 use iced_futures::BoxStream;
 use tokio::sync::mpsc;
 
 pub struct CoinstrSync {
-    client: CoinstrClient,
+    client: Coinstr,
     join: Option<tokio::task::JoinHandle<()>>,
 }
 
@@ -46,7 +46,7 @@ where
 }
 
 impl CoinstrSync {
-    pub fn subscription(client: CoinstrClient) -> Subscription<()> {
+    pub fn subscription(client: Coinstr) -> Subscription<()> {
         Subscription::from_recipe(Self { client, join: None })
     }
 }

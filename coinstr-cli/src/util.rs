@@ -11,8 +11,8 @@ use coinstr_core::bdk::wallet::AddressIndex;
 use coinstr_core::bdk::{KeychainKind, SyncOptions, Wallet};
 use coinstr_core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::nostr_sdk::prelude::{ToBech32, XOnlyPublicKey};
-use coinstr_core::nostr_sdk::{EventId, Metadata, SECP256K1};
+use coinstr_core::nostr_sdk::prelude::{FromMnemonic, ToBech32, XOnlyPublicKey};
+use coinstr_core::nostr_sdk::{EventId, Keys, Metadata, SECP256K1};
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::types::Purpose;
@@ -37,7 +37,10 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
         println!("Passphrase: {}", passphrase);
     }
 
-    let keys = keychain.nostr_keys()?;
+    let keys = Keys::from_mnemonic(
+        keychain.seed.mnemonic().to_string(),
+        keychain.seed.passphrase(),
+    )?;
 
     println!("\nNostr");
     println!(" Bech32 Keys");

@@ -4,38 +4,24 @@
 use std::collections::btree_map::Entry;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, HashMap};
-use std::ops::{Add, Sub};
+use std::ops::Add;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use async_recursion::async_recursion;
 use bdk::blockchain::Blockchain;
-use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::MemoryDatabase;
-use bdk::electrum_client::Client as ElectrumClient;
 use bdk::wallet::AddressIndex;
 use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
-use futures_util::future::{AbortHandle, Abortable};
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
-use nostr_sdk::event::tag::TagKind;
-use nostr_sdk::{
-    Event, EventId, Filter, Keys, Kind, RelayPoolNotification, Result, Tag, Timestamp,
-};
+use nostr_sdk::{EventId, Keys, Result, Timestamp};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
 
-use crate::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    PROPOSAL_KIND,
-};
 use crate::policy::Policy;
-use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
-use crate::Encryption;
-use crate::{util, CoinstrClient};
+use crate::proposal::{CompletedProposal, Proposal};
 
 const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
@@ -519,216 +505,5 @@ impl Cache {
         } else if self.completed_proposal_exists(event_id).await {
             self.uncache_completed_proposal(event_id).await;
         }
-    }
-}
-
-impl CoinstrClient {
-    pub fn sync<S>(
-        &self,
-        electrum_endpoint: S,
-        sender: Option<UnboundedSender<()>>,
-    ) -> JoinHandle<()>
-    where
-        S: Into<String>,
-    {
-        let this = self.clone();
-        let electrum_endpoint: String = electrum_endpoint.into();
-        tokio::task::spawn(async move {
-            // Sync wallet thread
-            let ccache = this.cache.clone();
-            let ssender = sender.clone();
-            let (abort_handle, abort_registration) = AbortHandle::new_pair();
-            let wallet_sync = async move {
-                let electrum_client = ElectrumClient::new(&electrum_endpoint).unwrap();
-                let blockchain = ElectrumBlockchain::from(electrum_client);
-                loop {
-                    if let Err(e) = ccache
-                        .sync_with_timechain(&blockchain, ssender.as_ref(), false)
-                        .await
-                    {
-                        log::error!("Impossible to sync wallets: {e}");
-                    }
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                }
-            };
-            let future = Abortable::new(wallet_sync, abort_registration);
-            tokio::task::spawn(async {
-                let _ = future.await;
-                log::debug!("Exited from wallet sync thread");
-            });
-
-            let keys = this.keys();
-
-            let shared_keys = this
-                .get_shared_keys(Some(Duration::from_secs(60)))
-                .await
-                .unwrap_or_default();
-            this.cache.cache_shared_keys(shared_keys).await;
-
-            log::info!("Got shared keys");
-
-            let filters = vec![
-                Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND),
-                Filter::new().pubkey(keys.public_key()).kind(PROPOSAL_KIND),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(APPROVED_PROPOSAL_KIND)
-                    .since(Timestamp::now().sub(APPROVED_PROPOSAL_EXPIRATION)),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(COMPLETED_PROPOSAL_KIND),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(Kind::EventDeletion),
-            ];
-
-            this.client.subscribe(filters).await;
-            let _ = this
-                .client
-                .handle_notifications(|notification| async {
-                    match notification {
-                        RelayPoolNotification::Event(_, event) => {
-                            let event_id = event.id;
-                            if event.is_expired() {
-                                log::warn!("Event {event_id} expired");
-                            } else {
-                                match this.handle_event(event).await {
-                                    Ok(_) => {
-                                        if let Some(sender) = sender.as_ref() {
-                                            sender.send(()).ok();
-                                        }
-                                    }
-                                    Err(e) => {
-                                        log::error!("Impossible to handle event {event_id}: {e}")
-                                    }
-                                }
-                            }
-                        }
-                        RelayPoolNotification::Shutdown => {
-                            abort_handle.abort();
-                        }
-                        _ => (),
-                    }
-
-                    Ok(())
-                })
-                .await;
-            log::debug!("Exited from nostr sync thread");
-        })
-    }
-
-    #[async_recursion]
-    async fn handle_event(&self, event: Event) -> Result<()> {
-        if event.kind == POLICY_KIND && !self.cache.policy_exists(event.id).await {
-            if let Some(shared_key) = self.cache.shared_key_by_policy_id(event.id).await {
-                let policy = Policy::decrypt(&shared_key, &event.content)?;
-                self.cache
-                    .cache_policy(event.id, policy, self.network())
-                    .await?;
-            } else {
-                log::info!("Requesting shared key for {}", event.id);
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                let shared_key = self
-                    .get_shared_key_by_policy_id(event.id, Some(Duration::from_secs(30)))
-                    .await?;
-                self.cache.cache_shared_key(event.id, shared_key).await;
-                self.handle_event(event).await?;
-            }
-        } else if event.kind == PROPOSAL_KIND && !self.cache.proposal_exists(event.id).await {
-            if let Some(policy_id) = util::extract_first_event_id(&event) {
-                if let Some(shared_key) = self.cache.shared_key_by_policy_id(policy_id).await {
-                    let proposal = Proposal::decrypt(&shared_key, &event.content)?;
-                    self.cache
-                        .cache_proposal(event.id, policy_id, proposal)
-                        .await;
-                } else {
-                    log::info!("Requesting shared key for proposal {}", event.id);
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                    let shared_key = self
-                        .get_shared_key_by_policy_id(policy_id, Some(Duration::from_secs(30)))
-                        .await?;
-                    self.cache.cache_shared_key(policy_id, shared_key).await;
-                    self.handle_event(event).await?;
-                }
-            } else {
-                log::error!("Impossible to find policy id in proposal {}", event.id);
-            }
-        } else if event.kind == APPROVED_PROPOSAL_KIND {
-            if let Some(proposal_id) = util::extract_first_event_id(&event) {
-                if let Some(Tag::Event(policy_id, ..)) =
-                    util::extract_tags_by_kind(&event, TagKind::E).get(1)
-                {
-                    if let Some(shared_key) = self.cache.shared_key_by_policy_id(*policy_id).await {
-                        let approved_proposal =
-                            ApprovedProposal::decrypt(&shared_key, &event.content)?;
-                        self.cache
-                            .cache_approved_proposal(
-                                proposal_id,
-                                event.pubkey,
-                                event.id,
-                                approved_proposal.psbt(),
-                                event.created_at,
-                            )
-                            .await;
-                    } else {
-                        log::info!("Requesting shared key for approved proposal {}", event.id);
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                        let shared_key = self
-                            .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
-                            .await?;
-                        self.cache.cache_shared_key(*policy_id, shared_key).await;
-                        self.handle_event(event).await?;
-                    }
-                } else {
-                    log::error!("Impossible to find policy id in proposal {}", event.id);
-                }
-            } else {
-                log::error!(
-                    "Impossible to find proposal id in approved proposal {}",
-                    event.id
-                );
-            }
-        } else if event.kind == COMPLETED_PROPOSAL_KIND {
-            if let Some(proposal_id) = util::extract_first_event_id(&event) {
-                self.cache.uncache_proposal(proposal_id).await;
-                if let Some(Tag::Event(policy_id, ..)) =
-                    util::extract_tags_by_kind(&event, TagKind::E).get(1)
-                {
-                    // Schedule policy for sync if the event was created in the last 60 secs
-                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                        self.cache.schedule_for_sync(*policy_id).await;
-                    }
-
-                    if let Some(shared_key) = self.cache.shared_key_by_policy_id(*policy_id).await {
-                        let completed_proposal =
-                            CompletedProposal::decrypt(&shared_key, &event.content)?;
-                        self.cache
-                            .cache_completed_proposal(event.id, *policy_id, completed_proposal)
-                            .await;
-                    } else {
-                        log::info!("Requesting shared key for completed proposal {}", event.id);
-                        tokio::time::sleep(Duration::from_secs(1)).await;
-                        let shared_key = self
-                            .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
-                            .await?;
-                        self.cache.cache_shared_key(*policy_id, shared_key).await;
-                        self.handle_event(event).await?;
-                    }
-                } else {
-                    log::error!(
-                        "Impossible to find policy id in completed proposal {}",
-                        event.id
-                    );
-                }
-            }
-        } else if event.kind == Kind::EventDeletion {
-            for tag in event.tags.iter() {
-                if let Tag::Event(event_id, ..) = tag {
-                    self.cache.uncache_generic_event_id(*event_id).await;
-                }
-            }
-        }
-
-        Ok(())
     }
 }

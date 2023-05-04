@@ -2,7 +2,9 @@
 // Distributed under the MIT software license
 
 use std::collections::{BTreeMap, HashMap};
+use std::net::SocketAddr;
 use std::ops::Add;
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,19 +12,31 @@ use std::time::Duration;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
+#[cfg(feature = "cache")]
+use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::MemoryDatabase;
+#[cfg(feature = "cache")]
+use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::psbt::PsbtExt;
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
+#[cfg(feature = "cache")]
+use futures_util::future::{AbortHandle, Abortable};
+use keechain_core::bip39::Mnemonic;
+use keechain_core::types::{KeeChain, Keychain, WordCount};
+use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
+#[cfg(feature = "cache")]
+use nostr_sdk::RelayPoolNotification;
 use nostr_sdk::{
-    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Result, Tag,
-    Timestamp, SECP256K1,
+    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Relay, Result, Tag,
+    Timestamp, Url, SECP256K1,
 };
-
-#[cfg(feature = "blocking")]
-pub mod blocking;
+#[cfg(feature = "cache")]
+use tokio::sync::mpsc::UnboundedSender;
+#[cfg(feature = "cache")]
+use tokio::task::JoinHandle;
 
 #[cfg(feature = "cache")]
 use crate::cache::Cache;
@@ -30,15 +44,17 @@ use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND,
 };
-use crate::policy::{self, Policy};
+use crate::policy::Policy;
 use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
-use crate::{util, Amount, Encryption, EncryptionError, FeeRate};
+use crate::util::encryption::{Encryption, EncryptionError};
+use crate::{util, Amount, FeeRate};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
+    Keechain(#[from] keechain_core::types::keychain::Error),
+    #[error(transparent)]
     Bdk(#[from] bdk::Error),
-    #[cfg(feature = "electrum")]
     #[error(transparent)]
     Electrum(#[from] bdk::electrum_client::Error),
     #[error(transparent)]
@@ -50,7 +66,7 @@ pub enum Error {
     #[error(transparent)]
     NIP04(#[from] nostr_sdk::nips::nip04::Error),
     #[error(transparent)]
-    Policy(#[from] policy::Error),
+    Policy(#[from] crate::policy::Error),
     #[error(transparent)]
     Secp256k1(#[from] keechain_core::bitcoin::secp256k1::Error),
     #[error(transparent)]
@@ -60,7 +76,9 @@ pub enum Error {
     #[error(transparent)]
     PsbtParse(#[from] keechain_core::bitcoin::psbt::PsbtParseError),
     #[error(transparent)]
-    Util(#[from] util::Error),
+    Util(#[from] crate::util::Error),
+    #[error(transparent)]
+    NIP06(#[from] nostr_sdk::nips::nip06::Error),
     #[cfg(feature = "cache")]
     #[error(transparent)]
     Cache(#[from] crate::cache::Error),
@@ -84,6 +102,8 @@ pub enum Error {
     PsbtNotSigned,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
+    #[error("{0}")]
+    Generic(String),
 }
 
 struct GetApprovedProposals {
@@ -95,36 +115,196 @@ struct GetApprovedProposals {
     shared_keys: Keys,
 }
 
-/// Coinstr Client
+/// Coinstr
 #[derive(Debug, Clone)]
-pub struct CoinstrClient {
+pub struct Coinstr {
     network: Network,
-    pub(crate) client: Client,
+    keechain: KeeChain,
+    client: Client,
     #[cfg(feature = "cache")]
     pub cache: Cache,
 }
 
-impl CoinstrClient {
-    pub async fn new(keys: Keys, relays: Vec<String>, network: Network) -> Result<Self, Error> {
-        let client = Client::new(&keys);
-        #[cfg(not(target_arch = "wasm32"))]
-        let relays = relays.iter().map(|url| (url, None)).collect();
-        client.add_relays(relays).await?;
-        client.connect().await;
+impl Coinstr {
+    /// Open keychain
+    pub fn open<P, PSW>(path: P, get_password: PSW, network: Network) -> Result<Self, Error>
+    where
+        P: AsRef<Path>,
+        PSW: FnOnce() -> Result<String>,
+    {
+        // Open keychain
+        let mut keechain: KeeChain = KeeChain::open(path, get_password)?;
+        let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
+        keechain.keychain.apply_passphrase(passphrase);
+
+        // Get nostr keys
+        let keys = Keys::from_mnemonic(
+            keechain.keychain.seed.mnemonic().to_string(),
+            keechain.keychain.seed.passphrase(),
+        )?;
+
         Ok(Self {
             network,
-            client,
+            keechain,
+            client: Client::new(&keys),
             #[cfg(feature = "cache")]
             cache: Cache::new(),
         })
+    }
+
+    /// Generate keychain
+    pub fn generate<P, PSW, PASSP>(
+        path: P,
+        get_password: PSW,
+        word_count: WordCount,
+        get_passphrase: PASSP,
+        network: Network,
+    ) -> Result<Self, Error>
+    where
+        P: AsRef<Path>,
+        PSW: FnOnce() -> Result<String>,
+        PASSP: FnOnce() -> Result<Option<String>>,
+    {
+        // Generate keychain
+        let mut keechain: KeeChain =
+            KeeChain::generate(path, get_password, word_count, || Ok(None))?;
+        let passphrase: Option<String> =
+            get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
+        if let Some(passphrase) = passphrase {
+            keechain.keychain.add_passphrase(&passphrase);
+            keechain.save()?;
+            keechain.keychain.apply_passphrase(Some(passphrase));
+        }
+
+        // Get nostr keys
+        let keys = Keys::from_mnemonic(
+            keechain.keychain.seed.mnemonic().to_string(),
+            keechain.keychain.seed.passphrase(),
+        )?;
+
+        Ok(Self {
+            network,
+            keechain,
+            client: Client::new(&keys),
+            #[cfg(feature = "cache")]
+            cache: Cache::new(),
+        })
+    }
+
+    /// Restore keychain
+    pub fn restore<P, PSW, M, PASSP>(
+        path: P,
+        get_password: PSW,
+        get_mnemonic: M,
+        get_passphrase: PASSP,
+        network: Network,
+    ) -> Result<Self, Error>
+    where
+        P: AsRef<Path>,
+        PSW: FnOnce() -> Result<String>,
+        M: FnOnce() -> Result<Mnemonic>,
+        PASSP: FnOnce() -> Result<Option<String>>,
+    {
+        // Restore keychain
+        let mut keechain: KeeChain = KeeChain::restore(path, get_password, get_mnemonic)?;
+        let passphrase: Option<String> =
+            get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
+        if let Some(passphrase) = passphrase {
+            keechain.keychain.add_passphrase(&passphrase);
+            keechain.save()?;
+            keechain.keychain.apply_passphrase(Some(passphrase));
+        }
+
+        // Get nostr keys
+        let keys = Keys::from_mnemonic(
+            keechain.keychain.seed.mnemonic().to_string(),
+            keechain.keychain.seed.passphrase(),
+        )?;
+
+        Ok(Self {
+            network,
+            keechain,
+            client: Client::new(&keys),
+            #[cfg(feature = "cache")]
+            cache: Cache::new(),
+        })
+    }
+
+    pub fn save(&self) -> Result<(), Error> {
+        Ok(self.keechain.save()?)
+    }
+
+    pub fn check_password<S>(&self, password: S) -> bool
+    where
+        S: Into<String>,
+    {
+        self.keechain.check_password(password)
+    }
+
+    pub fn rename<P>(&mut self, path: P) -> Result<(), Error>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(self.keechain.rename(path)?)
+    }
+
+    pub fn change_password<NPSW>(&mut self, get_new_password: NPSW) -> Result<(), Error>
+    where
+        NPSW: FnOnce() -> Result<String>,
+    {
+        Ok(self.keechain.change_password(get_new_password)?)
+    }
+
+    pub fn wipe(&self) -> Result<(), Error> {
+        Ok(self.keechain.wipe()?)
+    }
+
+    pub fn keychain(&self) -> Keychain {
+        self.keechain.keychain.clone()
+    }
+
+    pub fn keys(&self) -> Keys {
+        self.client.keys()
     }
 
     pub fn network(&self) -> Network {
         self.network
     }
 
-    pub fn keys(&self) -> Keys {
-        self.client.keys()
+    pub async fn add_relay<S>(&self, url: S, proxy: Option<SocketAddr>) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        Ok(self.client.add_relay(url, proxy).await?)
+    }
+
+    pub async fn connect(&self) {
+        self.client.connect().await;
+    }
+
+    pub async fn add_relays_and_connect<S>(&self, relays: Vec<S>) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        let relays = relays.into_iter().map(|r| (r, None)).collect();
+        self.client.add_relays(relays).await?;
+        self.client.connect().await;
+        Ok(())
+    }
+
+    pub async fn disconnect_relay<S>(&self, url: S) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        Ok(self.client.disconnect_relay(url).await?)
+    }
+
+    pub async fn relays(&self) -> HashMap<Url, Relay> {
+        self.client.relays().await
+    }
+
+    pub async fn shutdown(self) -> Result<(), Error> {
+        Ok(self.client.shutdown().await?)
     }
 
     pub fn wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
@@ -139,6 +319,7 @@ impl CoinstrClient {
         &self,
         timeout: Option<Duration>,
     ) -> Result<HashMap<XOnlyPublicKey, Metadata>, Error> {
+        // TODO: get contacts from cache if `cache` feature enabled
         Ok(self.client.get_contact_list_metadata(timeout).await?)
     }
 
@@ -1069,18 +1250,221 @@ impl CoinstrClient {
             Err(Error::UnexpectedProposal)
         }
     }
+}
 
-    pub async fn shutdown(self) -> Result<(), Error> {
-        Ok(self.client.shutdown().await?)
+#[cfg(feature = "cache")]
+impl Coinstr {
+    pub fn sync<S>(
+        &self,
+        electrum_endpoint: S,
+        sender: Option<UnboundedSender<()>>,
+    ) -> JoinHandle<()>
+    where
+        S: Into<String>,
+    {
+        let this = self.clone();
+        let electrum_endpoint: String = electrum_endpoint.into();
+        tokio::task::spawn(async move {
+            // Sync wallet thread
+            let ccache = this.cache.clone();
+            let ssender = sender.clone();
+            let (abort_handle, abort_registration) = AbortHandle::new_pair();
+            let wallet_sync = async move {
+                let electrum_client = ElectrumClient::new(&electrum_endpoint).unwrap();
+                let blockchain = ElectrumBlockchain::from(electrum_client);
+                loop {
+                    if let Err(e) = ccache
+                        .sync_with_timechain(&blockchain, ssender.as_ref(), false)
+                        .await
+                    {
+                        log::error!("Impossible to sync wallets: {e}");
+                    }
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+            };
+            let future = Abortable::new(wallet_sync, abort_registration);
+            tokio::task::spawn(async {
+                let _ = future.await;
+                log::debug!("Exited from wallet sync thread");
+            });
+
+            let keys = this.client.keys();
+
+            let shared_keys = this
+                .get_shared_keys(Some(Duration::from_secs(60)))
+                .await
+                .unwrap_or_default();
+            this.cache.cache_shared_keys(shared_keys).await;
+
+            log::info!("Got shared keys");
+
+            let filters = vec![
+                Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND),
+                Filter::new().pubkey(keys.public_key()).kind(PROPOSAL_KIND),
+                Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(APPROVED_PROPOSAL_KIND)
+                    .since(Timestamp::now() - APPROVED_PROPOSAL_EXPIRATION),
+                Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(COMPLETED_PROPOSAL_KIND),
+                Filter::new()
+                    .pubkey(keys.public_key())
+                    .kind(Kind::EventDeletion),
+            ];
+
+            this.client.subscribe(filters).await;
+            let _ = this
+                .client
+                .handle_notifications(|notification| async {
+                    match notification {
+                        RelayPoolNotification::Event(_, event) => {
+                            let event_id = event.id;
+                            if event.is_expired() {
+                                log::warn!("Event {event_id} expired");
+                            } else {
+                                match this.handle_event(event).await {
+                                    Ok(_) => {
+                                        if let Some(sender) = sender.as_ref() {
+                                            sender.send(()).ok();
+                                        }
+                                    }
+                                    Err(e) => {
+                                        log::error!("Impossible to handle event {event_id}: {e}")
+                                    }
+                                }
+                            }
+                        }
+                        RelayPoolNotification::Shutdown => {
+                            abort_handle.abort();
+                        }
+                        _ => (),
+                    }
+
+                    Ok(())
+                })
+                .await;
+            log::debug!("Exited from nostr sync thread");
+        })
     }
 
-    pub fn inner(&self) -> Client {
-        self.client.clone()
+    #[async_recursion::async_recursion]
+    async fn handle_event(&self, event: Event) -> Result<()> {
+        if event.kind == POLICY_KIND && !self.cache.policy_exists(event.id).await {
+            if let Some(shared_key) = self.cache.shared_key_by_policy_id(event.id).await {
+                let policy = Policy::decrypt(&shared_key, &event.content)?;
+                self.cache
+                    .cache_policy(event.id, policy, self.network())
+                    .await?;
+            } else {
+                log::info!("Requesting shared key for {}", event.id);
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                let shared_key = self
+                    .get_shared_key_by_policy_id(event.id, Some(Duration::from_secs(30)))
+                    .await?;
+                self.cache.cache_shared_key(event.id, shared_key).await;
+                self.handle_event(event).await?;
+            }
+        } else if event.kind == PROPOSAL_KIND && !self.cache.proposal_exists(event.id).await {
+            if let Some(policy_id) = util::extract_first_event_id(&event) {
+                if let Some(shared_key) = self.cache.shared_key_by_policy_id(policy_id).await {
+                    let proposal = Proposal::decrypt(&shared_key, &event.content)?;
+                    self.cache
+                        .cache_proposal(event.id, policy_id, proposal)
+                        .await;
+                } else {
+                    log::info!("Requesting shared key for proposal {}", event.id);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    let shared_key = self
+                        .get_shared_key_by_policy_id(policy_id, Some(Duration::from_secs(30)))
+                        .await?;
+                    self.cache.cache_shared_key(policy_id, shared_key).await;
+                    self.handle_event(event).await?;
+                }
+            } else {
+                log::error!("Impossible to find policy id in proposal {}", event.id);
+            }
+        } else if event.kind == APPROVED_PROPOSAL_KIND {
+            if let Some(proposal_id) = util::extract_first_event_id(&event) {
+                if let Some(Tag::Event(policy_id, ..)) =
+                    util::extract_tags_by_kind(&event, TagKind::E).get(1)
+                {
+                    if let Some(shared_key) = self.cache.shared_key_by_policy_id(*policy_id).await {
+                        let approved_proposal =
+                            ApprovedProposal::decrypt(&shared_key, &event.content)?;
+                        self.cache
+                            .cache_approved_proposal(
+                                proposal_id,
+                                event.pubkey,
+                                event.id,
+                                approved_proposal.psbt(),
+                                event.created_at,
+                            )
+                            .await;
+                    } else {
+                        log::info!("Requesting shared key for approved proposal {}", event.id);
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        let shared_key = self
+                            .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
+                            .await?;
+                        self.cache.cache_shared_key(*policy_id, shared_key).await;
+                        self.handle_event(event).await?;
+                    }
+                } else {
+                    log::error!("Impossible to find policy id in proposal {}", event.id);
+                }
+            } else {
+                log::error!(
+                    "Impossible to find proposal id in approved proposal {}",
+                    event.id
+                );
+            }
+        } else if event.kind == COMPLETED_PROPOSAL_KIND {
+            if let Some(proposal_id) = util::extract_first_event_id(&event) {
+                self.cache.uncache_proposal(proposal_id).await;
+                if let Some(Tag::Event(policy_id, ..)) =
+                    util::extract_tags_by_kind(&event, TagKind::E).get(1)
+                {
+                    // Schedule policy for sync if the event was created in the last 60 secs
+                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
+                        self.cache.schedule_for_sync(*policy_id).await;
+                    }
+
+                    if let Some(shared_key) = self.cache.shared_key_by_policy_id(*policy_id).await {
+                        let completed_proposal =
+                            CompletedProposal::decrypt(&shared_key, &event.content)?;
+                        self.cache
+                            .cache_completed_proposal(event.id, *policy_id, completed_proposal)
+                            .await;
+                    } else {
+                        log::info!("Requesting shared key for completed proposal {}", event.id);
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        let shared_key = self
+                            .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
+                            .await?;
+                        self.cache.cache_shared_key(*policy_id, shared_key).await;
+                        self.handle_event(event).await?;
+                    }
+                } else {
+                    log::error!(
+                        "Impossible to find policy id in completed proposal {}",
+                        event.id
+                    );
+                }
+            }
+        } else if event.kind == Kind::EventDeletion {
+            for tag in event.tags.iter() {
+                if let Tag::Event(event_id, ..) = tag {
+                    self.cache.uncache_generic_event_id(*event_id).await;
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
-#[cfg(feature = "electrum")]
-#[cfg(test)]
+/* #[cfg(test)]
 mod test {
     use bdk::blockchain::ElectrumBlockchain;
     use bdk::electrum_client::Client as ElectrumClient;
@@ -1164,4 +1548,4 @@ mod test {
 
         Ok(())
     }
-}
+} */

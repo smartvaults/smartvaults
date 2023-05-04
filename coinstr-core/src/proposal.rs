@@ -8,7 +8,7 @@ use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::Address;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::Encryption;
+use crate::util::Encryption;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Proposal {

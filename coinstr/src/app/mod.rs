@@ -62,16 +62,16 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
 
 pub struct App {
     state: Box<dyn State>,
-    pub(crate) context: Context,
+    pub(crate) ctx: Context,
 }
 
 impl App {
     pub fn new(coinstr: Coinstr, theme: Theme) -> (Self, Command<Message>) {
         let stage = Stage::default();
-        let context = Context::new(stage.clone(), coinstr, theme);
+        let ctx = Context::new(stage.clone(), coinstr, theme);
         let app = Self {
-            state: new_state(&context),
-            context,
+            state: new_state(&ctx),
+            ctx,
         };
         (
             app,
@@ -84,28 +84,28 @@ impl App {
     }
 
     pub fn theme(&self) -> Theme {
-        self.context.theme
+        self.ctx.theme
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        let sync = CoinstrSync::subscription(self.context.client.clone()).map(|_| Message::Sync);
+        let sync = CoinstrSync::subscription(self.ctx.client.clone()).map(|_| Message::Sync);
         Subscription::batch(vec![sync, self.state.subscription()])
     }
 
     pub fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::View(stage) => {
-                self.context.set_stage(stage);
-                self.state = new_state(&self.context);
-                self.state.load(&self.context)
+                self.ctx.set_stage(stage);
+                self.state = new_state(&self.ctx);
+                self.state.load(&self.ctx)
             }
-            Message::Sync => self.state.load(&self.context),
+            Message::Sync => self.state.load(&self.ctx),
             Message::Clipboard(data) => clipboard::write(data),
-            _ => self.state.update(&mut self.context, message),
+            _ => self.state.update(&mut self.ctx, message),
         }
     }
 
     pub fn view(&self) -> Element<Message> {
-        self.state.view(&self.context)
+        self.state.view(&self.ctx)
     }
 }

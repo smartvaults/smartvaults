@@ -11,26 +11,21 @@ keywords.workspace = true
 
 [features]
 default = []
-cache = ["electrum"]
-electrum = ["bdk/electrum"]
+cache = []
 key-value-db = ["bdk/key-value-db"]
-blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
 async-recursion = "1.0"
-bdk = { version = "0.28", default-features = false, features = ["std", "compiler"] }
+bdk = { version = "0.28", default-features = false, features = ["std", "compiler", "electrum"] }
 bitcoinconsensus = "0.20.2-0.5.0"
 futures-util = "0.3"
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "41557e4d001247af6bc7895972996741cd3fdd53", features = ["nostr"] }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "41557e4d001247af6bc7895972996741cd3fdd53" }
 log = "0.4"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 tokio = { version = "1", features = ["sync"] }
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-bdk = { version = "0.27", default-features = false, features = ["async-interface"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros"] }

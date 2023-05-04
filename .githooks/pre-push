@@ -1,0 +1,17 @@
+#!/bin/sh
+
+cargo fmt --all -- --config format_code_in_doc_comments=true
+
+buildargs=(
+    "-p coinstr-core"
+    "-p coinstr-core --features cache"
+    "-p coinstr-cli"
+    "-p coinstr"
+)
+
+for arg in "${buildargs[@]}"; do
+    echo  "Running with '$arg' arg"
+    cargo test $arg
+    cargo clippy $arg
+    echo
+done

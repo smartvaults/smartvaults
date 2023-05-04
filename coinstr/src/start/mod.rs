@@ -44,17 +44,17 @@ pub fn new_state(context: &Context) -> Box<dyn State> {
 
 pub struct Start {
     state: Box<dyn State>,
-    pub(crate) context: Context,
+    pub(crate) ctx: Context,
 }
 
 impl Start {
     pub fn new(network: Network) -> (Self, Command<Message>) {
         let stage = Stage::default();
         // TODO: load theme from config
-        let context = Context::new(stage, network, Theme::default());
+        let ctx = Context::new(stage, network, Theme::default());
         let app = Self {
-            state: new_state(&context),
-            context,
+            state: new_state(&ctx),
+            ctx,
         };
         (
             app,
@@ -67,7 +67,7 @@ impl Start {
     }
 
     pub fn theme(&self) -> Theme {
-        self.context.theme
+        self.ctx.theme
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -77,12 +77,12 @@ impl Start {
     pub fn update(&mut self, message: Message) -> (Command<Message>, Option<CoinstrApp>) {
         match message {
             Message::View(stage) => {
-                self.context.set_stage(stage);
-                self.state = new_state(&self.context);
-                (self.state.load(&self.context), None)
+                self.ctx.set_stage(stage);
+                self.state = new_state(&self.ctx);
+                (self.state.load(&self.ctx), None)
             }
             Message::OpenResult(coinstr) => {
-                let (app, _) = App::new(coinstr, self.context.theme);
+                let (app, _) = App::new(coinstr, self.ctx.theme);
                 (
                     Command::none(),
                     Some(CoinstrApp {
@@ -90,11 +90,11 @@ impl Start {
                     }),
                 )
             }
-            _ => (self.state.update(&mut self.context, message), None),
+            _ => (self.state.update(&mut self.ctx, message), None),
         }
     }
 
     pub fn view(&self) -> Element<Message> {
-        self.state.view(&self.context)
+        self.state.view(&self.ctx)
     }
 }

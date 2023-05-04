@@ -8,8 +8,7 @@ use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
 
-use crate::util::Unspendable;
-use crate::Encryption;
+use crate::util::{Encryption, Unspendable};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

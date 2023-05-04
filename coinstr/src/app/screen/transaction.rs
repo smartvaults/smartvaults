@@ -147,7 +147,7 @@ impl State for TransactionState {
                                     Text::new(
                                         Address::from_script(
                                             &txout.script_pubkey,
-                                            ctx.coinstr.network(),
+                                            ctx.client.network(),
                                         )
                                         .map(|a| {
                                             let a = a.to_string();

@@ -139,7 +139,7 @@ impl State for ProposalState {
                     return match self.proposal {
                         Proposal::Spending { .. } => {
                             // TODO: get electrum endpoint from config file
-                            let bitcoin_endpoint: &str = match ctx.coinstr.network() {
+                            let bitcoin_endpoint: &str = match ctx.client.network() {
                                 Network::Bitcoin => "ssl://blockstream.info:700",
                                 Network::Testnet => "ssl://blockstream.info:993",
                                 _ => panic!("Endpoints not availabe for this network"),
