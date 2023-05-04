@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 mod add_policy;
+mod completed_proposal;
 mod dashboard;
 mod history;
 mod new_proof;
@@ -16,6 +17,7 @@ mod transaction;
 mod transactions;
 
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
+pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalState};
 pub use self::dashboard::{DashboardMessage, DashboardState};
 pub use self::history::{HistoryMessage, HistoryState};
 pub use self::new_proof::{NewProofMessage, NewProofState};

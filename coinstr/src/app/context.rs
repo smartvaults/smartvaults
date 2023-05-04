@@ -4,7 +4,7 @@
 use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
-use coinstr_core::proposal::Proposal;
+use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::Coinstr;
 
 use crate::theme::Theme;
@@ -24,6 +24,7 @@ pub enum Stage {
     Transaction(Txid),
     Transactions(Option<EventId>),
     History,
+    CompletedProposal(EventId, CompletedProposal, EventId),
     Setting,
 }
 

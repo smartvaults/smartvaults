@@ -244,7 +244,15 @@ impl CompletedProposalsList {
                         )
                         .push(Text::new("spending").width(Length::Fixed(125.0)).view())
                         .push(Text::new(description).width(Length::Fill).view())
-                        .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                        .push(
+                            button::primary_only_icon(FULLSCREEN)
+                                .on_press(Message::View(Stage::CompletedProposal(
+                                    *proposal_id,
+                                    proposal.clone(),
+                                    *policy_id,
+                                )))
+                                .width(Length::Fixed(40.0)),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill),
@@ -266,7 +274,15 @@ impl CompletedProposalsList {
                                 .view(),
                         )
                         .push(Text::new(message).width(Length::Fill).view())
-                        .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                        .push(
+                            button::primary_only_icon(FULLSCREEN)
+                                .on_press(Message::View(Stage::CompletedProposal(
+                                    *proposal_id,
+                                    proposal.clone(),
+                                    *policy_id,
+                                )))
+                                .width(Length::Fixed(40.0)),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill),

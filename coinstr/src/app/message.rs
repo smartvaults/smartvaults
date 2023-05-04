@@ -2,9 +2,9 @@
 // Distributed under the MIT software license
 
 use super::screen::{
-    AddPolicyMessage, DashboardMessage, HistoryMessage, NewProofMessage, PoliciesMessage,
-    PolicyMessage, ProposalMessage, ProposalsMessage, ReceiveMessage, SettingMessage, SpendMessage,
-    TransactionMessage, TransactionsMessage,
+    AddPolicyMessage, CompletedProposalMessage, DashboardMessage, HistoryMessage, NewProofMessage,
+    PoliciesMessage, PolicyMessage, ProposalMessage, ProposalsMessage, ReceiveMessage,
+    SettingMessage, SpendMessage, TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -23,6 +23,7 @@ pub enum Message {
     Transaction(TransactionMessage),
     Transactions(TransactionsMessage),
     History(HistoryMessage),
+    CompletedProposal(CompletedProposalMessage),
     Setting(SettingMessage),
     Clipboard(String),
     Lock,

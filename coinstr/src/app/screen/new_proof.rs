@@ -110,13 +110,11 @@ impl State for NewProofState {
                 }
                 NewProofMessage::SendProposal => match &self.policy {
                     Some(policy) => {
-                        self.loading = true;
-
                         let client = ctx.client.clone();
                         let policy_id = policy.policy_id;
                         let message = self.message.clone();
-
                         if !self.message.is_empty() {
+                            self.loading = true;
                             return Command::perform(
                                 async move { client.new_proof_proposal(policy_id, message, None).await },
                                 |res| match res {
