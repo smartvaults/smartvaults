@@ -1,0 +1,19 @@
+[package]
+name = "coinstr-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "Coinstr Core FFI."
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+coinstr-core = { path = "../../coinstr-core", features = ["cache", "blocking"] }
+uniffi = "0.23"
+uniffi_macros = "0.23"
+
+[build-dependencies]
+uniffi_build = { version = "0.23", features = ["builtin-bindgen"] }

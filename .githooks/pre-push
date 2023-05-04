@@ -7,6 +7,7 @@ buildargs=(
     "-p coinstr-core --features cache"
     "-p coinstr-cli"
     "-p coinstr"
+    "-p coinstr-ffi"
 )
 
 for arg in "${buildargs[@]}"; do

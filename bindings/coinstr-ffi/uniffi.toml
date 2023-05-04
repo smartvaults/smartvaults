@@ -1,0 +1,6 @@
+[bindings.kotlin]
+package_name = "coinstr.core"
+cdylib_name = "coinstr"
+
+[bindings.swift]
+cdylib_name = "coinstr"

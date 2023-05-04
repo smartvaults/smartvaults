@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "bindings/coinstr-ffi",
     "coinstr",
     "coinstr-cli",
     "coinstr-common",

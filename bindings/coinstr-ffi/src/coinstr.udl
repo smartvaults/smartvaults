@@ -1,0 +1,35 @@
+// Copyright (c) 2023 Coinstr
+// Distributed under the MIT software license
+
+namespace coinstr {};
+
+[Error]
+interface FFIError {
+    Generic(string err);
+};
+
+enum Network {
+    "Bitcoin",
+    "Testnet",
+    "Signet",
+    "Regtest",
+};
+
+interface Policy {
+    string name();
+    string description();
+    string descriptor();
+};
+
+[Enum]
+interface Proposal {
+  Spending(string to_address, u64 amount, string description, string psbt);
+  ProofOfReserve(string message, string psbt);
+};
+
+interface Coinstr {
+    [Throws=FFIError, Name=open]
+    constructor(string path, string password, Network network);
+    [Throws=FFIError]
+    void approve(string proposal_id, duration? timeout);
+};

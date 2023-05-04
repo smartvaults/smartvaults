@@ -13,6 +13,7 @@ keywords.workspace = true
 default = []
 cache = []
 key-value-db = ["bdk/key-value-db"]
+blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
 async-recursion = "1.0"
