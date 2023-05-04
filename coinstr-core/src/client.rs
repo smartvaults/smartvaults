@@ -456,7 +456,9 @@ impl Coinstr {
         let mut approvals = Vec::new();
 
         for event in approvaed_proposal_events.into_iter() {
-            approvals.push(event.pubkey);
+            if !approvals.contains(&event.pubkey) {
+                approvals.push(event.pubkey);
+            }
 
             let approved_proposal = ApprovedProposal::decrypt(&shared_keys, &event.content)?;
             psbts.push(approved_proposal.psbt());
