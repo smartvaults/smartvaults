@@ -221,7 +221,7 @@ impl Cache {
             .iter()
             .filter(|(_, (p_id, _))| *p_id == policy_id)
         {
-            self.uncache_completed_proposal(*completed_proposal_id)
+            self.delete_completed_proposal_by_id(*completed_proposal_id)
                 .await;
         }
     }
@@ -335,7 +335,7 @@ impl Cache {
         }
     }
 
-    pub async fn uncache_completed_proposal(&self, completed_proposal_id: EventId) {
+    pub async fn delete_completed_proposal_by_id(&self, completed_proposal_id: EventId) {
         let mut completed_proposals = self.completed_proposals.lock().await;
         completed_proposals.remove(&completed_proposal_id);
         log::info!("Completed proposal {completed_proposal_id} uncached");
@@ -505,7 +505,7 @@ impl Cache {
         } else if self.proposal_exists(event_id).await {
             self.delete_proposal_by_id(event_id).await;
         } else if self.completed_proposal_exists(event_id).await {
-            self.uncache_completed_proposal(event_id).await;
+            self.delete_completed_proposal_by_id(event_id).await;
         }
     }
 }

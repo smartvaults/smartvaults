@@ -43,6 +43,7 @@ use crate::constants::{
 };
 use crate::policy::Policy;
 use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
+use crate::reserves::ProofOfReserves;
 use crate::util::encryption::{Encryption, EncryptionError};
 use crate::{util, Amount, FeeRate};
 
@@ -554,7 +555,7 @@ impl Coinstr {
         timeout: Option<Duration>,
     ) -> Result<(), Error> {
         // Get the proposal
-        let filter = Filter::new().id(proposal_id);
+        let filter = Filter::new().id(proposal_id).kind(PROPOSAL_KIND);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
         let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
         let policy_id =
@@ -587,6 +588,53 @@ impl Coinstr {
 
         #[cfg(feature = "cache")]
         self.cache.delete_proposal_by_id(proposal_id).await;
+
+        Ok(())
+    }
+
+    pub async fn delete_completed_proposal_by_id(
+        &self,
+        completed_proposal_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<(), Error> {
+        // Get the completed proposal
+        let filter = Filter::new()
+            .id(completed_proposal_id)
+            .kind(COMPLETED_PROPOSAL_KIND);
+        let events = self.client.get_events_of(vec![filter], timeout).await?;
+        let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
+        let policy_id = util::extract_tags_by_kind(proposal_event, TagKind::E)
+            .get(1)
+            .map(|t| {
+                if let Tag::Event(event_id, ..) = t {
+                    Some(event_id)
+                } else {
+                    None
+                }
+            })
+            .ok_or(Error::PolicyNotFound)?
+            .ok_or(Error::PolicyNotFound)?;
+
+        // Get shared key
+        let shared_keys = self
+            .get_shared_key_by_policy_id(*policy_id, timeout)
+            .await?;
+
+        // Extract `p` tags from proposal event to notify users about proposal deletion
+        let mut tags: Vec<Tag> = util::extract_tags_by_kind(proposal_event, TagKind::P)
+            .into_iter()
+            .cloned()
+            .collect();
+
+        tags.push(Tag::Event(completed_proposal_id, None, None));
+
+        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+        self.client.send_event(event).await?;
+
+        #[cfg(feature = "cache")]
+        self.cache
+            .delete_completed_proposal_by_id(completed_proposal_id)
+            .await;
 
         Ok(())
     }
@@ -1100,8 +1148,6 @@ impl Coinstr {
         B: Blockchain,
         S: Into<String>,
     {
-        use crate::reserves::ProofOfReserves;
-
         let message: &str = &message.into();
 
         // Sync balance
@@ -1179,7 +1225,7 @@ impl Coinstr {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(), Error> {
+    ) -> Result<(EventId, CompletedProposal, EventId), Error> {
         // Get PSBTs
         let GetApprovedProposals {
             policy_id,
@@ -1199,7 +1245,8 @@ impl Coinstr {
             let psbt = self.combine_non_std_psbts(&policy, psbt, signed_psbts)?;
 
             // Build the completed proposal
-            let completed_proposal = CompletedProposal::proof_of_reserve(message, approvals, psbt);
+            let completed_proposal =
+                CompletedProposal::proof_of_reserve(message, policy.descriptor, psbt, approvals);
 
             // Compose the event
             let content = completed_proposal.encrypt(&shared_keys)?;
@@ -1210,7 +1257,6 @@ impl Coinstr {
                 .to_event(&shared_keys)?;
 
             // Publish the event
-            #[allow(unused_variables)]
             let event_id = self.client.send_event(event).await?;
 
             // Delete the proposal
@@ -1223,38 +1269,43 @@ impl Coinstr {
             {
                 self.cache.delete_proposal_by_id(proposal_id).await;
                 self.cache
-                    .cache_completed_proposal(event_id, policy_id, completed_proposal)
+                    .cache_completed_proposal(event_id, policy_id, completed_proposal.clone())
                     .await;
             }
 
-            Ok(())
+            Ok((event_id, completed_proposal, policy_id))
         } else {
             Err(Error::UnexpectedProposal)
         }
     }
 
-    pub async fn verify_proof(
-        &self,
-        proposal_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<u64, Error> {
-        use crate::reserves::ProofOfReserves;
-
-        let (proposal, policy_id, ..) = self
-            .get_completed_proposal_by_id(proposal_id, timeout)
-            .await?;
-        let (policy, ..) = self.get_policy_by_id(policy_id, timeout).await?;
-
-        let endpoint = self.electrum_endpoint().await?;
-        let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-        let wallet = self.wallet(policy.descriptor.to_string())?;
-        wallet.sync(&blockchain, SyncOptions::default())?;
-
-        if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
+    pub async fn verify_proof(&self, proposal: CompletedProposal) -> Result<u64, Error> {
+        if let CompletedProposal::ProofOfReserve {
+            message,
+            descriptor,
+            psbt,
+            ..
+        } = proposal
+        {
+            let endpoint = self.electrum_endpoint().await?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
+            let wallet = self.wallet(descriptor.to_string())?;
+            wallet.sync(&blockchain, SyncOptions::default())?;
             Ok(wallet.verify_proof(&psbt, message, None)?)
         } else {
             Err(Error::UnexpectedProposal)
         }
+    }
+
+    pub async fn verify_proof_by_id(
+        &self,
+        proposal_id: EventId,
+        timeout: Option<Duration>,
+    ) -> Result<u64, Error> {
+        let (proposal, ..) = self
+            .get_completed_proposal_by_id(proposal_id, timeout)
+            .await?;
+        self.verify_proof(proposal).await
     }
 }
 

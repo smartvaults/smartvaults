@@ -233,7 +233,7 @@ async fn run() -> Result<()> {
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 coinstr.add_relays_and_connect(relays).await?;
                 coinstr.set_electrum_endpoint(endpoint).await;
-                let spendable = coinstr.verify_proof(proposal_id, TIMEOUT).await?;
+                let spendable = coinstr.verify_proof_by_id(proposal_id, TIMEOUT).await?;
                 println!(
                     "Valid Proof - Spendable amount: {} sat",
                     format::number(spendable)
@@ -311,11 +311,21 @@ async fn run() -> Result<()> {
                 coinstr.add_relays_and_connect(relays).await?;
                 Ok(coinstr.delete_policy_by_id(policy_id, TIMEOUT).await?)
             }
-            DeleteCommand::Proposal { name, proposal_id } => {
+            DeleteCommand::Proposal {
+                name,
+                proposal_id,
+                completed,
+            } => {
                 let path = get_keychain_file(keychains, name)?;
                 let coinstr = Coinstr::open(path, io::get_password, network)?;
                 coinstr.add_relays_and_connect(relays).await?;
-                Ok(coinstr.delete_proposal_by_id(proposal_id, TIMEOUT).await?)
+                if completed {
+                    Ok(coinstr
+                        .delete_completed_proposal_by_id(proposal_id, TIMEOUT)
+                        .await?)
+                } else {
+                    Ok(coinstr.delete_proposal_by_id(proposal_id, TIMEOUT).await?)
+                }
             }
         },
         Command::Setting { command } => match command {

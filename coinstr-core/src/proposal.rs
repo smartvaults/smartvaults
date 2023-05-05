@@ -4,6 +4,7 @@
 use std::str::FromStr;
 
 use bdk::bitcoin::{Txid, XOnlyPublicKey};
+use bdk::miniscript::Descriptor;
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::Address;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -107,12 +108,13 @@ pub enum CompletedProposal {
     },
     ProofOfReserve {
         message: String,
-        approvals: Vec<XOnlyPublicKey>,
+        descriptor: Descriptor<String>,
         #[serde(
             serialize_with = "serialize_psbt",
             deserialize_with = "deserialize_psbt"
         )]
         psbt: PartiallySignedTransaction,
+        approvals: Vec<XOnlyPublicKey>,
     },
 }
 
@@ -130,16 +132,18 @@ impl CompletedProposal {
 
     pub fn proof_of_reserve<S>(
         message: S,
-        approvals: Vec<XOnlyPublicKey>,
+        descriptor: Descriptor<String>,
         psbt: PartiallySignedTransaction,
+        approvals: Vec<XOnlyPublicKey>,
     ) -> Self
     where
         S: Into<String>,
     {
         Self::ProofOfReserve {
             message: message.into(),
-            approvals,
+            descriptor,
             psbt,
+            approvals,
         }
     }
 
@@ -154,6 +158,25 @@ impl CompletedProposal {
         match self {
             Self::Spending { description, .. } => description.clone(),
             Self::ProofOfReserve { message, .. } => message.clone(),
+        }
+    }
+
+    pub fn export_proof(&self) -> Option<String> {
+        match self {
+            Self::ProofOfReserve {
+                message,
+                descriptor,
+                psbt,
+                ..
+            } => {
+                let json = serde_json::json!({
+                    "message": message,
+                    "descriptor": descriptor.to_string(),
+                    "psbt": psbt.to_string()
+                });
+                Some(json.to_string())
+            }
+            _ => None,
         }
     }
 }

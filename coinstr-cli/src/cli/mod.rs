@@ -254,6 +254,9 @@ pub enum DeleteCommand {
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
+        /// Is a completed proposals
+        #[arg(long)]
+        completed: bool,
     },
 }
 
