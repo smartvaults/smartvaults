@@ -142,17 +142,15 @@ impl State for ProposalState {
                                 Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
                             },
                         ),
-                        Proposal::ProofOfReserve { .. } => {
-                            Command::perform(
-                                async move { client.finalize_proof(proposal_id, None).await },
-                                |res| match res {
-                                    Ok(_) => Message::View(Stage::History), /* TODO: change to completed proposal view */
-                                    Err(e) => {
-                                        ProposalMessage::ErrorChanged(Some(e.to_string())).into()
-                                    }
-                                },
-                            )
-                        }
+                        Proposal::ProofOfReserve { .. } => Command::perform(
+                            async move { client.finalize_proof(proposal_id, None).await },
+                            |res| match res {
+                                Ok((id, proposal, policy_id)) => {
+                                    Message::View(Stage::CompletedProposal(id, proposal, policy_id))
+                                }
+                                Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        ),
                     };
                 }
                 ProposalMessage::Signed(value) => self.signed = value,
@@ -191,6 +189,7 @@ impl State for ProposalState {
                     }
                 }
                 ProposalMessage::Delete => {
+                    self.loading = true;
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
                     return Command::perform(
