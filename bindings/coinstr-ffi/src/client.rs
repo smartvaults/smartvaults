@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use coinstr_core::bip39::Mnemonic;
@@ -11,6 +12,7 @@ use coinstr_core::types::WordCount;
 use coinstr_core::{client, Amount, FeeRate};
 
 use crate::error::Result;
+use crate::Cache;
 
 pub struct Coinstr {
     inner: client::Coinstr,
@@ -74,6 +76,10 @@ impl Coinstr {
 
     pub fn network(&self) -> Network {
         self.inner.network()
+    }
+
+    pub fn cache(&self) -> Arc<Cache> {
+        Arc::new(self.inner.cache.clone().into())
     }
 
     pub fn add_relay(&self, url: String) -> Result<()> {

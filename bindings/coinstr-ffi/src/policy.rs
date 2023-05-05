@@ -17,6 +17,12 @@ impl Deref for Policy {
     }
 }
 
+impl From<policy::Policy> for Policy {
+    fn from(inner: policy::Policy) -> Self {
+        Self { inner }
+    }
+}
+
 impl Policy {
     pub fn name(&self) -> String {
         self.inner.name.clone()
