@@ -12,6 +12,7 @@ mod ffi {
 
     // External
     pub use coinstr_core::bitcoin::Network;
+    pub use coinstr_core::types::WordCount;
 
     // Coinstr
     pub use crate::client::Coinstr;

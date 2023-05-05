@@ -35,3 +35,15 @@ impl From<coinstr_core::nostr_sdk::event::id::Error> for FFIError {
         Self::Generic { err: e.to_string() }
     }
 }
+
+impl From<coinstr_core::bip39::Error> for FFIError {
+    fn from(e: coinstr_core::bip39::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
+impl From<coinstr_core::bitcoin::util::address::Error> for FFIError {
+    fn from(e: coinstr_core::bitcoin::util::address::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}

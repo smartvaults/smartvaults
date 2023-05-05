@@ -15,6 +15,12 @@ enum Network {
     "Regtest",
 };
 
+enum WordCount {
+    "W12",
+    "W18",
+    "W24",
+};
+
 interface Policy {
     string name();
     string description();
@@ -30,6 +36,49 @@ interface Proposal {
 interface Coinstr {
     [Throws=FFIError, Name=open]
     constructor(string path, string password, Network network);
+    [Throws=FFIError, Name=generate]
+    constructor(string path, string password, WordCount word_count, string? passphrase, Network network);
+    [Throws=FFIError, Name=restore]
+    constructor(string path, string password, string mnemonic, string? passphrase, Network network);
+
+    [Throws=FFIError]
+    void save();
+    boolean check_password(string password);
+    [Throws=FFIError]
+    void wipe();
+
+    Network network();
+
+    [Throws=FFIError]
+    void add_relay(string url);
+    void connect();
+    [Throws=FFIError]
+    void add_relays_and_connect(sequence<string> relays);
+    [Throws=FFIError]
+    void remove_relay(string url);
+    [Throws=FFIError]
+    void shutdown();
+    void set_electrum_endpoint(string endpoint);
+    [Throws=FFIError]
+    string electrum_endpoint();
+
+    [Throws=FFIError]
+    void delete_policy_by_id(string policy_id, duration? timeout);  
+    [Throws=FFIError]
+    void delete_proposal_by_id(string proposal_id, duration? timeout);  
+    [Throws=FFIError]
+    void delete_completed_proposal_by_id(string completed_proposal_id, duration? timeout); 
+    
+    [Throws=FFIError]
+    string save_policy(string name, string description, string descriptor);
+    [Throws=FFIError]
+    string spend(string policy_id, string to_address, u64 amount, string description, u16 target_blocks, duration? timeout);
+    [Throws=FFIError]
+    string spend_all(string policy_id, string to_address, string description, u16 target_blocks, duration? timeout);    
     [Throws=FFIError]
     void approve(string proposal_id, duration? timeout);
+    [Throws=FFIError]
+    string broadcast(string proposal_id, duration? timeout);
+
+    void sync();
 };
