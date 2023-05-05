@@ -44,6 +44,8 @@ use crate::constants::{
 use crate::policy::Policy;
 use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 use crate::reserves::ProofOfReserves;
+#[cfg(feature = "cache")]
+use crate::thread;
 use crate::util::encryption::{Encryption, EncryptionError};
 use crate::{util, Amount, FeeRate};
 
@@ -1316,7 +1318,7 @@ impl Coinstr {
         match self.electrum_endpoint().await {
             Ok(endpoint) => endpoint,
             Err(_) => {
-                tokio::time::sleep(Duration::from_secs(3)).await;
+                thread::sleep(Duration::from_secs(3)).await;
                 self.wait_for_endpoint().await
             }
         }
@@ -1337,12 +1339,12 @@ impl Coinstr {
                 {
                     log::error!("Impossible to sync wallets: {e}");
                 }
-                tokio::time::sleep(Duration::from_secs(3)).await;
+                thread::sleep(Duration::from_secs(3)).await;
             }
         };
 
         let future = Abortable::new(timechain_sync, abort_registration);
-        tokio::task::spawn(async {
+        thread::spawn(async {
             let _ = future.await;
             log::debug!("Exited from wallet sync thread");
         });
@@ -1353,7 +1355,7 @@ impl Coinstr {
     pub fn sync(&self) -> Receiver<()> {
         let (sender, receiver) = mpsc::channel(1024);
         let this = self.clone();
-        tokio::task::spawn(async move {
+        thread::spawn(async move {
             // Sync timechain
             let abort_handle: AbortHandle = this.sync_with_timechain(sender.clone());
 
@@ -1426,7 +1428,7 @@ impl Coinstr {
                     .await?;
             } else {
                 log::info!("Requesting shared key for {}", event.id);
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                thread::sleep(Duration::from_secs(1)).await;
                 let shared_key = self
                     .get_shared_key_by_policy_id(event.id, Some(Duration::from_secs(30)))
                     .await?;
@@ -1442,7 +1444,7 @@ impl Coinstr {
                         .await;
                 } else {
                     log::info!("Requesting shared key for proposal {}", event.id);
-                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    thread::sleep(Duration::from_secs(1)).await;
                     let shared_key = self
                         .get_shared_key_by_policy_id(policy_id, Some(Duration::from_secs(30)))
                         .await?;
@@ -1473,7 +1475,7 @@ impl Coinstr {
                             .await;
                     } else {
                         log::info!("Requesting shared key for approved proposal {}", event.id);
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        thread::sleep(Duration::from_secs(1)).await;
                         let shared_key = self
                             .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
                             .await?;
@@ -1510,7 +1512,7 @@ impl Coinstr {
                             .await;
                     } else {
                         log::info!("Requesting shared key for completed proposal {}", event.id);
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        thread::sleep(Duration::from_secs(1)).await;
                         let shared_key = self
                             .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
                             .await?;

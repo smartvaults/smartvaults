@@ -14,6 +14,8 @@ pub mod constants;
 pub mod policy;
 pub mod proposal;
 pub mod reserves;
+#[cfg(feature = "cache")]
+mod thread;
 pub mod util;
 
 pub use self::client::Coinstr;
