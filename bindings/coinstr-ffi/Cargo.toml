@@ -8,12 +8,18 @@ repository.workspace = true
 license.workspace = true
 
 [lib]
+name = "coinstr"
 crate-type = ["cdylib", "staticlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
 
 [dependencies]
 coinstr-core = { path = "../../coinstr-core", features = ["cache", "blocking"] }
-uniffi = "0.23"
+uniffi = { version = "0.23", features = ["cli"] }
+uniffi_bindgen = "0.23"
 uniffi_macros = "0.23"
 
 [build-dependencies]
-uniffi_build = { version = "0.23", features = ["builtin-bindgen"] }
+uniffi = { version = "0.23", features = ["build"] }
