@@ -1,38 +1,31 @@
-# Use 'VERBOSE=1' to echo all commands, for example 'make help VERBOSE=1'.
-ifdef VERBOSE
-  Q :=
-else
-  Q := @
-endif
-
 all: cli gui
 
 help:
-	$(Q)echo ""
-	$(Q)echo "make                                 - Build binaries files"
-	$(Q)echo "make gui                             - Build only GUI binary files"
-	$(Q)echo "make cli                             - Build only CLI binary files"
-	$(Q)echo "make x86_64-unknown-linux-gnu        - Build target x86_64-unknown-linux-gnu"
-	$(Q)echo "make precommit                       - Execute precommit steps"
-	$(Q)echo "make clean                           - Clean"
-	$(Q)echo "make loc                             - Count lines of code in src folder"
-	$(Q)echo ""
+	@echo ""
+	@echo "make                                 - Build binaries files"
+	@echo "make gui                             - Build only GUI binary files"
+	@echo "make cli                             - Build only CLI binary files"
+	@echo "make x86_64-unknown-linux-gnu        - Build target x86_64-unknown-linux-gnu"
+	@echo "make precommit                       - Execute precommit steps"
+	@echo "make clean                           - Clean"
+	@echo "make loc                             - Count lines of code in src folder"
+	@echo ""
 
 gui:
-	$(Q)cargo build -p coinstr --release
+	cargo build -p coinstr --release
 
 cli:
-	$(Q)cargo build -p coinstr-cli --release
+	cargo build -p coinstr-cli --release
 
 x86_64-unknown-linux-musl:
-	$(Q)rustup target add x86_64-unknown-linux-musl
-	$(Q)TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
+	rustup target add x86_64-unknown-linux-musl
+	TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
 
 precommit:
-	$(Q)sh .githooks/pre-push
+	@sh .githooks/pre-push
 
 clean:
-	$(Q)cargo clean
+	cargo clean
 
 loc:
-	$(Q)echo "--- Counting lines of .rs files (LOC):" && find coinstr*/ -type f -name "*.rs" -exec cat {} \; | wc -l
+	@echo "--- Counting lines of .rs files (LOC):" && find coinstr*/ -type f -name "*.rs" -exec cat {} \; | wc -l
