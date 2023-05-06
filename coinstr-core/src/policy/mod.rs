@@ -8,6 +8,8 @@ use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
 
+pub mod builder;
+
 use crate::util::{Encryption, Unspendable};
 
 #[derive(Debug, thiserror::Error)]
