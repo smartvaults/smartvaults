@@ -1,18 +1,18 @@
 [workspace]
 members = [
     "bindings/coinstr-ffi",
-    "coinstr",
-    "coinstr-cli",
-    "coinstr-common",
-    "coinstr-core",
+    "crates/coinstr",
+    "crates/coinstr-cli",
+    "crates/coinstr-common",
+    "crates/coinstr-core",
 ]
-default-members = ["coinstr", "coinstr-cli"]
+default-members = ["crates/coinstr", "crates/coinstr-cli"]
 resolver = "2"
 
 [workspace.package]
 description = "Using nostr to coordinate Bitcoin spending policy signatures and multi-custody"
-homepage = "https://github.com/NostrDevKit/coinstr"
-repository = "https://github.com/NostrDevKit/coinstr.git"
+homepage = "https://github.com/coinstr/coinstr"
+repository = "https://github.com/coinstr/coinstr.git"
 license = "MIT"
 keywords = ["coinstr", "bitcoin", "nostr"]
 
