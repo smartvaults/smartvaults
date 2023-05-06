@@ -28,9 +28,6 @@ x86_64-unknown-linux-musl:
 	$(Q)rustup target add x86_64-unknown-linux-musl
 	$(Q)TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
 
-dev: precommit
-	$(Q)cargo build
-
 precommit:
 	$(Q)sh .githooks/pre-push
 
