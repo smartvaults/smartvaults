@@ -1,7 +1,12 @@
 // Copyright (c) 2023 Coinstr
 // Distributed under the MIT software license
 
-namespace coinstr {};
+namespace coinstr {
+    [Throws=FFIError]
+    sequence<string> get_keychains_list(string path);
+    [Throws=FFIError]
+    string get_keychain_file(string path, string name);
+};
 
 [Error]
 interface FFIError {

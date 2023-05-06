@@ -47,3 +47,9 @@ impl From<coinstr_core::bitcoin::util::address::Error> for FFIError {
         Self::Generic { err: e.to_string() }
     }
 }
+
+impl From<coinstr_core::util::dir::Error> for FFIError {
+    fn from(e: coinstr_core::util::dir::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
