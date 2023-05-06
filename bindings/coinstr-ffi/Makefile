@@ -10,6 +10,8 @@ init:
 	cargo install cbindgen
 	cargo install cargo-ndk
 
+all: bindings-android
+
 kotlin: android
 	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr.udl --language kotlin --no-format -o ffi/kotlin
 
@@ -26,10 +28,24 @@ i686-linux-android: $(SOURCES) ndk-home
 
 x86_64-linux-android: $(SOURCES) ndk-home
 	cargo ndk -t x86_64-linux-android -o ffi/kotlin/jniLibs build --release
+
+bindings-android: sdk-root kotlin
+	cp -r ffi/kotlin/jniLibs bindings-android/lib/src/main
+	cp -r ffi/kotlin/coinstr bindings-android/lib/src/main/kotlin/
+	cd bindings-android && ./gradlew assemble
+	mkdir -p ffi/android
+	cp bindings-android/lib/build/outputs/aar/lib-release.aar ffi/android
 		
 .PHONY: ndk-home
 ndk-home:
 	@if [ ! -d "${ANDROID_NDK_HOME}" ] ; then \
 		echo "Error: Please, set the ANDROID_NDK_HOME env variable to point to your NDK folder" ; \
+		exit 1 ; \
+	fi
+
+.PHONY: sdk-root
+sdk-root:
+	@if [ ! -d "${ANDROID_SDK_ROOT}" ] ; then \
+		echo "Error: Please, set the ANDROID_SDK_ROOT env variable to point to your SDK folder" ; \
 		exit 1 ; \
 	fi
