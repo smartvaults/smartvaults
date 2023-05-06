@@ -1538,11 +1538,44 @@ impl Coinstr {
     }
 }
 
-/* #[cfg(test)]
+impl Coinstr {
+    #[allow(dead_code)]
+    pub(crate) fn dummy(
+        mnemonic: Mnemonic,
+        passphrase: Option<&str>,
+        network: Network,
+    ) -> Result<Self, Error> {
+        use keechain_core::types::keychain::EncryptionKeyType;
+        let mut keechain: KeeChain = KeeChain::new(
+            "./",
+            "",
+            1,
+            EncryptionKeyType::Password,
+            Keychain::new(mnemonic, Vec::new()),
+        );
+        keechain.keychain.apply_passphrase(passphrase);
+
+        // Get nostr keys
+        let keys = Keys::from_mnemonic(
+            keechain.keychain.seed.mnemonic().to_string(),
+            keechain.keychain.seed.passphrase(),
+        )?;
+
+        Ok(Self {
+            network,
+            keechain,
+            client: Client::new(&keys),
+            endpoint: Arc::new(RwLock::new(None)),
+            #[cfg(feature = "cache")]
+            cache: Cache::new(),
+        })
+    }
+}
+
+#[cfg(test)]
 mod test {
     use bdk::blockchain::ElectrumBlockchain;
     use bdk::electrum_client::Client as ElectrumClient;
-    use nostr_sdk::prelude::FromSkStr;
 
     use super::*;
 
@@ -1553,13 +1586,15 @@ mod test {
     async fn test_spend_approve_combine() -> Result<()> {
         let descriptor = "tr(38e977f65c9d4f7adafc50d7a181a5a4fcbbce3cda2f29bd123163e21e9bf307,multi_a(2,f831caf722214748c72db4829986bd0cbb2bb8b3aeade1c959624a52a9629046,3eea9e831fefdaa8df35187a204d82edb589a36b170955ac5ca6b88340befaa0))#39a2m6vn";
 
-        let keys_a =
-            Keys::from_sk_str("1614a50390bc2c2ed7d2a68caeb3f79fb8c9ec76a7fecaa6c60ded40652ab684")?;
-        let keys_b =
-            Keys::from_sk_str("d5a2db059247c393d8d11bab1374b20390c1ec162aaca3782578f2bf433ebeb7")?;
+        let mnemonic_a = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )?;
+        let mnemonic_b = Mnemonic::from_str(
+            "panther tree neglect narrow drip act visit position pass assault tennis long",
+        )?;
 
-        let client_a = CoinstrClient::new(keys_a, Vec::new(), NETWORK).await?;
-        let client_b = CoinstrClient::new(keys_b, Vec::new(), NETWORK).await?;
+        let client_a = Coinstr::dummy(mnemonic_a, None, NETWORK)?;
+        let client_b = Coinstr::dummy(mnemonic_b, None, NETWORK)?;
 
         let policy = Policy::from_descriptor("Name", "Description", descriptor)?;
 
@@ -1593,13 +1628,15 @@ mod test {
     async fn test_proof_of_reserve() -> Result<()> {
         let descriptor = "tr(38e977f65c9d4f7adafc50d7a181a5a4fcbbce3cda2f29bd123163e21e9bf307,multi_a(2,f831caf722214748c72db4829986bd0cbb2bb8b3aeade1c959624a52a9629046,3eea9e831fefdaa8df35187a204d82edb589a36b170955ac5ca6b88340befaa0))#39a2m6vn";
 
-        let keys_a =
-            Keys::from_sk_str("1614a50390bc2c2ed7d2a68caeb3f79fb8c9ec76a7fecaa6c60ded40652ab684")?;
-        let keys_b =
-            Keys::from_sk_str("d5a2db059247c393d8d11bab1374b20390c1ec162aaca3782578f2bf433ebeb7")?;
+        let mnemonic_a = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )?;
+        let mnemonic_b = Mnemonic::from_str(
+            "panther tree neglect narrow drip act visit position pass assault tennis long",
+        )?;
 
-        let client_a = CoinstrClient::new(keys_a, Vec::new(), NETWORK).await?;
-        let client_b = CoinstrClient::new(keys_b, Vec::new(), NETWORK).await?;
+        let client_a = Coinstr::dummy(mnemonic_a, None, NETWORK)?;
+        let client_b = Coinstr::dummy(mnemonic_b, None, NETWORK)?;
 
         let policy = Policy::from_descriptor("Name", "Description", descriptor)?;
 
@@ -1622,4 +1659,4 @@ mod test {
 
         Ok(())
     }
-} */
+}
