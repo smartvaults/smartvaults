@@ -8,6 +8,7 @@ repository.workspace = true
 license.workspace = true
 
 [lib]
+name = "coinstr_ffi"
 crate-type = ["cdylib", "staticlib"]
 
 [[bin]]

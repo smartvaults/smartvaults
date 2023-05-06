@@ -1,5 +1,7 @@
 SOURCES=$(sort $(wildcard ./src/*.rs ./src/**/*.rs))
 
+all: bindings-android
+
 .PHONY: init
 init:
 	rustup target add aarch64-apple-ios x86_64-apple-ios
@@ -10,7 +12,19 @@ init:
 	cargo install cbindgen
 	cargo install cargo-ndk
 
-all: bindings-android
+.PHONY: ndk-home
+ndk-home:
+	@if [ ! -d "${ANDROID_NDK_HOME}" ] ; then \
+		echo "Error: Please, set the ANDROID_NDK_HOME env variable to point to your NDK folder" ; \
+		exit 1 ; \
+	fi
+
+.PHONY: sdk-root
+sdk-root:
+	@if [ ! -d "${ANDROID_SDK_ROOT}" ] ; then \
+		echo "Error: Please, set the ANDROID_SDK_ROOT env variable to point to your SDK folder" ; \
+		exit 1 ; \
+	fi
 
 kotlin: android
 	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr.udl --language kotlin --no-format -o ffi/kotlin
@@ -35,17 +49,3 @@ bindings-android: sdk-root kotlin
 	cd bindings-android && ./gradlew assemble
 	mkdir -p ffi/android
 	cp bindings-android/lib/build/outputs/aar/lib-release.aar ffi/android
-		
-.PHONY: ndk-home
-ndk-home:
-	@if [ ! -d "${ANDROID_NDK_HOME}" ] ; then \
-		echo "Error: Please, set the ANDROID_NDK_HOME env variable to point to your NDK folder" ; \
-		exit 1 ; \
-	fi
-
-.PHONY: sdk-root
-sdk-root:
-	@if [ ! -d "${ANDROID_SDK_ROOT}" ] ; then \
-		echo "Error: Please, set the ANDROID_SDK_ROOT env variable to point to your SDK folder" ; \
-		exit 1 ; \
-	fi

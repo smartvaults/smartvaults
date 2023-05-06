@@ -1,8 +1,10 @@
 # Coinstr Core FFI
 
 ## Prerequisites
+
 * When building for Android:
-  * Set the ANDROID_NDK_HOME env variable to your sdk home folder
+  * Set the `ANDROID_SDK_ROOT` env variable
+  * Set the `ANDROID_NDK_HOME` env variable
 
 ## Build
 
