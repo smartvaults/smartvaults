@@ -35,6 +35,13 @@ pub enum Error {
     Bdk(#[from] bdk::Error),
 }
 
+pub struct GetApprovedProposals {
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+    pub signed_psbts: Vec<PartiallySignedTransaction>,
+    pub approvals: Vec<XOnlyPublicKey>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct BlockHeight {
     height: Arc<AtomicU32>,
@@ -312,6 +319,30 @@ impl Cache {
             });
     }
 
+    pub async fn get_approved_proposals_by_id(
+        &self,
+        proposal_id: EventId,
+    ) -> Option<GetApprovedProposals> {
+        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id).await?;
+        let approved_proposals = self.approved_proposals.lock().await;
+        let data = approved_proposals.get(&proposal_id)?;
+
+        let mut signed_psbts = Vec::new();
+        let mut approvals = Vec::new();
+
+        for (pubkey, (_, psbt, ..)) in data.iter() {
+            signed_psbts.push(psbt.clone());
+            approvals.push(*pubkey);
+        }
+
+        Some(GetApprovedProposals {
+            policy_id,
+            proposal,
+            signed_psbts,
+            approvals,
+        })
+    }
+
     pub async fn completed_proposal_exists(&self, completed_proposal_id: EventId) -> bool {
         let completed_proposals = self.completed_proposals.lock().await;
         completed_proposals.contains_key(&completed_proposal_id)
@@ -333,6 +364,14 @@ impl Cache {
             e.insert((policy_id, completed_proposal));
             log::info!("Cached completed proposal {completed_proposal_id}");
         }
+    }
+
+    pub async fn get_completed_proposal_by_id(
+        &self,
+        completed_proposal_id: EventId,
+    ) -> Option<(EventId, CompletedProposal)> {
+        let completed_proposals = self.completed_proposals.lock().await;
+        completed_proposals.get(&completed_proposal_id).cloned()
     }
 
     pub async fn delete_completed_proposal_by_id(&self, completed_proposal_id: EventId) {

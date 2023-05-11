@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use coinstr_core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_core::bdk::database::MemoryDatabase;
@@ -264,7 +264,7 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
     si_tree
 }
 
-pub fn print_policies(policies: Vec<(EventId, Policy)>) {
+pub fn print_policies(policies: BTreeMap<EventId, Policy>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Name", "Description"]);
@@ -300,7 +300,7 @@ pub fn print_proposal(proposal_id: EventId, proposal: Proposal, policy_id: Event
     println!();
 }
 
-pub fn print_proposals(proposals: Vec<(EventId, Proposal, EventId)>) {
+pub fn print_proposals(proposals: BTreeMap<EventId, (EventId, Proposal)>) {
     let mut table = Table::new();
 
     table.set_titles(row![
@@ -313,7 +313,7 @@ pub fn print_proposals(proposals: Vec<(EventId, Proposal, EventId)>) {
         "Amount"
     ]);
 
-    for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
+    for (index, (proposal_id, (policy_id, proposal))) in proposals.into_iter().enumerate() {
         match proposal {
             Proposal::Spending {
                 to_address,
@@ -348,12 +348,12 @@ pub fn print_proposals(proposals: Vec<(EventId, Proposal, EventId)>) {
     table.printstd();
 }
 
-pub fn print_completed_proposals(proposals: Vec<(EventId, CompletedProposal, EventId)>) {
+pub fn print_completed_proposals(proposals: BTreeMap<EventId, (EventId, CompletedProposal)>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Policy ID", "Type", "Txid", "Description"]);
 
-    for (index, (proposal_id, proposal, policy_id)) in proposals.into_iter().enumerate() {
+    for (index, (proposal_id, (policy_id, proposal))) in proposals.into_iter().enumerate() {
         match proposal {
             CompletedProposal::Spending {
                 txid, description, ..

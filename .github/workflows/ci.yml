@@ -25,7 +25,6 @@ jobs:
         build-args:
           [
             "-p coinstr-core",
-            "-p coinstr-core --features cache",
             "-p coinstr-cli",
             "-p coinstr",
           ]

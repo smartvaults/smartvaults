@@ -156,7 +156,7 @@ impl Coinstr {
         descriptor: String,
     ) -> Result<String> {
         block_on(async move {
-            let (policy_id, ..) = self
+            let policy_id = self
                 .inner
                 .save_policy(name, description, descriptor)
                 .await?;

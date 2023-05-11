@@ -21,11 +21,11 @@ pub struct Cli {
     #[clap(short, long, default_value_t = DEFAULT_RELAY.to_string())]
     pub relay: String,
     #[command(subcommand)]
-    pub command: Command,
+    pub command: CliCommand,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum Command {
+pub enum CliCommand {
     /// Generate new keychain
     #[command(arg_required_else_help = true)]
     Generate {
@@ -49,35 +49,61 @@ pub enum Command {
         #[arg(required = true)]
         name: String,
     },
-    /// List keychains
-    List,
-    /// Inspect bitcoin and nostr keys
+    /// Open keychain
     #[command(arg_required_else_help = true)]
-    Inspect {
+    Open {
         /// Keychain name
         #[arg(required = true)]
         name: String,
     },
-    /// Save policy
-    SavePolicy {
+    /// List keychains
+    List,
+    /// Setting
+    Setting {
+        #[command(subcommand)]
+        command: SettingCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SettingCommand {
+    /// Rename keychain
+    #[command(arg_required_else_help = true)]
+    Rename {
         /// Keychain name
         #[arg(required = true)]
         name: String,
+        /// New keychain name
+        #[arg(required = true)]
+        new_name: String,
+    },
+    /// Change keychain password
+    #[command(arg_required_else_help = true)]
+    ChangePassword {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+    },
+}
+
+#[derive(Debug, Parser)]
+pub enum Command {
+    /// Inspect bitcoin and nostr keys
+    Inspect,
+    /// Save policy
+    SavePolicy {
         /// Policy name
         #[arg(required = true)]
-        policy_name: String,
+        name: String,
         /// Policy description
         #[arg(required = true)]
-        policy_description: String,
+        description: String,
         /// Policy descriptor
         #[arg(required = true)]
-        policy_descriptor: String,
+        descriptor: String,
     },
     /// Create a spending proposal
     Spend {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
@@ -96,9 +122,6 @@ pub enum Command {
     },
     /// Create a spending proposal (send all funds)
     SpendAll {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
@@ -114,18 +137,12 @@ pub enum Command {
     },
     /// Approve a spending proposal
     Approve {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
     },
     /// Combine and broadcast the transaction
     Broadcast {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
@@ -148,20 +165,14 @@ pub enum Command {
         #[command(subcommand)]
         command: DeleteCommand,
     },
-    /// Setting
-    Setting {
-        #[command(subcommand)]
-        command: SettingCommand,
-    },
+    /// Exit
+    Exit,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ProofCommand {
     /// New Proof Of Reserve
     New {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
@@ -171,18 +182,12 @@ pub enum ProofCommand {
     },
     /// Finalize Proof Of Reserve
     Finalize {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
     },
     /// Verify Proof Of Reserve
     Verify {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
@@ -192,22 +197,11 @@ pub enum ProofCommand {
 #[derive(Debug, Subcommand)]
 pub enum GetCommand {
     /// Get contacts list from nostr
-    Contacts {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-    },
+    Contacts,
     /// Get policies list from nostr
-    Policies {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-    },
+    Policies,
     /// Get policy by id
     Policy {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
@@ -217,18 +211,12 @@ pub enum GetCommand {
     },
     /// Get proposals list from nostr
     Proposals {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Get completed proposals
         #[arg(long)]
         completed: bool,
     },
     /// Get proposal by id
     Proposal {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
@@ -239,44 +227,17 @@ pub enum GetCommand {
 pub enum DeleteCommand {
     /// Delete policy by id
     Policy {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Policy id
         #[arg(required = true)]
         policy_id: EventId,
     },
     /// Delete proposal by id
     Proposal {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
         /// Is a completed proposals
         #[arg(long)]
         completed: bool,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum SettingCommand {
-    /// Rename keychain
-    #[command(arg_required_else_help = true)]
-    Rename {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-        /// New keychain name
-        #[arg(required = true)]
-        new_name: String,
-    },
-    /// Change keychain password
-    #[command(arg_required_else_help = true)]
-    ChangePassword {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
     },
 }
