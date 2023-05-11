@@ -8,16 +8,18 @@ use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::XOnlyPublicKey;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::proposal::Proposal;
+use coinstr_core::types::Psbt;
 use coinstr_core::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
+use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, RED, YELLOW};
-use crate::theme::icon::TRASH;
+use crate::theme::icon::{SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
@@ -29,6 +31,7 @@ pub enum ProposalMessage {
     LoadApprovedProposals(
         BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
     ),
+    ExportPsbt,
     Delete,
     ErrorChanged(Option<String>),
 }
@@ -188,6 +191,25 @@ impl State for ProposalState {
                         );
                     }
                 }
+                ProposalMessage::ExportPsbt => {
+                    let path = FileDialog::new()
+                        .set_title("Export PSBT")
+                        .set_file_name(&format!(
+                            "proposal-{}.psbt",
+                            util::cut_event_id(self.proposal_id)
+                        ))
+                        .save_file();
+
+                    if let Some(path) = path {
+                        let psbt = Psbt::new(self.proposal.psbt());
+                        match psbt.save_to_file(&path) {
+                            Ok(_) => {
+                                log::info!("PSBT exported to {}", path.display())
+                            }
+                            Err(e) => log::error!("Impossible to create file: {e}"),
+                        }
+                    }
+                }
                 ProposalMessage::Delete => {
                     self.loading = true;
                     let client = ctx.client.clone();
@@ -293,9 +315,11 @@ impl State for ProposalState {
                 finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
             }
 
+            let mut export_btn = button::border_with_icon(SAVE, "Export PSBT");
             let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
 
             if !self.loading {
+                export_btn = export_btn.on_press(ProposalMessage::ExportPsbt.into());
                 delete_btn = delete_btn.on_press(ProposalMessage::Delete.into());
             }
 
@@ -305,6 +329,7 @@ impl State for ProposalState {
                     Row::new()
                         .push(approve_btn)
                         .push(finalize_btn)
+                        .push(export_btn)
                         .push(delete_btn)
                         .spacing(10),
                 )
