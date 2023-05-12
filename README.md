@@ -22,6 +22,8 @@
 
 ## Getting started
 
+* [Download from releases](https://github.com/coinstr/coinstr/releases) (remember to run `chmod a+x coinstr*`)
+  * [Verify the Release](doc/verify-release-binary.md)
 * [Build from source](doc/build.md)  
 * [Usage](doc/usage/README.md) 
 
