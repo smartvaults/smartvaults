@@ -8,7 +8,6 @@ use std::time::Duration;
 use clap::Parser;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::util::dir::get_keychains_list;
 use coinstr_core::util::format;
 use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
 use rustyline::error::ReadlineError;
@@ -138,7 +137,7 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::List => {
-            let names = get_keychains_list(base_path)?;
+            let names: Vec<String> = Coinstr::list_keychains(base_path)?;
             for (index, name) in names.iter().enumerate() {
                 println!("{}. {name}", index + 1);
             }

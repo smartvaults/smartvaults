@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
 use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -43,7 +42,7 @@ impl State for OpenState {
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Open(msg) = message {
             match msg {
-                OpenMessage::LoadKeychains => match dir::get_keychains_list(BASE_PATH.as_path()) {
+                OpenMessage::LoadKeychains => match Coinstr::list_keychains(BASE_PATH.as_path()) {
                     Ok(list) => self.keychains = list,
                     Err(e) => self.error = Some(e.to_string()),
                 },

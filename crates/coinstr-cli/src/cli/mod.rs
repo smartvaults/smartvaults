@@ -12,7 +12,7 @@ use self::types::{CliNetwork, CliWordCount};
 use crate::DEFAULT_RELAY;
 
 #[derive(Debug, Parser)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author, version, about, long_about)]
 pub struct Cli {
     /// Network
     #[clap(short, long, value_enum, default_value_t = CliNetwork::Bitcoin)]
@@ -87,6 +87,7 @@ pub enum SettingCommand {
 }
 
 #[derive(Debug, Parser)]
+#[command(name = "")]
 pub enum Command {
     /// Inspect bitcoin and nostr keys
     Inspect,

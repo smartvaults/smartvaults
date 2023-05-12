@@ -230,6 +230,13 @@ impl Coinstr {
         })
     }
 
+    pub fn list_keychains<P>(base_path: P) -> Result<Vec<String>, Error>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(util::dir::get_keychains_list(base_path)?)
+    }
+
     pub fn save(&self) -> Result<(), Error> {
         Ok(self.keechain.save()?)
     }
