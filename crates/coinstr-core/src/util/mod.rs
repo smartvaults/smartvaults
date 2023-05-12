@@ -9,6 +9,7 @@ use keechain_core::bitcoin::XOnlyPublicKey;
 pub use keechain_core::util::*;
 use nostr_sdk::{prelude::TagKind, Event, EventId, Tag};
 
+pub mod dir;
 pub mod encryption;
 pub mod format;
 

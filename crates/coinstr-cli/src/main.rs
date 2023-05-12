@@ -8,7 +8,7 @@ use std::time::Duration;
 use clap::Parser;
 use coinstr_core::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
-use coinstr_core::util::dir::{get_keychain_file, get_keychains_list};
+use coinstr_core::util::dir::get_keychains_list;
 use coinstr_core::util::format;
 use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
 use rustyline::error::ReadlineError;
@@ -37,7 +37,7 @@ async fn run() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
     let relays: Vec<String> = vec![args.relay];
-    let keychains: PathBuf = coinstr_common::keychains()?;
+    let base_path: PathBuf = coinstr_common::base_path()?;
 
     let endpoint: &str = match network {
         Network::Bitcoin => "ssl://blockstream.info:700",
@@ -52,9 +52,9 @@ async fn run() -> Result<()> {
             password,
             passphrase,
         } => {
-            let path: PathBuf = get_keychain_file(keychains, name)?;
             let coinstr = Coinstr::generate(
-                path,
+                base_path,
+                name,
                 || {
                     if let Some(password) = password {
                         Ok(password)
@@ -84,9 +84,9 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::Restore { name } => {
-            let path = get_keychain_file(keychains, name)?;
             Coinstr::restore(
-                path,
+                base_path,
+                name,
                 io::get_password_with_confirmation,
                 || Ok(Mnemonic::from_str(&io::get_input("Mnemonic")?)?),
                 || {
@@ -101,8 +101,7 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::Open { name } => {
-            let path = get_keychain_file(keychains, name)?;
-            let coinstr = Coinstr::open(path, io::get_password, network)?;
+            let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
             coinstr.add_relays_and_connect(relays).await?;
             coinstr.set_electrum_endpoint(endpoint).await;
             coinstr.sync();
@@ -139,7 +138,7 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::List => {
-            let names = get_keychains_list(keychains)?;
+            let names = get_keychains_list(base_path)?;
             for (index, name) in names.iter().enumerate() {
                 println!("{}. {name}", index + 1);
             }
@@ -147,14 +146,11 @@ async fn run() -> Result<()> {
         }
         CliCommand::Setting { command } => match command {
             SettingCommand::Rename { name, new_name } => {
-                let path = get_keychain_file(&keychains, name)?;
-                let mut coinstr = Coinstr::open(path, io::get_password, network)?;
-                let new_path = get_keychain_file(keychains, new_name)?;
-                Ok(coinstr.rename(new_path)?)
+                let mut coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
+                Ok(coinstr.rename(new_name)?)
             }
             SettingCommand::ChangePassword { name } => {
-                let path = get_keychain_file(keychains, name)?;
-                let mut coinstr = Coinstr::open(path, io::get_password, network)?;
+                let mut coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
                 Ok(coinstr.change_password(io::get_password_with_confirmation)?)
             }
         },

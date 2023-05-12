@@ -11,7 +11,7 @@ use crate::component::{button, Text, TextInput};
 use crate::constants::{APP_DESCRIPTION, APP_LOGO};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
-use crate::KEYCHAINS_PATH;
+use crate::BASE_PATH;
 
 #[derive(Debug, Clone)]
 pub enum OpenMessage {
@@ -43,27 +43,24 @@ impl State for OpenState {
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Open(msg) = message {
             match msg {
-                OpenMessage::LoadKeychains => {
-                    match dir::get_keychains_list(KEYCHAINS_PATH.as_path()) {
-                        Ok(list) => self.keychains = list,
-                        Err(e) => self.error = Some(e.to_string()),
-                    }
-                }
+                OpenMessage::LoadKeychains => match dir::get_keychains_list(BASE_PATH.as_path()) {
+                    Ok(list) => self.keychains = list,
+                    Err(e) => self.error = Some(e.to_string()),
+                },
                 OpenMessage::KeychainSelect(name) => self.name = Some(name),
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
                 OpenMessage::OpenButtonPressed => {
                     if let Some(name) = &self.name {
-                        match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), name) {
-                            Ok(path) => {
-                                match Coinstr::open(path, || Ok(self.password.clone()), ctx.network)
-                                {
-                                    Ok(keechain) => {
-                                        return Command::perform(async {}, move |_| {
-                                            Message::OpenResult(keechain)
-                                        })
-                                    }
-                                    Err(e) => self.error = Some(e.to_string()),
-                                }
+                        match Coinstr::open(
+                            BASE_PATH.as_path(),
+                            name,
+                            || Ok(self.password.clone()),
+                            ctx.network,
+                        ) {
+                            Ok(keechain) => {
+                                return Command::perform(async {}, move |_| {
+                                    Message::OpenResult(keechain)
+                                })
                             }
                             Err(e) => self.error = Some(e.to_string()),
                         }

@@ -15,8 +15,8 @@ mod constants;
 mod start;
 mod theme;
 
-static KEYCHAINS_PATH: Lazy<PathBuf> =
-    Lazy::new(|| coinstr_common::keychains().expect("Impossible to get keychains path"));
+static BASE_PATH: Lazy<PathBuf> =
+    Lazy::new(|| coinstr_common::base_path().expect("Impossible to get coinstr path"));
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));
 
 fn parse_network(args: Vec<String>) -> Network {

@@ -19,14 +19,20 @@ pub struct Coinstr {
 }
 
 impl Coinstr {
-    pub fn open(path: String, password: String, network: Network) -> Result<Self> {
+    pub fn open(
+        base_path: String,
+        name: String,
+        password: String,
+        network: Network,
+    ) -> Result<Self> {
         Ok(Self {
-            inner: client::Coinstr::open(path, || Ok(password), network)?,
+            inner: client::Coinstr::open(base_path, name, || Ok(password), network)?,
         })
     }
 
     pub fn generate(
-        path: String,
+        base_path: String,
+        name: String,
         password: String,
         word_count: WordCount,
         passphrase: Option<String>,
@@ -34,7 +40,8 @@ impl Coinstr {
     ) -> Result<Self> {
         Ok(Self {
             inner: client::Coinstr::generate(
-                path,
+                base_path,
+                name,
                 || Ok(password),
                 word_count,
                 || Ok(passphrase),
@@ -44,7 +51,8 @@ impl Coinstr {
     }
 
     pub fn restore(
-        path: String,
+        base_path: String,
+        name: String,
         password: String,
         mnemonic: String,
         passphrase: Option<String>,
@@ -53,7 +61,8 @@ impl Coinstr {
         let mnemonic = Mnemonic::from_str(&mnemonic)?;
         Ok(Self {
             inner: client::Coinstr::restore(
-                path,
+                base_path,
+                name,
                 || Ok(password),
                 || Ok(mnemonic),
                 || Ok(passphrase),

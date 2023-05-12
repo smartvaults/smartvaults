@@ -18,7 +18,7 @@ async-recursion = "1.0"
 bdk = { version = "0.28", default-features = false, features = ["std", "compiler", "electrum", "sqlite-bundled"] }
 bitcoinconsensus = "0.20.2-0.5.0"
 futures-util = "0.3"
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "c1b9d439b80b1783ac24819f0eaf89ecdb424087" }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "45309710e439294f57de03f4ef230b260fdd8c7a" }
 log = "0.4"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
 serde = { version = "1.0", features = ["derive"] }

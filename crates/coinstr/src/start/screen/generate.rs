@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use coinstr_core::types::WordCount;
-use coinstr_core::util::dir;
 use coinstr_core::Coinstr;
 use iced::widget::{Checkbox, Column, Row};
 use iced::{Command, Element, Length};
@@ -12,7 +11,7 @@ use crate::component::{button, rule, Text, TextInput};
 use crate::constants::APP_NAME;
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::DARK_RED;
-use crate::KEYCHAINS_PATH;
+use crate::BASE_PATH;
 
 #[derive(Debug, Clone)]
 pub enum GenerateMessage {
@@ -59,21 +58,19 @@ impl State for GenerateState {
                 GenerateMessage::PassphraseChanged(passphrase) => self.passphrase = passphrase,
                 GenerateMessage::Generate => {
                     if self.password.eq(&self.confirm_password) {
-                        match dir::get_keychain_file(KEYCHAINS_PATH.as_path(), self.name.clone()) {
-                            Ok(path) => match Coinstr::generate(
-                                path,
-                                || Ok(self.password.clone()),
-                                WordCount::W12, // TODO: let user choose the len.
-                                || Ok(Some(self.passphrase.clone())),
-                                ctx.network,
-                            ) {
-                                Ok(keechain) => {
-                                    return Command::perform(async {}, move |_| {
-                                        Message::OpenResult(keechain)
-                                    })
-                                }
-                                Err(e) => self.error = Some(e.to_string()),
-                            },
+                        match Coinstr::generate(
+                            BASE_PATH.as_path(),
+                            self.name.clone(),
+                            || Ok(self.password.clone()),
+                            WordCount::W12, // TODO: let user choose the len.
+                            || Ok(Some(self.passphrase.clone())),
+                            ctx.network,
+                        ) {
+                            Ok(keechain) => {
+                                return Command::perform(async {}, move |_| {
+                                    Message::OpenResult(keechain)
+                                })
+                            }
                             Err(e) => self.error = Some(e.to_string()),
                         }
                     } else {

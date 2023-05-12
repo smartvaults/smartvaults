@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::ops::Add;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -46,6 +46,8 @@ use crate::{thread, util, Amount, FeeRate};
 pub enum Error {
     #[error(transparent)]
     Keechain(#[from] keechain_core::types::keychain::Error),
+    #[error(transparent)]
+    Dir(#[from] util::dir::Error),
     #[error(transparent)]
     Bdk(#[from] bdk::Error),
     #[error(transparent)]
@@ -112,13 +114,20 @@ pub struct Coinstr {
 
 impl Coinstr {
     /// Open keychain
-    pub fn open<P, PSW>(path: P, get_password: PSW, network: Network) -> Result<Self, Error>
+    pub fn open<P, S, PSW>(
+        base_path: P,
+        name: S,
+        get_password: PSW,
+        network: Network,
+    ) -> Result<Self, Error>
     where
         P: AsRef<Path>,
+        S: Into<String>,
         PSW: FnOnce() -> Result<String>,
     {
         // Open keychain
-        let mut keechain: KeeChain = KeeChain::open(path, get_password)?;
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
+        let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
         let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
         keechain.keychain.apply_passphrase(passphrase);
 
@@ -138,8 +147,9 @@ impl Coinstr {
     }
 
     /// Generate keychain
-    pub fn generate<P, PSW, PASSP>(
-        path: P,
+    pub fn generate<P, S, PSW, PASSP>(
+        base_path: P,
+        name: S,
         get_password: PSW,
         word_count: WordCount,
         get_passphrase: PASSP,
@@ -147,12 +157,14 @@ impl Coinstr {
     ) -> Result<Self, Error>
     where
         P: AsRef<Path>,
+        S: Into<String>,
         PSW: FnOnce() -> Result<String>,
         PASSP: FnOnce() -> Result<Option<String>>,
     {
         // Generate keychain
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
         let mut keechain: KeeChain =
-            KeeChain::generate(path, get_password, word_count, || Ok(None))?;
+            KeeChain::generate(file_path, get_password, word_count, || Ok(None))?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
@@ -177,8 +189,9 @@ impl Coinstr {
     }
 
     /// Restore keychain
-    pub fn restore<P, PSW, M, PASSP>(
-        path: P,
+    pub fn restore<P, S, PSW, M, PASSP>(
+        base_path: P,
+        name: S,
         get_password: PSW,
         get_mnemonic: M,
         get_passphrase: PASSP,
@@ -186,12 +199,14 @@ impl Coinstr {
     ) -> Result<Self, Error>
     where
         P: AsRef<Path>,
+        S: Into<String>,
         PSW: FnOnce() -> Result<String>,
         M: FnOnce() -> Result<Mnemonic>,
         PASSP: FnOnce() -> Result<Option<String>>,
     {
         // Restore keychain
-        let mut keechain: KeeChain = KeeChain::restore(path, get_password, get_mnemonic)?;
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
+        let mut keechain: KeeChain = KeeChain::restore(file_path, get_password, get_mnemonic)?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
@@ -226,11 +241,11 @@ impl Coinstr {
         self.keechain.check_password(password)
     }
 
-    pub fn rename<P>(&mut self, path: P) -> Result<(), Error>
+    pub fn rename<S>(&mut self, new_name: S) -> Result<(), Error>
     where
-        P: AsRef<Path>,
+        S: Into<String>,
     {
-        Ok(self.keechain.rename(path)?)
+        Ok(self.keechain.rename(new_name)?)
     }
 
     pub fn change_password<NPSW>(&mut self, get_new_password: NPSW) -> Result<(), Error>

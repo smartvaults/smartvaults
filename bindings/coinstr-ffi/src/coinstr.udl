@@ -40,11 +40,11 @@ interface Proposal {
 
 interface Coinstr {
     [Throws=FFIError, Name=open]
-    constructor(string path, string password, Network network);
+    constructor(string base_path, string name, string password, Network network);
     [Throws=FFIError, Name=generate]
-    constructor(string path, string password, WordCount word_count, string? passphrase, Network network);
+    constructor(string base_path, string name, string password, WordCount word_count, string? passphrase, Network network);
     [Throws=FFIError, Name=restore]
-    constructor(string path, string password, string mnemonic, string? passphrase, Network network);
+    constructor(string base_path, string name, string password, string mnemonic, string? passphrase, Network network);
 
     [Throws=FFIError]
     void save();

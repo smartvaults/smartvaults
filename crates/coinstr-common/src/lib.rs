@@ -15,10 +15,3 @@ pub fn base_path() -> Result<PathBuf, Error> {
     std::fs::create_dir_all(path.as_path())?;
     Ok(path)
 }
-
-pub fn keychains() -> Result<PathBuf, Error> {
-    let main_path = base_path()?;
-    let path = main_path.join("keychains");
-    std::fs::create_dir_all(path.as_path())?;
-    Ok(path)
-}
