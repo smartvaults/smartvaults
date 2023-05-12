@@ -3,9 +3,7 @@
 
 namespace coinstr {
     [Throws=FFIError]
-    sequence<string> get_keychains_list(string path);
-    [Throws=FFIError]
-    string get_keychain_file(string path, string name);
+    sequence<string> get_keychains_list(string base_path);
 };
 
 [Error]

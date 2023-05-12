@@ -9,15 +9,8 @@ mod proposal;
 
 use self::error::Result;
 
-pub fn get_keychains_list(path: String) -> Result<Vec<String>> {
-    Ok(coinstr_core::util::dir::get_keychains_list(path)?)
-}
-
-/// Get keychain file path
-pub fn get_keychain_file(path: String, name: String) -> Result<String> {
-    Ok(coinstr_core::util::dir::get_keychain_file(path, name)?
-        .display()
-        .to_string())
+pub fn get_keychains_list(base_path: String) -> Result<Vec<String>> {
+    Ok(coinstr_core::util::dir::get_keychains_list(base_path)?)
 }
 
 mod ffi {
@@ -29,7 +22,7 @@ mod ffi {
     pub use coinstr_core::types::WordCount;
 
     // Namespace
-    pub use crate::{get_keychain_file, get_keychains_list};
+    pub use crate::get_keychains_list;
 
     // Coinstr
     pub use crate::cache::Cache;
