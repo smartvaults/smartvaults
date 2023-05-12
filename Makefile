@@ -28,4 +28,4 @@ clean:
 	cargo clean
 
 loc:
-	@echo "--- Counting lines of .rs files (LOC):" && find coinstr*/ -type f -name "*.rs" -exec cat {} \; | wc -l
+	@echo "--- Counting lines of .rs files (LOC):" && find bindings/ crates/ -type f -name "*.rs" -exec cat {} \; | wc -l
