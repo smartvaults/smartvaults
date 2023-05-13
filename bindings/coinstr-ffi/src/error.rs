@@ -36,8 +36,8 @@ impl From<coinstr_core::nostr_sdk::event::id::Error> for FFIError {
     }
 }
 
-impl From<coinstr_core::bip39::Error> for FFIError {
-    fn from(e: coinstr_core::bip39::Error) -> Self {
+impl From<coinstr_core::bips::bip39::Error> for FFIError {
+    fn from(e: coinstr_core::bips::bip39::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }

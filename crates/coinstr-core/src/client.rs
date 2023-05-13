@@ -20,7 +20,7 @@ use bdk::miniscript::psbt::PsbtExt;
 use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use futures_util::future::{AbortHandle, Abortable};
-use keechain_core::bip39::Mnemonic;
+use keechain_core::bips::bip39::Mnemonic;
 use keechain_core::types::{KeeChain, Keychain, Psbt, Seed, WordCount};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::prelude::TagKind;
@@ -785,7 +785,7 @@ impl Coinstr {
         );
 
         // Sign the transaction
-        let mut psbt: Psbt = Psbt::new(proposal.psbt());
+        let mut psbt = proposal.psbt();
         let seed: Seed = self.keechain.keychain.seed();
         let custom_signers = vec![signer];
         let _finalized: bool = psbt.sign_custom(
@@ -795,7 +795,7 @@ impl Coinstr {
             self.network,
         )?;
 
-        Ok(ApprovedProposal::new(psbt.psbt()))
+        Ok(ApprovedProposal::new(psbt))
     }
 
     pub async fn approve(

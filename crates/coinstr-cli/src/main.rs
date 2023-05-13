@@ -6,7 +6,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use coinstr_core::bip39::Mnemonic;
+use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util::format;
 use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};

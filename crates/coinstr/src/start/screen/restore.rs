@@ -3,7 +3,7 @@
 
 use std::str::FromStr;
 
-use coinstr_core::bip39::Mnemonic;
+use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::Coinstr;
 use iced::widget::{Checkbox, Column, Row};
 use iced::{Command, Element, Length};

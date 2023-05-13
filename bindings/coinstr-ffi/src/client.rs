@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use coinstr_core::bip39::Mnemonic;
+use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::{Address, Network};
 use coinstr_core::nostr_sdk::{block_on, EventId};
 use coinstr_core::types::WordCount;

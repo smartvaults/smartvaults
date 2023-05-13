@@ -201,7 +201,7 @@ impl State for ProposalState {
                         .save_file();
 
                     if let Some(path) = path {
-                        let psbt = Psbt::new(self.proposal.psbt());
+                        let psbt = self.proposal.psbt();
                         match psbt.save_to_file(&path) {
                             Ok(_) => {
                                 log::info!("PSBT exported to {}", path.display())
