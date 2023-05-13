@@ -1370,18 +1370,16 @@ impl Coinstr {
             log::info!("Got shared keys");
 
             let filters = vec![
-                Filter::new().pubkey(keys.public_key()).kind(POLICY_KIND),
-                Filter::new().pubkey(keys.public_key()).kind(PROPOSAL_KIND),
+                Filter::new().pubkey(keys.public_key()).kinds(vec![
+                    POLICY_KIND,
+                    PROPOSAL_KIND,
+                    COMPLETED_PROPOSAL_KIND,
+                    Kind::EventDeletion,
+                ]),
                 Filter::new()
                     .pubkey(keys.public_key())
                     .kind(APPROVED_PROPOSAL_KIND)
                     .since(Timestamp::now() - APPROVED_PROPOSAL_EXPIRATION),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(COMPLETED_PROPOSAL_KIND),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(Kind::EventDeletion),
             ];
 
             this.client.subscribe(filters).await;
