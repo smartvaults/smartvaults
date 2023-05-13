@@ -11,19 +11,17 @@ use std::time::Duration;
 
 use async_recursion::async_recursion;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, Fingerprint};
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::psbt::PsbtExt;
-use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
+use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use futures_util::future::{AbortHandle, Abortable};
 use keechain_core::bip39::Mnemonic;
-use keechain_core::types::{KeeChain, Keychain, Seed, WordCount};
-use keechain_core::util::bip::bip32::Bip32RootKey;
+use keechain_core::types::{KeeChain, Keychain, Psbt, Seed, WordCount};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
@@ -74,6 +72,8 @@ pub enum Error {
     #[error(transparent)]
     PsbtParse(#[from] keechain_core::bitcoin::psbt::PsbtParseError),
     #[error(transparent)]
+    KeechainPsbt(#[from] keechain_core::types::psbt::Error),
+    #[error(transparent)]
     Util(#[from] crate::util::Error),
     #[error(transparent)]
     NIP06(#[from] nostr_sdk::nips::nip06::Error),
@@ -97,8 +97,6 @@ pub enum Error {
     ImpossibleToFinalizePsbt(Vec<bdk::miniscript::psbt::Error>),
     #[error("impossible to finalize the non-std PSBT")]
     ImpossibleToFinalizeNonStdPsbt,
-    #[error("PSBT not signed")]
-    PsbtNotSigned,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
     #[error("electrum endpoint not set")]
@@ -777,77 +775,27 @@ impl Coinstr {
         policy: &Policy,
         proposal: &Proposal,
     ) -> Result<ApprovedProposal, Error> {
-        let mut psbt: PartiallySignedTransaction = proposal.psbt();
-
-        // Create a wallet
-        let mut wallet = self.wallet(policy.descriptor.to_string())?;
-
-        let mut counter: usize = 0;
-
-        // Signer 0
-        let seed: Seed = self.keechain.keychain.seed();
-        let root: ExtendedPrivKey = seed.to_bip32_root_key(self.network)?;
-        let root_fingerprint: Fingerprint = root.fingerprint(SECP256K1);
-
-        let mut paths: Vec<DerivationPath> = Vec::new();
-
-        for input in psbt.inputs.iter() {
-            for (fingerprint, path) in input.bip32_derivation.values() {
-                if fingerprint.eq(&root_fingerprint) {
-                    paths.push(path.clone());
-                }
-            }
-
-            for (_, (fingerprint, path)) in input.tap_key_origins.values() {
-                if fingerprint.eq(&root_fingerprint) {
-                    paths.push(path.clone());
-                }
-            }
-        }
-
-        for path in paths.into_iter() {
-            log::debug!("Adding signer for path {path}");
-            let child_priv: ExtendedPrivKey = root.derive_priv(SECP256K1, &path)?;
-            let private_key = PrivateKey::new(child_priv.private_key, self.network);
-            let signer = SignerWrapper::new(
-                private_key,
-                SignerContext::Tap {
-                    is_internal_key: false,
-                },
-            );
-
-            wallet.add_signer(
-                KeychainKind::External,
-                SignerOrdering(counter),
-                Arc::new(signer),
-            );
-
-            counter += 1;
-        }
-
+        // Custom signer
         let keys = self.client.keys();
-        let private_key = PrivateKey::new(keys.secret_key()?, self.network);
-
-        // Signer 1
         let signer = SignerWrapper::new(
-            private_key,
+            PrivateKey::new(keys.secret_key()?, self.network),
             SignerContext::Tap {
                 is_internal_key: self.is_internal_key(policy.descriptor.to_string())?,
             },
         );
-        wallet.add_signer(
-            KeychainKind::External,
-            SignerOrdering(counter),
-            Arc::new(signer),
-        );
 
         // Sign the transaction
-        let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
-        if psbt != proposal.psbt() {
-            Ok(ApprovedProposal::new(psbt))
-        } else {
-            Err(Error::PsbtNotSigned)
-        }
+        let mut psbt: Psbt = Psbt::new(proposal.psbt());
+        let seed: Seed = self.keechain.keychain.seed();
+        let custom_signers = vec![signer];
+        let _finalized: bool = psbt.sign_custom(
+            &seed,
+            Some(policy.descriptor.clone()),
+            custom_signers,
+            self.network,
+        )?;
+
+        Ok(ApprovedProposal::new(psbt.psbt()))
     }
 
     pub async fn approve(
