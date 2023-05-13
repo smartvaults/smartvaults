@@ -49,10 +49,6 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     println!(" Hex Keys");
     println!("  Public   : {} ", keys.public_key());
     println!("  Private  : {} ", keys.secret_key()?.display_secret());
-    println!(
-        "  Normalized Public   : {} ",
-        keys.secret_key()?.public_key(SECP256K1)
-    );
 
     let root_key = keychain.seed.to_bip32_root_key(network)?;
     let descriptors = keychain.descriptors(network, None)?;
