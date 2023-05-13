@@ -74,6 +74,7 @@ impl BlockHeight {
 #[derive(Debug)]
 pub struct PolicyWallet {
     policy: Policy,
+    nostr_pubkeys: Vec<XOnlyPublicKey>,
     wallet: Wallet<MemoryDatabase>,
     last_sync: Option<Timestamp>,
 }
@@ -162,6 +163,14 @@ impl Cache {
         policies.get(&policy_id).map(|pw| pw.policy.clone())
     }
 
+    pub async fn get_nostr_pubkeys_by_policy_id(
+        &self,
+        policy_id: EventId,
+    ) -> Option<Vec<XOnlyPublicKey>> {
+        let policies = self.policies.lock().await;
+        policies.get(&policy_id).map(|pw| pw.nostr_pubkeys.clone())
+    }
+
     pub async fn policy_with_details(
         &self,
         policy_id: EventId,
@@ -190,6 +199,7 @@ impl Cache {
         &self,
         policy_id: EventId,
         policy: Policy,
+        nostr_pubkeys: Vec<XOnlyPublicKey>,
         network: Network,
     ) -> Result<(), Error> {
         let mut policies = self.policies.lock().await;
@@ -199,6 +209,7 @@ impl Cache {
             let wallet = Wallet::new(&policy.descriptor.to_string(), None, network, db)?;
             e.insert(PolicyWallet {
                 policy,
+                nostr_pubkeys,
                 wallet,
                 last_sync: None,
             });

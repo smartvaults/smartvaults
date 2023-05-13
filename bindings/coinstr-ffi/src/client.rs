@@ -167,7 +167,7 @@ impl Coinstr {
         block_on(async move {
             let policy_id = self
                 .inner
-                .save_policy(name, description, descriptor)
+                .save_policy(name, description, descriptor, None)
                 .await?;
             Ok(policy_id.to_hex())
         })

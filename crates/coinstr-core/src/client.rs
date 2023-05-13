@@ -9,7 +9,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_recursion::async_recursion;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
+use bdk::bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, Fingerprint};
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
@@ -20,7 +22,8 @@ use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper};
 use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use futures_util::future::{AbortHandle, Abortable};
 use keechain_core::bip39::Mnemonic;
-use keechain_core::types::{KeeChain, Keychain, WordCount};
+use keechain_core::types::{KeeChain, Keychain, Seed, WordCount};
+use keechain_core::util::bip::bip32::Bip32RootKey;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
@@ -74,6 +77,8 @@ pub enum Error {
     Util(#[from] crate::util::Error),
     #[error(transparent)]
     NIP06(#[from] nostr_sdk::nips::nip06::Error),
+    #[error(transparent)]
+    BIP32(#[from] keechain_core::bitcoin::util::bip32::Error),
     #[error(transparent)]
     Cache(#[from] crate::cache::Error),
     #[error(transparent)]
@@ -434,20 +439,22 @@ impl Coinstr {
         policy_id: EventId,
         timeout: Option<Duration>,
     ) -> Result<(), Error> {
-        // Get policy and shared keys
-        let policy = self.get_policy_by_id(policy_id).await?;
+        // Get nostr pubkeys and shared keys
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self
+            .cache
+            .get_nostr_pubkeys_by_policy_id(policy_id)
+            .await
+            .ok_or(Error::PolicyNotFound)?;
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
-
-        // Extract pubkeys to notify users about proposal deletion
-        let mut tags: Vec<Tag> = util::extract_public_keys(policy.descriptor.to_string())?
-            .into_iter()
-            .map(|p| Tag::PubKey(p, None))
-            .collect();
 
         // Get all events linked to the policy
         let filter = Filter::new().event(policy_id);
         let events = self.client.get_events_of(vec![filter], timeout).await?;
 
+        let mut tags: Vec<Tag> = nostr_pubkeys
+            .into_iter()
+            .map(|p| Tag::PubKey(p, None))
+            .collect();
         tags.push(Tag::Event(policy_id, None, None));
         events
             .into_iter()
@@ -566,7 +573,7 @@ impl Coinstr {
         name: S,
         description: S,
         descriptor: S,
-        // custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
+        custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
     ) -> Result<EventId, Error>
     where
         S: Into<String>,
@@ -574,11 +581,10 @@ impl Coinstr {
         let keys = self.client.keys();
         let descriptor = descriptor.into();
 
-        /* let pubkeys = match custom_pubkeys {
+        let nostr_pubkeys = match custom_pubkeys {
             Some(pubkeys) => pubkeys,
-            None => util::extract_public_keys(&descriptor)?
-        }; */
-        let extracted_pubkeys = util::extract_public_keys(&descriptor)?;
+            None => util::extract_public_keys(&descriptor)?,
+        };
 
         // Generate a shared key
         let shared_key = Keys::generate();
@@ -586,7 +592,7 @@ impl Coinstr {
 
         // Compose the event
         let content = policy.encrypt(&shared_key)?;
-        let tags: Vec<Tag> = extracted_pubkeys
+        let tags: Vec<Tag> = nostr_pubkeys
             .iter()
             .map(|p| Tag::PubKey(*p, None))
             .collect();
@@ -595,16 +601,19 @@ impl Coinstr {
         let policy_id = policy_event.id;
 
         // Publish the shared key
-        for pubkey in extracted_pubkeys.into_iter() {
+        for pubkey in nostr_pubkeys.iter() {
             let encrypted_shared_key = nips::nip04::encrypt(
                 &keys.secret_key()?,
-                &pubkey,
+                pubkey,
                 shared_key.secret_key()?.display_secret().to_string(),
             )?;
             let event = EventBuilder::new(
                 SHARED_KEY_KIND,
                 encrypted_shared_key,
-                &[Tag::Event(policy_id, None, None), Tag::PubKey(pubkey, None)],
+                &[
+                    Tag::Event(policy_id, None, None),
+                    Tag::PubKey(*pubkey, None),
+                ],
             )
             .to_event(&keys)?;
             let event_id = self.client.send_event(event).await?;
@@ -616,7 +625,7 @@ impl Coinstr {
 
         // Cache policy
         self.cache
-            .cache_policy(policy_id, policy, self.network())
+            .cache_policy(policy_id, policy, nostr_pubkeys, self.network())
             .await?;
 
         Ok(policy_id)
@@ -711,8 +720,12 @@ impl Coinstr {
         } = &proposal
         {
             // Compose the event
-            let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
-            let mut tags: Vec<Tag> = extracted_pubkeys
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self
+                .cache
+                .get_nostr_pubkeys_by_policy_id(policy_id)
+                .await
+                .ok_or(Error::PolicyNotFound)?;
+            let mut tags: Vec<Tag> = nostr_pubkeys
                 .iter()
                 .map(|p| Tag::PubKey(*p, None))
                 .collect();
@@ -730,7 +743,7 @@ impl Coinstr {
                 util::format::big_number(*amount)
             ));
             msg.push_str(&format!("- Description: {description}"));
-            for pubkey in extracted_pubkeys.into_iter() {
+            for pubkey in nostr_pubkeys.into_iter() {
                 if sender != pubkey {
                     self.client.send_direct_msg(pubkey, &msg).await?;
                 }
@@ -764,24 +777,71 @@ impl Coinstr {
         policy: &Policy,
         proposal: &Proposal,
     ) -> Result<ApprovedProposal, Error> {
-        let keys = self.client.keys();
+        let mut psbt: PartiallySignedTransaction = proposal.psbt();
 
-        // Create a BDK wallet
+        // Create a wallet
         let mut wallet = self.wallet(policy.descriptor.to_string())?;
 
-        // Add the BDK signer
+        let mut counter: usize = 0;
+
+        // Signer 0
+        let seed: Seed = self.keechain.keychain.seed();
+        let root: ExtendedPrivKey = seed.to_bip32_root_key(self.network)?;
+        let root_fingerprint: Fingerprint = root.fingerprint(SECP256K1);
+
+        let mut paths: Vec<DerivationPath> = Vec::new();
+
+        for input in psbt.inputs.iter() {
+            for (fingerprint, path) in input.bip32_derivation.values() {
+                if fingerprint.eq(&root_fingerprint) {
+                    paths.push(path.clone());
+                }
+            }
+
+            for (_, (fingerprint, path)) in input.tap_key_origins.values() {
+                if fingerprint.eq(&root_fingerprint) {
+                    paths.push(path.clone());
+                }
+            }
+        }
+
+        for path in paths.into_iter() {
+            log::debug!("Adding signer for path {path}");
+            let child_priv: ExtendedPrivKey = root.derive_priv(SECP256K1, &path)?;
+            let private_key = PrivateKey::new(child_priv.private_key, self.network);
+            let signer = SignerWrapper::new(
+                private_key,
+                SignerContext::Tap {
+                    is_internal_key: false,
+                },
+            );
+
+            wallet.add_signer(
+                KeychainKind::External,
+                SignerOrdering(counter),
+                Arc::new(signer),
+            );
+
+            counter += 1;
+        }
+
+        let keys = self.client.keys();
         let private_key = PrivateKey::new(keys.secret_key()?, self.network);
+
+        // Signer 1
         let signer = SignerWrapper::new(
             private_key,
             SignerContext::Tap {
                 is_internal_key: self.is_internal_key(policy.descriptor.to_string())?,
             },
         );
-
-        wallet.add_signer(KeychainKind::External, SignerOrdering(0), Arc::new(signer));
+        wallet.add_signer(
+            KeychainKind::External,
+            SignerOrdering(counter),
+            Arc::new(signer),
+        );
 
         // Sign the transaction
-        let mut psbt = proposal.psbt();
         let _finalized = wallet.sign(&mut psbt, SignOptions::default())?;
         if psbt != proposal.psbt() {
             Ok(ApprovedProposal::new(psbt))
@@ -811,10 +871,14 @@ impl Coinstr {
 
         // Compose the event
         let content = approved_proposal.encrypt(&shared_keys)?;
-        let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
-        let mut tags: Vec<Tag> = extracted_pubkeys
-            .iter()
-            .map(|p| Tag::PubKey(*p, None))
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self
+            .cache
+            .get_nostr_pubkeys_by_policy_id(policy_id)
+            .await
+            .ok_or(Error::PolicyNotFound)?;
+        let mut tags: Vec<Tag> = nostr_pubkeys
+            .into_iter()
+            .map(|p| Tag::PubKey(p, None))
             .collect();
         tags.push(Tag::Event(proposal_id, None, None));
         tags.push(Tag::Event(policy_id, None, None));
@@ -907,9 +971,12 @@ impl Coinstr {
             description, psbt, ..
         } = proposal
         {
-            let policy = self.get_policy_by_id(policy_id).await?;
             let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
-            let public_keys = util::extract_public_keys(policy.descriptor.to_string())?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self
+                .cache
+                .get_nostr_pubkeys_by_policy_id(policy_id)
+                .await
+                .ok_or(Error::PolicyNotFound)?;
 
             // Combine PSBTs
             let psbt = self.combine_psbts(psbt, signed_psbts)?;
@@ -926,7 +993,10 @@ impl Coinstr {
 
             // Compose the event
             let content = completed_proposal.encrypt(&shared_keys)?;
-            let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
+            let mut tags: Vec<Tag> = nostr_pubkeys
+                .iter()
+                .map(|p| Tag::PubKey(*p, None))
+                .collect();
             tags.push(Tag::Event(proposal_id, None, None));
             tags.push(Tag::Event(policy_id, None, None));
             let event = EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags)
@@ -1006,8 +1076,12 @@ impl Coinstr {
             .await?;
 
         // Compose the event
-        let extracted_pubkeys = util::extract_public_keys(policy.descriptor.to_string())?;
-        let mut tags: Vec<Tag> = extracted_pubkeys
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self
+            .cache
+            .get_nostr_pubkeys_by_policy_id(policy_id)
+            .await
+            .ok_or(Error::PolicyNotFound)?;
+        let mut tags: Vec<Tag> = nostr_pubkeys
             .iter()
             .map(|p| Tag::PubKey(*p, None))
             .collect();
@@ -1021,7 +1095,7 @@ impl Coinstr {
         let sender = self.client.keys().public_key();
         let mut msg = String::from("New Proof of Reserve request:\n");
         msg.push_str(&format!("- Message: {message}"));
-        for pubkey in extracted_pubkeys.into_iter() {
+        for pubkey in nostr_pubkeys.into_iter() {
             if sender != pubkey {
                 self.client.send_direct_msg(pubkey, &msg).await?;
             }
@@ -1051,7 +1125,11 @@ impl Coinstr {
         if let Proposal::ProofOfReserve { message, psbt } = proposal {
             let policy = self.get_policy_by_id(policy_id).await?;
             let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
-            let public_keys = util::extract_public_keys(policy.descriptor.to_string())?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self
+                .cache
+                .get_nostr_pubkeys_by_policy_id(policy_id)
+                .await
+                .ok_or(Error::PolicyNotFound)?;
 
             // Combine PSBTs
             let psbt = self.combine_non_std_psbts(&policy, psbt, signed_psbts)?;
@@ -1062,7 +1140,10 @@ impl Coinstr {
 
             // Compose the event
             let content = completed_proposal.encrypt(&shared_keys)?;
-            let mut tags: Vec<Tag> = public_keys.iter().map(|p| Tag::PubKey(*p, None)).collect();
+            let mut tags: Vec<Tag> = nostr_pubkeys
+                .iter()
+                .map(|p| Tag::PubKey(*p, None))
+                .collect();
             tags.push(Tag::Event(proposal_id, None, None));
             tags.push(Tag::Event(policy_id, None, None));
             let event = EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags)
@@ -1216,14 +1297,24 @@ impl Coinstr {
         receiver
     }
 
-    #[async_recursion::async_recursion]
+    #[async_recursion]
     async fn handle_event(&self, event: Event) -> Result<()> {
         if event.kind == POLICY_KIND && !self.cache.policy_exists(event.id).await {
             if let Some(shared_key) = self.cache.get_shared_key_by_policy_id(event.id).await {
                 let policy = Policy::decrypt(&shared_key, &event.content)?;
-                self.cache
-                    .cache_policy(event.id, policy, self.network())
-                    .await?;
+                let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
+                for tag in event.tags.iter() {
+                    if let Tag::PubKey(pubkey, ..) = tag {
+                        nostr_pubkeys.push(*pubkey);
+                    }
+                }
+                if nostr_pubkeys.is_empty() {
+                    log::error!("Policy {} not contains any nostr pubkey", event.id);
+                } else {
+                    self.cache
+                        .cache_policy(event.id, policy, nostr_pubkeys, self.network())
+                        .await?;
+                }
             } else {
                 log::info!("Requesting shared key for {}", event.id);
                 thread::sleep(Duration::from_secs(1)).await;
@@ -1369,7 +1460,7 @@ impl Coinstr {
     }
 }
 
-/* #[cfg(test)]
+#[cfg(test)]
 mod test {
     use bdk::blockchain::ElectrumBlockchain;
     use bdk::electrum_client::Client as ElectrumClient;
@@ -1397,20 +1488,14 @@ mod test {
 
         // Build spending proposal
         let blockchain = ElectrumBlockchain::from(ElectrumClient::new(BITCOIN_ENDPOINT)?);
-        let wallet = Wallet::new(
-            &policy.descriptor.to_string(),
-            None,
-            NETWORK,
-            MemoryDatabase::new(),
-        )?;
         let (proposal, _) = client_a
             .build_spending_proposal(
-                wallet,
-                &blockchain,
+                &policy,
                 Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
                 Amount::Custom(1120),
                 "Testing",
                 FeeRate::default(),
+                &blockchain,
             )
             .await?;
 
@@ -1462,4 +1547,4 @@ mod test {
 
         Ok(())
     }
-} */
+}

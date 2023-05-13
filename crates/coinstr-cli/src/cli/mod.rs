@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use clap::{Parser, Subcommand};
-use coinstr_core::bitcoin::Address;
+use coinstr_core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::EventId;
 
 pub mod io;
@@ -102,6 +102,8 @@ pub enum Command {
         /// Policy descriptor
         #[arg(required = true)]
         descriptor: String,
+        /// Custom nostr pubkeys
+        custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
     },
     /// Create a spending proposal
     Spend {

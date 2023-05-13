@@ -166,8 +166,11 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             name,
             description,
             descriptor,
+            custom_pubkeys,
         } => {
-            let policy_id = coinstr.save_policy(name, description, descriptor).await?;
+            let policy_id = coinstr
+                .save_policy(name, description, descriptor, custom_pubkeys)
+                .await?;
             println!("Policy saved: {policy_id}");
             Ok(())
         }
