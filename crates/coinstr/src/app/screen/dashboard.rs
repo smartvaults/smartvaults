@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use coinstr_core::bdk::Balance;
-use coinstr_core::cache::Transactions;
+use coinstr_core::db::store::Transactions;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::proposal::Proposal;
 use iced::widget::{Column, Space};
@@ -61,14 +61,13 @@ impl State for DashboardState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         self.loading = true;
         Command::perform(
             async move {
-                let (balance, synced) = cache.get_total_balance().await.unwrap();
-                let txs = cache.get_all_transactions().await.unwrap();
-
-                let proposals = cache.proposals().await;
+                let (balance, synced) = client.get_total_balance().unwrap();
+                let txs = client.get_all_transactions().unwrap();
+                let proposals = client.get_proposals().unwrap();
 
                 if !synced {
                     tokio::time::sleep(Duration::from_secs(3)).await;

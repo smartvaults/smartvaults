@@ -43,17 +43,17 @@ pub struct Context {
 impl Context {
     pub fn new(stage: Stage, coinstr: Coinstr, theme: Theme) -> Self {
         // TODO: let choose the relay, network and electrum endpoint
+        let endpoint: &str = match coinstr.network() {
+            Network::Bitcoin => "ssl://blockstream.info:700",
+            Network::Testnet => "ssl://blockstream.info:993",
+            _ => panic!("Endpoints not availabe for this network"),
+        };
+        coinstr.set_electrum_endpoint(endpoint);
         RUNTIME.block_on(async {
-            let endpoint: &str = match coinstr.network() {
-                Network::Bitcoin => "ssl://blockstream.info:700",
-                Network::Testnet => "ssl://blockstream.info:993",
-                _ => panic!("Endpoints not availabe for this network"),
-            };
             coinstr
                 .add_relays_and_connect(vec!["wss://relay.rip".to_string()])
                 .await
                 .expect("Impossible to build client");
-            coinstr.set_electrum_endpoint(endpoint).await;
         });
 
         Self {

@@ -7,9 +7,9 @@ pub extern crate nostr_sdk;
 
 pub use keechain_core::*;
 
-pub mod cache;
 pub mod client;
 pub mod constants;
+pub mod db;
 pub mod policy;
 pub mod proposal;
 pub mod reserves;

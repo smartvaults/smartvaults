@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use std::str::FromStr;
-use std::sync::Arc;
 use std::time::Duration;
 
 use coinstr_core::bips::bip39::Mnemonic;
@@ -12,7 +11,6 @@ use coinstr_core::types::WordCount;
 use coinstr_core::{client, Amount, FeeRate};
 
 use crate::error::Result;
-use crate::Cache;
 
 pub struct Coinstr {
     inner: client::Coinstr,
@@ -87,10 +85,6 @@ impl Coinstr {
         self.inner.network()
     }
 
-    pub fn cache(&self) -> Arc<Cache> {
-        Arc::new(self.inner.cache.clone().into())
-    }
-
     pub fn add_relay(&self, url: String) -> Result<()> {
         block_on(async move { Ok(self.inner.add_relay(url, None).await?) })
     }
@@ -114,13 +108,11 @@ impl Coinstr {
     }
 
     pub fn set_electrum_endpoint(&self, endpoint: String) {
-        block_on(async move {
-            self.inner.set_electrum_endpoint(endpoint).await;
-        })
+        self.inner.set_electrum_endpoint(endpoint)
     }
 
     pub fn electrum_endpoint(&self) -> Result<String> {
-        block_on(async move { Ok(self.inner.electrum_endpoint().await?) })
+        Ok(self.inner.electrum_endpoint()?)
     }
 
     pub fn delete_policy_by_id(&self, policy_id: String, timeout: Option<Duration>) -> Result<()> {

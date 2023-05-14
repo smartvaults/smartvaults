@@ -18,7 +18,7 @@ use bdk::database::MemoryDatabase;
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::psbt::PsbtExt;
 use bdk::signer::{SignerContext, SignerWrapper};
-use bdk::{KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
+use bdk::{Balance, KeychainKind, SignOptions, SyncOptions, TransactionDetails, Wallet};
 use futures_util::future::{AbortHandle, Abortable};
 use keechain_core::bips::bip39::Mnemonic;
 use keechain_core::types::{KeeChain, Keychain, Psbt, Seed, WordCount};
@@ -29,14 +29,15 @@ use nostr_sdk::{
     nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Relay,
     RelayPoolNotification, Result, Tag, Timestamp, Url, SECP256K1,
 };
+use parking_lot::RwLock;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::RwLock;
 
-use crate::cache::{Cache, GetApprovedProposals};
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND,
 };
+use crate::db::store::{GetApprovedProposals, Transactions};
+use crate::db::Store;
 use crate::policy::Policy;
 use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 use crate::reserves::ProofOfReserves;
@@ -80,7 +81,7 @@ pub enum Error {
     #[error(transparent)]
     BIP32(#[from] keechain_core::bitcoin::util::bip32::Error),
     #[error(transparent)]
-    Cache(#[from] crate::cache::Error),
+    Store(#[from] crate::db::Error),
     #[error(transparent)]
     ProofOfReserves(#[from] crate::reserves::ProofError),
     #[error("shared keys not found")]
@@ -112,7 +113,7 @@ pub struct Coinstr {
     keechain: KeeChain,
     client: Client,
     endpoint: Arc<RwLock<Option<String>>>,
-    pub cache: Cache,
+    pub db: Store,
 }
 
 impl Coinstr {
@@ -128,6 +129,8 @@ impl Coinstr {
         S: Into<String>,
         PSW: FnOnce() -> Result<String>,
     {
+        let base_path = base_path.as_ref();
+
         // Open keychain
         let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
         let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
@@ -140,12 +143,22 @@ impl Coinstr {
             keechain.keychain.seed.passphrase(),
         )?;
 
+        // Open db
+        let db = Store::open(
+            util::dir::nostr_db(base_path, &keys)?,
+            util::dir::timechain_db(base_path)?,
+            network,
+        )?;
+
+        // Load wallets
+        db.load_wallets()?;
+
         Ok(Self {
             network,
             keechain,
             client: Client::new(&keys),
             endpoint: Arc::new(RwLock::new(None)),
-            cache: Cache::new(),
+            db,
         })
     }
 
@@ -164,6 +177,8 @@ impl Coinstr {
         PSW: FnOnce() -> Result<String>,
         PASSP: FnOnce() -> Result<Option<String>>,
     {
+        let base_path = base_path.as_ref();
+
         // Generate keychain
         let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
         let mut keechain: KeeChain =
@@ -182,12 +197,22 @@ impl Coinstr {
             keechain.keychain.seed.passphrase(),
         )?;
 
+        // Open db
+        let db = Store::open(
+            util::dir::nostr_db(base_path, &keys)?,
+            util::dir::timechain_db(base_path)?,
+            network,
+        )?;
+
+        // Load wallets
+        db.load_wallets()?;
+
         Ok(Self {
             network,
             keechain,
             client: Client::new(&keys),
             endpoint: Arc::new(RwLock::new(None)),
-            cache: Cache::new(),
+            db,
         })
     }
 
@@ -207,6 +232,8 @@ impl Coinstr {
         M: FnOnce() -> Result<Mnemonic>,
         PASSP: FnOnce() -> Result<Option<String>>,
     {
+        let base_path = base_path.as_ref();
+
         // Restore keychain
         let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
         let mut keechain: KeeChain = KeeChain::restore(file_path, get_password, get_mnemonic)?;
@@ -224,12 +251,22 @@ impl Coinstr {
             keechain.keychain.seed.passphrase(),
         )?;
 
+        // Open db
+        let db = Store::open(
+            util::dir::nostr_db(base_path, &keys)?,
+            util::dir::timechain_db(base_path)?,
+            network,
+        )?;
+
+        // Load wallets
+        db.load_wallets()?;
+
         Ok(Self {
             network,
             keechain,
             client: Client::new(&keys),
             endpoint: Arc::new(RwLock::new(None)),
-            cache: Cache::new(),
+            db,
         })
     }
 
@@ -317,16 +354,16 @@ impl Coinstr {
         Ok(self.client.shutdown().await?)
     }
 
-    pub async fn set_electrum_endpoint<S>(&self, endpoint: S)
+    pub fn set_electrum_endpoint<S>(&self, endpoint: S)
     where
         S: Into<String>,
     {
-        let mut e = self.endpoint.write().await;
+        let mut e = self.endpoint.write();
         *e = Some(endpoint.into());
     }
 
-    pub async fn electrum_endpoint(&self) -> Result<String, Error> {
-        let endpoint = self.endpoint.read().await;
+    pub fn electrum_endpoint(&self) -> Result<String, Error> {
+        let endpoint = self.endpoint.read();
         endpoint.clone().ok_or(Error::ElectrumEndpointNotSet)
     }
 
@@ -336,6 +373,10 @@ impl Coinstr {
     {
         let db = MemoryDatabase::new();
         Ok(Wallet::new(&descriptor.into(), None, self.network, db)?)
+    }
+
+    pub fn block_height(&self) -> u32 {
+        self.db.block_height()
     }
 
     pub async fn get_contacts(
@@ -395,41 +436,19 @@ impl Coinstr {
         Ok(Keys::new(sk))
     }
 
-    pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
-        self.cache
-            .get_policy_by_id(policy_id)
-            .await
-            .ok_or(Error::PolicyNotFound)
+    pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
+        Ok(self.db.get_policy(policy_id)?)
     }
 
-    pub async fn get_proposal_by_id(
-        &self,
-        proposal_id: EventId,
-    ) -> Result<(EventId, Proposal), Error> {
-        self.cache
-            .get_proposal_by_id(proposal_id)
-            .await
-            .ok_or(Error::ProposalNotFound)
-    }
-
-    async fn get_approved_proposals_by_id(
-        &self,
-        proposal_id: EventId,
-    ) -> Result<GetApprovedProposals, Error> {
-        self.cache
-            .get_approved_proposals_by_id(proposal_id)
-            .await
-            .ok_or(Error::ApprovedProposalNotFound)
+    pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
+        Ok(self.db.get_proposal(proposal_id)?)
     }
 
     pub async fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: EventId,
     ) -> Result<(EventId, CompletedProposal), Error> {
-        self.cache
-            .get_completed_proposal_by_id(completed_proposal_id)
-            .await
-            .ok_or(Error::ProposalNotFound)
+        Ok(self.db.get_completed_proposal(completed_proposal_id)?)
     }
 
     pub async fn delete_policy_by_id(
@@ -438,12 +457,8 @@ impl Coinstr {
         timeout: Option<Duration>,
     ) -> Result<(), Error> {
         // Get nostr pubkeys and shared keys
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self
-            .cache
-            .get_nostr_pubkeys_by_policy_id(policy_id)
-            .await
-            .ok_or(Error::PolicyNotFound)?;
-        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         // Get all events linked to the policy
         let filter = Filter::new().event(policy_id);
@@ -461,7 +476,7 @@ impl Coinstr {
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
 
-        self.cache.delete_policy_by_id(policy_id).await;
+        self.db.delete_policy(policy_id)?;
 
         Ok(())
     }
@@ -503,7 +518,7 @@ impl Coinstr {
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
 
-        self.cache.delete_proposal_by_id(proposal_id).await;
+        self.db.delete_proposal(proposal_id)?;
 
         Ok(())
     }
@@ -547,23 +562,23 @@ impl Coinstr {
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
         self.client.send_event(event).await?;
 
-        self.cache
-            .delete_completed_proposal_by_id(completed_proposal_id)
-            .await;
+        self.db.delete_completed_proposal(completed_proposal_id)?;
 
         Ok(())
     }
 
-    pub async fn get_policies(&self) -> BTreeMap<EventId, Policy> {
-        self.cache.policies().await
+    pub fn get_policies(&self) -> Result<BTreeMap<EventId, Policy>, Error> {
+        Ok(self.db.get_policies()?)
     }
 
-    pub async fn get_proposals(&self) -> BTreeMap<EventId, (EventId, Proposal)> {
-        self.cache.proposals().await
+    pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+        Ok(self.db.get_proposals()?)
     }
 
-    pub async fn get_completed_proposals(&self) -> BTreeMap<EventId, (EventId, CompletedProposal)> {
-        self.cache.completed_proposals().await
+    pub fn get_completed_proposals(
+        &self,
+    ) -> Result<BTreeMap<EventId, (EventId, CompletedProposal)>, Error> {
+        Ok(self.db.completed_proposals()?)
     }
 
     pub async fn save_policy<S>(
@@ -622,9 +637,7 @@ impl Coinstr {
         self.client.send_event(policy_event).await?;
 
         // Cache policy
-        self.cache
-            .cache_policy(policy_id, policy, nostr_pubkeys, self.network())
-            .await?;
+        self.db.save_policy(policy_id, policy, nostr_pubkeys)?;
 
         Ok(policy_id)
     }
@@ -691,13 +704,13 @@ impl Coinstr {
         S: Into<String>,
     {
         // Get policy and shared keys
-        let policy = self.get_policy_by_id(policy_id).await?;
+        let policy = self.get_policy_by_id(policy_id)?;
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         let description: &str = &description.into();
 
         // Build spending proposal
-        let endpoint = self.electrum_endpoint().await?;
+        let endpoint = self.electrum_endpoint()?;
 
         let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
         let (proposal, _details) = self
@@ -718,11 +731,7 @@ impl Coinstr {
         } = &proposal
         {
             // Compose the event
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = self
-                .cache
-                .get_nostr_pubkeys_by_policy_id(policy_id)
-                .await
-                .ok_or(Error::PolicyNotFound)?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
             let mut tags: Vec<Tag> = nostr_pubkeys
                 .iter()
                 .map(|p| Tag::PubKey(*p, None))
@@ -748,9 +757,8 @@ impl Coinstr {
             }
 
             // Cache proposal
-            self.cache
-                .cache_proposal(proposal_id, policy_id, proposal.clone())
-                .await;
+            self.db
+                .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
             Ok((proposal_id, proposal))
         } else {
@@ -806,10 +814,10 @@ impl Coinstr {
         let keys = self.client.keys();
 
         // Get proposal
-        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id).await?;
+        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
 
         // Get policy
-        let policy = self.get_policy_by_id(policy_id).await?;
+        let policy = self.get_policy_by_id(policy_id)?;
 
         // Sign PSBT
         let approved_proposal = self.approve_proposal(&policy, &proposal)?;
@@ -819,11 +827,7 @@ impl Coinstr {
 
         // Compose the event
         let content = approved_proposal.encrypt(&shared_keys)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self
-            .cache
-            .get_nostr_pubkeys_by_policy_id(policy_id)
-            .await
-            .ok_or(Error::PolicyNotFound)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
             .map(|p| Tag::PubKey(p, None))
@@ -840,15 +844,13 @@ impl Coinstr {
         self.client.send_event(event.clone()).await?;
 
         // Cache approved proposal
-        self.cache
-            .cache_approved_proposal(
-                proposal_id,
-                keys.public_key(),
-                event.id,
-                approved_proposal.psbt(),
-                event.created_at,
-            )
-            .await;
+        self.db.save_approved_proposal(
+            proposal_id,
+            keys.public_key(),
+            event.id,
+            approved_proposal.psbt(),
+            event.created_at,
+        );
 
         Ok((event, approved_proposal))
     }
@@ -913,25 +915,21 @@ impl Coinstr {
             proposal,
             signed_psbts,
             approvals,
-        } = self.get_approved_proposals_by_id(proposal_id).await?;
+        } = self.db.get_approved_proposals_by_id(proposal_id)?;
 
         if let Proposal::Spending {
             description, psbt, ..
         } = proposal
         {
             let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = self
-                .cache
-                .get_nostr_pubkeys_by_policy_id(policy_id)
-                .await
-                .ok_or(Error::PolicyNotFound)?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
 
             // Combine PSBTs
             let psbt = self.combine_psbts(psbt, signed_psbts)?;
             let finalized_tx = psbt.extract_tx();
 
             // Broadcast
-            let endpoint = self.electrum_endpoint().await?;
+            let endpoint = self.electrum_endpoint()?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             blockchain.broadcast(&finalized_tx)?;
             let txid = finalized_tx.txid();
@@ -959,13 +957,10 @@ impl Coinstr {
             }
 
             // Cache
-            self.cache.delete_proposal_by_id(proposal_id).await;
-            self.cache
-                .sync_with_timechain(&blockchain, None, true)
-                .await?;
-            self.cache
-                .cache_completed_proposal(event_id, policy_id, completed_proposal)
-                .await;
+            self.db.delete_proposal(proposal_id)?;
+            self.db.sync_with_timechain(&blockchain, None, true)?;
+            self.db
+                .save_completed_proposal(event_id, policy_id, completed_proposal)?;
 
             Ok(txid)
         } else {
@@ -1013,22 +1008,18 @@ impl Coinstr {
         let message: &str = &message.into();
 
         // Get policy and shared keys
-        let policy = self.get_policy_by_id(policy_id).await?;
+        let policy = self.get_policy_by_id(policy_id)?;
         let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
 
         // Build proposal
-        let endpoint = self.electrum_endpoint().await?;
+        let endpoint = self.electrum_endpoint()?;
         let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
         let proposal = self
             .build_proof_proposal(&policy, message, &blockchain)
             .await?;
 
         // Compose the event
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self
-            .cache
-            .get_nostr_pubkeys_by_policy_id(policy_id)
-            .await
-            .ok_or(Error::PolicyNotFound)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .iter()
             .map(|p| Tag::PubKey(*p, None))
@@ -1050,9 +1041,8 @@ impl Coinstr {
         }
 
         // Cache proposal
-        self.cache
-            .cache_proposal(proposal_id, policy_id, proposal.clone())
-            .await;
+        self.db
+            .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
         Ok((proposal_id, proposal, policy_id))
     }
@@ -1068,16 +1058,12 @@ impl Coinstr {
             proposal,
             signed_psbts,
             approvals,
-        } = self.get_approved_proposals_by_id(proposal_id).await?;
+        } = self.db.get_approved_proposals_by_id(proposal_id)?;
 
         if let Proposal::ProofOfReserve { message, psbt } = proposal {
-            let policy = self.get_policy_by_id(policy_id).await?;
-            let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = self
-                .cache
-                .get_nostr_pubkeys_by_policy_id(policy_id)
-                .await
-                .ok_or(Error::PolicyNotFound)?;
+            let policy = self.get_policy_by_id(policy_id)?;
+            let shared_keys = self.db.get_shared_key(policy_id)?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
 
             // Combine PSBTs
             let psbt = self.combine_non_std_psbts(&policy, psbt, signed_psbts)?;
@@ -1106,10 +1092,9 @@ impl Coinstr {
             }
 
             // Cache
-            self.cache.delete_proposal_by_id(proposal_id).await;
-            self.cache
-                .cache_completed_proposal(event_id, policy_id, completed_proposal.clone())
-                .await;
+            self.db.delete_proposal(proposal_id)?;
+            self.db
+                .save_completed_proposal(event_id, policy_id, completed_proposal.clone())?;
 
             Ok((event_id, completed_proposal, policy_id))
         } else {
@@ -1125,7 +1110,7 @@ impl Coinstr {
             ..
         } = proposal
         {
-            let endpoint = self.electrum_endpoint().await?;
+            let endpoint = self.electrum_endpoint()?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             let wallet = self.wallet(descriptor.to_string())?;
             wallet.sync(&blockchain, SyncOptions::default())?;
@@ -1139,12 +1124,10 @@ impl Coinstr {
         let (_policy_id, proposal) = self.get_completed_proposal_by_id(proposal_id).await?;
         self.verify_proof(proposal).await
     }
-}
 
-impl Coinstr {
     #[async_recursion::async_recursion]
     async fn wait_for_endpoint(&self) -> String {
-        match self.electrum_endpoint().await {
+        match self.electrum_endpoint() {
             Ok(endpoint) => endpoint,
             Err(_) => {
                 thread::sleep(Duration::from_secs(3)).await;
@@ -1162,9 +1145,8 @@ impl Coinstr {
             let blockchain = ElectrumBlockchain::from(electrum_client);
             loop {
                 if let Err(e) = this
-                    .cache
+                    .db
                     .sync_with_timechain(&blockchain, Some(&sender), false)
-                    .await
                 {
                     log::error!("Impossible to sync wallets: {e}");
                 }
@@ -1190,19 +1172,12 @@ impl Coinstr {
 
             let keys = this.client.keys();
 
-            let shared_keys = this
-                .get_shared_keys(Some(Duration::from_secs(60)))
-                .await
-                .unwrap_or_default();
-            this.cache.cache_shared_keys(shared_keys).await;
-
-            log::info!("Got shared keys");
-
             let filters = vec![
                 Filter::new().pubkey(keys.public_key()).kinds(vec![
                     POLICY_KIND,
                     PROPOSAL_KIND,
                     COMPLETED_PROPOSAL_KIND,
+                    // TODO: add shared key kind
                     Kind::EventDeletion,
                 ]),
                 Filter::new()
@@ -1247,8 +1222,8 @@ impl Coinstr {
 
     #[async_recursion]
     async fn handle_event(&self, event: Event) -> Result<()> {
-        if event.kind == POLICY_KIND && !self.cache.policy_exists(event.id).await {
-            if let Some(shared_key) = self.cache.get_shared_key_by_policy_id(event.id).await {
+        if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
+            if let Ok(shared_key) = self.db.get_shared_key(event.id) {
                 let policy = Policy::decrypt(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
                 for tag in event.tags.iter() {
@@ -1259,9 +1234,7 @@ impl Coinstr {
                 if nostr_pubkeys.is_empty() {
                     log::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
-                    self.cache
-                        .cache_policy(event.id, policy, nostr_pubkeys, self.network())
-                        .await?;
+                    self.db.save_policy(event.id, policy, nostr_pubkeys)?;
                 }
             } else {
                 log::info!("Requesting shared key for {}", event.id);
@@ -1269,23 +1242,21 @@ impl Coinstr {
                 let shared_key = self
                     .get_shared_key_by_policy_id(event.id, Some(Duration::from_secs(30)))
                     .await?;
-                self.cache.cache_shared_key(event.id, shared_key).await;
+                self.db.save_shared_key(event.id, shared_key)?;
                 self.handle_event(event).await?;
             }
-        } else if event.kind == PROPOSAL_KIND && !self.cache.proposal_exists(event.id).await {
+        } else if event.kind == PROPOSAL_KIND && !self.db.proposal_exists(event.id)? {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
-                if let Some(shared_key) = self.cache.get_shared_key_by_policy_id(policy_id).await {
+                if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
                     let proposal = Proposal::decrypt(&shared_key, &event.content)?;
-                    self.cache
-                        .cache_proposal(event.id, policy_id, proposal)
-                        .await;
+                    self.db.save_proposal(event.id, policy_id, proposal)?;
                 } else {
                     log::info!("Requesting shared key for proposal {}", event.id);
                     thread::sleep(Duration::from_secs(1)).await;
                     let shared_key = self
                         .get_shared_key_by_policy_id(policy_id, Some(Duration::from_secs(30)))
                         .await?;
-                    self.cache.cache_shared_key(policy_id, shared_key).await;
+                    self.db.save_shared_key(policy_id, shared_key)?;
                     self.handle_event(event).await?;
                 }
             } else {
@@ -1296,27 +1267,23 @@ impl Coinstr {
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
-                    if let Some(shared_key) =
-                        self.cache.get_shared_key_by_policy_id(*policy_id).await
-                    {
+                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {
                         let approved_proposal =
                             ApprovedProposal::decrypt(&shared_key, &event.content)?;
-                        self.cache
-                            .cache_approved_proposal(
-                                proposal_id,
-                                event.pubkey,
-                                event.id,
-                                approved_proposal.psbt(),
-                                event.created_at,
-                            )
-                            .await;
+                        self.db.save_approved_proposal(
+                            proposal_id,
+                            event.pubkey,
+                            event.id,
+                            approved_proposal.psbt(),
+                            event.created_at,
+                        );
                     } else {
                         log::info!("Requesting shared key for approved proposal {}", event.id);
                         thread::sleep(Duration::from_secs(1)).await;
                         let shared_key = self
                             .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
                             .await?;
-                        self.cache.cache_shared_key(*policy_id, shared_key).await;
+                        self.db.save_shared_key(*policy_id, shared_key)?;
                         self.handle_event(event).await?;
                     }
                 } else {
@@ -1330,30 +1297,30 @@ impl Coinstr {
             }
         } else if event.kind == COMPLETED_PROPOSAL_KIND {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
-                self.cache.delete_proposal_by_id(proposal_id).await;
+                self.db.delete_proposal(proposal_id)?;
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
                     // Schedule policy for sync if the event was created in the last 60 secs
                     if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                        self.cache.schedule_for_sync(*policy_id).await;
+                        self.db.schedule_for_sync(*policy_id);
                     }
 
-                    if let Some(shared_key) =
-                        self.cache.get_shared_key_by_policy_id(*policy_id).await
-                    {
+                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {
                         let completed_proposal =
                             CompletedProposal::decrypt(&shared_key, &event.content)?;
-                        self.cache
-                            .cache_completed_proposal(event.id, *policy_id, completed_proposal)
-                            .await;
+                        self.db.save_completed_proposal(
+                            event.id,
+                            *policy_id,
+                            completed_proposal,
+                        )?;
                     } else {
                         log::info!("Requesting shared key for completed proposal {}", event.id);
                         thread::sleep(Duration::from_secs(1)).await;
                         let shared_key = self
                             .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
                             .await?;
-                        self.cache.cache_shared_key(*policy_id, shared_key).await;
+                        self.db.save_shared_key(*policy_id, shared_key)?;
                         self.handle_event(event).await?;
                     }
                 } else {
@@ -1366,16 +1333,40 @@ impl Coinstr {
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event(event_id, ..) = tag {
-                    self.cache.uncache_generic_event_id(*event_id).await;
+                    self.db.delete_generic_event_id(*event_id)?;
                 }
             }
         }
 
         Ok(())
     }
+
+    pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
+        self.db.get_balance(policy_id)
+    }
+
+    pub fn get_transactions(&self, policy_id: EventId) -> Option<Transactions> {
+        self.db.get_transactions(policy_id)
+    }
+
+    pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
+        self.db.get_last_unused_address(policy_id)
+    }
+
+    pub fn get_total_balance(&self) -> Result<(Balance, bool), Error> {
+        Ok(self.db.get_total_balance()?)
+    }
+
+    pub fn get_all_transactions(&self) -> Result<Vec<(TransactionDetails, Option<String>)>, Error> {
+        Ok(self.db.get_all_transactions()?)
+    }
+
+    pub fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
+        self.db.get_tx(txid)
+    }
 }
 
-impl Coinstr {
+/* impl Coinstr {
     #[allow(dead_code)]
     pub(crate) fn dummy(
         mnemonic: Mnemonic,
@@ -1495,4 +1486,4 @@ mod test {
 
         Ok(())
     }
-}
+} */

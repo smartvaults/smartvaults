@@ -79,12 +79,12 @@ impl State for ReceiveState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         Command::perform(
             async move {
-                cache
-                    .policies()
-                    .await
+                client
+                    .get_policies()
+                    .unwrap()
                     .into_iter()
                     .map(|(policy_id, policy)| PolicyPicLisk {
                         policy_id,
@@ -111,9 +111,9 @@ impl State for ReceiveState {
                     }
                 }
                 ReceiveMessage::LoadAddress(policy_id) => {
-                    let cache = ctx.client.cache.clone();
+                    let client = ctx.client.clone();
                     return Command::perform(
-                        async move { cache.get_last_unused_address(policy_id).await },
+                        async move { client.db.get_last_unused_address(policy_id) },
                         |address| ReceiveMessage::AddressChanged(address).into(),
                     );
                 }

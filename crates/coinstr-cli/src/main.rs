@@ -102,7 +102,7 @@ async fn run() -> Result<()> {
         CliCommand::Open { name } => {
             let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
             coinstr.add_relays_and_connect(relays).await?;
-            coinstr.set_electrum_endpoint(endpoint).await;
+            coinstr.set_electrum_endpoint(endpoint);
             coinstr.sync();
 
             let rl = &mut DefaultEditor::new()?;
@@ -264,13 +264,13 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 Ok(())
             }
             GetCommand::Policies => {
-                let policies = coinstr.get_policies().await;
+                let policies = coinstr.get_policies()?;
                 util::print_policies(policies);
                 Ok(())
             }
             GetCommand::Policy { policy_id, export } => {
                 // Get policy
-                let policy = coinstr.get_policy_by_id(policy_id).await?;
+                let policy = coinstr.get_policy_by_id(policy_id)?;
 
                 let wallet = coinstr.wallet(policy.descriptor.to_string())?;
 
@@ -279,22 +279,22 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     println!("\n{}\n", policy.descriptor);
                     Ok(())
                 } else {
-                    let endpoint = coinstr.electrum_endpoint().await?;
+                    let endpoint = coinstr.electrum_endpoint()?;
                     util::print_policy(policy, policy_id, wallet, endpoint)
                 }
             }
             GetCommand::Proposals { completed } => {
                 if completed {
-                    let proposals = coinstr.get_completed_proposals().await;
+                    let proposals = coinstr.get_completed_proposals()?;
                     util::print_completed_proposals(proposals);
                 } else {
-                    let proposals = coinstr.get_proposals().await;
+                    let proposals = coinstr.get_proposals()?;
                     util::print_proposals(proposals);
                 }
                 Ok(())
             }
             GetCommand::Proposal { proposal_id } => {
-                let (policy_id, proposal) = coinstr.get_proposal_by_id(proposal_id).await?;
+                let (policy_id, proposal) = coinstr.get_proposal_by_id(proposal_id)?;
                 util::print_proposal(proposal_id, proposal, policy_id);
                 Ok(())
             }

@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-mod cache;
 mod client;
 mod error;
 mod policy;
@@ -25,7 +24,6 @@ mod ffi {
     pub use crate::get_keychains_list;
 
     // Coinstr
-    pub use crate::cache::Cache;
     pub use crate::client::Coinstr;
     pub use crate::policy::Policy;
     pub use crate::proposal::Proposal;

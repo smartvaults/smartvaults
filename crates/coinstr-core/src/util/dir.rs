@@ -5,12 +5,31 @@ use std::path::{Path, PathBuf};
 
 use keechain_core::util::dir;
 pub use keechain_core::util::dir::Error;
+use nostr_sdk::Keys;
 
 fn keychains<P>(base_path: P) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,
 {
     let path = base_path.as_ref().join("keychains");
+    std::fs::create_dir_all(path.as_path())?;
+    Ok(path)
+}
+
+pub(crate) fn nostr_db<P>(base_path: P, keys: &Keys) -> Result<PathBuf, Error>
+where
+    P: AsRef<Path>,
+{
+    let path = base_path.as_ref().join("nostr");
+    std::fs::create_dir_all(path.as_path())?;
+    Ok(path.join(keys.public_key().to_string()))
+}
+
+pub(crate) fn timechain_db<P>(base_path: P) -> Result<PathBuf, Error>
+where
+    P: AsRef<Path>,
+{
+    let path = base_path.as_ref().join("timechain");
     std::fs::create_dir_all(path.as_path())?;
     Ok(path)
 }

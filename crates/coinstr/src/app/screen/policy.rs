@@ -6,7 +6,7 @@ use std::io::Write;
 use std::time::Duration;
 
 use coinstr_core::bdk::Balance;
-use coinstr_core::cache::Transactions;
+use coinstr_core::db::store::Transactions;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
@@ -79,11 +79,11 @@ impl State for PolicyState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
-            async move { cache.policy_with_details(policy_id).await },
+            async move { client.db.policy_with_details(policy_id) },
             |res| match res {
                 Some((policy, balance, list, last_sync)) => {
                     PolicyMessage::LoadPolicy(policy, balance, list, last_sync).into()

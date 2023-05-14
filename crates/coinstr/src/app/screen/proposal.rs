@@ -79,16 +79,16 @@ impl State for ProposalState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         let proposal_id = self.proposal_id;
         self.loading = true;
         Command::perform(
             async move {
-                if cache.proposal_exists(proposal_id).await {
+                if client.db.proposal_exists(proposal_id).ok()? {
                     Some(
-                        cache
+                        client
+                            .db
                             .signed_psbts_by_proposal_id(proposal_id)
-                            .await
                             .unwrap_or_default(),
                     )
                 } else {
@@ -176,8 +176,7 @@ impl State for ProposalState {
                                         client.combine_psbts(base_psbt, signed_psbts).ok()
                                     }
                                     Proposal::ProofOfReserve { .. } => {
-                                        let policy =
-                                            client.cache.get_policy_by_id(policy_id).await?;
+                                        let policy = client.get_policy_by_id(policy_id).ok()?;
                                         client
                                             .combine_non_std_psbts(&policy, base_psbt, signed_psbts)
                                             .ok()

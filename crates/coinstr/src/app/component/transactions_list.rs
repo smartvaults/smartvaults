@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::TransactionDetails;
-use coinstr_core::cache::Transactions;
+use coinstr_core::db::store::Transactions;
 use coinstr_core::nostr_sdk::{EventId, Timestamp};
 use coinstr_core::util::format;
 use iced::widget::{Column, Row, Space};

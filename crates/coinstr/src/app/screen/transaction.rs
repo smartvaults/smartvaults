@@ -53,10 +53,10 @@ impl State for TransactionState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         let txid = self.txid;
         self.loading = true;
-        Command::perform(async move { cache.get_tx(txid).await }, |res| match res {
+        Command::perform(async move { client.get_tx(txid) }, |res| match res {
             Some(tx) => TransactionMessage::LoadTx(tx).into(),
             None => Message::View(Stage::Transactions(None)),
         })
@@ -181,12 +181,8 @@ impl State for TransactionState {
             let (confirmed_at_block, confirmed_at_time, confirmations) =
                 match tx.confirmation_time.as_ref() {
                     Some(block_time) => {
-                        let confirmations: u32 = ctx
-                            .client
-                            .cache
-                            .block_height()
-                            .saturating_sub(block_time.height)
-                            + 1;
+                        let confirmations: u32 =
+                            ctx.client.block_height().saturating_sub(block_time.height) + 1;
                         (
                             format::number(block_time.height as u64),
                             Timestamp::from(block_time.timestamp).to_human_datetime(),

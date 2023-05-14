@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use coinstr_core::cache::Transactions;
+use coinstr_core::db::store::Transactions;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::util;
 use iced::widget::{Column, Space};
@@ -51,14 +51,14 @@ impl State for TransactionsState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
             async move {
                 match policy_id {
-                    Some(policy_id) => cache.get_transactions(policy_id).await,
-                    None => cache.get_all_transactions().await.ok(),
+                    Some(policy_id) => client.get_transactions(policy_id),
+                    None => client.get_all_transactions().ok(),
                 }
             },
             |res| match res {

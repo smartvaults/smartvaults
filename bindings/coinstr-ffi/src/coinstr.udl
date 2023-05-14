@@ -51,7 +51,6 @@ interface Coinstr {
     void wipe();
 
     Network network();
-    Cache cache();
 
     [Throws=FFIError]
     void add_relay(string url);
@@ -85,12 +84,4 @@ interface Coinstr {
     string broadcast(string proposal_id, duration? timeout);
 
     void sync();
-};
-
-interface Cache {
-    u32 block_height();
-
-    record<DOMString, Policy> policies();
-    [Throws=FFIError]
-    Policy? get_policy_by_id(string policy_id);
 };

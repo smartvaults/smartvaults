@@ -75,12 +75,12 @@ impl State for NewProofState {
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
-        let cache = ctx.client.cache.clone();
+        let client = ctx.client.clone();
         Command::perform(
             async move {
-                cache
-                    .policies()
-                    .await
+                client
+                    .get_policies()
+                    .unwrap()
                     .into_iter()
                     .map(|(policy_id, policy)| PolicyPicLisk {
                         policy_id,
