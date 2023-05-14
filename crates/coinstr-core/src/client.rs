@@ -36,6 +36,7 @@ use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND,
 };
+use crate::db::model::GetPolicyResult;
 use crate::db::store::{GetApprovedProposals, Transactions};
 use crate::db::Store;
 use crate::policy::Policy;
@@ -437,7 +438,7 @@ impl Coinstr {
     }
 
     pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
-        Ok(self.db.get_policy(policy_id)?)
+        Ok(self.db.get_policy(policy_id)?.policy)
     }
 
     pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
@@ -567,7 +568,7 @@ impl Coinstr {
         Ok(())
     }
 
-    pub fn get_policies(&self) -> Result<BTreeMap<EventId, Policy>, Error> {
+    pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
         Ok(self.db.get_policies()?)
     }
 
@@ -1303,7 +1304,7 @@ impl Coinstr {
                 {
                     // Schedule policy for sync if the event was created in the last 60 secs
                     if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                        self.db.schedule_for_sync(*policy_id);
+                        self.db.schedule_for_sync(*policy_id)?;
                     }
 
                     if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {

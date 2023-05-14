@@ -12,6 +12,7 @@ use coinstr_core::bdk::{KeychainKind, SyncOptions, Wallet};
 use coinstr_core::bips::bip32::Bip32RootKey;
 use coinstr_core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_core::bitcoin::Network;
+use coinstr_core::db::model::GetPolicyResult;
 use coinstr_core::nostr_sdk::prelude::{FromMnemonic, ToBech32, XOnlyPublicKey};
 use coinstr_core::nostr_sdk::{EventId, Keys, Metadata, SECP256K1};
 use coinstr_core::policy::Policy;
@@ -260,12 +261,12 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
     si_tree
 }
 
-pub fn print_policies(policies: BTreeMap<EventId, Policy>) {
+pub fn print_policies(policies: BTreeMap<EventId, GetPolicyResult>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Name", "Description"]);
 
-    for (index, (policy_id, policy)) in policies.into_iter().enumerate() {
+    for (index, (policy_id, GetPolicyResult { policy, .. })) in policies.into_iter().enumerate() {
         table.add_row(row![index + 1, policy_id, policy.name, policy.description]);
     }
 

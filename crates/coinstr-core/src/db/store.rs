@@ -9,7 +9,8 @@ use std::collections::btree_map::Entry;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Add;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,23 +18,30 @@ use std::time::Duration;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, Txid};
 use bdk::blockchain::Blockchain;
+use bdk::database::SqliteDatabase;
 use bdk::wallet::AddressIndex;
 use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
-use keechain_core::util::serde::{deserialize, serialize};
 use nostr_sdk::event::id::{self, EventId};
-use nostr_sdk::secp256k1::XOnlyPublicKey;
+use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
 use nostr_sdk::Keys;
 use nostr_sdk::Timestamp;
 use parking_lot::Mutex;
-use sled::{Db, Tree};
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::OpenFlags;
+
 use tokio::sync::mpsc::Sender;
 
+use super::migration::{self, MigrationError, STARTUP_SQL};
+use super::model::GetPolicyResult;
 use crate::policy::{self, Policy};
 use crate::proposal::{CompletedProposal, Proposal};
+use crate::util::{Encryption, EncryptionError};
 
 const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
+pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
+pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
 pub type Transactions = Vec<(TransactionDetails, Option<String>)>;
 type ApprovedProposals =
     BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>>;
@@ -41,15 +49,24 @@ type ApprovedProposals =
 /// Store error
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// Sled error
+    /// Sqlite error
     #[error(transparent)]
-    Sled(#[from] sled::Error),
+    Sqlite(#[from] rusqlite::Error),
+    /// Sqlite Pool error
+    #[error(transparent)]
+    Pool(#[from] r2d2::Error),
+    /// Migration error
+    #[error(transparent)]
+    Migration(#[from] MigrationError),
     /// Bdk error
     #[error(transparent)]
     Bdk(#[from] bdk::Error),
     /// Json error
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    /// Encryption error
+    #[error(transparent)]
+    Encryption(#[from] EncryptionError),
     /// Keys error
     #[error(transparent)]
     Keys(#[from] nostr_sdk::nostr::key::Error),
@@ -109,16 +126,11 @@ impl BlockHeight {
 /// Store
 #[derive(Debug, Clone)]
 pub struct Store {
-    //nostr_db: Db,
-    shared_keys: Tree,
-    nostr_public_keys: Tree,
-    policies: Tree,
-    proposals: Tree,
+    pool: SqlitePool,
     approved_proposals: Arc<Mutex<ApprovedProposals>>,
-    completed_proposals: Tree,
-    timechain_db: Db,
     block_height: BlockHeight,
-    wallets: Arc<Mutex<BTreeMap<EventId, (Wallet<Tree>, Option<Timestamp>)>>>,
+    wallets: Arc<Mutex<BTreeMap<EventId, Wallet<SqliteDatabase>>>>,
+    timechain_db_path: PathBuf,
     network: Network,
     // cache: Cache,
 }
@@ -133,40 +145,29 @@ impl Store {
     where
         P: AsRef<Path>,
     {
-        let nostr_db = sled::open(nostr_db_path)?;
-        let timechain_db = sled::open(timechain_db_path)?;
-        let shared_keys = nostr_db.open_tree("shared_keys")?;
-        let nostr_public_keys = nostr_db.open_tree("nostr_public_keys")?;
-        let policies = nostr_db.open_tree("policies")?;
-        let proposals = nostr_db.open_tree("proposals")?;
+        let manager = SqliteConnectionManager::file(nostr_db_path.as_ref())
+            .with_flags(OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE)
+            .with_init(|c| c.execute_batch(STARTUP_SQL));
+        let pool = r2d2::Pool::new(manager)?;
+        migration::run(&mut pool.get()?)?;
         let approved_proposals = Arc::new(Mutex::new(BTreeMap::new()));
-        let completed_proposals = nostr_db.open_tree("completed_proposals")?;
-
         Ok(Self {
-            //nostr_db,
-            timechain_db,
-            shared_keys,
-            nostr_public_keys,
-            policies,
-            proposals,
-            approved_proposals,
-            completed_proposals,
-            block_height: BlockHeight::default(),
+            pool,
             wallets: Arc::new(Mutex::new(BTreeMap::new())),
+            approved_proposals,
+            block_height: BlockHeight::default(),
+            timechain_db_path: timechain_db_path.as_ref().to_path_buf(),
             network,
         })
     }
 
     pub fn load_wallets(&self) -> Result<(), Error> {
         let mut wallets = self.wallets.lock();
-        for (policy_id, policy) in self.get_policies()? {
-            let tree: Tree = self.timechain_db.open_tree(policy_id.to_hex())?;
+        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()? {
+            let db = SqliteDatabase::new(self.timechain_db_path.join(format!("{policy_id}.db")));
             wallets.insert(
                 policy_id,
-                (
-                    Wallet::new(&policy.descriptor.to_string(), None, self.network, tree)?,
-                    None,
-                ),
+                Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?,
             );
         }
         Ok(())
@@ -181,31 +182,16 @@ impl Store {
         self.block_height.block_height()
     }
 
-    pub fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
-        self.shared_keys.insert(
-            policy_id,
-            serialize(shared_key.secret_key()?.display_secret().to_string())?,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
-        let sk: Vec<u8> = self
-            .shared_keys
-            .get(policy_id)?
-            .ok_or(Error::NotFound)?
-            .to_vec();
-        Ok(Keys::new(deserialize(sk)?))
-    }
-
-    pub fn delete_shared_key(&self, policy_id: EventId) -> Result<(), Error> {
-        self.shared_keys.remove(policy_id)?;
-        log::info!("Deleted shared key for policy {policy_id}");
-        Ok(())
-    }
-
     pub fn policy_exists(&self, policy_id: EventId) -> Result<bool, Error> {
-        Ok(self.policies.contains_key(policy_id)?)
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT EXISTS(SELECT 1 FROM policies WHERE policy_id = ? LIMIT 1);")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
     }
 
     pub fn save_policy(
@@ -214,47 +200,127 @@ impl Store {
         policy: Policy,
         nostr_public_keys: Vec<XOnlyPublicKey>,
     ) -> Result<(), Error> {
-        let descriptor = policy.descriptor.to_string();
-        self.policies.insert(policy_id, serialize(policy)?)?;
-        self.nostr_public_keys
-            .insert(policy_id, serialize(nostr_public_keys)?)?;
-
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO policies (policy_id, policy) VALUES (?, ?);",
+            (policy_id.to_hex(), policy.as_json()),
+        )?;
+        // Save nostr public keys
+        let mut stmt = conn.prepare(
+            "INSERT OR IGNORE INTO nostr_public_keys (policy_id, public_key) VALUES (?, ?);",
+        )?;
+        for public_key in nostr_public_keys.into_iter() {
+            stmt.execute((policy_id.to_hex(), public_key.to_string()))?;
+        }
         // Load wallet
         let mut wallets = self.wallets.lock();
         if let Entry::Vacant(e) = wallets.entry(policy_id) {
-            let tree: Tree = self.timechain_db.open_tree(policy_id.to_hex())?;
-            e.insert((Wallet::new(&descriptor, None, self.network, tree)?, None));
+            let db = SqliteDatabase::new(self.timechain_db_path.join(format!("{policy_id}.db")));
+            e.insert(Wallet::new(
+                &policy.descriptor.to_string(),
+                None,
+                self.network,
+                db,
+            )?);
         }
-
-        log::info!("Policy {policy_id} saved");
         Ok(())
     }
 
-    pub fn get_policy(&self, policy_id: EventId) -> Result<Policy, Error> {
-        let policy: Vec<u8> = self
-            .policies
-            .get(policy_id)?
-            .ok_or(Error::NotFound)?
-            .to_vec();
-        Ok(deserialize(policy)?)
+    pub fn get_policy(&self, policy_id: EventId) -> Result<GetPolicyResult, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT policy, last_sync FROM policies WHERE policy_id = ?")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let policy: String = row.get(0)?;
+        let last_sync: Option<u64> = row.get(1)?;
+        Ok(GetPolicyResult {
+            policy: Policy::from_json(policy)?,
+            last_sync: last_sync.map(Timestamp::from),
+        })
     }
 
-    pub fn get_policies(&self) -> Result<BTreeMap<EventId, Policy>, Error> {
+    pub fn get_last_sync(&self, policy_id: EventId) -> Result<Option<Timestamp>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("SELECT last_sync FROM policies WHERE policy_id = ?")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let last_sync: Option<u64> = row.get(0)?;
+        Ok(last_sync.map(Timestamp::from))
+    }
+
+    pub fn update_last_sync(
+        &self,
+        policy_id: EventId,
+        last_sync: Option<Timestamp>,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare_cached("UPDATE policies SET last_sync = ? WHERE policy_id = ?")?;
+        stmt.execute((last_sync.map(|t| t.as_u64()), policy_id.to_hex()))?;
+        Ok(())
+    }
+
+    pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT policy_id, policy, last_sync FROM policies")?;
+        let mut rows = stmt.query([])?;
         let mut policies = BTreeMap::new();
-        for res in self.policies.into_iter() {
-            let (policy_id, policy) = res?;
+        while let Ok(Some(row)) = rows.next() {
+            let policy_id: String = row.get(0)?;
+            let policy: String = row.get(1)?;
+            let last_sync: Option<u64> = row.get(2)?;
             policies.insert(
-                EventId::from_slice(&policy_id)?,
-                deserialize(policy.to_vec())?,
+                EventId::from_hex(policy_id)?,
+                GetPolicyResult {
+                    policy: Policy::from_json(policy)?,
+                    last_sync: last_sync.map(Timestamp::from),
+                },
             );
         }
         Ok(policies)
     }
 
     pub fn delete_policy(&self, policy_id: EventId) -> Result<(), Error> {
-        self.policies.remove(policy_id)?;
-        log::info!("Deleted policy {policy_id}");
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM policies WHERE policy_id = ?;",
+            [policy_id.to_hex()],
+        )?;
+        conn.execute(
+            "DELETE FROM nostr_public_keys WHERE policy_id = ?;",
+            [policy_id.to_hex()],
+        )?;
+        conn.execute(
+            "DELETE FROM shared_keys WHERE policy_id = ?;",
+            [policy_id.to_hex()],
+        )?;
+        let mut wallets = self.wallets.lock();
+        wallets.remove(&policy_id);
+        log::info!("Deleted shared key for policy {policy_id}");
         Ok(())
+    }
+
+    pub fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO shared_keys (policy_id, shared_key) VALUES (?, ?);",
+            (
+                policy_id.to_hex(),
+                shared_key.secret_key()?.display_secret().to_string(),
+            ),
+        )?;
+        Ok(())
+    }
+
+    pub fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let sk: String = row.get(0)?;
+        let sk = SecretKey::from_str(&sk)?;
+        Ok(Keys::new(sk))
     }
 
     pub fn policies_with_balance(
@@ -262,8 +328,8 @@ impl Store {
     ) -> Result<BTreeMap<EventId, (Policy, Option<Balance>, bool)>, Error> {
         let wallets = self.wallets.lock();
         let mut new_policies = BTreeMap::new();
-        for (policy_id, policy) in self.get_policies()?.into_iter() {
-            let (wallet, last_sync) = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
+            let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
             new_policies.insert(
                 policy_id,
                 (policy, wallet.get_balance().ok(), last_sync.is_some()),
@@ -273,12 +339,16 @@ impl Store {
     }
 
     pub fn get_nostr_pubkeys(&self, policy_id: EventId) -> Result<Vec<XOnlyPublicKey>, Error> {
-        let pubkeys: Vec<u8> = self
-            .nostr_public_keys
-            .get(policy_id)?
-            .ok_or(Error::NotFound)?
-            .to_vec();
-        Ok(deserialize(pubkeys)?)
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT public_key FROM nostr_public_keys WHERE policy_id = ? LIMIT 1;")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let mut pubkeys = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let public_key: String = row.get(0)?;
+            pubkeys.push(XOnlyPublicKey::from_str(&public_key)?);
+        }
+        Ok(pubkeys)
     }
 
     pub fn policy_with_details(
@@ -290,10 +360,10 @@ impl Store {
         Option<Transactions>,
         Option<Timestamp>,
     )> {
-        let policy: Policy = self.get_policy(policy_id).ok()?;
+        let GetPolicyResult { policy, last_sync } = self.get_policy(policy_id).ok()?;
         let wallets = self.wallets.lock();
         let descriptions = self.get_txs_descriptions().ok()?;
-        let (wallet, last_sync) = wallets.get(&policy_id)?;
+        let wallet = wallets.get(&policy_id)?;
         let balance = wallet.get_balance().ok();
         let list = wallet.list_transactions(false).ok().map(|list| {
             list.into_iter()
@@ -303,32 +373,53 @@ impl Store {
                 })
                 .collect()
         });
-        Some((policy, balance, list, *last_sync))
+        Some((policy, balance, list, last_sync))
     }
 
     pub fn proposal_exists(&self, proposal_id: EventId) -> Result<bool, Error> {
-        Ok(self.proposals.contains_key(proposal_id)?)
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);")?;
+        let mut rows = stmt.query([proposal_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
     }
 
     pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
+        let mut rows = stmt.query([])?;
         let mut proposals = BTreeMap::new();
-        for res in self.proposals.into_iter() {
-            let (proposal_id, tuple) = res?;
+        while let Ok(Some(row)) = rows.next() {
+            let proposal_id: String = row.get(0)?;
+            let policy_id: String = row.get(1)?;
+            let proposal: String = row.get(2)?;
             proposals.insert(
-                EventId::from_slice(&proposal_id)?,
-                deserialize(tuple.to_vec())?,
+                EventId::from_hex(proposal_id)?,
+                (
+                    EventId::from_hex(policy_id)?,
+                    Proposal::from_json(proposal)?,
+                ),
             );
         }
         Ok(proposals)
     }
 
     pub fn get_proposal(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
-        let tuple: Vec<u8> = self
-            .proposals
-            .get(proposal_id)?
-            .ok_or(Error::NotFound)?
-            .to_vec();
-        Ok(deserialize(tuple)?)
+        let conn = self.pool.get()?;
+        let mut stmt = conn
+            .prepare("SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;")?;
+        let mut rows = stmt.query([proposal_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let policy_id: String = row.get(0)?;
+        let proposal: String = row.get(1)?;
+        Ok((
+            EventId::from_hex(policy_id)?,
+            Proposal::from_json(proposal)?,
+        ))
     }
 
     pub fn save_proposal(
@@ -337,14 +428,21 @@ impl Store {
         policy_id: EventId,
         proposal: Proposal,
     ) -> Result<(), Error> {
-        self.proposals
-            .insert(proposal_id, serialize((policy_id, proposal))?)?;
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO proposals (proposal_id, policy_id, proposal) VALUES (?, ?, ?);",
+            (proposal_id.to_hex(), policy_id.to_hex(), proposal.as_json()),
+        )?;
         log::info!("Spending proposal {proposal_id} saved");
         Ok(())
     }
 
     pub fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
-        self.proposals.remove(proposal_id)?;
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM proposals WHERE proposal_id = ?;",
+            [proposal_id.to_hex()],
+        )?;
         let mut approved_proposals = self.approved_proposals.lock();
         approved_proposals.remove(&proposal_id);
         log::info!("Deleted proposal {proposal_id}");
@@ -428,23 +526,55 @@ impl Store {
     }
 
     pub fn completed_proposal_exists(&self, completed_proposal_id: EventId) -> Result<bool, Error> {
-        Ok(self
-            .completed_proposals
-            .contains_key(completed_proposal_id)?)
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);")?;
+        let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
     }
 
     pub fn completed_proposals(
         &self,
     ) -> Result<BTreeMap<EventId, (EventId, CompletedProposal)>, Error> {
-        let mut completed_proposals = BTreeMap::new();
-        for res in self.completed_proposals.into_iter() {
-            let (proposal_id, tuple) = res?;
-            completed_proposals.insert(
-                EventId::from_slice(&proposal_id)?,
-                deserialize(tuple.to_vec())?,
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT completed_proposal_id, policy_id, completed_proposal FROM completed_proposals;",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut proposals = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let proposal_id: String = row.get(0)?;
+            let policy_id: String = row.get(1)?;
+            let proposal: String = row.get(2)?;
+            proposals.insert(
+                EventId::from_hex(proposal_id)?,
+                (
+                    EventId::from_hex(policy_id)?,
+                    CompletedProposal::from_json(proposal)?,
+                ),
             );
         }
-        Ok(completed_proposals)
+        Ok(proposals)
+    }
+
+    pub fn get_completed_proposal(
+        &self,
+        completed_proposal_id: EventId,
+    ) -> Result<(EventId, CompletedProposal), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
+        let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let policy_id: String = row.get(0)?;
+        let proposal: String = row.get(1)?;
+        Ok((
+            EventId::from_hex(policy_id)?,
+            CompletedProposal::from_json(proposal)?,
+        ))
     }
 
     pub fn save_completed_proposal(
@@ -453,36 +583,27 @@ impl Store {
         policy_id: EventId,
         completed_proposal: CompletedProposal,
     ) -> Result<(), Error> {
-        self.proposals.insert(
-            completed_proposal_id,
-            serialize((policy_id, completed_proposal))?,
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
+            (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.as_json()),
         )?;
         log::info!("Completed proposal {completed_proposal_id} saved");
         Ok(())
     }
 
-    pub fn get_completed_proposal(
-        &self,
-        completed_proposal_id: EventId,
-    ) -> Result<(EventId, CompletedProposal), Error> {
-        let tuple: Vec<u8> = self
-            .completed_proposals
-            .get(completed_proposal_id)?
-            .ok_or(Error::NotFound)?
-            .to_vec();
-        Ok(deserialize(tuple)?)
-    }
-
     pub fn delete_completed_proposal(&self, completed_proposal_id: EventId) -> Result<(), Error> {
-        self.completed_proposals.remove(completed_proposal_id)?;
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM completed_proposals WHERE completed_proposal_id = ?;",
+            [completed_proposal_id.to_hex()],
+        )?;
         log::info!("Deleted completed proposal {completed_proposal_id}");
         Ok(())
     }
 
     fn get_description_by_txid(&self, txid: Txid) -> Result<Option<String>, Error> {
-        for res in self.completed_proposals.into_iter() {
-            let (_, tuple) = res?;
-            let (_, proposal): (EventId, CompletedProposal) = deserialize(tuple.to_vec())?;
+        for (_, (_, proposal)) in self.completed_proposals()?.into_iter() {
             if let CompletedProposal::Spending {
                 txid: c_txid,
                 description,
@@ -499,9 +620,7 @@ impl Store {
 
     pub fn get_txs_descriptions(&self) -> Result<HashMap<Txid, String>, Error> {
         let mut map = HashMap::new();
-        for res in self.completed_proposals.into_iter() {
-            let (_, tuple) = res?;
-            let (_, proposal): (EventId, CompletedProposal) = deserialize(tuple.to_vec())?;
+        for (_, (_, proposal)) in self.completed_proposals()?.into_iter() {
             if let CompletedProposal::Spending {
                 txid, description, ..
             } = proposal
@@ -516,14 +635,14 @@ impl Store {
 
     pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
         let wallets = self.wallets.lock();
-        let (wallet, ..) = wallets.get(&policy_id)?;
+        let wallet = wallets.get(&policy_id)?;
         wallet.get_balance().ok()
     }
 
     pub fn get_transactions(&self, policy_id: EventId) -> Option<Transactions> {
         let wallets = self.wallets.lock();
         let descriptions = self.get_txs_descriptions().ok()?;
-        let (wallet, ..) = wallets.get(&policy_id)?;
+        let wallet = wallets.get(&policy_id)?;
         wallet.list_transactions(false).ok().map(|list| {
             list.into_iter()
                 .map(|tx| {
@@ -536,7 +655,7 @@ impl Store {
 
     pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
         let wallets = self.wallets.lock();
-        let (wallet, ..) = wallets.get(&policy_id)?;
+        let wallet = wallets.get(&policy_id)?;
         wallet
             .get_address(AddressIndex::LastUnused)
             .ok()
@@ -548,8 +667,8 @@ impl Store {
         let mut synced = true;
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
-        for (policy_id, (wallet, last_sync)) in wallets.iter() {
-            let policy: Policy = self.get_policy(*policy_id)?;
+        for (policy_id, wallet) in wallets.iter() {
+            let GetPolicyResult { policy, last_sync } = self.get_policy(*policy_id)?;
             if !already_seen.contains(&policy.descriptor) {
                 if last_sync.is_none() {
                     synced = false;
@@ -568,8 +687,8 @@ impl Store {
         let descriptions = self.get_txs_descriptions()?;
         let mut transactions = Vec::new();
         let mut already_seen = Vec::new();
-        for (policy_id, (wallet, ..)) in wallets.iter() {
-            let policy: Policy = self.get_policy(*policy_id)?;
+        for (policy_id, wallet) in wallets.iter() {
+            let GetPolicyResult { policy, .. } = self.get_policy(*policy_id)?;
             if !already_seen.contains(&policy.descriptor) {
                 for tx in wallet.list_transactions(false)?.into_iter() {
                     let desc: Option<String> = descriptions.get(&tx.txid).cloned();
@@ -585,8 +704,8 @@ impl Store {
         let wallets = self.wallets.lock();
         let desc = self.get_description_by_txid(txid).ok()?;
         let mut already_seen = Vec::new();
-        for (policy_id, (wallet, ..)) in wallets.iter() {
-            let policy: Policy = self.get_policy(*policy_id).ok()?;
+        for (policy_id, wallet) in wallets.iter() {
+            let GetPolicyResult { policy, .. } = self.get_policy(*policy_id).ok()?;
             if !already_seen.contains(&policy.descriptor) {
                 let txs = wallet.list_transactions(true).ok()?;
                 for tx in txs.into_iter() {
@@ -600,14 +719,8 @@ impl Store {
         None
     }
 
-    pub fn schedule_for_sync(&self, policy_id: EventId) {
-        let mut wallets = self.wallets.lock();
-        match wallets.get_mut(&policy_id) {
-            Some((_, last_sync)) => {
-                *last_sync = None;
-            }
-            None => log::error!("Wallet for policy {policy_id} not found"),
-        }
+    pub fn schedule_for_sync(&self, policy_id: EventId) -> Result<(), Error> {
+        self.update_last_sync(policy_id, None)
     }
 
     pub fn sync_with_timechain<B>(
@@ -625,17 +738,15 @@ impl Store {
             self.block_height.just_synced();
         }
 
-        let mut wallets = self.wallets.lock();
-        for (policy_id, (wallet, last_sync)) in wallets.iter_mut() {
-            if force
-                || last_sync
-                    .unwrap_or_else(|| Timestamp::from(0))
-                    .add(WALLET_SYNC_INTERVAL)
-                    <= Timestamp::now()
-            {
+        let wallets = self.wallets.lock();
+        for (policy_id, wallet) in wallets.iter() {
+            let last_sync = self
+                .get_last_sync(*policy_id)?
+                .unwrap_or_else(|| Timestamp::from(0));
+            if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
                 wallet.sync(blockchain, SyncOptions::default())?;
-                *last_sync = Some(Timestamp::now());
+                self.update_last_sync(*policy_id, Some(Timestamp::now()))?;
                 if let Some(sender) = sender {
                     let _ = sender.try_send(());
                 }

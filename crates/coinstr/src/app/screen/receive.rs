@@ -4,6 +4,7 @@
 use std::fmt;
 
 use coinstr_core::bitcoin::Address;
+use coinstr_core::db::model::GetPolicyResult;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::util;
@@ -86,10 +87,12 @@ impl State for ReceiveState {
                     .get_policies()
                     .unwrap()
                     .into_iter()
-                    .map(|(policy_id, policy)| PolicyPicLisk {
-                        policy_id,
-                        name: policy.name,
-                    })
+                    .map(
+                        |(policy_id, GetPolicyResult { policy, .. })| PolicyPicLisk {
+                            policy_id,
+                            name: policy.name,
+                        },
+                    )
                     .collect()
             },
             |p| ReceiveMessage::LoadPolicies(p).into(),

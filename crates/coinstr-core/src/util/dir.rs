@@ -22,7 +22,7 @@ where
 {
     let path = base_path.as_ref().join("nostr");
     std::fs::create_dir_all(path.as_path())?;
-    Ok(path.join(keys.public_key().to_string()))
+    Ok(path.join(format!("nostr-{}.db", keys.public_key())))
 }
 
 pub(crate) fn timechain_db<P>(base_path: P) -> Result<PathBuf, Error>

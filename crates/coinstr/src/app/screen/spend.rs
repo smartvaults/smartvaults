@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use coinstr_core::bdk::Balance;
 use coinstr_core::bitcoin::Address;
+use coinstr_core::db::model::GetPolicyResult;
 use coinstr_core::nostr_sdk::EventId;
 use coinstr_core::policy::Policy;
 use coinstr_core::proposal::Proposal;
@@ -140,10 +141,12 @@ impl State for SpendState {
                     .get_policies()
                     .unwrap()
                     .into_iter()
-                    .map(|(policy_id, policy)| PolicyPicLisk {
-                        policy_id,
-                        name: policy.name,
-                    })
+                    .map(
+                        |(policy_id, GetPolicyResult { policy, .. })| PolicyPicLisk {
+                            policy_id,
+                            name: policy.name,
+                        },
+                    )
                     .collect()
             },
             |p| SpendMessage::LoadPolicies(p).into(),
