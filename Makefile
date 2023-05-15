@@ -1,3 +1,5 @@
+.PHONY: release
+
 all: cli gui
 
 help:
@@ -16,6 +18,9 @@ gui:
 
 cli:
 	cargo build -p coinstr-cli --release
+
+release:
+	cd contrib/release && make
 
 x86_64-unknown-linux-musl:
 	rustup target add x86_64-unknown-linux-musl
