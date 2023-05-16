@@ -42,10 +42,12 @@ impl State for OpenState {
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::Open(msg) = message {
             match msg {
-                OpenMessage::LoadKeychains => match Coinstr::list_keychains(BASE_PATH.as_path()) {
-                    Ok(list) => self.keychains = list,
-                    Err(e) => self.error = Some(e.to_string()),
-                },
+                OpenMessage::LoadKeychains => {
+                    match Coinstr::list_keychains(BASE_PATH.as_path(), ctx.network) {
+                        Ok(list) => self.keychains = list,
+                        Err(e) => self.error = Some(e.to_string()),
+                    }
+                }
                 OpenMessage::KeychainSelect(name) => self.name = Some(name),
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
                 OpenMessage::OpenButtonPressed => {

@@ -137,7 +137,7 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::List => {
-            let names: Vec<String> = Coinstr::list_keychains(base_path)?;
+            let names: Vec<String> = Coinstr::list_keychains(base_path, network)?;
             for (index, name) in names.iter().enumerate() {
                 println!("{}. {name}", index + 1);
             }

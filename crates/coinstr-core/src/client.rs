@@ -26,7 +26,7 @@ use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
-    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Relay,
+    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options, Relay,
     RelayPoolNotification, Result, Tag, Timestamp, Url, SECP256K1,
 };
 use parking_lot::RwLock;
@@ -133,7 +133,7 @@ impl Coinstr {
         let base_path = base_path.as_ref();
 
         // Open keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
         let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
         let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
         keechain.keychain.apply_passphrase(passphrase);
@@ -146,18 +146,22 @@ impl Coinstr {
 
         // Open db
         let db = Store::open(
-            util::dir::nostr_db(base_path, &keys)?,
-            util::dir::timechain_db(base_path)?,
+            util::dir::nostr_db(base_path, network, &keys)?,
+            util::dir::timechain_db(base_path, network)?,
             network,
         )?;
 
         // Load wallets
         db.load_wallets()?;
 
+        let opts = Options::new()
+            .wait_for_connection(false)
+            .wait_for_send(false);
+
         Ok(Self {
             network,
             keechain,
-            client: Client::new(&keys),
+            client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
         })
@@ -181,7 +185,7 @@ impl Coinstr {
         let base_path = base_path.as_ref();
 
         // Generate keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
         let mut keechain: KeeChain =
             KeeChain::generate(file_path, get_password, word_count, || Ok(None))?;
         let passphrase: Option<String> =
@@ -200,18 +204,22 @@ impl Coinstr {
 
         // Open db
         let db = Store::open(
-            util::dir::nostr_db(base_path, &keys)?,
-            util::dir::timechain_db(base_path)?,
+            util::dir::nostr_db(base_path, network, &keys)?,
+            util::dir::timechain_db(base_path, network)?,
             network,
         )?;
 
         // Load wallets
         db.load_wallets()?;
 
+        let opts = Options::new()
+            .wait_for_connection(false)
+            .wait_for_send(false);
+
         Ok(Self {
             network,
             keechain,
-            client: Client::new(&keys),
+            client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
         })
@@ -236,7 +244,7 @@ impl Coinstr {
         let base_path = base_path.as_ref();
 
         // Restore keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, name)?;
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
         let mut keechain: KeeChain = KeeChain::restore(file_path, get_password, get_mnemonic)?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
@@ -254,28 +262,32 @@ impl Coinstr {
 
         // Open db
         let db = Store::open(
-            util::dir::nostr_db(base_path, &keys)?,
-            util::dir::timechain_db(base_path)?,
+            util::dir::nostr_db(base_path, network, &keys)?,
+            util::dir::timechain_db(base_path, network)?,
             network,
         )?;
 
         // Load wallets
         db.load_wallets()?;
 
+        let opts = Options::new()
+            .wait_for_connection(false)
+            .wait_for_send(false);
+
         Ok(Self {
             network,
             keechain,
-            client: Client::new(&keys),
+            client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
         })
     }
 
-    pub fn list_keychains<P>(base_path: P) -> Result<Vec<String>, Error>
+    pub fn list_keychains<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
     where
         P: AsRef<Path>,
     {
-        Ok(util::dir::get_keychains_list(base_path)?)
+        Ok(util::dir::get_keychains_list(base_path, network)?)
     }
 
     pub fn save(&self) -> Result<(), Error> {
@@ -1126,24 +1138,30 @@ impl Coinstr {
         self.verify_proof(proposal).await
     }
 
-    #[async_recursion::async_recursion]
-    async fn wait_for_endpoint(&self) -> String {
-        match self.electrum_endpoint() {
-            Ok(endpoint) => endpoint,
-            Err(_) => {
-                thread::sleep(Duration::from_secs(3)).await;
-                self.wait_for_endpoint().await
-            }
-        }
-    }
-
     fn sync_with_timechain(&self, sender: Sender<()>) -> AbortHandle {
         let this = self.clone();
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
         let timechain_sync = async move {
-            let endpoint = this.wait_for_endpoint().await;
-            let electrum_client = ElectrumClient::new(&endpoint).unwrap();
-            let blockchain = ElectrumBlockchain::from(electrum_client);
+            let blockchain: ElectrumBlockchain;
+            loop {
+                match this.electrum_endpoint() {
+                    Ok(endpoint) => match ElectrumClient::new(&endpoint) {
+                        Ok(client) => {
+                            blockchain = ElectrumBlockchain::from(client);
+                            break;
+                        }
+                        Err(e) => {
+                            log::error!("Impossible to connect to electrum server: {e}");
+                            thread::sleep(Duration::from_secs(10)).await;
+                        }
+                    },
+                    Err(_) => {
+                        log::warn!("Waiting for an electrum endpoint");
+                        thread::sleep(Duration::from_secs(3)).await;
+                    }
+                }
+            }
+
             loop {
                 if let Err(e) = this
                     .db
@@ -1208,6 +1226,7 @@ impl Coinstr {
                             }
                         }
                         RelayPoolNotification::Shutdown => {
+                            log::debug!("Received shutdown msg");
                             abort_handle.abort();
                         }
                         _ => (),

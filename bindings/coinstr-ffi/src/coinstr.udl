@@ -3,7 +3,7 @@
 
 namespace coinstr {
     [Throws=FFIError]
-    sequence<string> get_keychains_list(string base_path);
+    sequence<string> get_keychains_list(string base_path, Network network);
 };
 
 [Error]

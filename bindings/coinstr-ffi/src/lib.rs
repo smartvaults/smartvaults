@@ -8,8 +8,8 @@ mod proposal;
 
 use self::error::Result;
 
-pub fn get_keychains_list(base_path: String) -> Result<Vec<String>> {
-    Ok(coinstr_core::util::dir::get_keychains_list(base_path)?)
+pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<String>> {
+    Ok(coinstr_core::Coinstr::list_keychains(base_path, network)?)
 }
 
 mod ffi {
