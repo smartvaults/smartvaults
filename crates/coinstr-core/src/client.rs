@@ -825,7 +825,10 @@ impl Coinstr {
             self.network,
         )?;
 
-        Ok(ApprovedProposal::new(psbt))
+        match proposal {
+            Proposal::Spending { .. } => Ok(ApprovedProposal::spending(psbt)),
+            Proposal::ProofOfReserve { .. } => Ok(ApprovedProposal::proof_of_reserve(psbt)),
+        }
     }
 
     pub async fn approve(

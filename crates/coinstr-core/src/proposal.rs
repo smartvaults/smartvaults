@@ -79,21 +79,37 @@ impl Proposal {
 impl Encryption for Proposal {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ApprovedProposal {
-    #[serde(
-        serialize_with = "serialize_psbt",
-        deserialize_with = "deserialize_psbt"
-    )]
-    pub psbt: PartiallySignedTransaction,
+pub enum ApprovedProposal {
+    Spending {
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
+    ProofOfReserve {
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
 }
 
 impl ApprovedProposal {
-    pub fn new(psbt: PartiallySignedTransaction) -> Self {
-        Self { psbt }
+    pub fn spending(psbt: PartiallySignedTransaction) -> Self {
+        Self::Spending { psbt }
+    }
+
+    pub fn proof_of_reserve(psbt: PartiallySignedTransaction) -> Self {
+        Self::ProofOfReserve { psbt }
     }
 
     pub fn psbt(&self) -> PartiallySignedTransaction {
-        self.psbt.clone()
+        match self {
+            Self::Spending { psbt, .. } => psbt.clone(),
+            Self::ProofOfReserve { psbt, .. } => psbt.clone(),
+        }
     }
 }
 
