@@ -130,12 +130,12 @@ impl BlockHeight {
 #[derive(Debug, Clone)]
 pub struct Store {
     pool: SqlitePool,
+    keys: Keys,
     approved_proposals: Arc<Mutex<ApprovedProposals>>,
     block_height: BlockHeight,
     wallets: Arc<Mutex<BTreeMap<EventId, Wallet<SqliteDatabase>>>>,
     timechain_db_path: PathBuf,
     network: Network,
-    // cache: Cache,
 }
 
 impl Drop for Store {
@@ -144,11 +144,16 @@ impl Drop for Store {
 
 impl Store {
     /// Open new database
-    pub fn open<P>(nostr_db_path: P, timechain_db_path: P, network: Network) -> Result<Self, Error>
+    pub fn open<P>(
+        user_db_path: P,
+        timechain_db_path: P,
+        keys: &Keys,
+        network: Network,
+    ) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
-        let manager = SqliteConnectionManager::file(nostr_db_path.as_ref())
+        let manager = SqliteConnectionManager::file(user_db_path.as_ref())
             .with_flags(OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE)
             .with_init(|c| c.execute_batch(STARTUP_SQL));
         let pool = r2d2::Pool::new(manager)?;
@@ -156,6 +161,7 @@ impl Store {
         let approved_proposals = Arc::new(Mutex::new(BTreeMap::new()));
         Ok(Self {
             pool,
+            keys: keys.clone(),
             wallets: Arc::new(Mutex::new(BTreeMap::new())),
             approved_proposals,
             block_height: BlockHeight::default(),
@@ -215,7 +221,7 @@ impl Store {
         let conn = self.pool.get()?;
         conn.execute(
             "INSERT OR IGNORE INTO policies (policy_id, policy) VALUES (?, ?);",
-            (policy_id.to_hex(), policy.as_json()),
+            (policy_id.to_hex(), policy.encrypt(&self.keys)?),
         )?;
         // Save nostr public keys
         let mut stmt = conn.prepare(
@@ -247,7 +253,7 @@ impl Store {
         let policy: String = row.get(0)?;
         let last_sync: Option<u64> = row.get(1)?;
         Ok(GetPolicyResult {
-            policy: Policy::from_json(policy)?,
+            policy: Policy::decrypt(&self.keys, policy)?,
             last_sync: last_sync.map(Timestamp::from),
         })
     }
@@ -285,7 +291,7 @@ impl Store {
             policies.insert(
                 EventId::from_hex(policy_id)?,
                 GetPolicyResult {
-                    policy: Policy::from_json(policy)?,
+                    policy: Policy::decrypt(&self.keys, policy)?,
                     last_sync: last_sync.map(Timestamp::from),
                 },
             );
@@ -405,6 +411,25 @@ impl Store {
         Ok(exists == 1)
     }
 
+    pub fn save_proposal(
+        &self,
+        proposal_id: EventId,
+        policy_id: EventId,
+        proposal: Proposal,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO proposals (proposal_id, policy_id, proposal) VALUES (?, ?, ?);",
+            (
+                proposal_id.to_hex(),
+                policy_id.to_hex(),
+                proposal.encrypt(&self.keys)?,
+            ),
+        )?;
+        log::info!("Spending proposal {proposal_id} saved");
+        Ok(())
+    }
+
     pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
@@ -419,7 +444,7 @@ impl Store {
                 EventId::from_hex(proposal_id)?,
                 (
                     EventId::from_hex(policy_id)?,
-                    Proposal::from_json(proposal)?,
+                    Proposal::decrypt(&self.keys, proposal)?,
                 ),
             );
         }
@@ -437,23 +462,8 @@ impl Store {
         let proposal: String = row.get(1)?;
         Ok((
             EventId::from_hex(policy_id)?,
-            Proposal::from_json(proposal)?,
+            Proposal::decrypt(&self.keys, proposal)?,
         ))
-    }
-
-    pub fn save_proposal(
-        &self,
-        proposal_id: EventId,
-        policy_id: EventId,
-        proposal: Proposal,
-    ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "INSERT OR IGNORE INTO proposals (proposal_id, policy_id, proposal) VALUES (?, ?, ?);",
-            (proposal_id.to_hex(), policy_id.to_hex(), proposal.as_json()),
-        )?;
-        log::info!("Spending proposal {proposal_id} saved");
-        Ok(())
     }
 
     pub fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
@@ -556,6 +566,21 @@ impl Store {
         Ok(exists == 1)
     }
 
+    pub fn save_completed_proposal(
+        &self,
+        completed_proposal_id: EventId,
+        policy_id: EventId,
+        completed_proposal: CompletedProposal,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
+            (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.encrypt(&self.keys)?),
+        )?;
+        log::info!("Completed proposal {completed_proposal_id} saved");
+        Ok(())
+    }
+
     pub fn completed_proposals(
         &self,
     ) -> Result<BTreeMap<EventId, (EventId, CompletedProposal)>, Error> {
@@ -573,7 +598,7 @@ impl Store {
                 EventId::from_hex(proposal_id)?,
                 (
                     EventId::from_hex(policy_id)?,
-                    CompletedProposal::from_json(proposal)?,
+                    CompletedProposal::decrypt(&self.keys, proposal)?,
                 ),
             );
         }
@@ -592,23 +617,8 @@ impl Store {
         let proposal: String = row.get(1)?;
         Ok((
             EventId::from_hex(policy_id)?,
-            CompletedProposal::from_json(proposal)?,
+            CompletedProposal::decrypt(&self.keys, proposal)?,
         ))
-    }
-
-    pub fn save_completed_proposal(
-        &self,
-        completed_proposal_id: EventId,
-        policy_id: EventId,
-        completed_proposal: CompletedProposal,
-    ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
-            (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.as_json()),
-        )?;
-        log::info!("Completed proposal {completed_proposal_id} saved");
-        Ok(())
     }
 
     pub fn delete_completed_proposal(&self, completed_proposal_id: EventId) -> Result<(), Error> {
