@@ -6,9 +6,8 @@ use std::fs::File;
 use std::io::Write;
 
 use coinstr_core::bdk::miniscript::Descriptor;
-use coinstr_core::bdk::Balance;
+use coinstr_core::db::model::GetDetailedPolicyResult;
 use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::policy::Policy;
 use coinstr_core::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -22,7 +21,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(BTreeMap<EventId, (Policy, Option<Balance>, bool)>),
+    LoadPolicies(BTreeMap<EventId, GetDetailedPolicyResult>),
     ExportDescriptor(Descriptor<String>),
     Reload,
 }
@@ -31,7 +30,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: BTreeMap<EventId, (Policy, Option<Balance>, bool)>,
+    policies: BTreeMap<EventId, GetDetailedPolicyResult>,
 }
 
 impl PoliciesState {
@@ -49,7 +48,7 @@ impl State for PoliciesState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.db.policies_with_balance().unwrap() },
+            async move { client.get_detailed_policies().unwrap() },
             |p| PoliciesMessage::LoadPolicies(p).into(),
         )
     }
@@ -155,8 +154,16 @@ impl State for PoliciesState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (policy_id, (policy, balance, synced)) in self.policies.iter() {
-                    let balance: String = if *synced {
+                for (
+                    policy_id,
+                    GetDetailedPolicyResult {
+                        policy,
+                        balance,
+                        last_sync,
+                    },
+                ) in self.policies.iter()
+                {
+                    let balance: String = if last_sync.is_some() {
                         match balance {
                             Some(balance) => {
                                 format!("{} sat", util::format::big_number(balance.get_total()))

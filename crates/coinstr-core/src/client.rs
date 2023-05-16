@@ -36,7 +36,7 @@ use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND,
 };
-use crate::db::model::GetPolicyResult;
+use crate::db::model::{GetDetailedPolicyResult, GetPolicyResult};
 use crate::db::store::{GetApprovedProposals, Transactions};
 use crate::db::Store;
 use crate::policy::Policy;
@@ -582,6 +582,12 @@ impl Coinstr {
 
     pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
         Ok(self.db.get_policies()?)
+    }
+
+    pub fn get_detailed_policies(
+        &self,
+    ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
+        Ok(self.db.get_detailed_policies()?)
     }
 
     pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {

@@ -6,6 +6,16 @@ use nostr_sdk::Keys;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+#[derive(Debug, thiserror::Error)]
+pub enum EncryptionError {
+    #[error(transparent)]
+    Keys(#[from] nostr_sdk::key::Error),
+    #[error(transparent)]
+    NIP04(#[from] nostr_sdk::nips::nip04::Error),
+    #[error(transparent)]
+    JSON(#[from] serde_json::Error),
+}
+
 pub trait Encryption: Sized + Serialize + DeserializeOwned {
     /// Deserialize from `JSON` string
     fn from_json<S>(json: S) -> Result<Self, EncryptionError>
@@ -37,14 +47,4 @@ pub trait Encryption: Sized + Serialize + DeserializeOwned {
         let json = nip04::decrypt(&keys.secret_key()?, &keys.public_key(), content)?;
         Self::from_json(json)
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum EncryptionError {
-    #[error(transparent)]
-    Keys(#[from] nostr_sdk::key::Error),
-    #[error(transparent)]
-    NIP04(#[from] nostr_sdk::nips::nip04::Error),
-    #[error(transparent)]
-    JSON(#[from] serde_json::Error),
 }

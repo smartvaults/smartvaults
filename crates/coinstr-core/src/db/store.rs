@@ -32,7 +32,7 @@ use rusqlite::OpenFlags;
 use tokio::sync::mpsc::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
-use super::model::GetPolicyResult;
+use super::model::{GetDetailedPolicyResult, GetPolicyResult};
 use crate::policy::{self, Policy};
 use crate::proposal::{CompletedProposal, Proposal};
 use crate::util::{Encryption, EncryptionError};
@@ -79,6 +79,9 @@ pub enum Error {
     /// Policy error
     #[error(transparent)]
     Policy(#[from] policy::Error),
+    /// Not found
+    #[error("impossible to open policy {0} db")]
+    FailedToOpenPolicyDb(EventId),
     /// Not found
     #[error("not found")]
     NotFound,
@@ -161,10 +164,19 @@ impl Store {
         })
     }
 
+    fn get_wallet_db(&self, policy_id: EventId) -> Result<SqliteDatabase, Error> {
+        let path = self.timechain_db_path.clone();
+        let handle =
+            std::thread::spawn(move || SqliteDatabase::new(path.join(format!("{policy_id}.db"))));
+        handle
+            .join()
+            .map_err(|_| Error::FailedToOpenPolicyDb(policy_id))
+    }
+
     pub fn load_wallets(&self) -> Result<(), Error> {
         let mut wallets = self.wallets.lock();
         for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()? {
-            let db = SqliteDatabase::new(self.timechain_db_path.join(format!("{policy_id}.db")));
+            let db: SqliteDatabase = self.get_wallet_db(policy_id)?;
             wallets.insert(
                 policy_id,
                 Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?,
@@ -229,7 +241,7 @@ impl Store {
     pub fn get_policy(&self, policy_id: EventId) -> Result<GetPolicyResult, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
-            conn.prepare("SELECT policy, last_sync FROM policies WHERE policy_id = ?")?;
+            conn.prepare_cached("SELECT policy, last_sync FROM policies WHERE policy_id = ?")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
         let row = rows.next()?.ok_or(Error::NotFound)?;
         let policy: String = row.get(0)?;
@@ -263,7 +275,7 @@ impl Store {
 
     pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT policy_id, policy, last_sync FROM policies")?;
+        let mut stmt = conn.prepare_cached("SELECT policy_id, policy, last_sync FROM policies")?;
         let mut rows = stmt.query([])?;
         let mut policies = BTreeMap::new();
         while let Ok(Some(row)) = rows.next() {
@@ -275,6 +287,23 @@ impl Store {
                 GetPolicyResult {
                     policy: Policy::from_json(policy)?,
                     last_sync: last_sync.map(Timestamp::from),
+                },
+            );
+        }
+        Ok(policies)
+    }
+
+    pub fn get_detailed_policies(
+        &self,
+    ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
+        let mut policies = BTreeMap::new();
+        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
+            policies.insert(
+                policy_id,
+                GetDetailedPolicyResult {
+                    policy,
+                    balance: self.get_balance(policy_id),
+                    last_sync,
                 },
             );
         }
@@ -315,7 +344,8 @@ impl Store {
 
     pub fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
+        let mut stmt =
+            conn.prepare_cached("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
         let row = rows.next()?.ok_or(Error::NotFound)?;
         let sk: String = row.get(0)?;
@@ -323,25 +353,11 @@ impl Store {
         Ok(Keys::new(sk))
     }
 
-    pub fn policies_with_balance(
-        &self,
-    ) -> Result<BTreeMap<EventId, (Policy, Option<Balance>, bool)>, Error> {
-        let wallets = self.wallets.lock();
-        let mut new_policies = BTreeMap::new();
-        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
-            let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-            new_policies.insert(
-                policy_id,
-                (policy, wallet.get_balance().ok(), last_sync.is_some()),
-            );
-        }
-        Ok(new_policies)
-    }
-
     pub fn get_nostr_pubkeys(&self, policy_id: EventId) -> Result<Vec<XOnlyPublicKey>, Error> {
         let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare("SELECT public_key FROM nostr_public_keys WHERE policy_id = ? LIMIT 1;")?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT public_key FROM nostr_public_keys WHERE policy_id = ? LIMIT 1;",
+        )?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
         let mut pubkeys = Vec::new();
         while let Ok(Some(row)) = rows.next() {
@@ -378,8 +394,9 @@ impl Store {
 
     pub fn proposal_exists(&self, proposal_id: EventId) -> Result<bool, Error> {
         let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare("SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);")?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);",
+        )?;
         let mut rows = stmt.query([proposal_id.to_hex()])?;
         let exists: u8 = match rows.next()? {
             Some(row) => row.get(0)?,
@@ -390,7 +407,8 @@ impl Store {
 
     pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
+        let mut stmt =
+            conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
         let mut rows = stmt.query([])?;
         let mut proposals = BTreeMap::new();
         while let Ok(Some(row)) = rows.next() {
@@ -410,8 +428,9 @@ impl Store {
 
     pub fn get_proposal(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn
-            .prepare("SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;")?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
+        )?;
         let mut rows = stmt.query([proposal_id.to_hex()])?;
         let row = rows.next()?.ok_or(Error::NotFound)?;
         let policy_id: String = row.get(0)?;
@@ -663,18 +682,16 @@ impl Store {
     }
 
     pub fn get_total_balance(&self) -> Result<(Balance, bool), Error> {
-        let wallets = self.wallets.lock();
         let mut synced = true;
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
-        for (policy_id, wallet) in wallets.iter() {
-            let GetPolicyResult { policy, last_sync } = self.get_policy(*policy_id)?;
+        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
             if !already_seen.contains(&policy.descriptor) {
                 if last_sync.is_none() {
                     synced = false;
                     break;
                 }
-                let balance = wallet.get_balance()?;
+                let balance = self.get_balance(policy_id).unwrap_or_default();
                 total_balance = total_balance.add(balance);
                 already_seen.push(policy.descriptor);
             }
@@ -738,15 +755,14 @@ impl Store {
             self.block_height.just_synced();
         }
 
-        let wallets = self.wallets.lock();
-        for (policy_id, wallet) in wallets.iter() {
-            let last_sync = self
-                .get_last_sync(*policy_id)?
-                .unwrap_or_else(|| Timestamp::from(0));
+        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
+            let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
             if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
+                let db: SqliteDatabase = self.get_wallet_db(policy_id)?;
+                let wallet = Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?;
                 wallet.sync(blockchain, SyncOptions::default())?;
-                self.update_last_sync(*policy_id, Some(Timestamp::now()))?;
+                self.update_last_sync(policy_id, Some(Timestamp::now()))?;
                 if let Some(sender) = sender {
                     let _ = sender.try_send(());
                 }
