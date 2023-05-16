@@ -146,8 +146,9 @@ impl Coinstr {
 
         // Open db
         let db = Store::open(
-            util::dir::nostr_db(base_path, network, &keys)?,
+            util::dir::user_db(base_path, network, keys.public_key())?,
             util::dir::timechain_db(base_path, network)?,
+            &keys,
             network,
         )?;
 
@@ -204,8 +205,9 @@ impl Coinstr {
 
         // Open db
         let db = Store::open(
-            util::dir::nostr_db(base_path, network, &keys)?,
+            util::dir::user_db(base_path, network, keys.public_key())?,
             util::dir::timechain_db(base_path, network)?,
+            &keys,
             network,
         )?;
 
@@ -262,8 +264,9 @@ impl Coinstr {
 
         // Open db
         let db = Store::open(
-            util::dir::nostr_db(base_path, network, &keys)?,
+            util::dir::user_db(base_path, network, keys.public_key())?,
             util::dir::timechain_db(base_path, network)?,
+            &keys,
             network,
         )?;
 

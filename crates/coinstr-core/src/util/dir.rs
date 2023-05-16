@@ -3,10 +3,9 @@
 
 use std::path::{Path, PathBuf};
 
-use bdk::bitcoin::Network;
+use bdk::bitcoin::{Network, XOnlyPublicKey};
 use keechain_core::util::dir;
 pub use keechain_core::util::dir::Error;
-use nostr_sdk::Keys;
 
 fn network_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where
@@ -17,7 +16,7 @@ where
     Ok(path)
 }
 
-fn keychains<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
+fn keychains_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,
 {
@@ -26,20 +25,33 @@ where
     Ok(path)
 }
 
-pub(crate) fn nostr_db<P>(base_path: P, network: Network, keys: &Keys) -> Result<PathBuf, Error>
+fn cache_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,
 {
-    let path = network_path(base_path, network)?.join("nostr");
+    let path = network_path(base_path, network)?.join("cache");
     std::fs::create_dir_all(path.as_path())?;
-    Ok(path.join(format!("nostr-{}.db", keys.public_key())))
+    Ok(path)
+}
+
+pub(crate) fn user_db<P>(
+    base_path: P,
+    network: Network,
+    public_key: XOnlyPublicKey,
+) -> Result<PathBuf, Error>
+where
+    P: AsRef<Path>,
+{
+    let path = cache_path(base_path, network)?.join("users");
+    std::fs::create_dir_all(path.as_path())?;
+    Ok(path.join(format!("{public_key}.db")))
 }
 
 pub(crate) fn timechain_db<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,
 {
-    let path = network_path(base_path, network)?.join("timechain");
+    let path = cache_path(base_path, network)?.join("timechain");
     std::fs::create_dir_all(path.as_path())?;
     Ok(path)
 }
@@ -48,7 +60,7 @@ pub(crate) fn get_keychains_list<P>(base_path: P, network: Network) -> Result<Ve
 where
     P: AsRef<Path>,
 {
-    let keychains_path = keychains(base_path, network)?;
+    let keychains_path = keychains_path(base_path, network)?;
     dir::get_keychains_list(keychains_path)
 }
 
@@ -61,6 +73,6 @@ where
     P: AsRef<Path>,
     S: Into<String>,
 {
-    let keychains_path = keychains(base_path, network)?;
+    let keychains_path = keychains_path(base_path, network)?;
     dir::get_keychain_file(keychains_path, name)
 }
