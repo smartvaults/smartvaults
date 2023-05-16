@@ -46,7 +46,8 @@ impl Context {
         let endpoint: &str = match coinstr.network() {
             Network::Bitcoin => "ssl://blockstream.info:700",
             Network::Testnet => "ssl://blockstream.info:993",
-            _ => panic!("Endpoints not availabe for this network"),
+            Network::Signet => "tcp://signet-electrumx.wakiyamap.dev:50001",
+            Network::Regtest => "tcp://localhost:60401",
         };
         coinstr.set_electrum_endpoint(endpoint);
         RUNTIME.block_on(async {
