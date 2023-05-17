@@ -1,50 +1,31 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use nostr_sdk::nips::nip04;
-use nostr_sdk::Keys;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use keechain_core::crypto::aes;
+use keechain_core::util::serde::deserialize;
+
+use super::serde::Serde;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EncryptionError {
     #[error(transparent)]
-    Keys(#[from] nostr_sdk::key::Error),
-    #[error(transparent)]
-    NIP04(#[from] nostr_sdk::nips::nip04::Error),
+    Aes(#[from] aes::Error),
     #[error(transparent)]
     JSON(#[from] serde_json::Error),
 }
 
-pub trait Encryption: Sized + Serialize + DeserializeOwned {
-    /// Deserialize from `JSON` string
-    fn from_json<S>(json: S) -> Result<Self, EncryptionError>
-    where
-        S: Into<String>,
-    {
-        Ok(serde_json::from_str(&json.into())?)
-    }
-
-    /// Serialize to `JSON` string
-    fn as_json(&self) -> String {
-        serde_json::json!(self).to_string()
-    }
-
+pub trait Encryption: Serde {
     /// Encrypt
-    fn encrypt(&self, keys: &Keys) -> Result<String, EncryptionError> {
-        Ok(nip04::encrypt(
-            &keys.secret_key()?,
-            &keys.public_key(),
-            self.as_json(),
-        )?)
+    fn encrypt(&self, key: [u8; 32]) -> String {
+        aes::encrypt(key, self.as_json())
     }
 
-    /// Deccrypt
-    fn decrypt<S>(keys: &Keys, content: S) -> Result<Self, EncryptionError>
+    /// Decrypt
+    fn decrypt<T>(key: [u8; 32], content: T) -> Result<Self, EncryptionError>
     where
-        S: Into<String>,
+        T: AsRef<[u8]>,
     {
-        let json = nip04::decrypt(&keys.secret_key()?, &keys.public_key(), content)?;
-        Self::from_json(json)
+        let data: Vec<u8> = aes::decrypt(key, content)?;
+        Ok(deserialize(data)?)
     }
 }

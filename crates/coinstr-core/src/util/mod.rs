@@ -4,16 +4,15 @@
 use std::str::FromStr;
 
 use keechain_core::bitcoin::secp256k1::rand::rngs::OsRng;
-use keechain_core::bitcoin::secp256k1::SECP256K1;
 use keechain_core::bitcoin::XOnlyPublicKey;
 pub use keechain_core::util::*;
-use nostr_sdk::{prelude::TagKind, Event, EventId, Tag};
+use keechain_core::SECP256K1;
 
-pub mod dir;
 pub mod encryption;
-pub mod format;
+pub mod serde;
 
 pub use self::encryption::{Encryption, EncryptionError};
+pub use self::serde::Serde;
 
 const XONLY_PUBLIC_KEY_LEN: usize = 64;
 const HEX_CHARS: &str = "ABCDEFabcdef0123456789";
@@ -21,7 +20,7 @@ const HEX_CHARS: &str = "ABCDEFabcdef0123456789";
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Secp256k1(#[from] nostr_sdk::secp256k1::Error),
+    Secp256k1(#[from] keechain_core::bitcoin::secp256k1::Error),
 }
 
 pub fn extract_public_keys<S>(descriptor: S) -> Result<Vec<XOnlyPublicKey>, Error>
@@ -73,30 +72,6 @@ impl Unspendable for XOnlyPublicKey {
         let (public_key, _) = public_key.x_only_public_key();
         public_key
     }
-}
-
-pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
-    for tag in event.tags.iter() {
-        if let Tag::Event(event_id, ..) = tag {
-            return Some(*event_id);
-        }
-    }
-    None
-}
-
-pub fn extract_tags_by_kind(event: &Event, kind: TagKind) -> Vec<&Tag> {
-    let mut tags = Vec::new();
-    for tag in event.tags.iter() {
-        if kind == tag.kind() {
-            tags.push(tag);
-        }
-    }
-    tags
-}
-
-/// Get the first 8 chars of an [`EventId`]
-pub fn cut_event_id(event_id: EventId) -> String {
-    event_id.to_string()[..8].to_string()
 }
 
 #[cfg(test)]

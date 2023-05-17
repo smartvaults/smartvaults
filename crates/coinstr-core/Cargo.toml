@@ -9,26 +9,10 @@ license.workspace = true
 readme = "README.md"
 keywords.workspace = true
 
-[features]
-default = []
-blocking = ["nostr-sdk/blocking"]
-
 [dependencies]
-async-recursion = "1.0"
-bdk = { version = "0.28", default-features = false, features = ["std", "compiler", "electrum", "sqlite-bundled"] }
+bdk = { version = "0.28", default-features = false, features = ["std", "compiler"] }
 bitcoinconsensus = "0.20.2-0.5.0"
-futures-util = "0.3"
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "c86c24f9b3b7d624b97663575b4b3bf3f4b8de3d" }
-log = "0.4"
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
-parking_lot = "0.12"
-r2d2 = "0.8"
-r2d2_sqlite = "0.21"
-rusqlite = { version = "0.28", features = ["bundled", "serde_json"] }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "dd9a8bfddf99db7fe144f5eca3c4ea273610ef44" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
-tokio = { version = "1", features = ["sync"] }
-
-[dev-dependencies]
-tokio = { version = "1", features = ["macros"] }
