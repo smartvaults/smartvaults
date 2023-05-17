@@ -135,6 +135,9 @@ async fn run() -> Result<()> {
                     }
                 }
             }
+
+            coinstr.shutdown().await?;
+
             Ok(())
         }
         CliCommand::List => {
