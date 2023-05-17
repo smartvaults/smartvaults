@@ -1,0 +1,29 @@
+[package]
+name = "coinstr-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Coinstr SDK"
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme = "README.md"
+keywords.workspace = true
+
+[features]
+default = []
+blocking = ["nostr-sdk/blocking"]
+
+[dependencies]
+async-recursion = "1.0"
+bdk = { version = "0.28", default-features = false, features = ["std", "electrum", "sqlite-bundled"] }
+coinstr-core = { path = "../coinstr-core" }
+futures-util = "0.3"
+log = "0.4"
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
+parking_lot = "0.12"
+r2d2 = "0.8"
+r2d2_sqlite = "0.21"
+rusqlite = { version = "0.28", features = ["bundled", "serde_json"] }
+thiserror = "1.0"
+tokio = { version = "1", features = ["sync"] }
+

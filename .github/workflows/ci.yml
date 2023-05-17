@@ -25,6 +25,7 @@ jobs:
         build-args:
           [
             "-p coinstr-core",
+            "-p coinstr-sdk",
             "-p coinstr-cli",
             "-p coinstr",
           ]
