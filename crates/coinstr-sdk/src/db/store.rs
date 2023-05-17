@@ -356,9 +356,8 @@ impl Store {
 
     pub fn get_nostr_pubkeys(&self, policy_id: EventId) -> Result<Vec<XOnlyPublicKey>, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
-            "SELECT public_key FROM nostr_public_keys WHERE policy_id = ? LIMIT 1;",
-        )?;
+        let mut stmt =
+            conn.prepare_cached("SELECT public_key FROM nostr_public_keys WHERE policy_id = ?;")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
         let mut pubkeys = Vec::new();
         while let Ok(Some(row)) = rows.next() {
