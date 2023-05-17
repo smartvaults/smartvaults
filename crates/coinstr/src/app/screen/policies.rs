@@ -5,10 +5,10 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
 
-use coinstr_core::bdk::miniscript::Descriptor;
-use coinstr_core::db::model::GetDetailedPolicyResult;
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::util;
+use coinstr_sdk::core::bdk::miniscript::Descriptor;
+use coinstr_sdk::db::model::GetDetailedPolicyResult;
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;

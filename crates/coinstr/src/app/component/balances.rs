@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bdk::Balance;
-use coinstr_core::util::format;
+use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::util::format;
 use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
 

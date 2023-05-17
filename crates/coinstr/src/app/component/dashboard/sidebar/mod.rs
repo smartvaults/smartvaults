@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bips::bip32::Bip32RootKey;
-use coinstr_core::util::format;
+use coinstr_sdk::core::bips::bip32::Bip32;
+use coinstr_sdk::util::format;
 use iced::widget::{svg, Column, Container, Row, Rule, Space};
 use iced::Length;
 

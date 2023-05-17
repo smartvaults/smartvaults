@@ -1,10 +1,10 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bdk::TransactionDetails;
-use coinstr_core::db::store::Transactions;
-use coinstr_core::nostr_sdk::{EventId, Timestamp};
-use coinstr_core::util::format;
+use coinstr_sdk::core::bdk::TransactionDetails;
+use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 

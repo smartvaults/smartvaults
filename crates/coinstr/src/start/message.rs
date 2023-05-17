@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::Coinstr;
+use coinstr_sdk::Coinstr;
 
 use super::screen::{GenerateMessage, OpenMessage, RestoreMessage};
 use super::Stage;

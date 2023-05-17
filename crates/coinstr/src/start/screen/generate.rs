@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::types::WordCount;
-use coinstr_core::Coinstr;
+use coinstr_sdk::core::types::WordCount;
+use coinstr_sdk::Coinstr;
 use iced::widget::{Checkbox, Column, Row};
 use iced::{Command, Element, Length};
 

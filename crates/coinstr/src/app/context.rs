@@ -1,11 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bitcoin::{Network, Txid};
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::policy::Policy;
-use coinstr_core::proposal::{CompletedProposal, Proposal};
-use coinstr_core::Coinstr;
+use coinstr_sdk::core::bitcoin::{Network, Txid};
+use coinstr_sdk::core::policy::Policy;
+use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::Coinstr;
 
 use crate::theme::Theme;
 use crate::RUNTIME;

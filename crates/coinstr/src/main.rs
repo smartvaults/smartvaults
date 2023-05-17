@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use coinstr_core::bitcoin::Network;
+use coinstr_sdk::core::bitcoin::Network;
 use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;

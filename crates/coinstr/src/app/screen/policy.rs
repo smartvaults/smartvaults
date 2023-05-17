@@ -5,11 +5,11 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 
-use coinstr_core::bdk::Balance;
-use coinstr_core::db::store::Transactions;
-use coinstr_core::nostr_sdk::{EventId, Timestamp};
-use coinstr_core::policy::Policy;
-use coinstr_core::util;
+use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::core::policy::Policy;
+use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 use rfd::FileDialog;

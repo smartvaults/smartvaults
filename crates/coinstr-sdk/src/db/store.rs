@@ -535,10 +535,7 @@ impl Store {
         Ok(GetApprovedProposals {
             policy_id,
             proposal,
-            approved_proposals: proposals
-                .iter()
-                .map(|(_, (_, p, _))| p.clone())
-                .collect(),
+            approved_proposals: proposals.iter().map(|(_, (_, p, _))| p.clone()).collect(),
         })
     }
 

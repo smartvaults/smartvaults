@@ -3,10 +3,10 @@
 
 use std::fmt;
 
-use coinstr_core::db::model::GetPolicyResult;
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::policy::Policy;
-use coinstr_core::util;
+use coinstr_sdk::core::policy::Policy;
+use coinstr_sdk::db::model::GetPolicyResult;
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::util;
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 

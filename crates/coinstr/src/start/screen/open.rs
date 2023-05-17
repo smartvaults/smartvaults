@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::Coinstr;
+use coinstr_sdk::Coinstr;
 use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
 use iced::{Alignment, Command, Element, Length};
 

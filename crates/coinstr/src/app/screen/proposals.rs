@@ -3,8 +3,8 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::proposal::Proposal;
+use coinstr_sdk::core::proposal::Proposal;
+use coinstr_sdk::nostr::EventId;
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 

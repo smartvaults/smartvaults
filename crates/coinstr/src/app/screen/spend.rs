@@ -4,14 +4,16 @@
 use std::fmt;
 use std::str::FromStr;
 
-use coinstr_core::bdk::Balance;
-use coinstr_core::bitcoin::Address;
-use coinstr_core::db::model::GetPolicyResult;
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::policy::Policy;
-use coinstr_core::proposal::Proposal;
-use coinstr_core::util::format;
-use coinstr_core::{util, Amount, FeeRate};
+use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
+use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::core::bitcoin::Address;
+use coinstr_sdk::core::policy::Policy;
+use coinstr_sdk::core::proposal::Proposal;
+use coinstr_sdk::core::{Amount, FeeRate};
+use coinstr_sdk::db::model::GetPolicyResult;
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Radio, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -104,10 +106,14 @@ impl SpendState {
 
         let client = ctx.client.clone();
         let description = self.description.clone();
-        let fee_rate = self.fee_rate;
+        let target_blocks = self.fee_rate.target_blocks();
 
         Command::perform(
             async move {
+                let endpoint: String = client.electrum_endpoint()?;
+                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
+                let fee_rate = blockchain.estimate_fee(target_blocks)?;
+
                 let (proposal_id, proposal) = client
                     .spend(policy_id, to_address, amount, description, fee_rate, None)
                     .await?;

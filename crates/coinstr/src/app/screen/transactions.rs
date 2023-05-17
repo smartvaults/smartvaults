@@ -3,9 +3,9 @@
 
 use std::time::Duration;
 
-use coinstr_core::db::store::Transactions;
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::util;
+use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::util;
 use iced::widget::{Column, Space};
 use iced::{time, Command, Element, Length, Subscription};
 

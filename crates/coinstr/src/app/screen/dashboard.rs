@@ -4,10 +4,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_core::bdk::Balance;
-use coinstr_core::db::store::Transactions;
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::proposal::Proposal;
+use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::core::proposal::Proposal;
+use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::nostr::EventId;
 use iced::widget::{Column, Space};
 use iced::{time, Command, Element, Length, Subscription};
 

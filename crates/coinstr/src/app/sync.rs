@@ -5,7 +5,7 @@ use std::any::TypeId;
 use std::hash::{Hash, Hasher};
 
 use async_stream::stream;
-use coinstr_core::Coinstr;
+use coinstr_sdk::Coinstr;
 use iced::Subscription;
 use iced_futures::BoxStream;
 

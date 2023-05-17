@@ -3,10 +3,10 @@
 
 use std::time::Duration;
 
-use coinstr_core::bdk::TransactionDetails;
-use coinstr_core::bitcoin::{Address, Txid};
-use coinstr_core::nostr_sdk::Timestamp;
-use coinstr_core::util::format;
+use coinstr_sdk::core::bdk::TransactionDetails;
+use coinstr_sdk::core::bitcoin::{Address, Txid};
+use coinstr_sdk::nostr::Timestamp;
+use coinstr_sdk::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Command, Element, Length, Subscription};
 

@@ -4,17 +4,16 @@
 use std::fs::File;
 use std::io::Write;
 
-use coinstr_core::bitcoin::XOnlyPublicKey;
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::proposal::CompletedProposal;
-use coinstr_core::util;
+use coinstr_sdk::core::proposal::CompletedProposal;
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
-use iced::{Alignment, Command, Element, Length};
+use iced::{Command, Element, Length};
 use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{button, Text};
 use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, GREY, RED};
 use crate::theme::icon::{PATCH_CHECK, SAVE, TRASH};
@@ -192,26 +191,21 @@ impl State for CompletedProposalState {
 
         let mut buttons = Row::new().spacing(10);
 
-        let approvals = match &self.completed_proposal {
+        match &self.completed_proposal {
             CompletedProposal::Spending {
-                txid,
-                description,
-                approvals,
+                tx, description, ..
             } => {
+                let txid = tx.txid();
                 content = content
                     .push(Text::new("Type: spending").view())
                     .push(
                         Text::new(format!("Txid: {txid}"))
-                            .on_press(Message::View(Stage::Transaction(*txid)))
+                            .on_press(Message::View(Stage::Transaction(txid)))
                             .view(),
                     )
                     .push(Text::new(format!("Description: {description}")).view());
-
-                approvals
             }
-            CompletedProposal::ProofOfReserve {
-                message, approvals, ..
-            } => {
+            CompletedProposal::ProofOfReserve { message, .. } => {
                 let mut status = Row::new().push(Text::new("Status: ").view());
 
                 match self.proof_status {
@@ -248,8 +242,6 @@ impl State for CompletedProposalState {
                 }
 
                 buttons = buttons.push(verify_proof_btn).push(export_btn);
-
-                approvals
             }
         };
 
@@ -263,33 +255,6 @@ impl State for CompletedProposalState {
             .push(Space::with_height(10.0))
             .push(buttons.push(delete_btn))
             .push(Space::with_height(20.0));
-
-        if !approvals.is_empty() {
-            content = content
-                .push(Text::new("Approvals").bold().bigger().view())
-                .push(Space::with_height(10.0))
-                .push(
-                    Row::new()
-                        .push(Text::new("User").bold().bigger().width(Length::Fill).view())
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill),
-                )
-                .push(rule::horizontal_bold());
-
-            for author in approvals.iter() {
-                let row = Row::new()
-                    .push(
-                        Text::new(cut_public_key(*author))
-                            .width(Length::Fill)
-                            .view(),
-                    )
-                    .spacing(10)
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-                content = content.push(row).push(rule::horizontal());
-            }
-        }
 
         Dashboard::new().view(ctx, content, false, false)
     }
@@ -305,9 +270,4 @@ impl From<CompletedProposalMessage> for Message {
     fn from(msg: CompletedProposalMessage) -> Self {
         Self::CompletedProposal(msg)
     }
-}
-
-fn cut_public_key(pk: XOnlyPublicKey) -> String {
-    let pk = pk.to_string();
-    format!("{}:{}", &pk[0..8], &pk[pk.len() - 8..])
 }

@@ -3,9 +3,9 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_core::nostr_sdk::EventId;
-use coinstr_core::proposal::{CompletedProposal, Proposal};
-use coinstr_core::util::{self, format};
+use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
 

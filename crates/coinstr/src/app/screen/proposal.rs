@@ -4,12 +4,12 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::XOnlyPublicKey;
-use coinstr_core::nostr_sdk::{EventId, Timestamp};
-use coinstr_core::proposal::Proposal;
-use coinstr_core::types::Psbt;
-use coinstr_core::util;
+use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::core::proposal::Proposal;
+use coinstr_sdk::core::types::Psbt;
+use coinstr_sdk::core::{ApprovedProposal, CompletedProposal};
+use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 use rfd::FileDialog;
@@ -28,9 +28,7 @@ pub enum ProposalMessage {
     Signed(bool),
     Reload,
     CheckPsbts,
-    LoadApprovedProposals(
-        BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
-    ),
+    LoadApprovedProposals(BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>),
     ExportPsbt,
     Delete,
     ErrorChanged(Option<String>),
@@ -44,7 +42,7 @@ pub struct ProposalState {
     proposal_id: EventId,
     proposal: Proposal,
     policy_id: EventId,
-    approved_proposals: BTreeMap<XOnlyPublicKey, (EventId, PartiallySignedTransaction, Timestamp)>,
+    approved_proposals: BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>,
     error: Option<String>,
 }
 
@@ -137,55 +135,37 @@ impl State for ProposalState {
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
 
-                    return match self.proposal {
-                        Proposal::Spending { .. } => Command::perform(
-                            async move { client.broadcast(proposal_id, None).await },
-                            |res| match res {
-                                Ok(txid) => Message::View(Stage::Transaction(txid)),
-                                Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
-                            },
-                        ),
-                        Proposal::ProofOfReserve { .. } => Command::perform(
-                            async move { client.finalize_proof(proposal_id, None).await },
-                            |res| match res {
-                                Ok((id, proposal, policy_id)) => {
-                                    Message::View(Stage::CompletedProposal(id, proposal, policy_id))
+                    return Command::perform(
+                        async move { client.finalize(proposal_id, None).await },
+                        |res| match res {
+                            Ok(proposal) => match proposal {
+                                CompletedProposal::Spending { tx, .. } => {
+                                    Message::View(Stage::Transaction(tx.txid()))
                                 }
-                                Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
+                                CompletedProposal::ProofOfReserve { .. } => {
+                                    Message::View(Stage::History)
+                                }
                             },
-                        ),
-                    };
+                            Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
                 }
                 ProposalMessage::Signed(value) => self.signed = value,
                 ProposalMessage::Reload => return self.load(ctx),
                 ProposalMessage::CheckPsbts => {
                     if !self.signed {
                         let client = ctx.client.clone();
-                        let policy_id = self.policy_id;
                         let proposal = self.proposal.clone();
-                        let base_psbt = self.proposal.psbt();
-                        let signed_psbts = self
+                        let approved_proposals = self
                             .approved_proposals
                             .iter()
-                            .map(|(_, (_, psbt, ..))| psbt.clone())
+                            .map(|(_, (_, p, ..))| p.clone())
                             .collect();
                         return Command::perform(
-                            async move {
-                                match proposal {
-                                    Proposal::Spending { .. } => {
-                                        client.combine_psbts(base_psbt, signed_psbts).ok()
-                                    }
-                                    Proposal::ProofOfReserve { .. } => {
-                                        let policy = client.get_policy_by_id(policy_id).ok()?;
-                                        client
-                                            .combine_non_std_psbts(&policy, base_psbt, signed_psbts)
-                                            .ok()
-                                    }
-                                }
-                            },
+                            async move { proposal.finalize(approved_proposals, client.network()) },
                             |res| match res {
-                                Some(_) => ProposalMessage::Signed(true).into(),
-                                None => ProposalMessage::Signed(false).into(),
+                                Ok(_) => ProposalMessage::Signed(true).into(),
+                                Err(_) => ProposalMessage::Signed(false).into(),
                             },
                         );
                     }
