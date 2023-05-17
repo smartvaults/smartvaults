@@ -3,7 +3,7 @@
 
 use std::ops::Deref;
 
-use coinstr_core::policy;
+use coinstr_sdk::core::policy;
 
 #[derive(Clone)]
 pub struct Policy {

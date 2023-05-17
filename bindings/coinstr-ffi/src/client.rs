@@ -4,11 +4,11 @@
 use std::str::FromStr;
 use std::time::Duration;
 
-use coinstr_core::bips::bip39::Mnemonic;
-use coinstr_core::bitcoin::{Address, Network};
-use coinstr_core::nostr_sdk::{block_on, EventId};
-use coinstr_core::types::WordCount;
-use coinstr_core::{client, Amount, FeeRate};
+use coinstr_sdk::client;
+use coinstr_sdk::core::bips::bip39::Mnemonic;
+use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::types::WordCount;
+use coinstr_sdk::nostr::{block_on, EventId};
 
 use crate::error::Result;
 
@@ -165,7 +165,7 @@ impl Coinstr {
         })
     }
 
-    pub fn spend(
+    /* pub fn spend(
         &self,
         policy_id: String,
         to_address: String,
@@ -220,7 +220,7 @@ impl Coinstr {
                 .await?;
             Ok(proposal_id.to_hex())
         })
-    }
+    } */
 
     pub fn approve(&self, proposal_id: String, timeout: Option<Duration>) -> Result<()> {
         block_on(async move {
@@ -230,11 +230,11 @@ impl Coinstr {
         })
     }
 
-    pub fn broadcast(&self, proposal_id: String, timeout: Option<Duration>) -> Result<String> {
+    pub fn finalize(&self, proposal_id: String, timeout: Option<Duration>) -> Result<()> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
-            let txid = self.inner.broadcast(proposal_id, timeout).await?;
-            Ok(txid.to_string())
+            self.inner.finalize(proposal_id, timeout).await?;
+            Ok(())
         })
     }
 

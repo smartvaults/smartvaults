@@ -9,7 +9,7 @@ mod proposal;
 use self::error::Result;
 
 pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<String>> {
-    Ok(coinstr_core::Coinstr::list_keychains(base_path, network)?)
+    Ok(coinstr_sdk::Coinstr::list_keychains(base_path, network)?)
 }
 
 mod ffi {
@@ -17,8 +17,8 @@ mod ffi {
     pub use crate::error::FFIError;
 
     // External
-    pub use coinstr_core::bitcoin::Network;
-    pub use coinstr_core::types::WordCount;
+    pub use coinstr_sdk::core::bitcoin::Network;
+    pub use coinstr_sdk::core::types::WordCount;
 
     // Namespace
     pub use crate::get_keychains_list;

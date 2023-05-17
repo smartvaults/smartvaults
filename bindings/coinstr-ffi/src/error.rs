@@ -24,32 +24,32 @@ impl From<std::io::Error> for FFIError {
     }
 }
 
-impl From<coinstr_core::client::Error> for FFIError {
-    fn from(e: coinstr_core::client::Error) -> Self {
+impl From<coinstr_sdk::client::Error> for FFIError {
+    fn from(e: coinstr_sdk::client::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }
 
-impl From<coinstr_core::nostr_sdk::event::id::Error> for FFIError {
-    fn from(e: coinstr_core::nostr_sdk::event::id::Error) -> Self {
+impl From<coinstr_sdk::nostr::event::id::Error> for FFIError {
+    fn from(e: coinstr_sdk::nostr::event::id::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }
 
-impl From<coinstr_core::bips::bip39::Error> for FFIError {
-    fn from(e: coinstr_core::bips::bip39::Error) -> Self {
+impl From<coinstr_sdk::core::bips::bip39::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bips::bip39::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }
 
-impl From<coinstr_core::bitcoin::util::address::Error> for FFIError {
-    fn from(e: coinstr_core::bitcoin::util::address::Error) -> Self {
+impl From<coinstr_sdk::core::bitcoin::util::address::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bitcoin::util::address::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }
 
-impl From<coinstr_core::util::dir::Error> for FFIError {
-    fn from(e: coinstr_core::util::dir::Error) -> Self {
+impl From<coinstr_sdk::core::util::dir::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::util::dir::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }
