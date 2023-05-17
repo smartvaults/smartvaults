@@ -191,8 +191,10 @@ impl Proposal {
                 base_psbt
                     .finalize_mut(&SECP256K1)
                     .map_err(Error::ImpossibleToFinalizePsbt)?;
-                let txid = base_psbt.extract_tx().txid();
-                Ok(CompletedProposal::spending(txid, self.description()))
+                Ok(CompletedProposal::spending(
+                    base_psbt.extract_tx(),
+                    self.description(),
+                ))
             }
             ProposalType::ProofOfReserve => {
                 let db = MemoryDatabase::new();

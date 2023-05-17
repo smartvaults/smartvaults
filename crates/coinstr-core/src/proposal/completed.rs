@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::Txid;
+use bdk::bitcoin::Transaction;
 use bdk::miniscript::Descriptor;
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use serde::{Deserialize, Serialize};
@@ -14,7 +14,7 @@ use super::ProposalType;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompletedProposal {
     Spending {
-        txid: Txid,
+        tx: Transaction,
         description: String,
     },
     ProofOfReserve {
@@ -29,12 +29,12 @@ pub enum CompletedProposal {
 }
 
 impl CompletedProposal {
-    pub fn spending<S>(txid: Txid, description: S) -> Self
+    pub fn spending<S>(tx: Transaction, description: S) -> Self
     where
         S: Into<String>,
     {
         Self::Spending {
-            txid,
+            tx,
             description: description.into(),
         }
     }
@@ -61,9 +61,9 @@ impl CompletedProposal {
         }
     }
 
-    pub fn txid(&self) -> Option<Txid> {
+    pub fn tx(&self) -> Option<Transaction> {
         match self {
-            Self::Spending { txid, .. } => Some(*txid),
+            Self::Spending { tx, .. } => Some(tx.clone()),
             _ => None,
         }
     }

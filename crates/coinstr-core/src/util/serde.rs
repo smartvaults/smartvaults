@@ -14,7 +14,7 @@ pub trait Serde: Sized + Serialize + DeserializeOwned {
     where
         S: Into<String>,
     {
-        Ok(serde_json::from_str(&json.into())?)
+        serde_json::from_str(&json.into())
     }
 
     /// Serialize to `JSON` string
