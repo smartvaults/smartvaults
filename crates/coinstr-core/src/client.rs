@@ -157,7 +157,8 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(false);
+            .wait_for_send(true)
+            .wait_for_subscription(false);
 
         Ok(Self {
             network,
@@ -216,7 +217,8 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(false);
+            .wait_for_send(true)
+            .wait_for_subscription(false);
 
         Ok(Self {
             network,
@@ -275,7 +277,8 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(false);
+            .wait_for_send(true)
+            .wait_for_subscription(false);
 
         Ok(Self {
             network,
