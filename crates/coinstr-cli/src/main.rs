@@ -34,8 +34,6 @@ async fn main() {
 }
 
 async fn run() -> Result<()> {
-    env_logger::init();
-
     let args = Cli::parse();
     let network: Network = args.network.into();
     let relays: Vec<String> = vec![args.relay];
