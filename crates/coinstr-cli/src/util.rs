@@ -3,23 +3,23 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use coinstr_core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_core::bdk::database::MemoryDatabase;
-use coinstr_core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
-use coinstr_core::bdk::electrum_client::Client as ElectrumClient;
-use coinstr_core::bdk::wallet::AddressIndex;
-use coinstr_core::bdk::{KeychainKind, SyncOptions, Wallet};
-use coinstr_core::bips::bip32::Bip32RootKey;
-use coinstr_core::bitcoin::util::bip32::ExtendedPubKey;
-use coinstr_core::bitcoin::Network;
-use coinstr_core::db::model::GetPolicyResult;
-use coinstr_core::nostr_sdk::prelude::{FromMnemonic, ToBech32, XOnlyPublicKey};
-use coinstr_core::nostr_sdk::{EventId, Keys, Metadata, SECP256K1};
-use coinstr_core::policy::Policy;
-use coinstr_core::proposal::{CompletedProposal, Proposal};
-use coinstr_core::types::Purpose;
-use coinstr_core::util::{self, format};
-use coinstr_core::{Keychain, Result};
+use coinstr_sdk::core::bdk::blockchain::ElectrumBlockchain;
+use coinstr_sdk::core::bdk::database::{BatchDatabase, MemoryDatabase};
+use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
+use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_sdk::core::bdk::wallet::AddressIndex;
+use coinstr_sdk::core::bdk::{KeychainKind, SyncOptions, Wallet};
+use coinstr_sdk::core::bips::bip32::Bip32;
+use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
+use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::policy::Policy;
+use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::core::types::Purpose;
+use coinstr_sdk::core::{Keychain, Result};
+use coinstr_sdk::db::model::GetPolicyResult;
+use coinstr_sdk::nostr::prelude::{FromMnemonic, ToBech32, XOnlyPublicKey};
+use coinstr_sdk::nostr::{EventId, Keys, Metadata, SECP256K1};
+use coinstr_sdk::util::{self, format};
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
 use owo_colors::colors::{BrightCyan, Magenta};
@@ -111,13 +111,14 @@ pub fn print_contacts(contacts: HashMap<XOnlyPublicKey, Metadata>) {
     table.printstd();
 }
 
-pub fn print_policy<S>(
+pub fn print_policy<D, S>(
     policy: Policy,
     policy_id: EventId,
-    wallet: Wallet<MemoryDatabase>,
+    wallet: Wallet<D>,
     endpoint: S,
 ) -> Result<()>
 where
+    D: BatchDatabase,
     S: Into<String>,
 {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
@@ -353,14 +354,14 @@ pub fn print_completed_proposals(proposals: BTreeMap<EventId, (EventId, Complete
     for (index, (proposal_id, (policy_id, proposal))) in proposals.into_iter().enumerate() {
         match proposal {
             CompletedProposal::Spending {
-                txid, description, ..
+                tx, description, ..
             } => {
                 table.add_row(row![
                     index + 1,
                     proposal_id,
                     util::cut_event_id(policy_id),
                     "spending",
-                    txid,
+                    tx.txid(),
                     description,
                 ]);
             }

@@ -3,7 +3,7 @@
 
 use std::env;
 
-use coinstr_core::Result;
+use coinstr_sdk::core::Result;
 use dialoguer::{Confirm, Input, Password};
 
 pub fn get_input<S>(prompt: S) -> Result<String>

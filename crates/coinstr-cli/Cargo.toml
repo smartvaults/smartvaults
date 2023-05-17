@@ -13,7 +13,7 @@ categories = ["command-line-utilities"]
 [dependencies]
 clap = { version = "4.2", features = ["derive"] }
 coinstr-common = { version = "0.1", path = "../coinstr-common" }
-coinstr-core = { version = "0.1", path = "../coinstr-core" }
+coinstr-sdk = { version = "0.1", path = "../coinstr-sdk" }
 dialoguer = "0.10"
 env_logger = "0.10"
 owo-colors = "3.5"

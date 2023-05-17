@@ -6,10 +6,13 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use coinstr_core::bips::bip39::Mnemonic;
-use coinstr_core::bitcoin::Network;
-use coinstr_core::util::format;
-use coinstr_core::{Amount, Coinstr, FeeRate, Keychain, Result};
+use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
+use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
+use coinstr_sdk::core::bips::bip39::Mnemonic;
+use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::{Amount, CompletedProposal, Keychain, Result};
+use coinstr_sdk::util::format;
+use coinstr_sdk::Coinstr;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
@@ -181,13 +184,17 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             description,
             target_blocks,
         } => {
+            let endpoint: String = coinstr.electrum_endpoint()?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
+            let fee_rate = blockchain.estimate_fee(target_blocks)?;
+
             let (proposal_id, _proposal) = coinstr
                 .spend(
                     policy_id,
                     to_address,
                     Amount::Custom(amount),
                     description,
-                    FeeRate::Custom(target_blocks),
+                    fee_rate,
                     TIMEOUT,
                 )
                 .await?;
@@ -200,13 +207,17 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             description,
             target_blocks,
         } => {
+            let endpoint: String = coinstr.electrum_endpoint()?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
+            let fee_rate = blockchain.estimate_fee(target_blocks)?;
+
             let (proposal_id, _proposal) = coinstr
                 .spend(
                     policy_id,
                     to_address,
                     Amount::Max,
                     description,
-                    FeeRate::Custom(target_blocks),
+                    fee_rate,
                     TIMEOUT,
                 )
                 .await?;
@@ -218,19 +229,27 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             println!("Proposal {proposal_id} approved: {}", event.id);
             Ok(())
         }
-        Command::Broadcast { proposal_id } => {
-            let txid = coinstr.broadcast(proposal_id, TIMEOUT).await?;
+        Command::Finalize { proposal_id } => {
+            let completed_proposal: CompletedProposal =
+                coinstr.finalize(proposal_id, TIMEOUT).await?;
 
-            println!("Transaction {txid} broadcasted");
+            match completed_proposal {
+                CompletedProposal::Spending { tx, .. } => {
+                    let txid = tx.txid();
 
-            match coinstr.network() {
-                Network::Bitcoin => {
-                    println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                    println!("Transaction {txid} broadcasted");
+
+                    match coinstr.network() {
+                        Network::Bitcoin => {
+                            println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                        }
+                        Network::Testnet => {
+                            println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
+                        }
+                        _ => (),
+                    };
                 }
-                Network::Testnet => {
-                    println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
-                }
-                _ => (),
+                CompletedProposal::ProofOfReserve { .. } => println!("Proof of Reserve finalized"),
             };
 
             Ok(())
@@ -241,11 +260,6 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     .new_proof_proposal(policy_id, message, TIMEOUT)
                     .await?;
                 println!("Proof of Reserve proposal {proposal_id} sent");
-                Ok(())
-            }
-            ProofCommand::Finalize { proposal_id } => {
-                coinstr.finalize_proof(proposal_id, TIMEOUT).await?;
-                println!("Proof of Reserve finalized");
                 Ok(())
             }
             ProofCommand::Verify { proposal_id } => {
@@ -272,14 +286,13 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 // Get policy
                 let policy = coinstr.get_policy_by_id(policy_id)?;
 
-                let wallet = coinstr.wallet(policy.descriptor.to_string())?;
-
                 // Print result
                 if export {
                     println!("\n{}\n", policy.descriptor);
                     Ok(())
                 } else {
                     let endpoint = coinstr.electrum_endpoint()?;
+                    let wallet = coinstr.wallet(policy_id, policy.descriptor.to_string())?;
                     util::print_policy(policy, policy_id, wallet, endpoint)
                 }
             }

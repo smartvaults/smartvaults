@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 use clap::{Parser, Subcommand};
-use coinstr_core::bitcoin::{Address, XOnlyPublicKey};
-use coinstr_core::nostr_sdk::EventId;
+use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
+use coinstr_sdk::nostr::EventId;
 
 pub mod io;
 mod types;
@@ -144,8 +144,8 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: EventId,
     },
-    /// Combine and broadcast the transaction
-    Broadcast {
+    /// Finalize proposal
+    Finalize {
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
@@ -182,12 +182,6 @@ pub enum ProofCommand {
         /// Message
         #[arg(required = true)]
         message: String,
-    },
-    /// Finalize Proof Of Reserve
-    Finalize {
-        /// Proposal id
-        #[arg(required = true)]
-        proposal_id: EventId,
     },
     /// Verify Proof Of Reserve
     Verify {

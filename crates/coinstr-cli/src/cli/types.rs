@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 use clap::ValueEnum;
-use coinstr_core::bitcoin::Network;
-use coinstr_core::types::WordCount;
+use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::types::WordCount;
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum CliNetwork {
