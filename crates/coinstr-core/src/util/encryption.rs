@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use bdk::bitcoin::secp256k1::SecretKey;
 use keechain_core::crypto::aes;
 use keechain_core::util::serde::deserialize;
 
@@ -29,3 +30,6 @@ pub trait Encryption: Serde {
         Ok(deserialize(data)?)
     }
 }
+
+impl Serde for SecretKey {}
+impl Encryption for SecretKey {}

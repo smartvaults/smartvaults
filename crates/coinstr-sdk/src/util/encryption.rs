@@ -5,6 +5,7 @@ use coinstr_core::util::{Encryption, EncryptionError};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::key::{self, Keys};
 use nostr_sdk::nips::nip04;
+use nostr_sdk::secp256k1::SecretKey;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EncryptionWithKeysError {
@@ -33,6 +34,7 @@ pub trait EncryptionWithKeys: Encryption {
     }
 }
 
+impl EncryptionWithKeys for SecretKey {}
 impl EncryptionWithKeys for Policy {}
 impl EncryptionWithKeys for Proposal {}
 impl EncryptionWithKeys for ApprovedProposal {}

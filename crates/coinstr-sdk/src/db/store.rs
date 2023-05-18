@@ -336,7 +336,7 @@ impl Store {
             "INSERT OR IGNORE INTO shared_keys (policy_id, shared_key) VALUES (?, ?);",
             (
                 policy_id.to_hex(),
-                shared_key.secret_key()?.display_secret().to_string(),
+                shared_key.secret_key()?.encrypt_with_keys(&self.keys)?,
             ),
         )?;
         Ok(())
@@ -349,7 +349,7 @@ impl Store {
         let mut rows = stmt.query([policy_id.to_hex()])?;
         let row = rows.next()?.ok_or(Error::NotFound)?;
         let sk: String = row.get(0)?;
-        let sk = SecretKey::from_str(&sk)?;
+        let sk = SecretKey::decrypt_with_keys(&self.keys, sk)?;
         Ok(Keys::new(sk))
     }
 
