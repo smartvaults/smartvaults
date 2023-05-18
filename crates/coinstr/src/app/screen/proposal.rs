@@ -231,6 +231,7 @@ impl State for ProposalState {
                     to_address,
                     amount,
                     description,
+                    psbt,
                     ..
                 } => {
                     content = content
@@ -239,8 +240,23 @@ impl State for ProposalState {
                         .push(
                             Text::new(format!("Amount: {} sat", util::format::number(*amount)))
                                 .view(),
-                        )
-                        .push(Text::new(format!("Description: {description}")).view());
+                        );
+
+                    match psbt.fee() {
+                        Ok(fee) => {
+                            content = content.push(
+                                Text::new(format!("Fee: {} sat", util::format::number(fee))).view(),
+                            )
+                        }
+                        Err(e) => {
+                            log::error!("Impossible to calculate fee: {e}");
+                        }
+                    };
+
+                    if !description.is_empty() {
+                        content =
+                            content.push(Text::new(format!("Description: {description}")).view());
+                    }
 
                     "Broadcast"
                 }

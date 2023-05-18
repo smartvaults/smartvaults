@@ -284,11 +284,15 @@ impl State for SpendState {
                     .spacing(5)
                     .width(Length::Fill);
 
-                let description = Column::new()
-                    .push(Row::new().push(Text::new("Description").bold().view()))
-                    .push(Row::new().push(Text::new(&self.description).view()))
-                    .spacing(5)
-                    .width(Length::Fill);
+                let description = if !self.description.is_empty() {
+                    Column::new()
+                        .push(Row::new().push(Text::new("Description").bold().view()))
+                        .push(Row::new().push(Text::new(&self.description).view()))
+                        .spacing(5)
+                        .width(Length::Fill)
+                } else {
+                    Column::new()
+                };
 
                 let priority = Column::new()
                     .push(Row::new().push(Text::new("Priority").bold().view()))
