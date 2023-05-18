@@ -48,3 +48,8 @@ CREATE TABLE IF NOT EXISTS relays (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS relays_index ON relays(url);
+
+CREATE TABLE IF NOT EXISTS events (
+    event_id BLOB PRIMARY KEY NOT NULL,
+    event BLOB NOT NULL
+);

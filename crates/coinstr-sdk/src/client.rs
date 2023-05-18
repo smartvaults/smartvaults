@@ -361,6 +361,11 @@ impl Coinstr {
         Ok(self.client.shutdown().await?)
     }
 
+    async fn send_event(&self, event: Event) -> Result<EventId, Error> {
+        self.db.save_event(&event)?;
+        Ok(self.client.send_event(event).await?)
+    }
+
     pub fn set_electrum_endpoint<S>(&self, endpoint: S)
     where
         S: Into<String>,
@@ -473,7 +478,7 @@ impl Coinstr {
             .for_each(|e| tags.push(Tag::Event(e.id, None, None)));
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.client.send_event(event).await?;
+        self.send_event(event).await?;
 
         self.db.delete_policy(policy_id)?;
 
@@ -515,7 +520,7 @@ impl Coinstr {
         } */
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.client.send_event(event).await?;
+        self.send_event(event).await?;
 
         self.db.delete_proposal(proposal_id)?;
 
@@ -559,7 +564,7 @@ impl Coinstr {
         tags.push(Tag::Event(completed_proposal_id, None, None));
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.client.send_event(event).await?;
+        self.send_event(event).await?;
 
         self.db.delete_completed_proposal(completed_proposal_id)?;
 
@@ -646,7 +651,7 @@ impl Coinstr {
                 pubkey,
                 shared_key.secret_key()?.display_secret().to_string(),
             )?;
-            let event = EventBuilder::new(
+            let event: Event = EventBuilder::new(
                 SHARED_KEY_KIND,
                 encrypted_shared_key,
                 &[
@@ -655,12 +660,12 @@ impl Coinstr {
                 ],
             )
             .to_event(&keys)?;
-            let event_id = self.client.send_event(event).await?;
+            let event_id: EventId = self.send_event(event).await?;
             log::info!("Published shared key for {pubkey} at event {event_id}");
         }
 
         // Publish the event
-        self.client.send_event(policy_event).await?;
+        self.send_event(policy_event).await?;
 
         // Cache policy
         self.db.save_policy(policy_id, policy, nostr_pubkeys)?;
@@ -708,7 +713,7 @@ impl Coinstr {
             let content: String = proposal.encrypt_with_keys(&shared_keys)?;
             // Publish proposal with `shared_key` so every owner can delete it
             let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-            let proposal_id = self.client.send_event(event).await?;
+            let proposal_id = self.send_event(event).await?;
 
             // Send DM msg
             let sender = self.client.keys().public_key();
@@ -750,7 +755,7 @@ impl Coinstr {
         &self,
         proposal_id: EventId,
         timeout: Option<Duration>,
-    ) -> Result<(Event, ApprovedProposal), Error> {
+    ) -> Result<(EventId, ApprovedProposal), Error> {
         // Get proposal and policy
         let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
         let policy: Policy = self.get_policy_by_id(policy_id)?;
@@ -784,20 +789,21 @@ impl Coinstr {
         ));
 
         let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+        let timestamp = event.created_at;
 
         // Publish the event
-        self.client.send_event(event.clone()).await?;
+        let event_id = self.send_event(event).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
             proposal_id,
             keys.public_key(),
-            event.id,
+            event_id,
             approved_proposal.clone(),
-            event.created_at,
+            timestamp,
         );
 
-        Ok((event, approved_proposal))
+        Ok((event_id, approved_proposal))
     }
 
     pub async fn finalize(
@@ -839,7 +845,7 @@ impl Coinstr {
             EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
 
         // Publish the event
-        let event_id = self.client.send_event(event).await?;
+        let event_id = self.send_event(event).await?;
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
@@ -884,7 +890,7 @@ impl Coinstr {
         let content = proposal.encrypt_with_keys(&shared_keys)?;
         // Publish proposal with `shared_key` so every owner can delete it
         let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-        let proposal_id = self.client.send_event(event).await?;
+        let proposal_id = self.send_event(event).await?;
 
         // Send DM msg
         let sender = self.client.keys().public_key();
@@ -1053,6 +1059,10 @@ impl Coinstr {
 
     #[async_recursion]
     async fn handle_event(&self, event: Event) -> Result<()> {
+        if let Err(e) = self.db.save_event(&event) {
+            log::error!("Impossible to save event {}: {e}", event.id);
+        }
+
         if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
             if let Ok(shared_key) = self.db.get_shared_key(event.id) {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;

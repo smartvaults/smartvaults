@@ -226,8 +226,8 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             Ok(())
         }
         Command::Approve { proposal_id } => {
-            let (event, _) = coinstr.approve(proposal_id, TIMEOUT).await?;
-            println!("Proposal {proposal_id} approved: {}", event.id);
+            let (event_id, _) = coinstr.approve(proposal_id, TIMEOUT).await?;
+            println!("Proposal {proposal_id} approved: {event_id}");
             Ok(())
         }
         Command::Finalize { proposal_id } => {
