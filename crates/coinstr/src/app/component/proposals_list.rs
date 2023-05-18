@@ -90,6 +90,11 @@ impl PendingProposalsList {
                         .push(
                             Text::new(util::cut_event_id(*proposal_id))
                                 .width(Length::Fixed(115.0))
+                                .on_press(Message::View(Stage::Proposal(
+                                    *proposal_id,
+                                    proposal.clone(),
+                                    *policy_id,
+                                )))
                                 .view(),
                         )
                         .push(
@@ -121,6 +126,11 @@ impl PendingProposalsList {
                         .push(
                             Text::new(util::cut_event_id(*proposal_id))
                                 .width(Length::Fixed(115.0))
+                                .on_press(Message::View(Stage::Proposal(
+                                    *proposal_id,
+                                    proposal.clone(),
+                                    *policy_id,
+                                )))
                                 .view(),
                         )
                         .push(
