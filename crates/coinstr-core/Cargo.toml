@@ -12,7 +12,7 @@ keywords.workspace = true
 [dependencies]
 bdk = { version = "0.28", default-features = false, features = ["std", "compiler"] }
 bitcoinconsensus = "0.20.2-0.5.0"
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "dd9a8bfddf99db7fe144f5eca3c4ea273610ef44" }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "9a70f1eecb2e7f5dc5e9f33d47886805e93e564b" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
