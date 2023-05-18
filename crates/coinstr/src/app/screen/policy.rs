@@ -3,7 +3,6 @@
 
 use std::fs::File;
 use std::io::Write;
-use std::time::Duration;
 
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::policy::Policy;
@@ -11,7 +10,7 @@ use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
-use iced::{time, Alignment, Command, Element, Length, Subscription};
+use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 
 use crate::app::component::{Balances, Dashboard, TransactionsList};
@@ -70,12 +69,6 @@ impl State for PolicyState {
             "{APP_NAME} - Policy #{}",
             util::cut_event_id(self.policy_id)
         )
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch(vec![
-            time::every(Duration::from_secs(10)).map(|_| PolicyMessage::Reload.into())
-        ])
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

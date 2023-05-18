@@ -9,7 +9,7 @@ use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::EventId;
 use iced::widget::{Column, Space};
-use iced::{time, Command, Element, Length, Subscription};
+use iced::{Command, Element, Length};
 
 use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
@@ -54,12 +54,6 @@ impl State for DashboardState {
         format!("{APP_NAME} - Dashboard")
     }
 
-    fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch(vec![
-            time::every(Duration::from_secs(10)).map(|_| DashboardMessage::Reload.into())
-        ])
-    }
-
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         let client = ctx.client.clone();
         self.loading = true;
@@ -70,7 +64,7 @@ impl State for DashboardState {
                 let proposals = client.get_proposals().unwrap();
 
                 if !synced {
-                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
 
                 (balance, proposals, txs, synced)

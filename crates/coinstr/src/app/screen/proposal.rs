@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::proposal::Proposal;
@@ -11,7 +10,7 @@ use coinstr_sdk::core::{ApprovedProposal, CompletedProposal};
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
-use iced::{time, Alignment, Command, Element, Length, Subscription};
+use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
@@ -67,13 +66,6 @@ impl State for ProposalState {
             "{APP_NAME} - Proposal #{}",
             util::cut_event_id(self.proposal_id)
         )
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch(vec![
-            time::every(Duration::from_secs(10)).map(|_| ProposalMessage::Reload.into()),
-            time::every(Duration::from_secs(30)).map(|_| ProposalMessage::CheckPsbts.into()),
-        ])
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

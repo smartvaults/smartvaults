@@ -1,13 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::time::Duration;
-
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Space};
-use iced::{time, Command, Element, Length, Subscription};
+use iced::{Command, Element, Length};
 
 use crate::app::component::{Dashboard, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
@@ -42,12 +40,6 @@ impl TransactionsState {
 impl State for TransactionsState {
     fn title(&self) -> String {
         format!("{APP_NAME} - Transactions")
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        Subscription::batch(vec![
-            time::every(Duration::from_secs(10)).map(|_| TransactionsMessage::Reload.into())
-        ])
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
