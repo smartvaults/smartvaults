@@ -28,7 +28,7 @@ use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
     nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options, Relay,
-    RelayPoolNotification, Result, Tag, Timestamp, Url,
+    RelayMessage, RelayPoolNotification, Result, Tag, Timestamp, Url,
 };
 use parking_lot::RwLock;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -705,7 +705,7 @@ impl Coinstr {
                 .map(|p| Tag::PubKey(*p, None))
                 .collect();
             tags.push(Tag::Event(policy_id, None, None));
-            let content = proposal.encrypt_with_keys(&shared_keys)?;
+            let content: String = proposal.encrypt_with_keys(&shared_keys)?;
             // Publish proposal with `shared_key` so every owner can delete it
             let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
             let proposal_id = self.client.send_event(event).await?;
@@ -979,21 +979,29 @@ impl Coinstr {
 
             let keys = this.client.keys();
 
-            let filters = vec![
-                Filter::new().pubkey(keys.public_key()).kinds(vec![
-                    POLICY_KIND,
-                    PROPOSAL_KIND,
-                    COMPLETED_PROPOSAL_KIND,
-                    // TODO: add shared key kind
-                    Kind::EventDeletion,
-                ]),
-                Filter::new()
-                    .pubkey(keys.public_key())
-                    .kind(APPROVED_PROPOSAL_KIND)
-                    .since(Timestamp::now() - APPROVED_PROPOSAL_EXPIRATION),
-            ];
+            let base_filter = Filter::new().pubkey(keys.public_key()).kinds(vec![
+                POLICY_KIND,
+                PROPOSAL_KIND,
+                APPROVED_PROPOSAL_KIND,
+                COMPLETED_PROPOSAL_KIND,
+                // TODO: add shared key kind
+                Kind::EventDeletion,
+            ]);
 
-            this.client.subscribe(filters).await;
+            for (relay_url, relay) in this.client.relays().await {
+                let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
+                    Ok(ts) => ts,
+                    Err(e) => {
+                        log::error!("Impossible to get last relay sync: {e}");
+                        Timestamp::from(0)
+                    }
+                };
+                let filter = base_filter.clone().since(last_sync);
+                if let Err(e) = relay.subscribe(vec![filter], false).await {
+                    log::error!("Impossible to subscribe to {relay_url}: {e}");
+                }
+            }
+
             let _ = this
                 .client
                 .handle_notifications(|notification| async {
@@ -1013,11 +1021,26 @@ impl Coinstr {
                                 }
                             }
                         }
+                        RelayPoolNotification::Message(relay_url, relay_msg) => {
+                            if let RelayMessage::EndOfStoredEvents(subscription_id) = relay_msg {
+                                log::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
+                                if let Ok(relay) = this.client.relay(&relay_url).await {
+                                    let subscription = relay.subscription().await;
+                                    if subscription.id() == subscription_id {
+                                        if let Err(e) = this
+                                            .db
+                                            .save_last_relay_sync(&relay_url, Timestamp::now())
+                                        {
+                                            log::error!("Impossible to save last relay sync: {e}");
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         RelayPoolNotification::Shutdown => {
                             log::debug!("Received shutdown msg");
                             abort_handle.abort();
                         }
-                        _ => (),
                     }
 
                     Ok(())

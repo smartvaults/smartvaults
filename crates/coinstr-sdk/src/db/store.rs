@@ -25,8 +25,7 @@ use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
 use nostr_sdk::event::id::{self, EventId};
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
-use nostr_sdk::Keys;
-use nostr_sdk::Timestamp;
+use nostr_sdk::{Keys, Timestamp, Url};
 use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::OpenFlags;
@@ -773,5 +772,23 @@ impl Store {
         };
 
         Ok(())
+    }
+
+    pub fn save_last_relay_sync(&self, relay_url: &Url, timestamp: Timestamp) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let last_sync: u64 = timestamp.as_u64();
+        let mut stmt = conn.prepare_cached("INSERT INTO relays (url, last_sync) VALUES (?, ?) ON CONFLICT(url) DO UPDATE SET last_sync = ?;")?;
+        stmt.execute((relay_url.to_string(), last_sync, last_sync))?;
+        Ok(())
+    }
+
+    pub fn get_last_relay_sync(&self, relay_url: &Url) -> Result<Timestamp, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("SELECT last_sync FROM relays WHERE url = ?")?;
+        let mut rows = stmt.query([relay_url.to_string()])?;
+        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let last_sync: Option<u64> = row.get(0)?;
+        let last_sync: u64 = last_sync.unwrap_or_default();
+        Ok(Timestamp::from(last_sync))
     }
 }
