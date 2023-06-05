@@ -33,6 +33,7 @@ use tokio::sync::mpsc::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
 use super::model::{GetDetailedPolicyResult, GetPolicyResult};
+use crate::client::Notification;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 
 const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
@@ -81,8 +82,8 @@ pub enum Error {
     #[error("impossible to open policy {0} db")]
     FailedToOpenPolicyDb(EventId),
     /// Not found
-    #[error("not found")]
-    NotFound,
+    #[error("sqlite: {0} not found")]
+    NotFound(String),
     /// Wallet ot found
     #[error("wallet not found")]
     WalletNotFound,
@@ -246,7 +247,7 @@ impl Store {
         let mut stmt =
             conn.prepare_cached("SELECT policy, last_sync FROM policies WHERE policy_id = ?")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let row = rows.next()?.ok_or(Error::NotFound("policy".into()))?;
         let policy: String = row.get(0)?;
         let last_sync: Option<u64> = row.get(1)?;
         Ok(GetPolicyResult {
@@ -259,7 +260,7 @@ impl Store {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("SELECT last_sync FROM policies WHERE policy_id = ?")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let row = rows.next()?.ok_or(Error::NotFound("policy".into()))?;
         let last_sync: Option<u64> = row.get(0)?;
         Ok(last_sync.map(Timestamp::from))
     }
@@ -362,7 +363,7 @@ impl Store {
         let mut stmt =
             conn.prepare_cached("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let row = rows.next()?.ok_or(Error::NotFound("shared_key".into()))?;
         let sk: String = row.get(0)?;
         let sk = SecretKey::decrypt_with_keys(&self.keys, sk)?;
         Ok(Keys::new(sk))
@@ -465,7 +466,7 @@ impl Store {
             "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
         )?;
         let mut rows = stmt.query([proposal_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
         let policy_id: String = row.get(0)?;
         let proposal: String = row.get(1)?;
         Ok((
@@ -544,7 +545,7 @@ impl Store {
         let approved_proposals = self.approved_proposals.lock();
         let proposals = approved_proposals
             .get(&proposal_id)
-            .ok_or(Error::NotFound)?;
+            .ok_or(Error::NotFound("approved proposal".into()))?;
         Ok(GetApprovedProposals {
             policy_id,
             proposal,
@@ -610,7 +611,9 @@ impl Store {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
         let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("completed proposal".into()))?;
         let policy_id: String = row.get(0)?;
         let proposal: String = row.get(1)?;
         Ok((
@@ -749,7 +752,7 @@ impl Store {
     pub fn sync_with_timechain<B>(
         &self,
         blockchain: &B,
-        sender: Option<&Sender<()>>,
+        sender: Option<&Sender<Option<Notification>>>,
         force: bool,
     ) -> Result<(), Error>
     where
@@ -770,7 +773,7 @@ impl Store {
                 wallet.sync(blockchain, SyncOptions::default())?;
                 self.update_last_sync(policy_id, Some(Timestamp::now()))?;
                 if let Some(sender) = sender {
-                    let _ = sender.try_send(());
+                    let _ = sender.try_send(None);
                 }
             }
         }
@@ -801,7 +804,7 @@ impl Store {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("SELECT last_sync FROM relays WHERE url = ?")?;
         let mut rows = stmt.query([relay_url.to_string()])?;
-        let row = rows.next()?.ok_or(Error::NotFound)?;
+        let row = rows.next()?.ok_or(Error::NotFound("relay".into()))?;
         let last_sync: Option<u64> = row.get(0)?;
         let last_sync: u64 = last_sync.unwrap_or_default();
         Ok(Timestamp::from(last_sync))

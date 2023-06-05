@@ -10,4 +10,4 @@ pub mod db;
 mod thread;
 pub mod util;
 
-pub use self::client::Coinstr;
+pub use self::client::{Coinstr, Notification};

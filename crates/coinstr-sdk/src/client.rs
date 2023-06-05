@@ -31,6 +31,7 @@ use nostr_sdk::{
     RelayMessage, RelayPoolNotification, Result, Tag, Timestamp, Url,
 };
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::constants::{
@@ -93,6 +94,12 @@ pub enum Error {
     ElectrumEndpointNotSet,
     #[error("{0}")]
     Generic(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Notification {
+    NewPolicy(EventId),
+    NewProposal(EventId, Proposal),
 }
 
 /// Coinstr
@@ -932,7 +939,7 @@ impl Coinstr {
         self.verify_proof(proposal).await
     }
 
-    fn sync_with_timechain(&self, sender: Sender<()>) -> AbortHandle {
+    fn sync_with_timechain(&self, sender: Sender<Option<Notification>>) -> AbortHandle {
         let this = self.clone();
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
         let timechain_sync = async move {
@@ -976,8 +983,8 @@ impl Coinstr {
         abort_handle
     }
 
-    pub fn sync(&self) -> Receiver<()> {
-        let (sender, receiver) = mpsc::channel(1024);
+    pub fn sync(&self) -> Receiver<Option<Notification>> {
+        let (sender, receiver) = mpsc::channel::<Option<Notification>>(1024);
         let this = self.clone();
         thread::spawn(async move {
             // Sync timechain
@@ -1018,8 +1025,8 @@ impl Coinstr {
                                 log::warn!("Event {event_id} expired");
                             } else {
                                 match this.handle_event(event).await {
-                                    Ok(_) => {
-                                        sender.try_send(()).ok();
+                                    Ok(notification) => {
+                                        sender.try_send(notification).ok();
                                     }
                                     Err(e) => {
                                         log::error!("Impossible to handle event {event_id}: {e}");
@@ -1058,7 +1065,7 @@ impl Coinstr {
     }
 
     #[async_recursion]
-    async fn handle_event(&self, event: Event) -> Result<()> {
+    async fn handle_event(&self, event: Event) -> Result<Option<Notification>> {
         if let Err(e) = self.db.save_event(&event) {
             log::error!("Impossible to save event {}: {e}", event.id);
         }
@@ -1086,6 +1093,7 @@ impl Coinstr {
                     log::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
                     self.db.save_policy(event.id, policy, nostr_pubkeys)?;
+                    return Ok(Some(Notification::NewPolicy(event.id)));
                 }
             } else {
                 log::info!("Requesting shared key for {}", event.id);
@@ -1100,7 +1108,9 @@ impl Coinstr {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
                 if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
-                    self.db.save_proposal(event.id, policy_id, proposal)?;
+                    self.db
+                        .save_proposal(event.id, policy_id, proposal.clone())?;
+                    return Ok(Some(Notification::NewProposal(event.id, proposal)));
                 } else {
                     log::info!("Requesting shared key for proposal {}", event.id);
                     thread::sleep(Duration::from_secs(1)).await;
@@ -1189,7 +1199,7 @@ impl Coinstr {
             }
         }
 
-        Ok(())
+        Ok(None)
     }
 
     pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {

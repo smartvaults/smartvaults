@@ -25,6 +25,7 @@ parking_lot = "0.12"
 r2d2 = "0.8"
 r2d2_sqlite = "0.21"
 rusqlite = { version = "0.28", features = ["bundled", "serde_json"] }
+serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 tokio = { version = "1", features = ["sync"] }
 
