@@ -23,7 +23,6 @@ use self::cli::{
     io, Cli, CliCommand, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand,
 };
 
-const DEFAULT_RELAY: &str = "wss://relay.rip";
 const TIMEOUT: Option<Duration> = Some(Duration::from_secs(300));
 
 #[tokio::main]
@@ -36,7 +35,14 @@ async fn main() {
 async fn run() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
-    let relays: Vec<String> = vec![args.relay];
+    let relays: Vec<String> = match network {
+        Network::Bitcoin => vec![
+            "wss://relay.house".into(),
+            "wss://relay.snort.social".into(),
+            "wss://relay.nostr.bg".into(),
+        ],
+        _ => vec!["wss://relay.rip".into(), "wss://nos.lol".into()],
+    };
     let base_path: PathBuf = coinstr_common::base_path()?;
 
     let endpoint: &str = match network {

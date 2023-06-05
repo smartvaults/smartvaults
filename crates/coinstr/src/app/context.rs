@@ -49,10 +49,18 @@ impl Context {
             Network::Signet => "tcp://signet-electrumx.wakiyamap.dev:50001",
             Network::Regtest => "tcp://localhost:60401",
         };
+        let relays: Vec<String> = match coinstr.network() {
+            Network::Bitcoin => vec![
+                "wss://relay.house".into(),
+                "wss://relay.snort.social".into(),
+                "wss://relay.nostr.bg".into(),
+            ],
+            _ => vec!["wss://relay.rip".into(), "wss://nos.lol".into()],
+        };
         coinstr.set_electrum_endpoint(endpoint);
         RUNTIME.block_on(async {
             coinstr
-                .add_relays_and_connect(vec!["wss://relay.rip".to_string()])
+                .add_relays_and_connect(relays)
                 .await
                 .expect("Impossible to build client");
         });
