@@ -990,7 +990,7 @@ impl Coinstr {
                 PROPOSAL_KIND,
                 APPROVED_PROPOSAL_KIND,
                 COMPLETED_PROPOSAL_KIND,
-                // TODO: add shared key kind
+                SHARED_KEY_KIND,
                 Kind::EventDeletion,
             ]);
 
@@ -1063,7 +1063,17 @@ impl Coinstr {
             log::error!("Impossible to save event {}: {e}", event.id);
         }
 
-        if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
+        if event.kind == SHARED_KEY_KIND {
+            let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
+            if !self.db.shared_key_exists_for_policy(policy_id)? {
+                let keys = self.client.keys();
+                let content =
+                    nips::nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
+                let sk = SecretKey::from_str(&content)?;
+                let shared_key = Keys::new(sk);
+                self.db.save_shared_key(policy_id, shared_key)?;
+            }
+        } else if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
             if let Ok(shared_key) = self.db.get_shared_key(event.id) {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
@@ -1210,6 +1220,32 @@ impl Coinstr {
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
             self.client.send_event(event).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn republish_shared_key_for_policy(&self, policy_id: EventId) -> Result<(), Error> {
+        let keys = self.client.keys();
+        let shared_key = self.db.get_shared_key(policy_id)?;
+        let pubkeys = self.db.get_nostr_pubkeys(policy_id)?;
+        // Publish the shared key
+        for pubkey in pubkeys.iter() {
+            let encrypted_shared_key = nips::nip04::encrypt(
+                &keys.secret_key()?,
+                pubkey,
+                shared_key.secret_key()?.display_secret().to_string(),
+            )?;
+            let event: Event = EventBuilder::new(
+                SHARED_KEY_KIND,
+                encrypted_shared_key,
+                &[
+                    Tag::Event(policy_id, None, None),
+                    Tag::PubKey(*pubkey, None),
+                ],
+            )
+            .to_event(&keys)?;
+            let event_id: EventId = self.send_event(event).await?;
+            log::info!("Published shared key for {pubkey} at event {event_id}");
         }
         Ok(())
     }

@@ -333,6 +333,18 @@ impl Store {
         Ok(())
     }
 
+    pub fn shared_key_exists_for_policy(&self, policy_id: EventId) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT EXISTS(SELECT 1 FROM shared_keys WHERE policy_id = ? LIMIT 1);")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
     pub fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
         let conn = self.pool.get()?;
         conn.execute(
