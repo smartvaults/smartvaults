@@ -109,7 +109,7 @@ where
             Button::new(text)
                 .on_press(on_press)
                 .padding(0)
-                .style(TransparentButtonStyle.into())
+                .style(TransparentButtonStyle::new(None).into())
                 .into()
         } else {
             text.into()

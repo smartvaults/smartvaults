@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use iced::widget::{button, Button, Container, Row};
-use iced::{theme, Alignment, Background, Length, Theme, Vector};
+use iced::{theme, Alignment, Background, Color, Length, Theme, Vector};
 
 use super::{Icon, Text};
 use crate::theme::color::TRANSPARENT;
@@ -76,13 +76,12 @@ where
     Button::new(content(Some(icon), "")).style(DangerBorderButtonStyle.into())
 }
 
-/* pub fn transparent<S, T>(t: S) -> Button<'static, T>
+pub fn transparent_only_icon<T>(icon: char, color: Option<Color>) -> Button<'static, T>
 where
-    S: Into<String>,
     T: Clone + 'static,
 {
-    Button::new(content(None, t)).style(TransparentButtonStyle.into())
-} */
+    Button::new(content(Some(icon), "")).style(TransparentButtonStyle::new(color).into())
+}
 
 fn content<S, T>(icon: Option<char>, t: S) -> Container<'static, T>
 where
@@ -211,7 +210,15 @@ impl From<DangerBorderButtonStyle> for theme::Button {
     }
 }
 
-pub struct TransparentButtonStyle;
+pub struct TransparentButtonStyle {
+    text_color: Option<Color>,
+}
+
+impl TransparentButtonStyle {
+    pub fn new(text_color: Option<Color>) -> Self {
+        Self { text_color }
+    }
+}
 
 impl button::StyleSheet for TransparentButtonStyle {
     type Style = Theme;
@@ -221,7 +228,7 @@ impl button::StyleSheet for TransparentButtonStyle {
         button::Appearance {
             background: Some(Background::Color(TRANSPARENT)),
             border_color: TRANSPARENT,
-            text_color: palette.text,
+            text_color: self.text_color.unwrap_or(palette.text),
             ..Default::default()
         }
     }

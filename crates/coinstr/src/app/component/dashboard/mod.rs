@@ -6,8 +6,10 @@ use iced::{Element, Length};
 
 use crate::app::{Context, Message};
 
+mod navbar;
 mod sidebar;
 
+use self::navbar::Navbar;
 use self::sidebar::Sidebar;
 
 #[derive(Clone, Default)]
@@ -50,7 +52,7 @@ impl Dashboard {
                             .height(Length::Fill),
                     )
                     .push(Rule::vertical(1))
-                    .push(Column::new().push(content)),
+                    .push(Column::new().push(Navbar::new().view(ctx)).push(content)),
             )
             .width(Length::Fill)
             .height(Length::Fill)
