@@ -27,7 +27,7 @@ x86_64-unknown-linux-musl:
 	TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
 
 precommit:
-	@sh .githooks/pre-push
+	@bash .githooks/pre-push
 
 clean:
 	cargo clean
