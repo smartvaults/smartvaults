@@ -255,6 +255,10 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
 
             Ok(())
         }
+        Command::Rebroadcast => {
+            coinstr.rebroadcast_all_events().await?;
+            Ok(())
+        }
         Command::Proof { command } => match command {
             ProofCommand::New { policy_id, message } => {
                 let (proposal_id, ..) = coinstr

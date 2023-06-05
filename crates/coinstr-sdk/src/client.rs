@@ -1205,4 +1205,12 @@ impl Coinstr {
     pub fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
         self.db.get_tx(txid)
     }
+
+    pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {
+        let events: Vec<Event> = self.db.get_events()?;
+        for event in events.into_iter() {
+            self.client.send_event(event).await?;
+        }
+        Ok(())
+    }
 }

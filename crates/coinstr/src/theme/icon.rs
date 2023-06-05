@@ -27,3 +27,4 @@ pub const HOURGLASS: char = '\u{F41F}';
 pub const NETWORK: char = '\u{F2EE}';
 pub const HISTORY: char = '\u{F292}';
 pub const PATCH_CHECK: char = '\u{F4B6}';
+pub const GLOBE: char = '\u{F3EE}';

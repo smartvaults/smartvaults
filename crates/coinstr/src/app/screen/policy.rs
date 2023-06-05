@@ -18,7 +18,7 @@ use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
 use crate::theme::color::RED;
-use crate::theme::icon::{CLIPBOARD, PATCH_CHECK, TRASH};
+use crate::theme::icon::{CLIPBOARD, GLOBE, PATCH_CHECK, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum PolicyMessage {
@@ -34,6 +34,7 @@ pub enum PolicyMessage {
     ),
     ErrorChanged(Option<String>),
     Reload,
+    Rebroadcast,
 }
 
 #[derive(Debug)]
@@ -160,6 +161,17 @@ impl State for PolicyState {
                 PolicyMessage::Reload => {
                     return self.load(ctx);
                 }
+                PolicyMessage::Rebroadcast => {
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.rebroadcast_all_events().await },
+                        |res| match res {
+                            Ok(_) => PolicyMessage::ErrorChanged(None).into(),
+                            Err(e) => PolicyMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
+                }
             }
         }
 
@@ -180,6 +192,12 @@ impl State for PolicyState {
             content = content
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(30.0)));
+
+            let mut rebroadcast_btn = button::border_only_icon(GLOBE).width(Length::Fixed(40.0));
+
+            if !self.loading {
+                rebroadcast_btn = rebroadcast_btn.on_press(PolicyMessage::Rebroadcast.into());
+            }
 
             let mut delete_btn = button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
 
@@ -233,6 +251,7 @@ impl State for PolicyState {
                                                 .on_press(PolicyMessage::NewProofOfReserve.into())
                                                 .width(Length::Fixed(40.0)),
                                         )
+                                        .push(rebroadcast_btn)
                                         .push(delete_btn)
                                         .spacing(10),
                                 )

@@ -150,6 +150,8 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: EventId,
     },
+    /// Rebroadcast all events to connected relays
+    Rebroadcast,
     /// Proof of Reserve commands
     #[command(arg_required_else_help = true)]
     Proof {

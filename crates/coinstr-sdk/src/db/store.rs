@@ -25,7 +25,7 @@ use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
 use nostr_sdk::event::id::{self, EventId};
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
-use nostr_sdk::{Event, Keys, Timestamp, Url};
+use nostr_sdk::{event, Event, Keys, Timestamp, Url};
 use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::OpenFlags;
@@ -68,6 +68,9 @@ pub enum Error {
     /// EventId error
     #[error(transparent)]
     EventId(#[from] id::Error),
+    /// Event error
+    #[error(transparent)]
+    Event(#[from] event::Error),
     /// Secp256k1 error
     #[error(transparent)]
     Secp256k1(#[from] nostr_sdk::secp256k1::Error),
@@ -798,5 +801,18 @@ impl Store {
             conn.prepare_cached("INSERT OR IGNORE INTO events (event_id, event) VALUES (?, ?);")?;
         stmt.execute((event.id.to_hex(), event.as_json()))?;
         Ok(())
+    }
+
+    pub fn get_events(&self) -> Result<Vec<Event>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT event FROM events;")?;
+        let mut rows = stmt.query([])?;
+        let mut events: Vec<Event> = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let json: String = row.get(0)?;
+            let event: Event = Event::from_json(json)?;
+            events.push(event);
+        }
+        Ok(events)
     }
 }
