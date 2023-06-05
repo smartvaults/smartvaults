@@ -675,6 +675,7 @@ impl Coinstr {
         self.send_event(policy_event).await?;
 
         // Cache policy
+        self.db.save_shared_key(policy_id, shared_key)?;
         self.db.save_policy(policy_id, policy, nostr_pubkeys)?;
 
         Ok(policy_id)
