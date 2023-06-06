@@ -17,8 +17,8 @@ pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
     AddPolicyState, CompletedProposalState, DashboardState, HistoryState, NewProofState,
-    PoliciesState, PolicyState, ProposalState, ProposalsState, ReceiveState, SettingState,
-    SpendState, TransactionState, TransactionsState,
+    NotificationsState, PoliciesState, PolicyState, ProposalState, ProposalsState, ReceiveState,
+    SettingState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -62,6 +62,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
             )
             .into()
         }
+        Stage::Notifications => NotificationsState::new().into(),
         Stage::Setting => SettingState::new().into(),
     }
 }

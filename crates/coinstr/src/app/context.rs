@@ -25,6 +25,7 @@ pub enum Stage {
     Transactions(Option<EventId>),
     History,
     CompletedProposal(EventId, CompletedProposal, EventId),
+    Notifications,
     Setting,
 }
 

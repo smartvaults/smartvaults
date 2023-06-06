@@ -6,6 +6,7 @@ mod completed_proposal;
 mod dashboard;
 mod history;
 mod new_proof;
+mod notifications;
 mod policies;
 mod policy;
 mod proposal;
@@ -21,6 +22,7 @@ pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalSt
 pub use self::dashboard::{DashboardMessage, DashboardState};
 pub use self::history::{HistoryMessage, HistoryState};
 pub use self::new_proof::{NewProofMessage, NewProofState};
+pub use self::notifications::{NotificationsMessage, NotificationsState};
 pub use self::policies::{PoliciesMessage, PoliciesState};
 pub use self::policy::{PolicyMessage, PolicyState};
 pub use self::proposal::{ProposalMessage, ProposalState};

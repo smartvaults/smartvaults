@@ -4,7 +4,7 @@
 use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
 
-use crate::app::{Context, Message};
+use crate::app::{Context, Message, Stage};
 use crate::component::button;
 use crate::theme::color::RED;
 use crate::theme::icon::{BELL, BELL_FILL};
@@ -29,9 +29,14 @@ impl Navbar {
                 log::error!("Impossible to count unseen notifications: {e}");
             }
         };
+
         Row::new()
             .push(Column::new().width(Length::Fill))
-            .push(button.width(Length::Fixed(40.0)))
+            .push(
+                button
+                    .on_press(Message::View(Stage::Notifications))
+                    .width(Length::Fixed(40.0)),
+            )
             .spacing(10)
             .padding(10)
             .height(Length::Fixed(60.0))
