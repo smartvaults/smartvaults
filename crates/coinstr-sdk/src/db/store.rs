@@ -874,4 +874,12 @@ impl Store {
         let count: usize = row.get(0)?;
         Ok(count)
     }
+
+    pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE notification = ?")?;
+        stmt.execute([notification.as_json()])?;
+        Ok(())
+    }
 }

@@ -8,7 +8,7 @@ use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::types::Psbt;
 use coinstr_sdk::core::{ApprovedProposal, CompletedProposal};
 use coinstr_sdk::nostr::{EventId, Timestamp};
-use coinstr_sdk::util;
+use coinstr_sdk::{util, Notification};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -75,6 +75,10 @@ impl State for ProposalState {
         Command::perform(
             async move {
                 if client.db.proposal_exists(proposal_id).ok()? {
+                    client
+                        .db
+                        .mark_notification_as_seen(Notification::NewProposal(proposal_id))
+                        .ok()?;
                     Some(
                         client
                             .db
