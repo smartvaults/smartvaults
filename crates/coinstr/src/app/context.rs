@@ -3,7 +3,7 @@
 
 use coinstr_sdk::core::bitcoin::{Network, Txid};
 use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::core::proposal::CompletedProposal;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::Coinstr;
 
@@ -20,7 +20,7 @@ pub enum Stage {
     Receive(Option<(EventId, Policy)>),
     NewProof(Option<(EventId, Policy)>),
     Proposals,
-    Proposal(EventId, Proposal, EventId),
+    Proposal(EventId),
     Transaction(Txid),
     Transactions(Option<EventId>),
     History,

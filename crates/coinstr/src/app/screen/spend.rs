@@ -9,7 +9,6 @@ use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::db::model::GetPolicyResult;
 use coinstr_sdk::nostr::EventId;
@@ -114,19 +113,13 @@ impl SpendState {
                 let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
                 let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
-                let (proposal_id, proposal) = client
+                let (proposal_id, ..) = client
                     .spend(policy_id, to_address, amount, description, fee_rate, None)
                     .await?;
-                Ok::<(EventId, Proposal, EventId), Box<dyn std::error::Error>>((
-                    proposal_id,
-                    proposal,
-                    policy_id,
-                ))
+                Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
             },
             |res| match res {
-                Ok((proposal_id, proposal, policy_id)) => {
-                    Message::View(Stage::Proposal(proposal_id, proposal, policy_id))
-                }
+                Ok(proposal_id) => Message::View(Stage::Proposal(proposal_id)),
                 Err(e) => SpendMessage::ErrorChanged(Some(e.to_string())).into(),
             },
         )

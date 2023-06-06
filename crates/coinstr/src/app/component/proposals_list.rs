@@ -90,11 +90,7 @@ impl PendingProposalsList {
                         .push(
                             Text::new(util::cut_event_id(*proposal_id))
                                 .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Proposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                    *policy_id,
-                                )))
+                                .on_press(Message::View(Stage::Proposal(*proposal_id)))
                                 .view(),
                         )
                         .push(
@@ -112,11 +108,7 @@ impl PendingProposalsList {
                         .push(Text::new(description).width(Length::Fill).view())
                         .push(
                             button::primary_only_icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Proposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                    *policy_id,
-                                )))
+                                .on_press(Message::View(Stage::Proposal(*proposal_id)))
                                 .width(Length::Fixed(40.0)),
                         )
                         .spacing(10)
@@ -126,11 +118,7 @@ impl PendingProposalsList {
                         .push(
                             Text::new(util::cut_event_id(*proposal_id))
                                 .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Proposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                    *policy_id,
-                                )))
+                                .on_press(Message::View(Stage::Proposal(*proposal_id)))
                                 .view(),
                         )
                         .push(
@@ -148,11 +136,7 @@ impl PendingProposalsList {
                         .push(Text::new(message).width(Length::Fill).view())
                         .push(
                             button::primary_only_icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Proposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                    *policy_id,
-                                )))
+                                .on_press(Message::View(Stage::Proposal(*proposal_id)))
                                 .width(Length::Fixed(40.0)),
                         )
                         .spacing(10)

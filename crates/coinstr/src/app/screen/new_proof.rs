@@ -121,9 +121,7 @@ impl State for NewProofState {
                             return Command::perform(
                                 async move { client.new_proof_proposal(policy_id, message, None).await },
                                 |res| match res {
-                                    Ok((event_id, proposal, policy_id)) => Message::View(
-                                        Stage::Proposal(event_id, proposal, policy_id),
-                                    ),
+                                    Ok((event_id, ..)) => Message::View(Stage::Proposal(event_id)),
                                     Err(e) => {
                                         NewProofMessage::ErrorChanged(Some(e.to_string())).into()
                                     }

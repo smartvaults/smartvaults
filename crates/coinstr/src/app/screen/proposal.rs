@@ -22,12 +22,16 @@ use crate::theme::icon::{SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
+    LoadProposal(
+        Proposal,
+        EventId,
+        BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>,
+    ),
     Approve,
     Finalize,
     Signed(bool),
     Reload,
     CheckPsbts,
-    LoadApprovedProposals(BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>),
     ExportPsbt,
     Delete,
     ErrorChanged(Option<String>),
@@ -39,21 +43,21 @@ pub struct ProposalState {
     loaded: bool,
     signed: bool,
     proposal_id: EventId,
-    proposal: Proposal,
-    policy_id: EventId,
+    proposal: Option<Proposal>,
+    policy_id: Option<EventId>,
     approved_proposals: BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>,
     error: Option<String>,
 }
 
 impl ProposalState {
-    pub fn new(proposal_id: EventId, proposal: Proposal, policy_id: EventId) -> Self {
+    pub fn new(proposal_id: EventId) -> Self {
         Self {
             loading: false,
             loaded: false,
             signed: false,
             proposal_id,
-            proposal,
-            policy_id,
+            proposal: None,
+            policy_id: None,
             approved_proposals: BTreeMap::new(),
             error: None,
         }
@@ -79,18 +83,23 @@ impl State for ProposalState {
                         .db
                         .mark_notification_as_seen(Notification::NewProposal(proposal_id))
                         .ok()?;
-                    Some(
+                    let (policy_id, proposal) = client.db.get_proposal(proposal_id).ok()?;
+                    Some((
+                        proposal,
+                        policy_id,
                         client
                             .db
                             .signed_psbts_by_proposal_id(proposal_id)
                             .unwrap_or_default(),
-                    )
+                    ))
                 } else {
                     None
                 }
             },
             |res| match res {
-                Some(data) => ProposalMessage::LoadApprovedProposals(data).into(),
+                Some((proposal, policy_id, approvals)) => {
+                    ProposalMessage::LoadProposal(proposal, policy_id, approvals).into()
+                }
                 None => Message::View(Stage::Dashboard),
             },
         )
@@ -103,8 +112,10 @@ impl State for ProposalState {
 
         if let Message::Proposal(msg) = message {
             match msg {
-                ProposalMessage::LoadApprovedProposals(value) => {
-                    self.approved_proposals = value;
+                ProposalMessage::LoadProposal(proposal, policy_id, approvals) => {
+                    self.proposal = Some(proposal);
+                    self.policy_id = Some(policy_id);
+                    self.approved_proposals = approvals;
                     self.loading = false;
                     self.loaded = true;
                     return Command::perform(async {}, |_| ProposalMessage::CheckPsbts.into());
@@ -150,38 +161,42 @@ impl State for ProposalState {
                 ProposalMessage::Reload => return self.load(ctx),
                 ProposalMessage::CheckPsbts => {
                     if !self.signed {
-                        let client = ctx.client.clone();
-                        let proposal = self.proposal.clone();
-                        let approved_proposals = self
-                            .approved_proposals
-                            .iter()
-                            .map(|(_, (_, p, ..))| p.clone())
-                            .collect();
-                        return Command::perform(
-                            async move { proposal.finalize(approved_proposals, client.network()) },
-                            |res| match res {
-                                Ok(_) => ProposalMessage::Signed(true).into(),
-                                Err(_) => ProposalMessage::Signed(false).into(),
-                            },
-                        );
+                        if let Some(proposal) = &self.proposal {
+                            let client = ctx.client.clone();
+                            let proposal = proposal.clone();
+                            let approved_proposals = self
+                                .approved_proposals
+                                .iter()
+                                .map(|(_, (_, p, ..))| p.clone())
+                                .collect();
+                            return Command::perform(
+                                async move { proposal.finalize(approved_proposals, client.network()) },
+                                |res| match res {
+                                    Ok(_) => ProposalMessage::Signed(true).into(),
+                                    Err(_) => ProposalMessage::Signed(false).into(),
+                                },
+                            );
+                        }
                     }
                 }
                 ProposalMessage::ExportPsbt => {
-                    let path = FileDialog::new()
-                        .set_title("Export PSBT")
-                        .set_file_name(&format!(
-                            "proposal-{}.psbt",
-                            util::cut_event_id(self.proposal_id)
-                        ))
-                        .save_file();
+                    if let Some(proposal) = &self.proposal {
+                        let path = FileDialog::new()
+                            .set_title("Export PSBT")
+                            .set_file_name(&format!(
+                                "proposal-{}.psbt",
+                                util::cut_event_id(self.proposal_id)
+                            ))
+                            .save_file();
 
-                    if let Some(path) = path {
-                        let psbt = self.proposal.psbt();
-                        match psbt.save_to_file(&path) {
-                            Ok(_) => {
-                                log::info!("PSBT exported to {}", path.display())
+                        if let Some(path) = path {
+                            let psbt = proposal.psbt();
+                            match psbt.save_to_file(&path) {
+                                Ok(_) => {
+                                    log::info!("PSBT exported to {}", path.display())
+                                }
+                                Err(e) => log::error!("Impossible to create file: {e}"),
                             }
-                            Err(e) => log::error!("Impossible to create file: {e}"),
                         }
                     }
                 }
@@ -204,186 +219,202 @@ impl State for ProposalState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
+        let mut content = Column::new().spacing(10).padding(20);
+
         let mut center_y = true;
         let mut center_x = true;
 
-        let content = if self.loaded {
-            center_y = false;
-            center_x = false;
+        if self.loaded {
+            if let Some(proposal) = &self.proposal {
+                if let Some(policy_id) = self.policy_id {
+                    center_y = false;
+                    center_x = false;
 
-            let mut content = Column::new()
-                .spacing(10)
-                .padding(20)
-                .push(
-                    Text::new(format!(
-                        "Proposal #{}",
-                        util::cut_event_id(self.proposal_id)
-                    ))
-                    .size(40)
-                    .bold()
-                    .view(),
-                )
-                .push(Space::with_height(Length::Fixed(40.0)))
-                .push(
-                    Text::new(format!("Policy ID: {}", util::cut_event_id(self.policy_id)))
-                        .on_press(Message::View(Stage::Policy(self.policy_id)))
-                        .view(),
-                );
-
-            let finalize_btn_text: &str = match &self.proposal {
-                Proposal::Spending {
-                    to_address,
-                    amount,
-                    description,
-                    psbt,
-                    ..
-                } => {
                     content = content
-                        .push(Text::new("Type: spending").view())
-                        .push(Text::new(format!("Address: {to_address}")).view())
                         .push(
-                            Text::new(format!("Amount: {} sat", util::format::number(*amount)))
+                            Text::new(format!(
+                                "Proposal #{}",
+                                util::cut_event_id(self.proposal_id)
+                            ))
+                            .size(40)
+                            .bold()
+                            .view(),
+                        )
+                        .push(Space::with_height(Length::Fixed(40.0)))
+                        .push(
+                            Text::new(format!("Policy ID: {}", util::cut_event_id(policy_id)))
+                                .on_press(Message::View(Stage::Policy(policy_id)))
                                 .view(),
                         );
 
-                    match psbt.fee() {
-                        Ok(fee) => {
-                            content = content.push(
-                                Text::new(format!("Fee: {} sat", util::format::number(fee))).view(),
-                            )
+                    let finalize_btn_text: &str = match proposal {
+                        Proposal::Spending {
+                            to_address,
+                            amount,
+                            description,
+                            psbt,
+                            ..
+                        } => {
+                            content = content
+                                .push(Text::new("Type: spending").view())
+                                .push(Text::new(format!("Address: {to_address}")).view())
+                                .push(
+                                    Text::new(format!(
+                                        "Amount: {} sat",
+                                        util::format::number(*amount)
+                                    ))
+                                    .view(),
+                                );
+
+                            match psbt.fee() {
+                                Ok(fee) => {
+                                    content = content.push(
+                                        Text::new(format!(
+                                            "Fee: {} sat",
+                                            util::format::number(fee)
+                                        ))
+                                        .view(),
+                                    )
+                                }
+                                Err(e) => {
+                                    log::error!("Impossible to calculate fee: {e}");
+                                }
+                            };
+
+                            if !description.is_empty() {
+                                content = content
+                                    .push(Text::new(format!("Description: {description}")).view());
+                            }
+
+                            "Broadcast"
                         }
-                        Err(e) => {
-                            log::error!("Impossible to calculate fee: {e}");
+                        Proposal::ProofOfReserve { message, .. } => {
+                            content = content
+                                .push(Text::new("Type: proof-of-reserve").view())
+                                .push(Text::new(format!("Message: {message}")).view());
+
+                            "Finalize"
                         }
                     };
 
-                    if !description.is_empty() {
-                        content =
-                            content.push(Text::new(format!("Description: {description}")).view());
+                    let mut status = Row::new().push(Text::new("Status: ").view());
+
+                    if self.signed {
+                        status = status.push(Text::new("signed").color(GREEN).view());
+                    } else {
+                        status = status.push(Text::new("unsigned").color(YELLOW).view());
                     }
 
-                    "Broadcast"
-                }
-                Proposal::ProofOfReserve { message, .. } => {
+                    content = content.push(status);
+
+                    let (approve_btn, mut finalize_btn) =
+                        match self.approved_proposals.get(&ctx.client.keys().public_key()) {
+                            Some(_) => {
+                                let approve_btn = button::border("Approve");
+                                let finalize_btn = button::primary(finalize_btn_text);
+                                (approve_btn, finalize_btn)
+                            }
+                            None => {
+                                let mut approve_btn = button::primary("Approve");
+                                let finalize_btn = button::border(finalize_btn_text);
+
+                                if !self.loading {
+                                    approve_btn =
+                                        approve_btn.on_press(ProposalMessage::Approve.into());
+                                }
+
+                                (approve_btn, finalize_btn)
+                            }
+                        };
+
+                    if self.signed && !self.loading {
+                        finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
+                    }
+
+                    let mut export_btn = button::border_with_icon(SAVE, "Export PSBT");
+                    let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
+
+                    if !self.loading {
+                        export_btn = export_btn.on_press(ProposalMessage::ExportPsbt.into());
+                        delete_btn = delete_btn.on_press(ProposalMessage::Delete.into());
+                    }
+
                     content = content
-                        .push(Text::new("Type: proof-of-reserve").view())
-                        .push(Text::new(format!("Message: {message}")).view());
+                        .push(Space::with_height(10.0))
+                        .push(
+                            Row::new()
+                                .push(approve_btn)
+                                .push(finalize_btn)
+                                .push(export_btn)
+                                .push(delete_btn)
+                                .spacing(10),
+                        )
+                        .push(Space::with_height(20.0));
 
-                    "Finalize"
-                }
-            };
+                    if let Some(error) = &self.error {
+                        content = content.push(Text::new(error).color(RED).view());
+                    };
 
-            let mut status = Row::new().push(Text::new("Status: ").view());
+                    if !self.approved_proposals.is_empty() {
+                        content = content
+                            .push(Text::new("Approvals").bold().bigger().view())
+                            .push(Space::with_height(10.0))
+                            .push(
+                                Row::new()
+                                    .push(
+                                        Text::new("ID")
+                                            .bold()
+                                            .bigger()
+                                            .width(Length::Fixed(115.0))
+                                            .view(),
+                                    )
+                                    .push(
+                                        Text::new("Date/Time")
+                                            .bold()
+                                            .bigger()
+                                            .width(Length::Fill)
+                                            .view(),
+                                    )
+                                    .push(
+                                        Text::new("User")
+                                            .bold()
+                                            .bigger()
+                                            .width(Length::Fill)
+                                            .view(),
+                                    )
+                                    .spacing(10)
+                                    .align_items(Alignment::Center)
+                                    .width(Length::Fill),
+                            )
+                            .push(rule::horizontal_bold());
 
-            if self.signed {
-                status = status.push(Text::new("signed").color(GREEN).view());
-            } else {
-                status = status.push(Text::new("unsigned").color(YELLOW).view());
-            }
-
-            content = content.push(status);
-
-            let (approve_btn, mut finalize_btn) =
-                match self.approved_proposals.get(&ctx.client.keys().public_key()) {
-                    Some(_) => {
-                        let approve_btn = button::border("Approve");
-                        let finalize_btn = button::primary(finalize_btn_text);
-                        (approve_btn, finalize_btn)
-                    }
-                    None => {
-                        let mut approve_btn = button::primary("Approve");
-                        let finalize_btn = button::border(finalize_btn_text);
-
-                        if !self.loading {
-                            approve_btn = approve_btn.on_press(ProposalMessage::Approve.into());
+                        for (author, (event_id, _, timestamp)) in self.approved_proposals.iter() {
+                            let row = Row::new()
+                                .push(
+                                    Text::new(util::cut_event_id(*event_id))
+                                        .width(Length::Fixed(115.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new(timestamp.to_human_datetime())
+                                        .width(Length::Fill)
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new(cut_public_key(*author))
+                                        .width(Length::Fill)
+                                        .view(),
+                                )
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .width(Length::Fill);
+                            content = content.push(row).push(rule::horizontal());
                         }
-
-                        (approve_btn, finalize_btn)
                     }
-                };
-
-            if self.signed && !self.loading {
-                finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
-            }
-
-            let mut export_btn = button::border_with_icon(SAVE, "Export PSBT");
-            let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
-
-            if !self.loading {
-                export_btn = export_btn.on_press(ProposalMessage::ExportPsbt.into());
-                delete_btn = delete_btn.on_press(ProposalMessage::Delete.into());
-            }
-
-            content = content
-                .push(Space::with_height(10.0))
-                .push(
-                    Row::new()
-                        .push(approve_btn)
-                        .push(finalize_btn)
-                        .push(export_btn)
-                        .push(delete_btn)
-                        .spacing(10),
-                )
-                .push(Space::with_height(20.0));
-
-            if let Some(error) = &self.error {
-                content = content.push(Text::new(error).color(RED).view());
-            };
-
-            if !self.approved_proposals.is_empty() {
-                content = content
-                    .push(Text::new("Approvals").bold().bigger().view())
-                    .push(Space::with_height(10.0))
-                    .push(
-                        Row::new()
-                            .push(
-                                Text::new("ID")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fixed(115.0))
-                                    .view(),
-                            )
-                            .push(
-                                Text::new("Date/Time")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fill)
-                                    .view(),
-                            )
-                            .push(Text::new("User").bold().bigger().width(Length::Fill).view())
-                            .spacing(10)
-                            .align_items(Alignment::Center)
-                            .width(Length::Fill),
-                    )
-                    .push(rule::horizontal_bold());
-
-                for (author, (event_id, _, timestamp)) in self.approved_proposals.iter() {
-                    let row = Row::new()
-                        .push(
-                            Text::new(util::cut_event_id(*event_id))
-                                .width(Length::Fixed(115.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new(timestamp.to_human_datetime())
-                                .width(Length::Fill)
-                                .view(),
-                        )
-                        .push(
-                            Text::new(cut_public_key(*author))
-                                .width(Length::Fill)
-                                .view(),
-                        )
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill);
-                    content = content.push(row).push(rule::horizontal());
                 }
             }
-
-            content
         } else {
-            Column::new().push(Text::new("Loading...").view())
+            content = content.push(Text::new("Loading...").view())
         };
 
         Dashboard::new().view(ctx, content, center_x, center_y)
