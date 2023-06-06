@@ -319,6 +319,10 @@ impl Store {
     }
 
     pub fn delete_policy(&self, policy_id: EventId) -> Result<(), Error> {
+        // Delete notification
+        self.delete_notification(Notification::NewPolicy(policy_id))?;
+
+        // Delete policy
         let conn = self.pool.get()?;
         conn.execute(
             "DELETE FROM policies WHERE policy_id = ?;",
@@ -480,6 +484,10 @@ impl Store {
     }
 
     pub fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
+        // Delete notification
+        self.delete_notification(Notification::NewProposal(proposal_id))?;
+
+        // Delete proposal
         let conn = self.pool.get()?;
         conn.execute(
             "DELETE FROM proposals WHERE proposal_id = ?;",
@@ -879,6 +887,13 @@ impl Store {
         let conn = self.pool.get()?;
         let mut stmt =
             conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE notification = ?")?;
+        stmt.execute([notification.as_json()])?;
+        Ok(())
+    }
+
+    pub fn delete_notification(&self, notification: Notification) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE notification = ?")?;
         stmt.execute([notification.as_json()])?;
         Ok(())
     }
