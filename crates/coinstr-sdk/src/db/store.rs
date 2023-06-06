@@ -854,7 +854,9 @@ impl Store {
 
     pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT notification, timestamp, seen FROM notifications;")?;
+        let mut stmt = conn.prepare(
+            "SELECT notification, timestamp, seen FROM notifications ORDER BY timestamp DESC;",
+        )?;
         let mut rows = stmt.query([])?;
         let mut notifications: Vec<GetNotificationsResult> = Vec::new();
         while let Ok(Some(row)) = rows.next() {
