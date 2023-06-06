@@ -118,7 +118,6 @@ impl State for DashboardState {
             center_x = false;
 
             content = content
-                .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
                     Balances::new(self.balance.clone())
                         .bigger()

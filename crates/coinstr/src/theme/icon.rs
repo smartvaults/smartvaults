@@ -29,3 +29,4 @@ pub const HISTORY: char = '\u{F292}';
 pub const PATCH_CHECK: char = '\u{F4B6}';
 pub const GLOBE: char = '\u{F3EE}';
 pub const BELL: char = '\u{F18A}';
+pub const BELL_FILL: char = '\u{F189}';
