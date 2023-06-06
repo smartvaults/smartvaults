@@ -100,6 +100,10 @@ pub enum Error {
 pub enum Notification {
     NewPolicy(EventId),
     NewProposal(EventId),
+    /* NewApproval {
+        proposal_id: EventId,
+        approval_id: EventId,
+    } */
 }
 
 impl Serde for Notification {}
@@ -817,7 +821,7 @@ impl Coinstr {
             event_id,
             approved_proposal.clone(),
             timestamp,
-        );
+        )?;
 
         Ok((event_id, approved_proposal))
     }
@@ -1149,7 +1153,7 @@ impl Coinstr {
                             event.id,
                             approved_proposal,
                             event.created_at,
-                        );
+                        )?;
                     } else {
                         log::info!("Requesting shared key for approved proposal {}", event.id);
                         thread::sleep(Duration::from_secs(1)).await;

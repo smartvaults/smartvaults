@@ -6,8 +6,9 @@ use std::collections::BTreeMap;
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::types::Psbt;
-use coinstr_sdk::core::{ApprovedProposal, CompletedProposal};
-use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::core::CompletedProposal;
+use coinstr_sdk::db::model::GetApprovedProposalResult;
+use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::{util, Notification};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -25,7 +26,7 @@ pub enum ProposalMessage {
     LoadProposal(
         Proposal,
         EventId,
-        BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>,
+        BTreeMap<EventId, GetApprovedProposalResult>,
     ),
     Approve,
     Finalize,
@@ -45,7 +46,7 @@ pub struct ProposalState {
     proposal_id: EventId,
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
-    approved_proposals: BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>,
+    approved_proposals: BTreeMap<EventId, GetApprovedProposalResult>,
     error: Option<String>,
 }
 
@@ -89,7 +90,7 @@ impl State for ProposalState {
                         policy_id,
                         client
                             .db
-                            .signed_psbts_by_proposal_id(proposal_id)
+                            .get_approvals_by_proposal_id(proposal_id)
                             .unwrap_or_default(),
                     ))
                 } else {
@@ -167,7 +168,16 @@ impl State for ProposalState {
                             let approved_proposals = self
                                 .approved_proposals
                                 .iter()
-                                .map(|(_, (_, p, ..))| p.clone())
+                                .map(
+                                    |(
+                                        _,
+                                        GetApprovedProposalResult {
+                                            approved_proposal, ..
+                                        },
+                                    )| {
+                                        approved_proposal.clone()
+                                    },
+                                )
                                 .collect();
                             return Command::perform(
                                 async move { proposal.finalize(approved_proposals, client.network()) },
@@ -307,25 +317,27 @@ impl State for ProposalState {
 
                     content = content.push(status);
 
-                    let (approve_btn, mut finalize_btn) =
-                        match self.approved_proposals.get(&ctx.client.keys().public_key()) {
-                            Some(_) => {
-                                let approve_btn = button::border("Approve");
-                                let finalize_btn = button::primary(finalize_btn_text);
-                                (approve_btn, finalize_btn)
-                            }
-                            None => {
-                                let mut approve_btn = button::primary("Approve");
-                                let finalize_btn = button::border(finalize_btn_text);
+                    let (approve_btn, mut finalize_btn) = match self.approved_proposals.iter().find(
+                        |(_, GetApprovedProposalResult { public_key, .. })| {
+                            public_key == &ctx.client.keys().public_key()
+                        },
+                    ) {
+                        Some(_) => {
+                            let approve_btn = button::border("Approve");
+                            let finalize_btn = button::primary(finalize_btn_text);
+                            (approve_btn, finalize_btn)
+                        }
+                        None => {
+                            let mut approve_btn = button::primary("Approve");
+                            let finalize_btn = button::border(finalize_btn_text);
 
-                                if !self.loading {
-                                    approve_btn =
-                                        approve_btn.on_press(ProposalMessage::Approve.into());
-                                }
-
-                                (approve_btn, finalize_btn)
+                            if !self.loading {
+                                approve_btn = approve_btn.on_press(ProposalMessage::Approve.into());
                             }
-                        };
+
+                            (approve_btn, finalize_btn)
+                        }
+                    };
 
                     if self.signed && !self.loading {
                         finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
@@ -388,10 +400,18 @@ impl State for ProposalState {
                             )
                             .push(rule::horizontal_bold());
 
-                        for (author, (event_id, _, timestamp)) in self.approved_proposals.iter() {
+                        for (
+                            approval_id,
+                            GetApprovedProposalResult {
+                                public_key,
+                                timestamp,
+                                ..
+                            },
+                        ) in self.approved_proposals.iter()
+                        {
                             let row = Row::new()
                                 .push(
-                                    Text::new(util::cut_event_id(*event_id))
+                                    Text::new(util::cut_event_id(*approval_id))
                                         .width(Length::Fixed(115.0))
                                         .view(),
                                 )
@@ -401,7 +421,7 @@ impl State for ProposalState {
                                         .view(),
                                 )
                                 .push(
-                                    Text::new(cut_public_key(*author))
+                                    Text::new(cut_public_key(*public_key))
                                         .width(Length::Fill)
                                         .view(),
                                 )

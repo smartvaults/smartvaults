@@ -33,7 +33,9 @@ use rusqlite::OpenFlags;
 use tokio::sync::mpsc::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
-use super::model::{GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult};
+use super::model::{
+    GetApprovedProposalResult, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
+};
 use crate::client::{Message, Notification};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 
@@ -43,8 +45,6 @@ const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
 pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
 pub type Transactions = Vec<(TransactionDetails, Option<String>)>;
-type ApprovedProposals =
-    BTreeMap<EventId, BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>>;
 
 /// Store error
 #[derive(Debug, thiserror::Error)]
@@ -133,7 +133,6 @@ impl BlockHeight {
 pub struct Store {
     pool: SqlitePool,
     keys: Keys,
-    approved_proposals: Arc<Mutex<ApprovedProposals>>,
     block_height: BlockHeight,
     wallets: Arc<Mutex<BTreeMap<EventId, Wallet<SqliteDatabase>>>>,
     timechain_db_path: PathBuf,
@@ -160,12 +159,10 @@ impl Store {
             .with_init(|c| c.execute_batch(STARTUP_SQL));
         let pool = r2d2::Pool::new(manager)?;
         migration::run(&mut pool.get()?)?;
-        let approved_proposals = Arc::new(Mutex::new(BTreeMap::new()));
         Ok(Self {
             pool,
             keys: keys.clone(),
             wallets: Arc::new(Mutex::new(BTreeMap::new())),
-            approved_proposals,
             block_height: BlockHeight::default(),
             timechain_db_path: timechain_db_path.as_ref().to_path_buf(),
             network,
@@ -493,60 +490,56 @@ impl Store {
             "DELETE FROM proposals WHERE proposal_id = ?;",
             [proposal_id.to_hex()],
         )?;
-        let mut approved_proposals = self.approved_proposals.lock();
-        approved_proposals.remove(&proposal_id);
+
+        // Delete approvals
+        conn.execute(
+            "DELETE FROM approved_proposals WHERE proposal_id = ?;",
+            [proposal_id.to_hex()],
+        )?;
+
         log::info!("Deleted proposal {proposal_id}");
         Ok(())
     }
 
-    pub fn approved_proposals(&self) -> ApprovedProposals {
-        let approved_proposals = self.approved_proposals.lock();
-        approved_proposals.clone()
-    }
-
-    pub fn signed_psbts_by_proposal_id(
+    pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
-    ) -> Option<BTreeMap<XOnlyPublicKey, (EventId, ApprovedProposal, Timestamp)>> {
-        let approved_proposals = self.approved_proposals.lock();
-        approved_proposals.get(&proposal_id).cloned()
+    ) -> Result<BTreeMap<EventId, GetApprovedProposalResult>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
+        let mut rows = stmt.query([proposal_id.to_hex()])?;
+        let mut approvals = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let approval_id: String = row.get(0)?;
+            let public_key: String = row.get(1)?;
+            let json: String = row.get(2)?;
+            let timestamp: u64 = row.get(3)?;
+            approvals.insert(
+                EventId::from_hex(approval_id)?,
+                GetApprovedProposalResult {
+                    public_key: XOnlyPublicKey::from_str(&public_key)?,
+                    approved_proposal: ApprovedProposal::decrypt_with_keys(&self.keys, json)?,
+                    timestamp: Timestamp::from(timestamp),
+                },
+            );
+        }
+        Ok(approvals)
     }
 
     pub fn save_approved_proposal(
         &self,
         proposal_id: EventId,
         author: XOnlyPublicKey,
-        approved_proposal_id: EventId,
+        approval_id: EventId,
         approved_proposal: ApprovedProposal,
         timestamp: Timestamp,
-    ) {
-        let mut approved_proposals = self.approved_proposals.lock();
-        approved_proposals
-            .entry(proposal_id)
-            .and_modify(|map| {
-                match map.get_mut(&author) {
-                    Some(value) => {
-                        if timestamp > value.2 {
-                            value.0 = approved_proposal_id;
-                            value.1 = approved_proposal.clone();
-                            value.2 = timestamp;
-                            log::info!(
-                                "Cached approved proposal {proposal_id} for pubkey {author} (updated)"
-                            );
-                        }
-                    }
-                    None => {
-                        map.insert(author, (approved_proposal_id, approved_proposal.clone(), timestamp));
-                        log::info!(
-                            "Cached approved proposal {proposal_id} for pubkey {author} (append)"
-                        );
-                    }
-                };
-            })
-            .or_insert_with(|| {
-                log::info!("Cached approved proposal {proposal_id} for pubkey {author}");
-                [(author, (approved_proposal_id, approved_proposal.clone(), timestamp))].into()
-            });
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
+            (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt_with_keys(&self.keys)?, timestamp.as_u64()),
+        )?;
+        Ok(())
     }
 
     pub fn get_approved_proposals_by_id(
@@ -554,14 +547,21 @@ impl Store {
         proposal_id: EventId,
     ) -> Result<GetApprovedProposals, Error> {
         let (policy_id, proposal) = self.get_proposal(proposal_id)?;
-        let approved_proposals = self.approved_proposals.lock();
-        let proposals = approved_proposals
-            .get(&proposal_id)
-            .ok_or(Error::NotFound("approved proposal".into()))?;
+        let approved_proposals = self.get_approvals_by_proposal_id(proposal_id)?;
         Ok(GetApprovedProposals {
             policy_id,
             proposal,
-            approved_proposals: proposals.iter().map(|(_, (_, p, _))| p.clone()).collect(),
+            approved_proposals: approved_proposals
+                .iter()
+                .map(
+                    |(
+                        _,
+                        GetApprovedProposalResult {
+                            approved_proposal, ..
+                        },
+                    )| approved_proposal.clone(),
+                )
+                .collect(),
         })
     }
 

@@ -8,7 +8,7 @@ use rusqlite::Connection;
 use super::store::{Error, PooledConnection};
 
 /// Latest database version
-pub const DB_VERSION: usize = 2;
+pub const DB_VERSION: usize = 3;
 
 /// Startup DB Pragmas
 pub const STARTUP_SQL: &str = r##"
@@ -54,9 +54,9 @@ pub fn run(conn: &mut PooledConnection) -> Result<(), Error> {
             if curr_version == 1 {
                 curr_version = mig_1_to_2(conn)?;
             }
-            /* if curr_version == 2 {
+            if curr_version == 2 {
                 curr_version = mig_2_to_3(conn)?;
-            } */
+            }
 
             if curr_version == DB_VERSION {
                 log::info!("All migration scripts completed successfully (v{DB_VERSION})");
@@ -89,5 +89,11 @@ fn mig_init(conn: &mut PooledConnection) -> Result<usize, Error> {
 fn mig_1_to_2(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/002_notifications.sql"))?;
     log::info!("database schema upgraded v1 -> v2");
+    Ok(2)
+}
+
+fn mig_2_to_3(conn: &mut PooledConnection) -> Result<usize, Error> {
+    conn.execute_batch(include_str!("../../migrations/003_approvals.sql"))?;
+    log::info!("database schema upgraded v2 -> v3");
     Ok(2)
 }
