@@ -5,6 +5,7 @@ use std::any::TypeId;
 use std::hash::{Hash, Hasher};
 
 use async_stream::stream;
+use coinstr_sdk::client::Message;
 use coinstr_sdk::{Coinstr, Notification};
 use iced::Subscription;
 use iced_futures::BoxStream;
@@ -28,7 +29,7 @@ where
         let mut receiver = self.client.sync();
         let stream = stream! {
             while let Some(item) = receiver.recv().await {
-                if let Some(notification) = item {
+                if let Some(Message::Notification(notification)) = item {
                     match notification {
                         Notification::NewPolicy(_) => if let Err(e) = DesktopNotification::new()
                         .summary("Coinstr")
@@ -36,7 +37,7 @@ where
                         .show() {
                             log::error!("Impossible to send desktop notification: {e}");
                         },
-                        Notification::NewProposal(_, _) => if let Err(e) = DesktopNotification::new()
+                        Notification::NewProposal(_) => if let Err(e) = DesktopNotification::new()
                         .summary("Coinstr")
                         .body("New proposal")
                         .show() {

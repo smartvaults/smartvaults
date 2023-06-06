@@ -5,6 +5,8 @@ use bdk::Balance;
 use coinstr_core::Policy;
 use nostr_sdk::Timestamp;
 
+use crate::Notification;
+
 #[derive(Debug, Clone)]
 pub struct GetPolicyResult {
     pub policy: Policy,
@@ -16,4 +18,11 @@ pub struct GetDetailedPolicyResult {
     pub policy: Policy,
     pub balance: Option<Balance>,
     pub last_sync: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetNotificationsResult {
+    pub notification: Notification,
+    pub timestamp: Timestamp,
+    pub seen: bool,
 }

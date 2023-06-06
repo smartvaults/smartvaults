@@ -22,6 +22,7 @@ use bdk::wallet::AddressIndex;
 use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::policy::{self, Policy};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
+use coinstr_core::util::serde::{Error as SerdeError, Serde};
 use coinstr_core::ApprovedProposal;
 use nostr_sdk::event::id::{self, EventId};
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -32,8 +33,8 @@ use rusqlite::OpenFlags;
 use tokio::sync::mpsc::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
-use super::model::{GetDetailedPolicyResult, GetPolicyResult};
-use crate::client::Notification;
+use super::model::{GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult};
+use crate::client::{Message, Notification};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 
 const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
@@ -72,6 +73,9 @@ pub enum Error {
     /// Event error
     #[error(transparent)]
     Event(#[from] event::Error),
+    /// JSON error
+    #[error(transparent)]
+    JSON(#[from] SerdeError),
     /// Secp256k1 error
     #[error(transparent)]
     Secp256k1(#[from] nostr_sdk::secp256k1::Error),
@@ -752,7 +756,7 @@ impl Store {
     pub fn sync_with_timechain<B>(
         &self,
         blockchain: &B,
-        sender: Option<&Sender<Option<Notification>>>,
+        sender: Option<&Sender<Option<Message>>>,
         force: bool,
     ) -> Result<(), Error>
     where
@@ -773,7 +777,7 @@ impl Store {
                 wallet.sync(blockchain, SyncOptions::default())?;
                 self.update_last_sync(policy_id, Some(Timestamp::now()))?;
                 if let Some(sender) = sender {
-                    let _ = sender.try_send(None);
+                    let _ = sender.try_send(Some(Message::WalletSyncCompleted(policy_id)));
                 }
             }
         }
@@ -829,5 +833,45 @@ impl Store {
             events.push(event);
         }
         Ok(events)
+    }
+
+    pub fn save_notification(&self, notification: Notification) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached(
+            "INSERT OR IGNORE INTO notifications (notification, timestamp) VALUES (?, ?);",
+        )?;
+        stmt.execute((notification.as_json(), Timestamp::now().as_u64()))?;
+        Ok(())
+    }
+
+    pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT notification, timestamp, seen FROM notifications;")?;
+        let mut rows = stmt.query([])?;
+        let mut notifications: Vec<GetNotificationsResult> = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let json: String = row.get(0)?;
+            let notification: Notification = Notification::from_json(json)?;
+            let timestamp: u64 = row.get(1)?;
+            let timestamp = Timestamp::from(timestamp);
+            let seen: bool = row.get(2)?;
+            notifications.push(GetNotificationsResult {
+                notification,
+                timestamp,
+                seen,
+            });
+        }
+        Ok(notifications)
+    }
+
+    pub fn count_unseen_notifications(&self) -> Result<usize, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notifications WHERE seen = 0;")?;
+        let mut rows = stmt.query([])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("count notifications".into()))?;
+        let count: usize = row.get(0)?;
+        Ok(count)
     }
 }

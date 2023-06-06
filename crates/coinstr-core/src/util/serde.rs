@@ -6,7 +6,7 @@ use std::str::FromStr;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Error;
+pub use serde_json::Error;
 
 pub trait Serde: Sized + Serialize + DeserializeOwned {
     /// Deserialize from `JSON` string

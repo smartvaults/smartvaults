@@ -20,7 +20,7 @@ use bdk::{Balance, FeeRate, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
-use coinstr_core::util::extract_public_keys;
+use coinstr_core::util::{extract_public_keys, Serde};
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
 use futures_util::future::{AbortHandle, Abortable};
 use nostr_sdk::nips::nip06::FromMnemonic;
@@ -96,10 +96,18 @@ pub enum Error {
     Generic(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Notification {
     NewPolicy(EventId),
-    NewProposal(EventId, Proposal),
+    NewProposal(EventId),
+}
+
+impl Serde for Notification {}
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    Notification(Notification),
+    WalletSyncCompleted(EventId),
 }
 
 /// Coinstr
@@ -940,7 +948,7 @@ impl Coinstr {
         self.verify_proof(proposal).await
     }
 
-    fn sync_with_timechain(&self, sender: Sender<Option<Notification>>) -> AbortHandle {
+    fn sync_with_timechain(&self, sender: Sender<Option<Message>>) -> AbortHandle {
         let this = self.clone();
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
         let timechain_sync = async move {
@@ -984,8 +992,8 @@ impl Coinstr {
         abort_handle
     }
 
-    pub fn sync(&self) -> Receiver<Option<Notification>> {
-        let (sender, receiver) = mpsc::channel::<Option<Notification>>(1024);
+    pub fn sync(&self) -> Receiver<Option<Message>> {
+        let (sender, receiver) = mpsc::channel::<Option<Message>>(1024);
         let this = self.clone();
         thread::spawn(async move {
             // Sync timechain
@@ -1066,7 +1074,7 @@ impl Coinstr {
     }
 
     #[async_recursion]
-    async fn handle_event(&self, event: Event) -> Result<Option<Notification>> {
+    async fn handle_event(&self, event: Event) -> Result<Option<Message>> {
         if let Err(e) = self.db.save_event(&event) {
             log::error!("Impossible to save event {}: {e}", event.id);
         }
@@ -1094,7 +1102,9 @@ impl Coinstr {
                     log::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
                     self.db.save_policy(event.id, policy, nostr_pubkeys)?;
-                    return Ok(Some(Notification::NewPolicy(event.id)));
+                    let notification = Notification::NewPolicy(event.id);
+                    self.db.save_notification(notification)?;
+                    return Ok(Some(Message::Notification(notification)));
                 }
             } else {
                 log::info!("Requesting shared key for {}", event.id);
@@ -1109,9 +1119,10 @@ impl Coinstr {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
                 if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
-                    self.db
-                        .save_proposal(event.id, policy_id, proposal.clone())?;
-                    return Ok(Some(Notification::NewProposal(event.id, proposal)));
+                    self.db.save_proposal(event.id, policy_id, proposal)?;
+                    let notification = Notification::NewProposal(event.id);
+                    self.db.save_notification(notification)?;
+                    return Ok(Some(Message::Notification(notification)));
                 } else {
                     log::info!("Requesting shared key for proposal {}", event.id);
                     thread::sleep(Duration::from_secs(1)).await;
