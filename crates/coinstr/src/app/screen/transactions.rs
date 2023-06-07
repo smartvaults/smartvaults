@@ -92,8 +92,10 @@ impl State for TransactionsState {
             center_x = false;
 
             let title = match self.policy_id {
-                Some(policy_id) => format!("Policy #{}", util::cut_event_id(policy_id)),
-                None => String::from("All policies"),
+                Some(policy_id) => {
+                    format!("Transactions of policy #{}", util::cut_event_id(policy_id))
+                }
+                None => String::from("Transactions"),
             };
             content = content
                 .push(Text::new(title).size(40).bold().view())
