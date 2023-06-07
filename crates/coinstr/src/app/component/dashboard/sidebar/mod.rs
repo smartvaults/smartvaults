@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bips::bip32::Bip32;
-use coinstr_sdk::util::format;
 use iced::widget::{svg, Column, Container, Row, Rule, Space};
 use iced::Length;
 
@@ -13,9 +12,7 @@ use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{
-    BITCOIN, FINGERPRINT, HISTORY, HOME, KEY, LOCK, NETWORK, SEND_PENDING, SETTING,
-};
+use crate::theme::icon::{FINGERPRINT, HISTORY, HOME, KEY, LOCK, SEND_PENDING, SETTING};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -51,31 +48,11 @@ impl Sidebar {
             Ok(fingerprint) => Text::new(fingerprint.to_string()),
             Err(_) => Text::new("error").color(DARK_RED),
         };
-        let block_height: u32 = ctx.client.block_height();
         let details = Column::new()
             .push(
                 Row::new()
                     .push(Icon::new(FINGERPRINT).view())
                     .push(fingerprint.view())
-                    .spacing(10),
-            )
-            .push(
-                Row::new()
-                    .push(Icon::new(NETWORK).view())
-                    .push(Text::new(ctx.client.network().to_string()).view())
-                    .spacing(10),
-            )
-            .push(
-                Row::new()
-                    .push(Icon::new(BITCOIN).view())
-                    .push(
-                        Text::new(if block_height == 0 {
-                            String::from("Loading...")
-                        } else {
-                            format::number(block_height as u64)
-                        })
-                        .view(),
-                    )
                     .spacing(10),
             )
             .spacing(10)
