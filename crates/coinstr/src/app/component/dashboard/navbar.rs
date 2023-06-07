@@ -8,7 +8,7 @@ use iced::{Alignment, Color, Length};
 use crate::app::{Context, Message, Stage};
 use crate::component::{button, rule, Icon, Text};
 use crate::theme::color::RED;
-use crate::theme::icon::{BELL, BOX, PERSON_CIRCLE};
+use crate::theme::icon::{BELL, BOX, EYE, PERSON_CIRCLE};
 
 #[derive(Clone, Default)]
 pub struct Navbar;
@@ -57,6 +57,7 @@ impl Navbar {
                     .on_press(Message::View(Stage::Notifications))
                     .width(Length::Fixed(40.0)),
             )
+            .push(button::transparent_only_icon(EYE, None).width(Length::Fixed(40.0)))
             .push(
                 button::transparent_only_icon(PERSON_CIRCLE, None)
                     .on_press(Message::View(Stage::Profile))

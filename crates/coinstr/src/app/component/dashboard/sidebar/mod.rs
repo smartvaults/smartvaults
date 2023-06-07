@@ -12,7 +12,9 @@ use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{FINGERPRINT, HISTORY, HOME, KEY, LOCK, SEND_PENDING, SETTING};
+use crate::theme::icon::{
+    CONTACTS, FINGERPRINT, HISTORY, HOME, KEY, LOCK, SEND_PENDING, SETTING, WALLET,
+};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -34,12 +36,16 @@ impl Sidebar {
         // Buttons
         let home_button = SidebarButton::new("Dashboard", Icon::new(HOME).view())
             .view(ctx, Message::View(Stage::Dashboard));
-        let policies_button = SidebarButton::new("Policies", Icon::new(KEY).view())
+        let policies_button = SidebarButton::new("Policies", Icon::new(WALLET).view())
             .view(ctx, Message::View(Stage::Policies));
         let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING).view())
             .view(ctx, Message::View(Stage::Proposals));
         let history_button = SidebarButton::new("History", Icon::new(HISTORY).view())
             .view(ctx, Message::View(Stage::History));
+        let signers_button = SidebarButton::new("Signers", Icon::new(KEY).view())
+            .view(ctx, Message::View(Stage::Signers));
+        let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS).view())
+            .view(ctx, Message::View(Stage::Contacts));
         let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
             .view(ctx, Message::View(Stage::Setting));
 
@@ -80,6 +86,8 @@ impl Sidebar {
                 policies_button,
                 proposals_button,
                 history_button,
+                signers_button,
+                contacts_button,
                 settings_button,
             ]),
             sidebar_menu(vec![

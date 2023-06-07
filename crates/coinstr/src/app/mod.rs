@@ -64,6 +64,8 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
             )
             .into()
         }
+        Stage::Signers => todo!(),
+        Stage::Contacts => todo!(),
         Stage::Notifications => NotificationsState::new().into(),
         Stage::Profile => ProfileState::new().into(),
         Stage::Setting => SettingState::new().into(),
