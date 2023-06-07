@@ -40,6 +40,7 @@ impl Navbar {
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .spacing(10)
+                    .padding(10)
                     .align_items(Alignment::Center),
             )
             .push(rule::vertical())
@@ -56,7 +57,11 @@ impl Navbar {
                     .on_press(Message::View(Stage::Notifications))
                     .width(Length::Fixed(40.0)),
             )
-            .push(button::transparent_only_icon(PERSON_CIRCLE, None).width(Length::Fixed(40.0)))
+            .push(
+                button::transparent_only_icon(PERSON_CIRCLE, None)
+                    .on_press(Message::View(Stage::Profile))
+                    .width(Length::Fixed(40.0)),
+            )
             .spacing(10)
             .padding(10)
             .height(Length::Fixed(60.0))

@@ -27,6 +27,7 @@ pub enum Stage {
     History,
     CompletedProposal(EventId, CompletedProposal, EventId),
     Notifications,
+    Profile,
     Setting,
 }
 

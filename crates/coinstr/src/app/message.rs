@@ -3,9 +3,9 @@
 
 use super::screen::{
     AddPolicyMessage, CompletedProposalMessage, DashboardMessage, HistoryMessage, NewProofMessage,
-    NotificationsMessage, PoliciesMessage, PolicyMessage, ProposalMessage, ProposalsMessage,
-    ReceiveMessage, RestorePolicyMessage, SettingMessage, SpendMessage, TransactionMessage,
-    TransactionsMessage,
+    NotificationsMessage, PoliciesMessage, PolicyMessage, ProfileMessage, ProposalMessage,
+    ProposalsMessage, ReceiveMessage, RestorePolicyMessage, SettingMessage, SpendMessage,
+    TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -27,6 +27,7 @@ pub enum Message {
     History(HistoryMessage),
     CompletedProposal(CompletedProposalMessage),
     Notifications(NotificationsMessage),
+    Profile(ProfileMessage),
     Setting(SettingMessage),
     Clipboard(String),
     Lock,
