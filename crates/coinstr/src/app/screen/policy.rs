@@ -5,7 +5,7 @@ use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::{EventId, Timestamp};
-use coinstr_sdk::util;
+use coinstr_sdk::{util, Notification};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -75,7 +75,13 @@ impl State for PolicyState {
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
-            async move { client.db.policy_with_details(policy_id) },
+            async move {
+                client
+                    .db
+                    .mark_notification_as_seen(Notification::NewPolicy(policy_id))
+                    .ok()?;
+                client.db.policy_with_details(policy_id)
+            },
             |res| match res {
                 Some((policy, balance, list, last_sync)) => {
                     PolicyMessage::LoadPolicy(policy, balance, list, last_sync).into()

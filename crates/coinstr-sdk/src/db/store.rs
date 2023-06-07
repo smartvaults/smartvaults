@@ -335,7 +335,7 @@ impl Store {
         )?;
         let mut wallets = self.wallets.lock();
         wallets.remove(&policy_id);
-        log::info!("Deleted shared key for policy {policy_id}");
+        log::info!("Deleted policy {policy_id}");
         Ok(())
     }
 
