@@ -8,6 +8,7 @@ pub mod client;
 pub mod constants;
 pub mod db;
 mod thread;
+pub mod types;
 pub mod util;
 
 pub use self::client::{Coinstr, Notification};

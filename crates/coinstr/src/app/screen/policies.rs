@@ -2,10 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::Write;
 
-use coinstr_sdk::core::bdk::miniscript::Descriptor;
 use coinstr_sdk::db::model::GetDetailedPolicyResult;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
@@ -22,7 +19,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
     LoadPolicies(BTreeMap<EventId, GetDetailedPolicyResult>),
-    ExportDescriptor(Descriptor<String>),
+    SavePolicyBackup(EventId),
     Reload,
 }
 
@@ -66,19 +63,15 @@ impl State for PoliciesState {
                     self.loaded = true;
                     Command::none()
                 }
-                PoliciesMessage::ExportDescriptor(desc) => {
+                PoliciesMessage::SavePolicyBackup(policy_id) => {
                     let path = FileDialog::new()
-                        .set_title("Export descriptor backup")
+                        .set_title("Export policy backup")
+                        .set_file_name(&format!("policy-{}.json", util::cut_event_id(policy_id)))
                         .save_file();
 
                     if let Some(path) = path {
-                        match File::create(&path) {
-                            Ok(mut file) => match file.write_all(desc.to_string().as_bytes()) {
-                                Ok(_) => {
-                                    log::info!("Exported descriptor backup to {}", path.display())
-                                }
-                                Err(e) => log::error!("Impossible to save file: {e}"),
-                            },
+                        match ctx.client.save_policy_backup(policy_id, &path) {
+                            Ok(_) => log::info!("Exported policy backup to {}", path.display()),
                             Err(e) => log::error!("Impossible to create file: {e}"),
                         }
                     }
@@ -185,10 +178,7 @@ impl State for PoliciesState {
                         .push(Text::new(balance).width(Length::Fixed(125.0)).view())
                         .push(
                             button::border_only_icon(SAVE)
-                                .on_press(
-                                    PoliciesMessage::ExportDescriptor(policy.descriptor.clone())
-                                        .into(),
-                                )
+                                .on_press(PoliciesMessage::SavePolicyBackup(*policy_id).into())
                                 .width(Length::Fixed(40.0)),
                         )
                         .push(

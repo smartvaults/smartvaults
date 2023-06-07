@@ -41,11 +41,14 @@ use crate::constants::{
 use crate::db::model::{GetDetailedPolicyResult, GetPolicyResult};
 use crate::db::store::{GetApprovedProposals, Transactions};
 use crate::db::Store;
+use crate::types::backup::PolicyBackup;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 use crate::{thread, util};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
     #[error(transparent)]
     Keechain(#[from] coinstr_core::types::keychain::Error),
     #[error(transparent)]
@@ -1273,6 +1276,21 @@ impl Coinstr {
             let event_id: EventId = self.send_event(event).await?;
             log::info!("Published shared key for {pubkey} at event {event_id}");
         }
+        Ok(())
+    }
+
+    pub fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
+        let GetPolicyResult { policy, .. } = self.db.get_policy(policy_id)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        Ok(PolicyBackup::new(policy.descriptor, nostr_pubkeys))
+    }
+
+    pub fn save_policy_backup<P>(&self, policy_id: EventId, path: P) -> Result<(), Error>
+    where
+        P: AsRef<Path>,
+    {
+        let backup = self.export_policy_backup(policy_id)?;
+        backup.save(path)?;
         Ok(())
     }
 }
