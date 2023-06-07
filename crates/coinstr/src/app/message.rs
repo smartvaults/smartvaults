@@ -32,6 +32,7 @@ pub enum Message {
     Clipboard(String),
     Lock,
     Sync,
+    Tick,
 }
 
 impl From<Message> for crate::Message {

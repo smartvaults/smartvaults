@@ -1225,8 +1225,8 @@ impl Coinstr {
         self.db.get_balance(policy_id)
     }
 
-    pub fn get_transactions(&self, policy_id: EventId) -> Option<Transactions> {
-        self.db.get_transactions(policy_id)
+    pub fn get_txs_with_descriptions(&self, policy_id: EventId) -> Option<Transactions> {
+        self.db.get_txs_with_descriptions(policy_id)
     }
 
     pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {

@@ -56,10 +56,7 @@ impl Start {
             state: new_state(&ctx),
             ctx,
         };
-        (
-            app,
-            Command::perform(async {}, move |_| Message::View(stage)),
-        )
+        (app, Command::perform(async {}, move |_| Message::Load))
     }
 
     pub fn title(&self) -> String {
@@ -81,8 +78,9 @@ impl Start {
                 self.state = new_state(&self.ctx);
                 (self.state.load(&self.ctx), None)
             }
+            Message::Load => (self.state.load(&self.ctx), None),
             Message::OpenResult(coinstr) => {
-                let (app, _) = App::new(coinstr, self.ctx.theme);
+                let app = App::new(coinstr, self.ctx.theme);
                 (
                     Command::none(),
                     Some(CoinstrApp {

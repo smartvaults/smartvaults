@@ -49,7 +49,7 @@ impl State for TransactionsState {
         Command::perform(
             async move {
                 match policy_id {
-                    Some(policy_id) => client.get_transactions(policy_id),
+                    Some(policy_id) => client.get_txs_with_descriptions(policy_id),
                     None => client.get_all_transactions().ok(),
                 }
             },

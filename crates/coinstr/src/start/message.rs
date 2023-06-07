@@ -13,6 +13,7 @@ pub enum Message {
     Restore(RestoreMessage),
     Generate(GenerateMessage),
     OpenResult(Coinstr),
+    Load,
 }
 
 impl From<Message> for crate::Message {

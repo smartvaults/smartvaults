@@ -104,6 +104,9 @@ impl Application for CoinstrApp {
                 let (command, stage_to_move) = start.update(*msg);
                 if let Some(stage) = stage_to_move {
                     *self = stage;
+                    return Command::perform(async {}, |_| {
+                        Message::App(Box::new(app::Message::Tick))
+                    });
                 }
                 command.map(|m| m.into())
             }

@@ -397,18 +397,8 @@ impl Store {
         Option<Timestamp>,
     )> {
         let GetPolicyResult { policy, last_sync } = self.get_policy(policy_id).ok()?;
-        let wallets = self.wallets.lock();
-        let descriptions = self.get_txs_descriptions().ok()?;
-        let wallet = wallets.get(&policy_id)?;
-        let balance = wallet.get_balance().ok();
-        let list = wallet.list_transactions(false).ok().map(|list| {
-            list.into_iter()
-                .map(|tx| {
-                    let txid = tx.txid;
-                    (tx, descriptions.get(&txid).cloned())
-                })
-                .collect()
-        });
+        let balance = self.get_balance(policy_id);
+        let list = self.get_txs_with_descriptions(policy_id);
         Some((policy, balance, list, last_sync))
     }
 
@@ -679,7 +669,14 @@ impl Store {
         wallet.get_balance().ok()
     }
 
-    pub fn get_transactions(&self, policy_id: EventId) -> Option<Transactions> {
+    pub fn get_txs(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
+        let wallets = self.wallets.lock();
+        let wallet = wallets.get(&policy_id)?;
+        wallet.list_transactions(true).ok()
+    }
+
+    /// Get transactions with descriptions
+    pub fn get_txs_with_descriptions(&self, policy_id: EventId) -> Option<Transactions> {
         let wallets = self.wallets.lock();
         let descriptions = self.get_txs_descriptions().ok()?;
         let wallet = wallets.get(&policy_id)?;
@@ -721,14 +718,12 @@ impl Store {
     }
 
     pub fn get_all_transactions(&self) -> Result<Vec<(TransactionDetails, Option<String>)>, Error> {
-        let wallets = self.wallets.lock();
         let descriptions = self.get_txs_descriptions()?;
         let mut transactions = Vec::new();
         let mut already_seen = Vec::new();
-        for (policy_id, wallet) in wallets.iter() {
-            let GetPolicyResult { policy, .. } = self.get_policy(*policy_id)?;
+        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()?.into_iter() {
             if !already_seen.contains(&policy.descriptor) {
-                for tx in wallet.list_transactions(false)?.into_iter() {
+                for tx in self.get_txs(policy_id).unwrap_or_default().into_iter() {
                     let desc: Option<String> = descriptions.get(&tx.txid).cloned();
                     transactions.push((tx, desc))
                 }
@@ -739,13 +734,11 @@ impl Store {
     }
 
     pub fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
-        let wallets = self.wallets.lock();
         let desc = self.get_description_by_txid(txid).ok()?;
         let mut already_seen = Vec::new();
-        for (policy_id, wallet) in wallets.iter() {
-            let GetPolicyResult { policy, .. } = self.get_policy(*policy_id).ok()?;
+        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies().ok()?.into_iter() {
             if !already_seen.contains(&policy.descriptor) {
-                let txs = wallet.list_transactions(true).ok()?;
+                let txs = self.get_txs(policy_id)?;
                 for tx in txs.into_iter() {
                     if tx.txid == txid {
                         return Some((tx, desc));

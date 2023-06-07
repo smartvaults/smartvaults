@@ -76,17 +76,14 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(coinstr: Coinstr, theme: Theme) -> (Self, Command<Message>) {
+    pub fn new(coinstr: Coinstr, theme: Theme) -> Self {
         let stage = Stage::default();
-        let ctx = Context::new(stage.clone(), coinstr, theme);
+        let ctx = Context::new(stage, coinstr, theme);
         let app = Self {
             state: new_state(&ctx),
             ctx,
         };
-        (
-            app,
-            Command::perform(async {}, move |_| Message::View(stage)),
-        )
+        app
     }
 
     pub fn title(&self) -> String {
@@ -109,6 +106,7 @@ impl App {
                 self.state = new_state(&self.ctx);
                 self.state.load(&self.ctx)
             }
+            Message::Tick => self.state.update(&mut self.ctx, message),
             Message::Sync => self.state.load(&self.ctx),
             Message::Clipboard(data) => clipboard::write(data),
             _ => self.state.update(&mut self.ctx, message),
