@@ -61,12 +61,12 @@ where
     Button::new(content(Some(icon), t)).style(DangerButtonStyle.into())
 }
 
-#[allow(dead_code)]
-pub fn danger_only_icon<T>(icon: char) -> Button<'static, T>
+pub fn danger_border<S, T>(t: S) -> Button<'static, T>
 where
+    S: Into<String>,
     T: Clone + 'static,
 {
-    Button::new(content(Some(icon), "")).style(DangerButtonStyle.into())
+    Button::new(content(None, t)).style(DangerBorderButtonStyle.into())
 }
 
 pub fn danger_border_only_icon<T>(icon: char) -> Button<'static, T>

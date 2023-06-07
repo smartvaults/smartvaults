@@ -90,15 +90,28 @@ impl State for AddPolicyState {
             Row::new()
         };
 
-        let save_policy_btn =
-            button::primary("Save policy").on_press(AddPolicyMessage::SavePolicy.into());
+        let restore_policy_btn = button::border("Restore policy backup")
+            .on_press(Message::View(Stage::RestorePolicy))
+            .width(Length::Fill);
+
+        let save_policy_btn = button::primary("Save policy")
+            .on_press(AddPolicyMessage::SavePolicy.into())
+            .width(Length::Fill);
 
         let content = Column::new()
+            .push(
+                Column::new()
+                    .push(Text::new("Create policy").size(24).bold().view())
+                    .push(Text::new("Create a new policy").extra_light().view())
+                    .spacing(10)
+                    .width(Length::Fill),
+            )
             .push(name)
             .push(description)
             .push(descriptor)
             .push(error)
             .push(Space::with_height(Length::Fixed(15.0)))
+            .push(restore_policy_btn)
             .push(save_policy_btn)
             .align_items(Alignment::Center)
             .spacing(10)

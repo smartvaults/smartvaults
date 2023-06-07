@@ -4,7 +4,8 @@
 use super::screen::{
     AddPolicyMessage, CompletedProposalMessage, DashboardMessage, HistoryMessage, NewProofMessage,
     NotificationsMessage, PoliciesMessage, PolicyMessage, ProposalMessage, ProposalsMessage,
-    ReceiveMessage, SettingMessage, SpendMessage, TransactionMessage, TransactionsMessage,
+    ReceiveMessage, RestorePolicyMessage, SettingMessage, SpendMessage, TransactionMessage,
+    TransactionsMessage,
 };
 use super::Stage;
 
@@ -14,6 +15,7 @@ pub enum Message {
     Dashboard(DashboardMessage),
     Policies(PoliciesMessage),
     AddPolicy(AddPolicyMessage),
+    RestorePolicy(RestorePolicyMessage),
     Policy(PolicyMessage),
     Spend(SpendMessage),
     Receive(ReceiveMessage),

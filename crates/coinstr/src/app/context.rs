@@ -15,6 +15,7 @@ pub enum Stage {
     Dashboard,
     Policies,
     AddPolicy,
+    RestorePolicy,
     Policy(EventId),
     Spend(Option<(EventId, Policy)>),
     Receive(Option<(EventId, Policy)>),
