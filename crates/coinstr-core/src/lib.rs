@@ -1,11 +1,13 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+pub use hwi;
 pub use keechain_core::*;
 
 pub mod policy;
 pub mod proposal;
 pub mod reserves;
+pub mod signer;
 pub mod types;
 pub mod util;
 

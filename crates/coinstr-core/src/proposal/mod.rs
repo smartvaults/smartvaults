@@ -9,6 +9,7 @@ use bdk::miniscript::psbt::PsbtExt;
 use bdk::miniscript::Descriptor;
 use bdk::signer::SignerWrapper;
 use bdk::{SignOptions, Wallet};
+use hwi::HWIClient;
 use keechain_core::bitcoin::psbt::{
     Error as PsbtError, PartiallySignedTransaction, PsbtParseError,
 };
@@ -23,6 +24,7 @@ mod completed;
 
 pub use self::approved::ApprovedProposal;
 pub use self::completed::CompletedProposal;
+use crate::signer::Signer;
 use crate::util::serde::{deserialize_psbt, serialize_psbt};
 use crate::util::{Encryption, Serde};
 
@@ -36,6 +38,10 @@ pub enum Error {
     KPsbt(#[from] KPsbtError),
     #[error(transparent)]
     PsbtParse(#[from] PsbtParseError),
+    #[error(transparent)]
+    HWI(#[from] hwi::error::Error),
+    #[error("PSBT not signed (equal to base PSBT)")]
+    PsbtNotSigned,
     #[error("approved proposals not proveded")]
     EmptyApprovedProposals,
     #[error("the provided approved proposals must have the same type")]
@@ -162,6 +168,49 @@ impl Proposal {
         match self {
             Proposal::Spending { .. } => Ok(ApprovedProposal::spending(psbt)),
             Proposal::ProofOfReserve { .. } => Ok(ApprovedProposal::proof_of_reserve(psbt)),
+        }
+    }
+
+    pub fn approve_with_signed_psbt(
+        &self,
+        signed_psbt: PartiallySignedTransaction,
+    ) -> Result<ApprovedProposal, Error> {
+        if signed_psbt != self.psbt() {
+            // TODO: check if psbt was signed with the correct signer
+            match self {
+                Proposal::Spending { .. } => Ok(ApprovedProposal::spending(signed_psbt)),
+                Proposal::ProofOfReserve { .. } => {
+                    Ok(ApprovedProposal::proof_of_reserve(signed_psbt))
+                }
+            }
+        } else {
+            Err(Error::PsbtNotSigned)
+        }
+    }
+
+    pub fn approve_with_hwi_signer(
+        &self,
+        signer: Signer,
+        network: Network,
+    ) -> Result<ApprovedProposal, Error> {
+        let client = HWIClient::find_device(
+            None,
+            None,
+            Some(&signer.fingerprint().to_string()),
+            true,
+            network,
+        )?;
+        let base_psbt = self.psbt();
+        let hwi_psbt = client.sign_tx(&base_psbt)?;
+        if hwi_psbt.psbt != base_psbt {
+            match self {
+                Proposal::Spending { .. } => Ok(ApprovedProposal::spending(hwi_psbt.psbt)),
+                Proposal::ProofOfReserve { .. } => {
+                    Ok(ApprovedProposal::proof_of_reserve(hwi_psbt.psbt))
+                }
+            }
+        } else {
+            Err(Error::PsbtNotSigned)
         }
     }
 
