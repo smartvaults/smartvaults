@@ -2,10 +2,10 @@
 // Distributed under the MIT software license
 
 use super::screen::{
-    AddPolicyMessage, CompletedProposalMessage, DashboardMessage, HistoryMessage, NewProofMessage,
-    NotificationsMessage, PoliciesMessage, PolicyMessage, ProfileMessage, ProposalMessage,
-    ProposalsMessage, ReceiveMessage, RestorePolicyMessage, SettingMessage, SpendMessage,
-    TransactionMessage, TransactionsMessage,
+    AddPolicyMessage, AddSignerMessage, CompletedProposalMessage, DashboardMessage, HistoryMessage,
+    NewProofMessage, NotificationsMessage, PoliciesMessage, PolicyMessage, ProfileMessage,
+    ProposalMessage, ProposalsMessage, ReceiveMessage, RestorePolicyMessage, SettingMessage,
+    SignersMessage, SpendMessage, TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -26,6 +26,8 @@ pub enum Message {
     Transactions(TransactionsMessage),
     History(HistoryMessage),
     CompletedProposal(CompletedProposalMessage),
+    Signers(SignersMessage),
+    AddSigner(AddSignerMessage),
     Notifications(NotificationsMessage),
     Profile(ProfileMessage),
     Setting(SettingMessage),

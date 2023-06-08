@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 mod add_policy;
+mod add_signer;
 mod completed_proposal;
 mod dashboard;
 mod history;
@@ -15,11 +16,13 @@ mod proposals;
 mod receive;
 mod restore_policy;
 mod setting;
+mod signers;
 mod spend;
 mod transaction;
 mod transactions;
 
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
+pub use self::add_signer::{AddSignerMessage, AddSignerState};
 pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalState};
 pub use self::dashboard::{DashboardMessage, DashboardState};
 pub use self::history::{HistoryMessage, HistoryState};
@@ -33,6 +36,7 @@ pub use self::proposals::{ProposalsMessage, ProposalsState};
 pub use self::receive::{ReceiveMessage, ReceiveState};
 pub use self::restore_policy::{RestorePolicyMessage, RestorePolicyState};
 pub use self::setting::{SettingMessage, SettingState};
+pub use self::signers::{SignersMessage, SignersState};
 pub use self::spend::{SpendMessage, SpendState};
 pub use self::transaction::{TransactionMessage, TransactionState};
 pub use self::transactions::{TransactionsMessage, TransactionsState};

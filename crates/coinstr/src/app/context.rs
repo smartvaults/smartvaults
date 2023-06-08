@@ -27,6 +27,7 @@ pub enum Stage {
     History,
     CompletedProposal(EventId, CompletedProposal, EventId),
     Signers,
+    AddSigner,
     Contacts,
     Notifications,
     Profile,

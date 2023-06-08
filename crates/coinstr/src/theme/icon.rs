@@ -34,5 +34,5 @@ pub const BOX: char = '\u{F1C8}';
 pub const CONTACTS: char = '\u{F4DB}';
 pub const EYE: char = '\u{F341}';
 pub const EYE_SLASH: char = '\u{F340}';
-pub const BUG: char = '\u{F1DC}';
+pub const SHARE: char = '\u{F52E}';
 pub const WALLET: char = '\u{F615}';
