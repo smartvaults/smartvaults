@@ -22,6 +22,7 @@ use bdk::wallet::AddressIndex;
 use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::policy::{self, Policy};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
+use coinstr_core::signer::Signer;
 use coinstr_core::util::serde::{Error as SerdeError, Serde};
 use coinstr_core::ApprovedProposal;
 use nostr_sdk::event::id::{self, EventId};
@@ -891,5 +892,30 @@ impl Store {
         let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE notification = ?")?;
         stmt.execute([notification.as_json()])?;
         Ok(())
+    }
+
+    pub fn save_signer(&self, signer_id: EventId, signer: Signer) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn
+            .prepare_cached("INSERT OR IGNORE INTO signers (signer_id, signer) VALUES (?, ?);")?;
+        stmt.execute((signer_id.to_hex(), signer.encrypt_with_keys(&self.keys)?))?;
+        log::info!("Saved signer {signer_id}");
+        Ok(())
+    }
+
+    pub(crate) fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("SELECT signer_id, signer FROM signers;")?;
+        let mut rows = stmt.query([])?;
+        let mut signers = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let signer_id: String = row.get(0)?;
+            let signer: String = row.get(1)?;
+            signers.insert(
+                EventId::from_hex(signer_id)?,
+                Signer::decrypt_with_keys(&self.keys, signer)?,
+            );
+        }
+        Ok(signers)
     }
 }

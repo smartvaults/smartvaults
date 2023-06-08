@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_core::signer::Signer;
 use coinstr_core::util::{Encryption, EncryptionError};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::key::{self, Keys};
@@ -39,3 +40,4 @@ impl EncryptionWithKeys for Policy {}
 impl EncryptionWithKeys for Proposal {}
 impl EncryptionWithKeys for ApprovedProposal {}
 impl EncryptionWithKeys for CompletedProposal {}
+impl EncryptionWithKeys for Signer {}

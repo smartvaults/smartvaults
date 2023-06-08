@@ -15,10 +15,12 @@ use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::{MemoryDatabase, SqliteDatabase};
 use bdk::electrum_client::Client as ElectrumClient;
+use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{Balance, FeeRate, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
+use coinstr_core::signer::Signer;
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::{extract_public_keys, Serde};
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
@@ -36,7 +38,7 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    PROPOSAL_KIND, SHARED_KEY_KIND,
+    PROPOSAL_KIND, SHARED_KEY_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{GetDetailedPolicyResult, GetPolicyResult};
 use crate::db::store::{GetApprovedProposals, Transactions};
@@ -62,6 +64,8 @@ pub enum Error {
     #[error(transparent)]
     Keys(#[from] nostr_sdk::key::Error),
     #[error(transparent)]
+    EventId(#[from] nostr_sdk::event::id::Error),
+    #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
     #[error(transparent)]
     NIP04(#[from] nostr_sdk::nips::nip04::Error),
@@ -82,6 +86,8 @@ pub enum Error {
     #[error(transparent)]
     Proof(#[from] ProofError),
     #[error(transparent)]
+    Signer(#[from] coinstr_core::signer::Error),
+    #[error(transparent)]
     Store(#[from] crate::db::Error),
     #[error("shared keys not found")]
     SharedKeysNotFound,
@@ -95,6 +101,8 @@ pub enum Error {
     ApprovedProposalNotFound,
     #[error("electrum endpoint not set")]
     ElectrumEndpointNotSet,
+    #[error("signer not found")]
+    SignerNotFound,
     #[error("{0}")]
     Generic(String),
 }
@@ -955,6 +963,55 @@ impl Coinstr {
         self.verify_proof(proposal).await
     }
 
+    pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
+        let keys = self.client.keys();
+
+        // Compose the event
+        let content: String = signer.encrypt_with_keys(&keys)?;
+
+        // Compose signer event
+        let event = EventBuilder::new(SIGNERS_KIND, content, &[]).to_event(&keys)?;
+
+        // Publish the event
+        let signer_id = self.send_event(event).await?;
+
+        // Save signer in db
+        self.db.save_signer(signer_id, signer)?;
+
+        Ok(signer_id)
+    }
+
+    pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
+        let mut signers = self.db.get_signers()?;
+        let signer_id = EventId::from_slice(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ])?;
+        let signer = Signer::from_seed(
+            "Coinstr",
+            None,
+            self.keechain.keychain.seed(),
+            Some(784923),
+            self.network,
+        )?;
+        signers.insert(signer_id, signer);
+        Ok(signers)
+    }
+
+    pub fn search_signer_by_descriptor(
+        &self,
+        descriptor: Descriptor<String>,
+    ) -> Result<Signer, Error> {
+        let descriptor: String = descriptor.to_string();
+        for signer in self.db.get_signers()?.into_values() {
+            let signer_descriptor = signer.descriptor().to_string();
+            if descriptor.contains(&signer_descriptor) {
+                return Ok(signer);
+            }
+        }
+        Err(Error::SignerNotFound)
+    }
+
     fn sync_with_timechain(&self, sender: Sender<Option<Message>>) -> AbortHandle {
         let this = self.clone();
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
@@ -1014,6 +1071,7 @@ impl Coinstr {
                 APPROVED_PROPOSAL_KIND,
                 COMPLETED_PROPOSAL_KIND,
                 SHARED_KEY_KIND,
+                SIGNERS_KIND,
                 Kind::EventDeletion,
             ]);
 
@@ -1210,6 +1268,10 @@ impl Coinstr {
                     );
                 }
             }
+        } else if event.kind == SIGNERS_KIND {
+            let keys = self.client.keys();
+            let signer = Signer::decrypt_with_keys(&keys, event.content)?;
+            self.db.save_signer(event.id, signer)?;
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event(event_id, ..) = tag {
