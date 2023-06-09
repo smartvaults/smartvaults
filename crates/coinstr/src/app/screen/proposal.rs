@@ -147,7 +147,11 @@ impl State for ProposalState {
                                     SignerType::Seed => {
                                         client.approve(proposal_id, None).await?;
                                     }
-                                    SignerType::Hardware => todo!(),
+                                    SignerType::Hardware => {
+                                        client
+                                            .approve_with_hwi_signer(proposal_id, signer, None)
+                                            .await?;
+                                    }
                                     SignerType::AirGap => {
                                         let path = FileDialog::new()
                                             .set_title("Select signed PSBT")

@@ -197,7 +197,7 @@ impl Proposal {
             None,
             None,
             Some(&signer.fingerprint().to_string()),
-            true,
+            false,
             network,
         )?;
         let base_psbt = self.psbt();
