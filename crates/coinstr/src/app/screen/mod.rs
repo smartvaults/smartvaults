@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+mod add_airgap_signer;
+mod add_hw_signer;
 mod add_policy;
 mod add_signer;
 mod completed_proposal;
@@ -21,6 +23,8 @@ mod spend;
 mod transaction;
 mod transactions;
 
+pub use self::add_airgap_signer::{AddAirGapSignerMessage, AddAirGapSignerState};
+pub use self::add_hw_signer::{AddHWSignerMessage, AddHWSignerState};
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
 pub use self::add_signer::{AddSignerMessage, AddSignerState};
 pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalState};

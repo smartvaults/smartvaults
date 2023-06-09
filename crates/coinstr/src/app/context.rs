@@ -28,6 +28,8 @@ pub enum Stage {
     CompletedProposal(EventId, CompletedProposal, EventId),
     Signers,
     AddSigner,
+    AddHWSigner,
+    AddAirGapSigner,
     Contacts,
     Notifications,
     Profile,
