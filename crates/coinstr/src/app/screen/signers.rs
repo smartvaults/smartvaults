@@ -13,7 +13,7 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SHARE};
+use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE};
 
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
@@ -73,7 +73,7 @@ impl State for SignersState {
 
         if self.loaded {
             if self.signers.is_empty() {
-                let add_policy_btn = button::primary_with_icon(PLUS, "Add signer")
+                let add_signer_btn = button::primary_with_icon(PLUS, "Add signer")
                     .width(Length::Fixed(250.0))
                     .on_press(Message::View(Stage::AddSigner));
                 let reload_btn = button::border_with_icon(RELOAD, "Reload")
@@ -82,15 +82,15 @@ impl State for SignersState {
                 content = content
                     .push(Text::new("No signers").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(add_policy_btn)
+                    .push(add_signer_btn)
                     .push(reload_btn)
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
 
-                let add_policy_btn = button::border_only_icon(PLUS)
+                let add_signer_btn = button::border_only_icon(PLUS)
                     .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::AddPolicy));
+                    .on_press(Message::View(Stage::AddSigner));
                 let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
                 if !self.loading {
@@ -122,7 +122,8 @@ impl State for SignersState {
                                     .width(Length::Fixed(125.0))
                                     .view(),
                             )
-                            .push(add_policy_btn)
+                            .push(Space::with_width(Length::Fixed(40.0)))
+                            .push(add_signer_btn)
                             .push(reload_btn)
                             .spacing(10)
                             .align_items(Alignment::Center)
@@ -147,6 +148,16 @@ impl State for SignersState {
                             Text::new(signer.signer_type().to_string())
                                 .width(Length::Fixed(125.0))
                                 .view(),
+                        )
+                        .push(
+                            button::border_only_icon(CLIPBOARD)
+                                .on_press(Message::Clipboard(
+                                    signer
+                                        .descriptor_public_key()
+                                        .map(|d| d.to_string())
+                                        .unwrap_or_default(),
+                                ))
+                                .width(Length::Fixed(40.0)),
                         )
                         .push(button::border_only_icon(SHARE).width(Length::Fixed(40.0)))
                         .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
