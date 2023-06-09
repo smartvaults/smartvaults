@@ -4,7 +4,7 @@
 use std::fmt;
 
 use bdk::bitcoin::Network;
-use bdk::miniscript::descriptor::DescriptorType;
+use bdk::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use hwi::types::HWIDevice;
 use hwi::HWIClient;
@@ -23,6 +23,8 @@ pub enum Error {
     #[error(transparent)]
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
+    DescriptorKeyParse(#[from] DescriptorKeyParseError),
+    #[error(transparent)]
     HWI(#[from] hwi::error::Error),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
@@ -38,9 +40,9 @@ pub enum SignerType {
 impl fmt::Display for SignerType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SignerType::Seed => write!(f, "seed"),
-            SignerType::Hardware => write!(f, "hardware"),
-            SignerType::AirGap => write!(f, "airgap"),
+            SignerType::Seed => write!(f, "Seed"),
+            SignerType::Hardware => write!(f, "Hardware"),
+            SignerType::AirGap => write!(f, "AirGap"),
         }
     }
 }
@@ -52,6 +54,12 @@ pub struct Signer {
     fingerprint: Fingerprint,
     descriptor: Descriptor<DescriptorPublicKey>,
     t: SignerType,
+}
+
+impl fmt::Display for Signer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}({})", self.t, self.fingerprint)
+    }
 }
 
 impl Serde for Signer {}
@@ -135,6 +143,13 @@ impl Signer {
 
     pub fn descriptor(&self) -> Descriptor<DescriptorPublicKey> {
         self.descriptor.clone()
+    }
+
+    pub fn descriptor_public_key(&self) -> Result<DescriptorPublicKey, Error> {
+        match &self.descriptor {
+            Descriptor::Tr(tr) => Ok(tr.internal_key().clone()),
+            _ => Err(Error::NotTaprootDescriptor),
+        }
     }
 
     pub fn signer_type(&self) -> SignerType {
