@@ -4,6 +4,7 @@
 use coinstr_sdk::core::bitcoin::{Network, Txid};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::CompletedProposal;
+use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::Coinstr;
 
@@ -27,6 +28,7 @@ pub enum Stage {
     History,
     CompletedProposal(EventId, CompletedProposal, EventId),
     Signers,
+    Signer(EventId, Signer),
     AddSigner,
     AddHWSigner,
     AddAirGapSigner,

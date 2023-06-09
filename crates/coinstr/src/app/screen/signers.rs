@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_sdk::core::signer::Signer;
+use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -132,6 +132,14 @@ impl State for SignersState {
                     .push(rule::horizontal_bold());
 
                 for (signer_id, signer) in self.signers.iter() {
+                    let mut fullscreen_btn =
+                        button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0));
+
+                    if signer.signer_type() != SignerType::Seed {
+                        fullscreen_btn = fullscreen_btn
+                            .on_press(Message::View(Stage::Signer(*signer_id, signer.clone())));
+                    }
+
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*signer_id))
@@ -160,7 +168,7 @@ impl State for SignersState {
                                 .width(Length::Fixed(40.0)),
                         )
                         .push(button::border_only_icon(SHARE).width(Length::Fixed(40.0)))
-                        .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                        .push(fullscreen_btn)
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
