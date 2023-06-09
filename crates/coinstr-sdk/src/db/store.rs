@@ -793,6 +793,8 @@ impl Store {
             self.delete_proposal(event_id)?;
         } else if self.completed_proposal_exists(event_id)? {
             self.delete_completed_proposal(event_id)?;
+        } else if self.signer_exists(event_id)? {
+            self.delete_signer(event_id)?;
         };
 
         Ok(())
@@ -894,6 +896,18 @@ impl Store {
         Ok(())
     }
 
+    pub fn signer_exists(&self, signer_id: EventId) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT EXISTS(SELECT 1 FROM signers WHERE signer_id = ? LIMIT 1);")?;
+        let mut rows = stmt.query([signer_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
     pub fn save_signer(&self, signer_id: EventId, signer: Signer) -> Result<(), Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn
@@ -917,5 +931,20 @@ impl Store {
             );
         }
         Ok(signers)
+    }
+
+    pub fn delete_signer(&self, signer_id: EventId) -> Result<(), Error> {
+        // Delete notification
+        //self.delete_notification(Notification::NewProposal(proposal_id))?;
+
+        // Delete proposal
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM signers WHERE signer_id = ?;",
+            [signer_id.to_hex()],
+        )?;
+
+        log::info!("Deleted signer {signer_id}");
+        Ok(())
     }
 }

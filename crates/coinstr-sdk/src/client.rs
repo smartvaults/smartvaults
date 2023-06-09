@@ -611,6 +611,23 @@ impl Coinstr {
         Ok(())
     }
 
+    pub async fn delete_signer_by_id(
+        &self,
+        signer_id: EventId,
+        _timeout: Option<Duration>,
+    ) -> Result<(), Error> {
+        let keys = self.client.keys();
+
+        // TODO: delete shared signers and notify the interested users (tag pubkey in deletion event)
+
+        let event = EventBuilder::new(Kind::EventDeletion, "", &[]).to_event(&keys)?;
+        self.send_event(event).await?;
+
+        self.db.delete_signer(signer_id)?;
+
+        Ok(())
+    }
+
     pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
         Ok(self.db.get_policies()?)
     }
