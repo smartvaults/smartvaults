@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_recursion::async_recursion;
+use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
@@ -123,6 +124,15 @@ impl Serde for Notification {}
 pub enum Message {
     Notification(Notification),
     WalletSyncCompleted(EventId),
+}
+
+fn coinstr_signer(seed: Seed, network: Network) -> Result<(EventId, Signer), Error> {
+    let signer_id = EventId::from_slice(&[
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0,
+    ])?;
+    let signer = Signer::from_seed("Coinstr", None, seed, Some(784923), network)?;
+    Ok((signer_id, signer))
 }
 
 /// Coinstr
@@ -837,6 +847,53 @@ impl Coinstr {
         Ok((event_id, approved_proposal))
     }
 
+    pub async fn approve_with_signed_psbt(
+        &self,
+        proposal_id: EventId,
+        signed_psbt: PartiallySignedTransaction,
+        timeout: Option<Duration>,
+    ) -> Result<(EventId, ApprovedProposal), Error> {
+        let keys = self.client.keys();
+
+        // Get proposal and policy
+        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
+
+        let approved_proposal = proposal.approve_with_signed_psbt(signed_psbt)?;
+
+        // Get shared keys
+        let shared_keys: Keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+
+        // Compose the event
+        let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let mut tags: Vec<Tag> = nostr_pubkeys
+            .into_iter()
+            .map(|p| Tag::PubKey(p, None))
+            .collect();
+        tags.push(Tag::Event(proposal_id, None, None));
+        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::Expiration(
+            Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
+        ));
+
+        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+        let timestamp = event.created_at;
+
+        // Publish the event
+        let event_id = self.send_event(event).await?;
+
+        // Cache approved proposal
+        self.db.save_approved_proposal(
+            proposal_id,
+            keys.public_key(),
+            event_id,
+            approved_proposal.clone(),
+            timestamp,
+        )?;
+
+        Ok((event_id, approved_proposal))
+    }
+
     pub async fn finalize(
         &self,
         proposal_id: EventId,
@@ -983,17 +1040,7 @@ impl Coinstr {
 
     pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
         let mut signers = self.db.get_signers()?;
-        let signer_id = EventId::from_slice(&[
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0,
-        ])?;
-        let signer = Signer::from_seed(
-            "Coinstr",
-            None,
-            self.keechain.keychain.seed(),
-            Some(784923),
-            self.network,
-        )?;
+        let (signer_id, signer) = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
         signers.insert(signer_id, signer);
         Ok(signers)
     }
@@ -1004,12 +1051,13 @@ impl Coinstr {
     ) -> Result<Signer, Error> {
         let descriptor: String = descriptor.to_string();
         for signer in self.db.get_signers()?.into_values() {
-            let signer_descriptor = signer.descriptor().to_string();
+            let signer_descriptor = signer.descriptor_public_key()?.to_string();
             if descriptor.contains(&signer_descriptor) {
                 return Ok(signer);
             }
         }
-        Err(Error::SignerNotFound)
+        let (_, signer) = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
+        Ok(signer)
     }
 
     fn sync_with_timechain(&self, sender: Sender<Option<Message>>) -> AbortHandle {
