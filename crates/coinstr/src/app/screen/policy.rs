@@ -213,7 +213,7 @@ impl State for PolicyState {
         let mut center_y = true;
         let mut center_x = true;
 
-        if let Some(last_sync) = self.last_sync {
+        if self.last_sync.is_some() {
             center_y = false;
             center_x = false;
 
@@ -266,13 +266,6 @@ impl State for PolicyState {
                                             .as_ref()
                                             .map(|s| s.to_string())
                                             .unwrap_or_else(|| String::from("Unavailable"))
-                                    ))
-                                    .view(),
-                                )
-                                .push(
-                                    Text::new(format!(
-                                        "Last sync: {}",
-                                        last_sync.to_human_datetime()
                                     ))
                                     .view(),
                                 )
