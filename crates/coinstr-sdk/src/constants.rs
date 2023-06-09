@@ -5,6 +5,9 @@ use std::time::Duration;
 
 use nostr_sdk::Kind;
 
+// Derivation paths
+pub const COINSTR_ACCOUNT_INDEX: u32 = 784923;
+
 // Kinds
 pub const SHARED_KEY_KIND: Kind = Kind::Custom(9288);
 pub const POLICY_KIND: Kind = Kind::Custom(9289);
@@ -13,6 +16,7 @@ pub const APPROVED_PROPOSAL_KIND: Kind = Kind::Custom(9291);
 pub const COMPLETED_PROPOSAL_KIND: Kind = Kind::Custom(9292);
 pub const PROOF_OF_RESERVE_KIND: Kind = Kind::Custom(9293);
 pub const SIGNERS_KIND: Kind = Kind::Custom(9294);
+pub const SHARED_SIGNERS_KIND: Kind = Kind::Custom(9295);
 
 // Expirations
 pub const APPROVED_PROPOSAL_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7);

@@ -38,8 +38,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    PROPOSAL_KIND, SHARED_KEY_KIND, SIGNERS_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COINSTR_ACCOUNT_INDEX,
+    COMPLETED_PROPOSAL_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{GetDetailedPolicyResult, GetPolicyResult};
 use crate::db::store::{GetApprovedProposals, Transactions};
@@ -131,7 +131,7 @@ fn coinstr_signer(seed: Seed, network: Network) -> Result<(EventId, Signer), Err
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0,
     ])?;
-    let signer = Signer::from_seed("Coinstr", None, seed, Some(784923), network)?;
+    let signer = Signer::from_seed("Coinstr", None, seed, Some(COINSTR_ACCOUNT_INDEX), network)?;
     Ok((signer_id, signer))
 }
 
