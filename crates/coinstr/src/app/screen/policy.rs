@@ -3,6 +3,7 @@
 
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::policy::Policy;
+use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::{util, Notification};
@@ -26,6 +27,7 @@ pub enum PolicyMessage {
     Delete,
     LoadPolicy(
         Policy,
+        Option<Signer>,
         Option<Balance>,
         Option<Transactions>,
         Option<Timestamp>,
@@ -41,6 +43,7 @@ pub struct PolicyState {
     loaded: bool,
     policy_id: EventId,
     policy: Option<Policy>,
+    signer: Option<Signer>,
     balance: Option<Balance>,
     transactions: Option<Transactions>,
     last_sync: Option<Timestamp>,
@@ -54,6 +57,7 @@ impl PolicyState {
             loaded: false,
             policy_id,
             policy: None,
+            signer: None,
             balance: None,
             transactions: None,
             last_sync: None,
@@ -80,11 +84,16 @@ impl State for PolicyState {
                     .db
                     .mark_notification_as_seen(Notification::NewPolicy(policy_id))
                     .ok()?;
-                client.db.policy_with_details(policy_id)
+                let (policy, balance, list, last_sync) =
+                    client.db.policy_with_details(policy_id)?;
+                let signer = client
+                    .search_signer_by_descriptor(policy.descriptor.clone())
+                    .ok();
+                Some((policy, signer, balance, list, last_sync))
             },
             |res| match res {
-                Some((policy, balance, list, last_sync)) => {
-                    PolicyMessage::LoadPolicy(policy, balance, list, last_sync).into()
+                Some((policy, signer, balance, list, last_sync)) => {
+                    PolicyMessage::LoadPolicy(policy, signer, balance, list, last_sync).into()
                 }
                 None => Message::View(Stage::Policies),
             },
@@ -165,8 +174,9 @@ impl State for PolicyState {
                         );
                     }
                 }
-                PolicyMessage::LoadPolicy(policy, balance, list, last_sync) => {
+                PolicyMessage::LoadPolicy(policy, signer, balance, list, last_sync) => {
                     self.policy = Some(policy);
+                    self.signer = signer;
                     self.balance = balance;
                     self.transactions = list;
                     self.last_sync = last_sync;
@@ -246,6 +256,16 @@ impl State for PolicyState {
                                             .as_ref()
                                             .map(|p| p.description.as_str())
                                             .unwrap_or("Unavailable")
+                                    ))
+                                    .view(),
+                                )
+                                .push(
+                                    Text::new(format!(
+                                        "Signer: {}",
+                                        self.signer
+                                            .as_ref()
+                                            .map(|s| s.to_string())
+                                            .unwrap_or_else(|| String::from("Unavailable"))
                                     ))
                                     .view(),
                                 )
