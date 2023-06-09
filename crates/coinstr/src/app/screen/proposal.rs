@@ -5,9 +5,11 @@ use std::collections::BTreeMap;
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::proposal::Proposal;
+use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Psbt;
 use coinstr_sdk::core::CompletedProposal;
 use coinstr_sdk::db::model::GetApprovedProposalResult;
+use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::{util, Notification};
 use iced::widget::{Column, Row, Space};
@@ -27,6 +29,7 @@ pub enum ProposalMessage {
         Proposal,
         EventId,
         BTreeMap<EventId, GetApprovedProposalResult>,
+        Option<Signer>,
     ),
     Approve,
     Finalize,
@@ -47,6 +50,7 @@ pub struct ProposalState {
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
     approved_proposals: BTreeMap<EventId, GetApprovedProposalResult>,
+    signer: Option<Signer>,
     error: Option<String>,
 }
 
@@ -60,6 +64,7 @@ impl ProposalState {
             proposal: None,
             policy_id: None,
             approved_proposals: BTreeMap::new(),
+            signer: None,
             error: None,
         }
     }
@@ -85,6 +90,9 @@ impl State for ProposalState {
                         .mark_notification_as_seen(Notification::NewProposal(proposal_id))
                         .ok()?;
                     let (policy_id, proposal) = client.db.get_proposal(proposal_id).ok()?;
+                    let signer = client
+                        .search_signer_by_descriptor(proposal.descriptor())
+                        .ok();
                     Some((
                         proposal,
                         policy_id,
@@ -92,14 +100,15 @@ impl State for ProposalState {
                             .db
                             .get_approvals_by_proposal_id(proposal_id)
                             .unwrap_or_default(),
+                        signer,
                     ))
                 } else {
                     None
                 }
             },
             |res| match res {
-                Some((proposal, policy_id, approvals)) => {
-                    ProposalMessage::LoadProposal(proposal, policy_id, approvals).into()
+                Some((proposal, policy_id, approvals, signer)) => {
+                    ProposalMessage::LoadProposal(proposal, policy_id, approvals, signer).into()
                 }
                 None => Message::View(Stage::Dashboard),
             },
@@ -113,10 +122,11 @@ impl State for ProposalState {
 
         if let Message::Proposal(msg) = message {
             match msg {
-                ProposalMessage::LoadProposal(proposal, policy_id, approvals) => {
+                ProposalMessage::LoadProposal(proposal, policy_id, approvals, signer) => {
                     self.proposal = Some(proposal);
                     self.policy_id = Some(policy_id);
                     self.approved_proposals = approvals;
+                    self.signer = signer;
                     self.loading = false;
                     self.loaded = true;
                     return Command::perform(async {}, |_| ProposalMessage::CheckPsbts.into());
@@ -129,8 +139,39 @@ impl State for ProposalState {
                     self.loading = true;
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
+                    let signer = self.signer.clone();
                     return Command::perform(
-                        async move { client.approve(proposal_id, None).await },
+                        async move {
+                            match signer {
+                                Some(signer) => match signer.signer_type() {
+                                    SignerType::Seed => {
+                                        client.approve(proposal_id, None).await?;
+                                    }
+                                    SignerType::Hardware => todo!(),
+                                    SignerType::AirGap => {
+                                        let path = FileDialog::new()
+                                            .set_title("Select signed PSBT")
+                                            .pick_file();
+
+                                        if let Some(path) = path {
+                                            let signed_psbt =
+                                                PartiallySignedTransaction::from_file(path)?;
+                                            client
+                                                .approve_with_signed_psbt(
+                                                    proposal_id,
+                                                    signed_psbt,
+                                                    None,
+                                                )
+                                                .await?;
+                                        }
+                                    }
+                                },
+                                None => {
+                                    client.approve(proposal_id, None).await?;
+                                }
+                            };
+                            Ok::<(), Box<dyn std::error::Error>>(())
+                        },
                         |res| match res {
                             Ok(_) => ProposalMessage::Reload.into(),
                             Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
@@ -315,7 +356,16 @@ impl State for ProposalState {
                         status = status.push(Text::new("unsigned").color(YELLOW).view());
                     }
 
-                    content = content.push(status);
+                    content = content.push(status).push(
+                        Text::new(format!(
+                            "Signer: {}",
+                            self.signer
+                                .as_ref()
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| String::from("Unavailable"))
+                        ))
+                        .view(),
+                    );
 
                     let (approve_btn, mut finalize_btn) = match self.approved_proposals.iter().find(
                         |(_, GetApprovedProposalResult { public_key, .. })| {
