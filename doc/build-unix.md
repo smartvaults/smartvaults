@@ -35,13 +35,13 @@ Before using `coinstr` or `coinstr-cli`, take a look at [usage](./usage/README.m
 ### Ubuntu & Debian
 
 ```
-sudo apt install build-essential 
+sudo apt install build-essential libusb-1.0-0-dev libudev-dev python3-dev
 ```
 
 GUI dependencies:
 
 ```
-sudo apt install build-essential libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libnotify-cil-dev
+sudo apt install build-essential libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libdbus2.0-cil-dev libnotify-cil-dev
 ```
 
 ### Fedora
