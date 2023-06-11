@@ -116,7 +116,7 @@ impl State for ReceiveState {
                 ReceiveMessage::LoadAddress(policy_id) => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.db.get_last_unused_address(policy_id) },
+                        async move { client.get_last_unused_address(policy_id) },
                         |address| ReceiveMessage::AddressChanged(address).into(),
                     );
                 }

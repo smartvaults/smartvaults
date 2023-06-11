@@ -40,16 +40,13 @@ impl State for NotificationsState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         let client = ctx.client.clone();
         self.loading = true;
-        Command::perform(
-            async move { client.db.get_notifications() },
-            |res| match res {
-                Ok(list) => NotificationsMessage::LoadNotifications(list).into(),
-                Err(e) => {
-                    log::error!("Impossible to load notifications: {e}");
-                    Message::View(Stage::Dashboard)
-                }
-            },
-        )
+        Command::perform(async move { client.get_notifications() }, |res| match res {
+            Ok(list) => NotificationsMessage::LoadNotifications(list).into(),
+            Err(e) => {
+                log::error!("Impossible to load notifications: {e}");
+                Message::View(Stage::Dashboard)
+            }
+        })
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -67,7 +64,7 @@ impl State for NotificationsState {
                 NotificationsMessage::MarkAllAsSeen => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.db.mark_all_notifications_as_seen().unwrap() },
+                        async move { client.mark_all_notifications_as_seen().unwrap() },
                         |_| NotificationsMessage::Reload.into(),
                     );
                 }

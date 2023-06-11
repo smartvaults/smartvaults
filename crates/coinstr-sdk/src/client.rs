@@ -42,7 +42,7 @@ use crate::constants::{
     COMPLETED_PROPOSAL_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND,
     SIGNERS_KIND,
 };
-use crate::db::model::{GetDetailedPolicyResult, GetPolicyResult};
+use crate::db::model::{GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult};
 use crate::db::store::{GetApprovedProposals, Transactions};
 use crate::db::Store;
 use crate::types::backup::PolicyBackup;
@@ -1491,5 +1491,21 @@ impl Coinstr {
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
         self.send_event(event).await?;
         Ok(())
+    }
+
+    pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
+        Ok(self.db.get_notifications()?)
+    }
+
+    pub fn count_unseen_notifications(&self) -> Result<usize, Error> {
+        Ok(self.db.count_unseen_notifications()?)
+    }
+
+    pub fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
+        Ok(self.db.mark_all_notifications_as_seen()?)
+    }
+
+    pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
+        Ok(self.db.mark_notification_as_seen(notification)?)
     }
 }

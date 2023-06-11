@@ -19,7 +19,7 @@ impl Navbar {
     }
 
     pub fn view<'a>(&self, ctx: &Context) -> Row<'a, Message> {
-        let color: Option<Color> = match ctx.client.db.count_unseen_notifications() {
+        let color: Option<Color> = match ctx.client.count_unseen_notifications() {
             Ok(count) => {
                 if count > 0 {
                     Some(RED)

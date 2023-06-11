@@ -81,7 +81,6 @@ impl State for PolicyState {
         Command::perform(
             async move {
                 client
-                    .db
                     .mark_notification_as_seen(Notification::NewPolicy(policy_id))
                     .ok()?;
                 let (policy, balance, list, last_sync) =

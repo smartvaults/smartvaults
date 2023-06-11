@@ -86,10 +86,9 @@ impl State for ProposalState {
             async move {
                 if client.db.proposal_exists(proposal_id).ok()? {
                     client
-                        .db
                         .mark_notification_as_seen(Notification::NewProposal(proposal_id))
                         .ok()?;
-                    let (policy_id, proposal) = client.db.get_proposal(proposal_id).ok()?;
+                    let (policy_id, proposal) = client.get_proposal_by_id(proposal_id).ok()?;
                     let signer = client
                         .search_signer_by_descriptor(proposal.descriptor())
                         .ok();
