@@ -21,11 +21,12 @@ use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{Balance, FeeRate, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
-use coinstr_core::signer::Signer;
+use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::{extract_public_keys, Serde};
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
 use futures_util::future::{AbortHandle, Abortable};
+use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
@@ -39,7 +40,8 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COINSTR_ACCOUNT_INDEX,
-    COMPLETED_PROPOSAL_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SIGNERS_KIND,
+    COMPLETED_PROPOSAL_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND,
+    SIGNERS_KIND,
 };
 use crate::db::model::{GetDetailedPolicyResult, GetPolicyResult};
 use crate::db::store::{GetApprovedProposals, Transactions};
@@ -104,6 +106,10 @@ pub enum Error {
     ElectrumEndpointNotSet,
     #[error("signer not found")]
     SignerNotFound,
+    #[error("signer ID not found")]
+    SignerIdNotFound,
+    #[error("public key not found")]
+    PublicKeyNotFound,
     #[error("{0}")]
     Generic(String),
 }
@@ -1177,13 +1183,14 @@ impl Coinstr {
 
             let keys = this.client.keys();
 
-            let base_filter = Filter::new().pubkey(keys.public_key()).kinds(vec![
+            let base_filter = Filter::new().kinds(vec![
                 POLICY_KIND,
                 PROPOSAL_KIND,
                 APPROVED_PROPOSAL_KIND,
                 COMPLETED_PROPOSAL_KIND,
                 SHARED_KEY_KIND,
                 SIGNERS_KIND,
+                SHARED_SIGNERS_KIND,
                 Kind::EventDeletion,
             ]);
 
@@ -1195,8 +1202,18 @@ impl Coinstr {
                         Timestamp::from(0)
                     }
                 };
-                let filter = base_filter.clone().since(last_sync);
-                if let Err(e) = relay.subscribe(vec![filter], false).await {
+                let author_filter = base_filter
+                    .clone()
+                    .author(keys.public_key().to_string())
+                    .since(last_sync);
+                let pubkey_filter = base_filter
+                    .clone()
+                    .pubkey(keys.public_key())
+                    .since(last_sync);
+                if let Err(e) = relay
+                    .subscribe(vec![author_filter, pubkey_filter], false)
+                    .await
+                {
                     log::error!("Impossible to subscribe to {relay_url}: {e}");
                 }
             }
@@ -1384,6 +1401,22 @@ impl Coinstr {
             let keys = self.client.keys();
             let signer = Signer::decrypt_with_keys(&keys, event.content)?;
             self.db.save_signer(event.id, signer)?;
+        } else if event.kind == SHARED_SIGNERS_KIND {
+            let public_key =
+                util::extract_first_public_key(&event).ok_or(Error::PublicKeyNotFound)?;
+            let keys = self.client.keys();
+            if event.pubkey == keys.public_key() {
+                let signer_id =
+                    util::extract_first_event_id(&event).ok_or(Error::SignerIdNotFound)?;
+                self.db
+                    .save_my_shared_signer(signer_id, event.id, public_key)?;
+            } else {
+                let shared_signer =
+                    nip04::decrypt(&keys.secret_key()?, &public_key, event.content)?;
+                let shared_signer = SharedSigner::from_json(shared_signer)?;
+                self.db
+                    .save_shared_signer(event.id, event.pubkey, shared_signer)?;
+            }
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event(event_id, ..) = tag {
@@ -1465,6 +1498,36 @@ impl Coinstr {
     {
         let backup = self.export_policy_backup(policy_id)?;
         backup.save(path)?;
+        Ok(())
+    }
+
+    pub async fn share_signer(
+        &self,
+        public_key: XOnlyPublicKey,
+        signer_id: EventId,
+        shared_signer: SharedSigner,
+    ) -> Result<EventId, Error> {
+        let keys = self.client.keys();
+        let content = nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
+        let tags = &[
+            Tag::Event(signer_id, None, None),
+            Tag::PubKey(public_key, None),
+        ];
+        let event = EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+        Ok(self.client.send_event(event).await?)
+    }
+
+    pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
+        let keys = self.client.keys();
+        let public_key = self
+            .db
+            .get_public_key_for_my_shared_signer(shared_signer_id)?;
+        let tags = &[
+            Tag::PubKey(public_key, None),
+            Tag::Event(shared_signer_id, None, None),
+        ];
+        let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
+        self.send_event(event).await?;
         Ok(())
     }
 }

@@ -22,7 +22,7 @@ use bdk::wallet::AddressIndex;
 use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::policy::{self, Policy};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
-use coinstr_core::signer::Signer;
+use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::util::serde::{Error as SerdeError, Serde};
 use coinstr_core::ApprovedProposal;
 use nostr_sdk::event::id::{self, EventId};
@@ -795,6 +795,8 @@ impl Store {
             self.delete_completed_proposal(event_id)?;
         } else if self.signer_exists(event_id)? {
             self.delete_signer(event_id)?;
+        } else if self.my_shared_signer_exists(event_id)? || self.shared_signer_exists(event_id)? {
+            self.delete_shared_signer(event_id)?;
         };
 
         Ok(())
@@ -937,14 +939,111 @@ impl Store {
         // Delete notification
         //self.delete_notification(Notification::NewProposal(proposal_id))?;
 
-        // Delete proposal
+        // Delete signer
         let conn = self.pool.get()?;
         conn.execute(
             "DELETE FROM signers WHERE signer_id = ?;",
             [signer_id.to_hex()],
         )?;
 
+        conn.execute(
+            "DELETE FROM my_shared_signers WHERE signer_id = ?;",
+            [signer_id.to_hex()],
+        )?;
+
         log::info!("Deleted signer {signer_id}");
         Ok(())
+    }
+
+    pub fn delete_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM my_shared_signers WHERE shared_signer_id = ?;",
+            [shared_signer_id.to_hex()],
+        )?;
+        conn.execute(
+            "DELETE FROM shared_signers WHERE shared_signer_id = ?;",
+            [shared_signer_id.to_hex()],
+        )?;
+        log::info!("Deleted shared signer {shared_signer_id}");
+        Ok(())
+    }
+
+    pub fn my_shared_signer_exists(&self, shared_signer_id: EventId) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE shared_signer_id = ? LIMIT 1);",
+        )?;
+        let mut rows = stmt.query([shared_signer_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
+    pub fn shared_signer_exists(&self, shared_signer_id: EventId) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT EXISTS(SELECT 1 FROM shared_signers WHERE shared_signer_id = ? LIMIT 1);",
+        )?;
+        let mut rows = stmt.query([shared_signer_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
+    pub fn save_my_shared_signer(
+        &self,
+        signer_id: EventId,
+        shared_signer_id: EventId,
+        public_key: XOnlyPublicKey,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn
+            .prepare_cached("INSERT OR IGNORE INTO my_shared_signers (signer_id, shared_signer_id, public_key) VALUES (?, ?, ?);")?;
+        stmt.execute((
+            signer_id.to_hex(),
+            shared_signer_id.to_hex(),
+            public_key.to_string(),
+        ))?;
+        log::info!("Saved my shared signer {shared_signer_id} (signer {signer_id})");
+        Ok(())
+    }
+
+    pub fn save_shared_signer(
+        &self,
+        shared_signer_id: EventId,
+        owner_public_key: XOnlyPublicKey,
+        shared_signer: SharedSigner,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn
+            .prepare_cached("INSERT OR IGNORE INTO shared_signers (shared_signer_id, owner_public_key, shared_signer) VALUES (?, ?, ?);")?;
+        stmt.execute((
+            shared_signer_id.to_hex(),
+            owner_public_key.to_string(),
+            shared_signer.encrypt_with_keys(&self.keys)?,
+        ))?;
+        log::info!("Saved shared signer {shared_signer_id}");
+        Ok(())
+    }
+
+    pub fn get_public_key_for_my_shared_signer(
+        &self,
+        shared_signer_id: EventId,
+    ) -> Result<XOnlyPublicKey, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT public_key FROM my_shared_signers WHERE shared_signer_id = ? LIMIT 1;",
+        )?;
+        let mut rows = stmt.query([shared_signer_id.to_hex()])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("my shared signer".into()))?;
+        let public_key: String = row.get(0)?;
+        Ok(XOnlyPublicKey::from_str(&public_key)?)
     }
 }

@@ -1,7 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use nostr_sdk::{prelude::TagKind, Event, EventId, Tag};
+use bdk::bitcoin::XOnlyPublicKey;
+use nostr_sdk::{Event, EventId, Tag, TagKind};
 
 pub(crate) mod dir;
 pub mod encryption;
@@ -11,6 +12,15 @@ pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
     for tag in event.tags.iter() {
         if let Tag::Event(event_id, ..) = tag {
             return Some(*event_id);
+        }
+    }
+    None
+}
+
+pub fn extract_first_public_key(event: &Event) -> Option<XOnlyPublicKey> {
+    for tag in event.tags.iter() {
+        if let Tag::PubKey(public_key, ..) = tag {
+            return Some(*public_key);
         }
     }
     None
