@@ -41,7 +41,11 @@ async fn run() -> Result<()> {
             "wss://relay.snort.social".into(),
             "wss://relay.nostr.bg".into(),
         ],
-        _ => vec!["wss://relay.rip".into(), "wss://nos.lol".into()],
+        _ => vec![
+            "wss://relay.rip".into(),
+            "wss://nos.lol".into(),
+            "wss://relay.nostrich.de".into(),
+        ],
     };
     let base_path: PathBuf = coinstr_common::base_path()?;
 
