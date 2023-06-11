@@ -114,7 +114,7 @@ impl SpendState {
                 let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
                 let (proposal_id, ..) = client
-                    .spend(policy_id, to_address, amount, description, fee_rate, None)
+                    .spend(policy_id, to_address, amount, description, fee_rate)
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
             },

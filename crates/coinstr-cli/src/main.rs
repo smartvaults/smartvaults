@@ -40,11 +40,18 @@ async fn run() -> Result<()> {
             "wss://relay.house".into(),
             "wss://relay.snort.social".into(),
             "wss://relay.nostr.bg".into(),
+            "wss://relay.nostr.ch".into(),
+            "wss://relay.nostr.info".into(),
+            "wss://nostr.rocks".into(),
+            "wss://relay.damus.io".into(),
+            "wss://nostr.bitcoiner.social".into(),
         ],
         _ => vec![
             "wss://relay.rip".into(),
             "wss://nos.lol".into(),
             "wss://relay.nostrich.de".into(),
+            "wss://nostr.mom".into(),
+            "wss://nostr.openchain.fr".into(),
         ],
     };
     let base_path: PathBuf = coinstr_common::base_path()?;
@@ -206,7 +213,6 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     Amount::Custom(amount),
                     description,
                     fee_rate,
-                    TIMEOUT,
                 )
                 .await?;
             println!("Spending proposal {proposal_id} sent");
@@ -223,20 +229,13 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
             let (proposal_id, _proposal) = coinstr
-                .spend(
-                    policy_id,
-                    to_address,
-                    Amount::Max,
-                    description,
-                    fee_rate,
-                    TIMEOUT,
-                )
+                .spend(policy_id, to_address, Amount::Max, description, fee_rate)
                 .await?;
             println!("Spending proposal {proposal_id} sent");
             Ok(())
         }
         Command::Approve { proposal_id } => {
-            let (event_id, _) = coinstr.approve(proposal_id, TIMEOUT).await?;
+            let (event_id, _) = coinstr.approve(proposal_id).await?;
             println!("Proposal {proposal_id} approved: {event_id}");
             Ok(())
         }
@@ -271,9 +270,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         }
         Command::Proof { command } => match command {
             ProofCommand::New { policy_id, message } => {
-                let (proposal_id, ..) = coinstr
-                    .new_proof_proposal(policy_id, message, TIMEOUT)
-                    .await?;
+                let (proposal_id, ..) = coinstr.new_proof_proposal(policy_id, message).await?;
                 println!("Proof of Reserve proposal {proposal_id} sent");
                 Ok(())
             }

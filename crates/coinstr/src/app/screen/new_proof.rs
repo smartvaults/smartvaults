@@ -119,7 +119,7 @@ impl State for NewProofState {
                         if !self.message.is_empty() {
                             self.loading = true;
                             return Command::perform(
-                                async move { client.new_proof_proposal(policy_id, message, None).await },
+                                async move { client.new_proof_proposal(policy_id, message).await },
                                 |res| match res {
                                     Ok((event_id, ..)) => Message::View(Stage::Proposal(event_id)),
                                     Err(e) => {

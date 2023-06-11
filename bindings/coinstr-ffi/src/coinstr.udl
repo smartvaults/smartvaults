@@ -79,7 +79,7 @@ interface Coinstr {
     // [Throws=FFIError]
     // string spend_all(string policy_id, string to_address, string description, u16 target_blocks, duration? timeout);    
     [Throws=FFIError]
-    void approve(string proposal_id, duration? timeout);
+    void approve(string proposal_id);
     [Throws=FFIError]
     void finalize(string proposal_id, duration? timeout);
 

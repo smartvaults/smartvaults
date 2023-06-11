@@ -28,6 +28,13 @@ CREATE TABLE IF NOT EXISTS shared_keys (
     shared_key BLOB NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS pending_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event BLOB NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS pending_events_index ON pending_events(event);
+
 -- Proposals
 CREATE TABLE IF NOT EXISTS proposals (
     proposal_id BLOB PRIMARY KEY NOT NULL,

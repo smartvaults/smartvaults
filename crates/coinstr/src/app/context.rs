@@ -64,11 +64,18 @@ impl Context {
                 "wss://relay.house".into(),
                 "wss://relay.snort.social".into(),
                 "wss://relay.nostr.bg".into(),
+                "wss://relay.nostr.ch".into(),
+                "wss://relay.nostr.info".into(),
+                "wss://nostr.rocks".into(),
+                "wss://relay.damus.io".into(),
+                "wss://nostr.bitcoiner.social".into(),
             ],
             _ => vec![
                 "wss://relay.rip".into(),
                 "wss://nos.lol".into(),
                 "wss://relay.nostrich.de".into(),
+                "wss://nostr.mom".into(),
+                "wss://nostr.openchain.fr".into(),
             ],
         };
         coinstr.set_electrum_endpoint(endpoint);

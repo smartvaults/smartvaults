@@ -145,12 +145,10 @@ impl State for ProposalState {
                             match signer {
                                 Some(signer) => match signer.signer_type() {
                                     SignerType::Seed => {
-                                        client.approve(proposal_id, None).await?;
+                                        client.approve(proposal_id).await?;
                                     }
                                     SignerType::Hardware => {
-                                        client
-                                            .approve_with_hwi_signer(proposal_id, signer, None)
-                                            .await?;
+                                        client.approve_with_hwi_signer(proposal_id, signer).await?;
                                     }
                                     SignerType::AirGap => {
                                         let path = FileDialog::new()
@@ -161,17 +159,13 @@ impl State for ProposalState {
                                             let signed_psbt =
                                                 PartiallySignedTransaction::from_file(path)?;
                                             client
-                                                .approve_with_signed_psbt(
-                                                    proposal_id,
-                                                    signed_psbt,
-                                                    None,
-                                                )
+                                                .approve_with_signed_psbt(proposal_id, signed_psbt)
                                                 .await?;
                                         }
                                     }
                                 },
                                 None => {
-                                    client.approve(proposal_id, None).await?;
+                                    client.approve(proposal_id).await?;
                                 }
                             };
                             Ok::<(), Box<dyn std::error::Error>>(())

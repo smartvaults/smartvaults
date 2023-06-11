@@ -222,10 +222,10 @@ impl Coinstr {
         })
     } */
 
-    pub fn approve(&self, proposal_id: String, timeout: Option<Duration>) -> Result<()> {
+    pub fn approve(&self, proposal_id: String) -> Result<()> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
-            self.inner.approve(proposal_id, timeout).await?;
+            self.inner.approve(proposal_id).await?;
             Ok(())
         })
     }

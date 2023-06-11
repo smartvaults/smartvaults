@@ -14,7 +14,6 @@ default = []
 blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
-async-recursion = "1.0"
 bdk = { version = "0.28", default-features = false, features = ["std", "electrum", "sqlite-bundled"] }
 coinstr-core = { path = "../coinstr-core" }
 futures-util = "0.3"

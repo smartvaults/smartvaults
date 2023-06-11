@@ -9,7 +9,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use async_recursion::async_recursion;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
@@ -191,7 +190,7 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(true)
+            .wait_for_send(false)
             .wait_for_subscription(false);
 
         Ok(Self {
@@ -251,7 +250,7 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(true)
+            .wait_for_send(false)
             .wait_for_subscription(false);
 
         Ok(Self {
@@ -311,7 +310,7 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(true)
+            .wait_for_send(false)
             .wait_for_subscription(false);
 
         Ok(Self {
@@ -441,55 +440,6 @@ impl Coinstr {
         Ok(self.client.get_contact_list_metadata(timeout).await?)
     }
 
-    pub async fn get_shared_keys(
-        &self,
-        timeout: Option<Duration>,
-    ) -> Result<HashMap<EventId, Keys>, Error> {
-        let keys = self.client.keys();
-
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .kind(SHARED_KEY_KIND);
-        let shared_key_events = self.client.get_events_of(vec![filter], timeout).await?;
-
-        // Index global keys by policy id
-        let mut shared_keys: HashMap<EventId, Keys> = HashMap::new();
-        for event in shared_key_events.into_iter() {
-            for tag in event.tags {
-                if let Tag::Event(event_id, ..) = tag {
-                    let content =
-                        nips::nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
-                    let sk = SecretKey::from_str(&content)?;
-                    let keys = Keys::new(sk);
-                    shared_keys.insert(event_id, keys);
-                }
-            }
-        }
-        Ok(shared_keys)
-    }
-
-    pub async fn get_shared_key_by_policy_id(
-        &self,
-        policy_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<Keys, Error> {
-        let keys = self.client.keys();
-
-        let filter = Filter::new()
-            .pubkey(keys.public_key())
-            .event(policy_id)
-            .kind(SHARED_KEY_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let shared_key_event = events.first().ok_or(Error::SharedKeysNotFound)?;
-        let content = nips::nip04::decrypt(
-            &keys.secret_key()?,
-            &shared_key_event.pubkey,
-            &shared_key_event.content,
-        )?;
-        let sk = SecretKey::from_str(&content)?;
-        Ok(Keys::new(sk))
-    }
-
     pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
         Ok(self.db.get_policy(policy_id)?.policy)
     }
@@ -548,7 +498,7 @@ impl Coinstr {
             util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
-        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys = self.db.get_shared_key(policy_id)?;
 
         // Extract `p` tags from proposal event to notify users about proposal deletion
         let mut tags: Vec<Tag> = util::extract_tags_by_kind(proposal_event, TagKind::P)
@@ -601,9 +551,7 @@ impl Coinstr {
             .ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
-        let shared_keys = self
-            .get_shared_key_by_policy_id(*policy_id, timeout)
-            .await?;
+        let shared_keys = self.db.get_shared_key(*policy_id)?;
 
         // Extract `p` tags from proposal event to notify users about proposal deletion
         let mut tags: Vec<Tag> = util::extract_tags_by_kind(proposal_event, TagKind::P)
@@ -749,14 +697,13 @@ impl Coinstr {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
-        timeout: Option<Duration>,
     ) -> Result<(EventId, Proposal), Error>
     where
         S: Into<String>,
     {
         // Get policy and shared keys
         let policy: Policy = self.get_policy_by_id(policy_id)?;
-        let shared_keys: Keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         let description: &str = &description.into();
 
@@ -822,7 +769,6 @@ impl Coinstr {
     pub async fn approve(
         &self,
         proposal_id: EventId,
-        timeout: Option<Duration>,
     ) -> Result<(EventId, ApprovedProposal), Error> {
         // Get proposal and policy
         let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
@@ -841,7 +787,7 @@ impl Coinstr {
         let approved_proposal = proposal.approve(&seed, vec![signer], self.network)?;
 
         // Get shared keys
-        let shared_keys: Keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
@@ -878,7 +824,6 @@ impl Coinstr {
         &self,
         proposal_id: EventId,
         signed_psbt: PartiallySignedTransaction,
-        timeout: Option<Duration>,
     ) -> Result<(EventId, ApprovedProposal), Error> {
         let keys = self.client.keys();
 
@@ -888,7 +833,7 @@ impl Coinstr {
         let approved_proposal = proposal.approve_with_signed_psbt(signed_psbt)?;
 
         // Get shared keys
-        let shared_keys: Keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
@@ -925,7 +870,6 @@ impl Coinstr {
         &self,
         proposal_id: EventId,
         signer: Signer,
-        timeout: Option<Duration>,
     ) -> Result<(EventId, ApprovedProposal), Error> {
         let keys = self.client.keys();
 
@@ -935,7 +879,7 @@ impl Coinstr {
         let approved_proposal = proposal.approve_with_hwi_signer(signer, self.network)?;
 
         // Get shared keys
-        let shared_keys: Keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
@@ -980,7 +924,7 @@ impl Coinstr {
             approved_proposals,
         } = self.db.get_approved_proposals_by_id(proposal_id)?;
 
-        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys = self.db.get_shared_key(policy_id)?;
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
 
         // Finalize proposal
@@ -1026,7 +970,6 @@ impl Coinstr {
         &self,
         policy_id: EventId,
         message: S,
-        timeout: Option<Duration>,
     ) -> Result<(EventId, Proposal, EventId), Error>
     where
         S: Into<String>,
@@ -1035,7 +978,7 @@ impl Coinstr {
 
         // Get policy and shared keys
         let policy: Policy = self.get_policy_by_id(policy_id)?;
-        let shared_keys = self.get_shared_key_by_policy_id(policy_id, timeout).await?;
+        let shared_keys = self.db.get_shared_key(policy_id)?;
 
         // Build proposal
         let wallet: Wallet<SqliteDatabase> =
@@ -1178,12 +1121,51 @@ impl Coinstr {
         abort_handle
     }
 
+    fn handle_pending_events(&self, sender: Sender<Option<Message>>) -> AbortHandle {
+        let this = self.clone();
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        let fut = async move {
+            loop {
+                match this.db.get_pending_events() {
+                    Ok(events) => {
+                        for event in events.into_iter() {
+                            let event_id = event.id;
+                            match this.handle_event(event).await {
+                                Ok(notification) => {
+                                    sender.try_send(notification).ok();
+                                }
+                                Err(e) => {
+                                    log::error!(
+                                        "Impossible to handle pending event {event_id}: {e}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => log::error!("Impossible to get pending events: {e}"),
+                }
+                thread::sleep(Duration::from_secs(30)).await;
+            }
+        };
+
+        let future = Abortable::new(fut, abort_registration);
+        thread::spawn(async {
+            let _ = future.await;
+            log::debug!("Exited from pending events handler thread");
+        });
+
+        abort_handle
+    }
+
     pub fn sync(&self) -> Receiver<Option<Message>> {
         let (sender, receiver) = mpsc::channel::<Option<Message>>(1024);
         let this = self.clone();
         thread::spawn(async move {
             // Sync timechain
-            let abort_handle: AbortHandle = this.sync_with_timechain(sender.clone());
+            let timechain_sync: AbortHandle = this.sync_with_timechain(sender.clone());
+
+            // Pending events handler
+            let pending_event_handler = this.handle_pending_events(sender.clone());
 
             let keys = this.client.keys();
 
@@ -1259,7 +1241,8 @@ impl Coinstr {
                         }
                         RelayPoolNotification::Shutdown => {
                             log::debug!("Received shutdown msg");
-                            abort_handle.abort();
+                            timechain_sync.abort();
+                            pending_event_handler.abort();
                         }
                     }
 
@@ -1271,7 +1254,6 @@ impl Coinstr {
         receiver
     }
 
-    #[async_recursion]
     async fn handle_event(&self, event: Event) -> Result<Option<Message>> {
         if let Err(e) = self.db.save_event(&event) {
             log::error!("Impossible to save event {}: {e}", event.id);
@@ -1305,13 +1287,7 @@ impl Coinstr {
                     return Ok(Some(Message::Notification(notification)));
                 }
             } else {
-                log::info!("Requesting shared key for {}", event.id);
-                thread::sleep(Duration::from_secs(1)).await;
-                let shared_key = self
-                    .get_shared_key_by_policy_id(event.id, Some(Duration::from_secs(30)))
-                    .await?;
-                self.db.save_shared_key(event.id, shared_key)?;
-                self.handle_event(event).await?;
+                self.db.save_pending_event(&event)?;
             }
         } else if event.kind == PROPOSAL_KIND && !self.db.proposal_exists(event.id)? {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
@@ -1322,13 +1298,7 @@ impl Coinstr {
                     self.db.save_notification(notification)?;
                     return Ok(Some(Message::Notification(notification)));
                 } else {
-                    log::info!("Requesting shared key for proposal {}", event.id);
-                    thread::sleep(Duration::from_secs(1)).await;
-                    let shared_key = self
-                        .get_shared_key_by_policy_id(policy_id, Some(Duration::from_secs(30)))
-                        .await?;
-                    self.db.save_shared_key(policy_id, shared_key)?;
-                    self.handle_event(event).await?;
+                    self.db.save_pending_event(&event)?;
                 }
             } else {
                 log::error!("Impossible to find policy id in proposal {}", event.id);
@@ -1349,13 +1319,7 @@ impl Coinstr {
                             event.created_at,
                         )?;
                     } else {
-                        log::info!("Requesting shared key for approved proposal {}", event.id);
-                        thread::sleep(Duration::from_secs(1)).await;
-                        let shared_key = self
-                            .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
-                            .await?;
-                        self.db.save_shared_key(*policy_id, shared_key)?;
-                        self.handle_event(event).await?;
+                        self.db.save_pending_event(&event)?;
                     }
                 } else {
                     log::error!("Impossible to find policy id in proposal {}", event.id);
@@ -1386,13 +1350,7 @@ impl Coinstr {
                             completed_proposal,
                         )?;
                     } else {
-                        log::info!("Requesting shared key for completed proposal {}", event.id);
-                        thread::sleep(Duration::from_secs(1)).await;
-                        let shared_key = self
-                            .get_shared_key_by_policy_id(*policy_id, Some(Duration::from_secs(30)))
-                            .await?;
-                        self.db.save_shared_key(*policy_id, shared_key)?;
-                        self.handle_event(event).await?;
+                        self.db.save_pending_event(&event)?;
                     }
                 } else {
                     log::error!(

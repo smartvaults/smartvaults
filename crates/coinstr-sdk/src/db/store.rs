@@ -841,6 +841,28 @@ impl Store {
         Ok(events)
     }
 
+    pub fn save_pending_event(&self, event: &Event) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare_cached("INSERT OR IGNORE INTO pending_events (event) VALUES (?);")?;
+        stmt.execute([event.as_json()])?;
+        log::info!("Saved pending event {} (kind={:?})", event.id, event.kind);
+        Ok(())
+    }
+
+    pub fn get_pending_events(&self) -> Result<Vec<Event>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT event FROM pending_events;")?;
+        let mut rows = stmt.query([])?;
+        let mut events: Vec<Event> = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let json: String = row.get(0)?;
+            let event: Event = Event::from_json(json)?;
+            events.push(event);
+        }
+        Ok(events)
+    }
+
     pub fn save_notification(&self, notification: Notification) -> Result<(), Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached(
