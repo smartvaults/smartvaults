@@ -866,6 +866,7 @@ impl Coinstr {
         Ok((event_id, approved_proposal))
     }
 
+    #[cfg(feature = "hwi")]
     pub async fn approve_with_hwi_signer(
         &self,
         proposal_id: EventId,

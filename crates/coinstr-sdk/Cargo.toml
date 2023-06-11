@@ -11,6 +11,7 @@ keywords.workspace = true
 
 [features]
 default = []
+hwi = ["coinstr-core/hwi"]
 blocking = ["nostr-sdk/blocking"]
 
 [dependencies]

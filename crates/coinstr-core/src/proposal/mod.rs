@@ -9,6 +9,7 @@ use bdk::miniscript::psbt::PsbtExt;
 use bdk::miniscript::Descriptor;
 use bdk::signer::SignerWrapper;
 use bdk::{SignOptions, Wallet};
+#[cfg(feature = "hwi")]
 use hwi::HWIClient;
 use keechain_core::bitcoin::psbt::{
     Error as PsbtError, PartiallySignedTransaction, PsbtParseError,
@@ -24,6 +25,7 @@ mod completed;
 
 pub use self::approved::ApprovedProposal;
 pub use self::completed::CompletedProposal;
+#[cfg(feature = "hwi")]
 use crate::signer::Signer;
 use crate::util::serde::{deserialize_psbt, serialize_psbt};
 use crate::util::{Encryption, Serde};
@@ -38,6 +40,7 @@ pub enum Error {
     KPsbt(#[from] KPsbtError),
     #[error(transparent)]
     PsbtParse(#[from] PsbtParseError),
+    #[cfg(feature = "hwi")]
     #[error(transparent)]
     HWI(#[from] hwi::error::Error),
     #[error("PSBT not signed (equal to base PSBT)")]
@@ -188,6 +191,7 @@ impl Proposal {
         }
     }
 
+    #[cfg(feature = "hwi")]
     pub fn approve_with_hwi_signer(
         &self,
         signer: Signer,

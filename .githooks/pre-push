@@ -4,7 +4,9 @@ cargo fmt --all -- --config format_code_in_doc_comments=true
 
 buildargs=(
     "-p coinstr-core"
+    "-p coinstr-core --features hwi"
     "-p coinstr-sdk"
+    "-p coinstr-sdk --features hwi"
     "-p coinstr-cli"
     "-p coinstr"
     "-p coinstr-ffi"

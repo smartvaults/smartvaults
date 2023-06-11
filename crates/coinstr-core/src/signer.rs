@@ -6,7 +6,9 @@ use std::fmt;
 use bdk::bitcoin::Network;
 use bdk::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
+#[cfg(feature = "hwi")]
 use hwi::types::HWIDevice;
+#[cfg(feature = "hwi")]
 use hwi::HWIClient;
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
 use keechain_core::types::descriptors::ToDescriptor;
@@ -24,6 +26,7 @@ pub enum Error {
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
+    #[cfg(feature = "hwi")]
     #[error(transparent)]
     HWI(#[from] hwi::error::Error),
     #[error("must be a taproot descriptor")]
@@ -109,6 +112,7 @@ impl Signer {
         )
     }
 
+    #[cfg(feature = "hwi")]
     pub fn from_hwi<S>(
         name: S,
         description: Option<S>,

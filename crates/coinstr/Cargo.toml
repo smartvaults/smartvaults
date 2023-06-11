@@ -12,7 +12,7 @@ keywords.workspace = true
 [dependencies]
 async-stream = "0.3"
 coinstr-common = { version = "0.1", path = "../coinstr-common" }
-coinstr-sdk = { version = "0.1", path = "../coinstr-sdk" }
+coinstr-sdk = { version = "0.1", path = "../coinstr-sdk", features = ["hwi"] }
 env_logger = "0.10"
 iced = { version = "0.9", default-features = false, features = ["image", "glow", "qr_code", "svg", "tokio"] }
 iced_futures = "0.6"
