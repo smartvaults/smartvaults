@@ -34,7 +34,7 @@ pub enum PolicyMessage {
     ),
     ErrorChanged(Option<String>),
     Reload,
-    Rebroadcast,
+    RepublishSharedKeys,
 }
 
 #[derive(Debug)]
@@ -190,11 +190,12 @@ impl State for PolicyState {
                 PolicyMessage::Reload => {
                     return self.load(ctx);
                 }
-                PolicyMessage::Rebroadcast => {
+                PolicyMessage::RepublishSharedKeys => {
                     self.loading = true;
                     let client = ctx.client.clone();
+                    let policy_id = self.policy_id;
                     return Command::perform(
-                        async move { client.rebroadcast_all_events().await },
+                        async move { client.republish_shared_key_for_policy(policy_id).await },
                         |res| match res {
                             Ok(_) => PolicyMessage::ErrorChanged(None).into(),
                             Err(e) => PolicyMessage::ErrorChanged(Some(e.to_string())).into(),
@@ -222,10 +223,12 @@ impl State for PolicyState {
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(30.0)));
 
-            let mut rebroadcast_btn = button::border_only_icon(GLOBE).width(Length::Fixed(40.0));
+            let mut republish_shared_keys_btn =
+                button::border_only_icon(GLOBE).width(Length::Fixed(40.0));
 
             if !self.loading {
-                rebroadcast_btn = rebroadcast_btn.on_press(PolicyMessage::Rebroadcast.into());
+                republish_shared_keys_btn =
+                    republish_shared_keys_btn.on_press(PolicyMessage::RepublishSharedKeys.into());
             }
 
             let mut delete_btn = button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
@@ -288,7 +291,7 @@ impl State for PolicyState {
                                                 .on_press(PolicyMessage::SavePolicyBackup.into())
                                                 .width(Length::Fixed(40.0)),
                                         )
-                                        .push(rebroadcast_btn)
+                                        .push(republish_shared_keys_btn)
                                         .push(delete_btn)
                                         .spacing(10),
                                 )
