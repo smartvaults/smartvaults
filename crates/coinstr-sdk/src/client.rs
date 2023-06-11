@@ -382,6 +382,9 @@ impl Coinstr {
         self.client.connect().await;
     }
 
+    /// Add relays
+    /// Connect
+    /// Rebroadcast all events
     pub async fn add_relays_and_connect<S>(&self, relays: Vec<S>) -> Result<(), Error>
     where
         S: Into<String>,
@@ -389,6 +392,7 @@ impl Coinstr {
         let relays = relays.into_iter().map(|r| (r, None)).collect();
         self.client.add_relays(relays).await?;
         self.client.connect().await;
+        self.rebroadcast_all_events().await?;
         Ok(())
     }
 
