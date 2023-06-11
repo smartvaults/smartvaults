@@ -155,4 +155,43 @@ impl Signer {
     pub fn signer_type(&self) -> SignerType {
         self.t
     }
+
+    pub fn to_shared_signer(&self) -> SharedSigner {
+        SharedSigner::from(self.clone())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SharedSigner {
+    fingerprint: Fingerprint,
+    descriptor: Descriptor<DescriptorPublicKey>,
+}
+
+impl Serde for SharedSigner {}
+impl Encryption for SharedSigner {}
+
+impl From<Signer> for SharedSigner {
+    fn from(value: Signer) -> Self {
+        Self {
+            fingerprint: value.fingerprint,
+            descriptor: value.descriptor,
+        }
+    }
+}
+
+impl SharedSigner {
+    pub fn fingerprint(&self) -> Fingerprint {
+        self.fingerprint
+    }
+
+    pub fn descriptor(&self) -> Descriptor<DescriptorPublicKey> {
+        self.descriptor.clone()
+    }
+
+    pub fn descriptor_public_key(&self) -> Result<DescriptorPublicKey, Error> {
+        match &self.descriptor {
+            Descriptor::Tr(tr) => Ok(tr.internal_key().clone()),
+            _ => Err(Error::NotTaprootDescriptor),
+        }
+    }
 }
