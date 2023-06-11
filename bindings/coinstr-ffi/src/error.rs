@@ -30,6 +30,18 @@ impl From<coinstr_sdk::client::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::core::bdk::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bdk::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
+impl From<coinstr_sdk::core::bdk::electrum_client::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bdk::electrum_client::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::nostr::event::id::Error> for FFIError {
     fn from(e: coinstr_sdk::nostr::event::id::Error) -> Self {
         Self::Generic { err: e.to_string() }

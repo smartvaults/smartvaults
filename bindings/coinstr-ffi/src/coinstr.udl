@@ -74,10 +74,10 @@ interface Coinstr {
     
     [Throws=FFIError]
     string save_policy(string name, string description, string descriptor);
-    // [Throws=FFIError]
-    // string spend(string policy_id, string to_address, u64 amount, string description, u16 target_blocks, duration? timeout);
-    // [Throws=FFIError]
-    // string spend_all(string policy_id, string to_address, string description, u16 target_blocks, duration? timeout);    
+    [Throws=FFIError]
+    string spend(string policy_id, string to_address, u64 amount, string description, u16 target_blocks);
+    [Throws=FFIError]
+    string spend_all(string policy_id, string to_address, string description, u16 target_blocks);    
     [Throws=FFIError]
     void approve(string proposal_id);
     [Throws=FFIError]
