@@ -8,13 +8,14 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Text};
+use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
 use crate::theme::color::GREY;
 
 #[derive(Debug, Clone)]
 pub enum NotificationsMessage {
     LoadNotifications(Vec<GetNotificationsResult>),
+    MarkAllAsSeen,
     Reload,
 }
 
@@ -63,6 +64,13 @@ impl State for NotificationsState {
                     self.loading = false;
                     self.loaded = true;
                 }
+                NotificationsMessage::MarkAllAsSeen => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.db.mark_all_notifications_as_seen().unwrap() },
+                        |_| NotificationsMessage::Reload.into(),
+                    );
+                }
                 NotificationsMessage::Reload => {
                     return self.load(ctx);
                 }
@@ -83,6 +91,12 @@ impl State for NotificationsState {
             center_x = false;
 
             content = content
+                .push(
+                    Row::new().push(
+                        button::border("Mark all as seen")
+                            .on_press(NotificationsMessage::MarkAllAsSeen.into()),
+                    ),
+                )
                 .push(
                     Row::new()
                         .push(
