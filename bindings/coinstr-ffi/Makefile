@@ -1,12 +1,11 @@
+CURRENT_DIR := $(shell pwd)
 SOURCES=$(sort $(wildcard ./src/*.rs ./src/**/*.rs))
 
 all: bindings-android
 
 .PHONY: init
 init:
-	rustup target add aarch64-apple-ios x86_64-apple-ios
-	rustup target add aarch64-apple-darwin x86_64-apple-darwin
-	rustup target add aarch64-apple-ios-sim
+	rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
 	rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 	@if [ $$(uname) == "Darwin" ] ; then cargo install cargo-lipo ; fi
 	cargo install cbindgen
@@ -51,3 +50,28 @@ bindings-android: sdk-root kotlin
 	cd bindings-android && ./gradlew assemble
 	mkdir -p ffi/android
 	cp bindings-android/lib/build/outputs/aar/lib-release.aar ffi/android
+
+ios-universal: $(SOURCES)		
+	mkdir -p ../../target/ios-universal/release
+	mkdir -p ../../target/ios-universal-sim/release
+	cargo build --release --target aarch64-apple-ios ;\
+	cargo build --release --target x86_64-apple-ios ;\
+	cargo build --release --target aarch64-apple-ios-sim ;\
+	lipo -create -output ../../target/ios-universal/release/libcoinstr_ffi.a ../../target/aarch64-apple-ios/release/libcoinstr_ffi.a ../../target/x86_64-apple-ios/release/libcoinstr_ffi.a
+	lipo -create -output ../../target/ios-universal-sim/release/libcoinstr_ffi.a ../../target/aarch64-apple-ios-sim/release/libcoinstr_ffi.a ../../target/x86_64-apple-ios/release/libcoinstr_ffi.a
+
+swift-ios: ios-universal
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr.udl -l swift -o ffi/swift-ios
+	cp ../../target/ios-universal/release/libcoinstr_ffi.a ffi/swift-ios
+	cd ffi/swift-ios && "swiftc" "-emit-module" "-module-name" "coinstr_ffi"  "-Xcc" "-fmodule-map-file=$(CURRENT_DIR)/ffi/swift-ios/coinstrFFI.modulemap" "-I" "."  "-L" "." "-lcoinstr_ffi" coinstr.swift
+
+bindings-swift: ios-universal
+	mkdir -p bindings-swift/Sources/Coinstr
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr.udl --no-format --language swift --out-dir bindings-swift/Sources/Coinstr
+	mv bindings-swift/Sources/Coinstr/coinstr.swift bindings-swift/Sources/Coinstr/Coinstr.swift
+	cp bindings-swift/Sources/Coinstr/coinstrFFI.h bindings-swift/coinstrFFI.xcframework/ios-arm64/coinstrFFI.framework/Headers
+	cp bindings-swift/Sources/Coinstr/coinstrFFI.h bindings-swift/coinstrFFI.xcframework/ios-arm64_x86_64-simulator/coinstrFFI.framework/Headers
+	cp ../target/aarch64-apple-ios/release/libcoinstr_ffi.a bindings-swift/coinstrFFI.xcframework/ios-arm64/coinstrFFI.framework/coinstrFFI
+	cp ../target/ios-universal-sim/release/libcoinstr_ffi.a bindings-swift/coinstrFFI.xcframework/ios-arm64_x86_64-simulator/coinstrFFI.framework/coinstrFFI
+	rm bindings-swift/Sources/Coinstr/coinstrFFI.h
+	rm bindings-swift/Sources/Coinstr/coinstrFFI.modulemap

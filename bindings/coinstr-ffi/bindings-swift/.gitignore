@@ -1,0 +1,7 @@
+.swiftpm/
+.build/
+*.xcodeproj
+Sources/
+**/coinstrFFI.h
+**/coinstrFFI
+**/coinstrFFI.modulemap
