@@ -1,7 +1,0 @@
-[bindings.kotlin]
-package_name = "coinstr"
-cdylib_name = "coinstr_ffi"
-
-[bindings.swift]
-ffi_module_name = "coinstr"
-cdylib_name = "coinstr_ffi"

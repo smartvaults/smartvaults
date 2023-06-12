@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "bindings/coinstr-ffi",
+    "bindings/coinstr-sdk-ffi",
     "crates/coinstr",
     "crates/coinstr-cli",
     "crates/coinstr-common",

@@ -1,0 +1,87 @@
+// Copyright (c) 2023 Coinstr
+// Distributed under the MIT software license
+
+namespace coinstr_sdk {
+    [Throws=FFIError]
+    sequence<string> get_keychains_list(string base_path, Network network);
+};
+
+[Error]
+interface FFIError {
+    Generic(string err);
+};
+
+enum Network {
+    "Bitcoin",
+    "Testnet",
+    "Signet",
+    "Regtest",
+};
+
+enum WordCount {
+    "W12",
+    "W18",
+    "W24",
+};
+
+interface Policy {
+    string name();
+    string description();
+    string descriptor();
+};
+
+[Enum]
+interface Proposal {
+  Spending(string descriptor, string to_address, u64 amount, string description, string psbt);
+  ProofOfReserve(string descriptor, string message, string psbt);
+};
+
+interface Coinstr {
+    [Throws=FFIError, Name=open]
+    constructor(string base_path, string name, string password, Network network);
+    [Throws=FFIError, Name=generate]
+    constructor(string base_path, string name, string password, WordCount word_count, string? passphrase, Network network);
+    [Throws=FFIError, Name=restore]
+    constructor(string base_path, string name, string password, string mnemonic, string? passphrase, Network network);
+
+    [Throws=FFIError]
+    void save();
+    boolean check_password(string password);
+    [Throws=FFIError]
+    void wipe();
+
+    Network network();
+
+    [Throws=FFIError]
+    void add_relay(string url);
+    void connect();
+    [Throws=FFIError]
+    void add_relays_and_connect(sequence<string> relays);
+    [Throws=FFIError]
+    void remove_relay(string url);
+    [Throws=FFIError]
+    void shutdown();
+    void set_electrum_endpoint(string endpoint);
+    [Throws=FFIError]
+    string electrum_endpoint();
+
+    [Throws=FFIError]
+    void delete_policy_by_id(string policy_id, duration? timeout);  
+    [Throws=FFIError]
+    void delete_proposal_by_id(string proposal_id, duration? timeout);  
+    [Throws=FFIError]
+    void delete_completed_proposal_by_id(string completed_proposal_id, duration? timeout); 
+    
+    [Throws=FFIError]
+    string save_policy(string name, string description, string descriptor);
+    [Throws=FFIError]
+    string spend(string policy_id, string to_address, u64 amount, string description, u16 target_blocks);
+    [Throws=FFIError]
+    string spend_all(string policy_id, string to_address, string description, u16 target_blocks);    
+    [Throws=FFIError]
+    void approve(string proposal_id);
+    [Throws=FFIError]
+    void finalize(string proposal_id, duration? timeout);
+
+    void sync();
+};

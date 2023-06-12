@@ -1,4 +1,4 @@
 # Coinstr bindings
 
 - UniFFI (Kotlin, Swift, Python, Ruby):
-    * [coinstr-ffi](./coinstr-ffi/): UniFFI bindings of the [coinstr-core](../coinstr-core/) crate (WIP)
+    * [coinstr-sdk-ffi](./coinstr-sdk-ffi/): UniFFI bindings of the [coinstr-sdk](../crates/coinstr-sdk/) crate (WIP)

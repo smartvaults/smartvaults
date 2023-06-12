@@ -1,0 +1,6 @@
+framework module coinstr_sdkFFI {
+  umbrella header "coinstr_sdkFFI-umbrella.h"
+
+  export *
+  module * { export * }
+}
