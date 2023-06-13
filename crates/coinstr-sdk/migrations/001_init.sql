@@ -79,6 +79,18 @@ CREATE TABLE IF NOT EXISTS notifications (
     seen BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- Contacts
+CREATE TABLE IF NOT EXISTS contacts (
+    public_key BLOB PRIMARY KEY NOT NULL
+);
+
+-- Metadata
+CREATE TABLE IF NOT EXISTS metadata (
+    public_key BLOB PRIMARY KEY NOT NULL,
+    metadata BLOB NOT NULL,
+    last_sync BIGINT DEFAULT NULL
+);
+
 -- Signers
 CREATE TABLE IF NOT EXISTS signers (
     signer_id BLOB PRIMARY KEY NOT NULL,

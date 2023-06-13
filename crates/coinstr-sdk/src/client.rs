@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
@@ -432,12 +432,8 @@ impl Coinstr {
         self.db.block_height()
     }
 
-    pub async fn get_contacts(
-        &self,
-        timeout: Option<Duration>,
-    ) -> Result<HashMap<XOnlyPublicKey, Metadata>, Error> {
-        // TODO: get contacts from cache if `cache` feature enabled
-        Ok(self.client.get_contact_list_metadata(timeout).await?)
+    pub fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
+        Ok(self.db.get_contacts_with_metadata()?)
     }
 
     pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
@@ -1197,8 +1193,12 @@ impl Coinstr {
                     .clone()
                     .pubkey(keys.public_key())
                     .since(last_sync);
+                let contacts_filters = Filter::new()
+                    .author(keys.public_key().to_string())
+                    .kind(Kind::ContactList)
+                    .since(last_sync);
                 if let Err(e) = relay
-                    .subscribe(vec![author_filter, pubkey_filter], false)
+                    .subscribe(vec![author_filter, pubkey_filter, contacts_filters], false)
                     .await
                 {
                     log::error!("Impossible to subscribe to {relay_url}: {e}");
@@ -1386,6 +1386,14 @@ impl Coinstr {
                     self.db.delete_generic_event_id(*event_id)?;
                 }
             }
+        } else if event.kind == Kind::ContactList {
+            let mut contacts = HashSet::new();
+            for tag in event.tags.into_iter() {
+                if let Tag::ContactList { pk, .. } = tag {
+                    contacts.insert(pk);
+                }
+            }
+            self.db.save_contacts(contacts)?;
         }
 
         Ok(None)

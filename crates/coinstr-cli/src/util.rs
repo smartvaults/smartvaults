@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use coinstr_sdk::core::bdk::blockchain::ElectrumBlockchain;
 use coinstr_sdk::core::bdk::database::{BatchDatabase, MemoryDatabase};
@@ -87,7 +87,7 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     Ok(())
 }
 
-pub fn print_contacts(contacts: HashMap<XOnlyPublicKey, Metadata>) {
+pub fn print_contacts(contacts: BTreeMap<XOnlyPublicKey, Metadata>) {
     let mut table = Table::new();
 
     table.set_titles(row![

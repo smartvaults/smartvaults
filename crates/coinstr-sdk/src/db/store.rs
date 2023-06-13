@@ -7,7 +7,7 @@
 
 use std::collections::btree_map::Entry;
 use std::collections::hash_map::Entry as HashMapEntry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -27,7 +27,7 @@ use coinstr_core::util::serde::{Error as SerdeError, Serde};
 use coinstr_core::ApprovedProposal;
 use nostr_sdk::event::id::{self, EventId};
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
-use nostr_sdk::{event, Event, Keys, Timestamp, Url};
+use nostr_sdk::{event, Event, Keys, Metadata, Timestamp, Url};
 use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::OpenFlags;
@@ -74,6 +74,9 @@ pub enum Error {
     /// Event error
     #[error(transparent)]
     Event(#[from] event::Error),
+    /// Metadata error
+    #[error(transparent)]
+    Metadata(#[from] nostr_sdk::types::metadata::Error),
     /// JSON error
     #[error(transparent)]
     JSON(#[from] SerdeError),
@@ -1074,5 +1077,74 @@ impl Store {
             .ok_or(Error::NotFound("my shared signer".into()))?;
         let public_key: String = row.get(0)?;
         Ok(XOnlyPublicKey::from_str(&public_key)?)
+    }
+
+    pub fn get_contacts_public_keys(&self) -> Result<HashSet<XOnlyPublicKey>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT public_key FROM contacts;")?;
+        let mut rows = stmt.query([])?;
+        let mut public_keys = HashSet::new();
+        while let Ok(Some(row)) = rows.next() {
+            let public_key: String = row.get(0)?;
+            public_keys.insert(XOnlyPublicKey::from_str(&public_key)?);
+        }
+        Ok(public_keys)
+    }
+
+    pub fn delete_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM contacts WHERE public_key = ?;",
+            [public_key.to_string()],
+        )?;
+        log::info!("Deleted contact {public_key}");
+        Ok(())
+    }
+
+    pub fn save_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare_cached("INSERT OR IGNORE INTO contacts (public_key) VALUES (?);")?;
+        stmt.execute([public_key.to_string()])?;
+        log::info!("Saved contact {public_key}");
+        Ok(())
+    }
+
+    pub(crate) fn save_contacts(&self, contacts: HashSet<XOnlyPublicKey>) -> Result<(), Error> {
+        let public_keys = self.get_contacts_public_keys()?;
+
+        for pk in public_keys.difference(&contacts) {
+            self.delete_contact(*pk)?;
+        }
+
+        for public_key in contacts.difference(&public_keys) {
+            self.save_contact(*public_key)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_metadata(&self, public_key: XOnlyPublicKey) -> Result<Metadata, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT metadata FROM metadata WHERE public_key = ?;")?;
+        let mut rows = stmt.query([public_key.to_string()])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("metadata public key".into()))?;
+        let metadata: String = row.get(0)?;
+        Ok(Metadata::from_json(metadata)?)
+    }
+
+    pub fn get_contacts_with_metadata(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT public_key FROM contacts;")?;
+        let mut rows = stmt.query([])?;
+        let mut contacts = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let public_key: String = row.get(0)?;
+            let public_key = XOnlyPublicKey::from_str(&public_key)?;
+            contacts.insert(public_key, self.get_metadata(public_key)?);
+        }
+        Ok(contacts)
     }
 }

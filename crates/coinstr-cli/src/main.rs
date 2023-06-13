@@ -285,7 +285,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         },
         Command::Get { command } => match command {
             GetCommand::Contacts => {
-                let contacts = coinstr.get_contacts(TIMEOUT).await?;
+                let contacts = coinstr.get_contacts()?;
                 util::print_contacts(contacts);
                 Ok(())
             }
