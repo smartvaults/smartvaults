@@ -154,6 +154,12 @@ pub enum Command {
         #[command(subcommand)]
         command: ProofCommand,
     },
+    /// Add commands
+    #[command(arg_required_else_help = true)]
+    Add {
+        #[command(subcommand)]
+        command: AddCommand,
+    },
     /// Get data about policies and proposals
     #[command(arg_required_else_help = true)]
     Get {
@@ -186,6 +192,16 @@ pub enum ProofCommand {
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AddCommand {
+    /// Add contact
+    Contact {
+        /// Public key
+        #[arg(required = true)]
+        public_key: XOnlyPublicKey,
     },
 }
 

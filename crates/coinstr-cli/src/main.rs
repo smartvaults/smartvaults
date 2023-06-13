@@ -6,6 +6,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
+use cli::AddCommand;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
@@ -280,6 +281,12 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     "Valid Proof - Spendable amount: {} sat",
                     format::number(spendable)
                 );
+                Ok(())
+            }
+        },
+        Command::Add { command } => match command {
+            AddCommand::Contact { public_key } => {
+                coinstr.add_contact(public_key).await?;
                 Ok(())
             }
         },
