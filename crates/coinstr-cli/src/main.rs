@@ -184,18 +184,6 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             let keychain = coinstr.keychain();
             util::print_secrets(keychain, coinstr.network())
         }
-        Command::SavePolicy {
-            name,
-            description,
-            descriptor,
-            custom_pubkeys,
-        } => {
-            let policy_id = coinstr
-                .save_policy(name, description, descriptor, custom_pubkeys)
-                .await?;
-            println!("Policy saved: {policy_id}");
-            Ok(())
-        }
         Command::Spend {
             policy_id,
             to_address,
@@ -287,6 +275,18 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         Command::Add { command } => match command {
             AddCommand::Contact { public_key } => {
                 coinstr.add_contact(public_key).await?;
+                Ok(())
+            }
+            AddCommand::Policy {
+                name,
+                description,
+                descriptor,
+                custom_pubkeys,
+            } => {
+                let policy_id = coinstr
+                    .save_policy(name, description, descriptor, custom_pubkeys)
+                    .await?;
+                println!("Policy saved: {policy_id}");
                 Ok(())
             }
         },

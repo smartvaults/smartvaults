@@ -87,20 +87,6 @@ pub enum SettingCommand {
 pub enum Command {
     /// Inspect bitcoin and nostr keys
     Inspect,
-    /// Save policy
-    SavePolicy {
-        /// Policy name
-        #[arg(required = true)]
-        name: String,
-        /// Policy description
-        #[arg(required = true)]
-        description: String,
-        /// Policy descriptor
-        #[arg(required = true)]
-        descriptor: String,
-        /// Custom nostr pubkeys
-        custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
-    },
     /// Create a spending proposal
     Spend {
         /// Policy id
@@ -202,6 +188,20 @@ pub enum AddCommand {
         /// Public key
         #[arg(required = true)]
         public_key: XOnlyPublicKey,
+    },
+    /// Add policy
+    Policy {
+        /// Policy name
+        #[arg(required = true)]
+        name: String,
+        /// Policy description
+        #[arg(required = true)]
+        description: String,
+        /// Policy descriptor
+        #[arg(required = true)]
+        descriptor: String,
+        /// Custom nostr pubkeys
+        custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
     },
 }
 
