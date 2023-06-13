@@ -9,7 +9,7 @@ buildargs=(
     "-p coinstr-sdk --features hwi"
     "-p coinstr-cli"
     "-p coinstr"
-    "-p coinstr-ffi"
+    "-p coinstr-sdk-ffi"
 )
 
 for arg in "${buildargs[@]}"; do
