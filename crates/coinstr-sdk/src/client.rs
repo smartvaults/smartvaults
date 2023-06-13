@@ -27,11 +27,10 @@ use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal
 use futures_util::future::{AbortHandle, Abortable};
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
-use nostr_sdk::prelude::TagKind;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
-    nips, Client, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options, Relay,
-    RelayMessage, RelayPoolNotification, Result, Tag, Timestamp, Url,
+    nips, Client, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options,
+    Relay, RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -434,6 +433,32 @@ impl Coinstr {
 
     pub fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
         Ok(self.db.get_contacts_with_metadata()?)
+    }
+
+    pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+        let mut contacts: Vec<Contact> = self
+            .db
+            .get_contacts_public_keys()?
+            .into_iter()
+            .map(|p| Contact::new::<String>(p, None, None))
+            .collect();
+        contacts.push(Contact::new::<String>(public_key, None, None));
+        self.client.set_contact_list(contacts).await?;
+        self.db.save_contact(public_key)?;
+        Ok(())
+    }
+
+    pub async fn remove_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+        let contacts: Vec<Contact> = self
+            .db
+            .get_contacts_public_keys()?
+            .into_iter()
+            .filter(|p| p != &public_key)
+            .map(|p| Contact::new::<String>(p, None, None))
+            .collect();
+        self.client.set_contact_list(contacts).await?;
+        self.db.delete_contact(public_key)?;
+        Ok(())
     }
 
     pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
