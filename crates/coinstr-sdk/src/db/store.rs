@@ -1106,6 +1106,10 @@ impl Store {
         let mut stmt =
             conn.prepare_cached("INSERT OR IGNORE INTO contacts (public_key) VALUES (?);")?;
         stmt.execute([public_key.to_string()])?;
+        let mut stmt = conn.prepare_cached(
+            "INSERT OR IGNORE INTO metadata (public_key, metadata) VALUES (?, ?);",
+        )?;
+        stmt.execute([public_key.to_string(), Metadata::default().as_json()])?;
         log::info!("Saved contact {public_key}");
         Ok(())
     }
