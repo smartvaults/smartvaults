@@ -131,7 +131,7 @@ async fn run() -> Result<()> {
                 match readline {
                     Ok(line) => {
                         let _ = rl.add_history_entry(line.as_str());
-                        let mut vec: Vec<&str> = line.as_str().split_whitespace().collect();
+                        let mut vec: Vec<&str> = line.as_str().split_whitespace().collect(); // TODO: find another way instead of split whitespace
                         vec.insert(0, "");
                         match Command::try_parse_from(vec) {
                             Ok(command) => {
@@ -145,7 +145,10 @@ async fn run() -> Result<()> {
                         }
                         continue;
                     }
-                    Err(ReadlineError::Interrupted) => break,
+                    Err(ReadlineError::Interrupted) => {
+                        // Ctrl-C
+                        continue;
+                    }
                     Err(ReadlineError::Eof) => break,
                     Err(e) => {
                         eprintln!("Error: {e}");
