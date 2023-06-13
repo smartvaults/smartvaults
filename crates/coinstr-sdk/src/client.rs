@@ -90,6 +90,8 @@ pub enum Error {
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
     Store(#[from] crate::db::Error),
+    #[error("not enough public keys")]
+    NotEnoughPublicKeys,
     #[error("shared keys not found")]
     SharedKeysNotFound,
     #[error("policy not found")]
@@ -661,10 +663,14 @@ impl Coinstr {
         let keys = self.client.keys();
         let descriptor = descriptor.into();
 
-        let nostr_pubkeys = match custom_pubkeys {
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = match custom_pubkeys {
             Some(pubkeys) => pubkeys,
             None => extract_public_keys(&descriptor)?,
         };
+
+        if nostr_pubkeys.len() < 2 {
+            return Err(Error::NotEnoughPublicKeys);
+        }
 
         // Generate a shared key
         let shared_key = Keys::generate();
