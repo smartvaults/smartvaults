@@ -1,8 +1,6 @@
 CURRENT_DIR := $(shell pwd)
 SOURCES=$(sort $(wildcard ./src/*.rs ./src/**/*.rs))
 
-all: bindings-android
-
 .PHONY: init
 init:
 	rustup target add aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
@@ -54,9 +52,9 @@ bindings-android: sdk-root kotlin
 ios-universal: $(SOURCES)		
 	mkdir -p ../../target/ios-universal/release
 	mkdir -p ../../target/ios-universal-sim/release
-	cargo build --release --target aarch64-apple-ios ;\
-	cargo build --release --target x86_64-apple-ios ;\
-	cargo build --release --target aarch64-apple-ios-sim ;\
+	cargo build --release --target aarch64-apple-ios
+	cargo build --release --target x86_64-apple-ios
+	cargo build --release --target aarch64-apple-ios-sim
 	lipo -create -output ../../target/ios-universal/release/libcoinstr_sdk_ffi.a ../../target/aarch64-apple-ios/release/libcoinstr_sdk_ffi.a ../../target/x86_64-apple-ios/release/libcoinstr_sdk_ffi.a
 	lipo -create -output ../../target/ios-universal-sim/release/libcoinstr_sdk_ffi.a ../../target/aarch64-apple-ios-sim/release/libcoinstr_sdk_ffi.a ../../target/x86_64-apple-ios/release/libcoinstr_sdk_ffi.a
 
