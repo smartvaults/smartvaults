@@ -73,6 +73,12 @@ impl State for RestorePolicyState {
                     }
                 }
                 RestorePolicyMessage::LoadPolicyBackup(backup) => {
+                    if let Some(name) = backup.name() {
+                        self.name = name;
+                    }
+                    if let Some(description) = backup.description() {
+                        self.description = description;
+                    }
                     self.descriptor = backup.descriptor().to_string();
                     self.public_keys = backup.public_keys();
                 }

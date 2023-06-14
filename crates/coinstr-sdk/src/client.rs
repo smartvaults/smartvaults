@@ -1491,7 +1491,12 @@ impl Coinstr {
     pub fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
         let GetPolicyResult { policy, .. } = self.db.get_policy(policy_id)?;
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
-        Ok(PolicyBackup::new(policy.descriptor, nostr_pubkeys))
+        Ok(PolicyBackup::new(
+            policy.name,
+            policy.description,
+            policy.descriptor,
+            nostr_pubkeys,
+        ))
     }
 
     pub fn save_policy_backup<P>(&self, policy_id: EventId, path: P) -> Result<(), Error>

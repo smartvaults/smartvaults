@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyBackup {
+    name: Option<String>,
+    description: Option<String>,
     descriptor: Descriptor<String>,
     public_keys: Vec<XOnlyPublicKey>,
 }
@@ -21,8 +23,18 @@ pub struct PolicyBackup {
 impl Serde for PolicyBackup {}
 
 impl PolicyBackup {
-    pub fn new(descriptor: Descriptor<String>, public_keys: Vec<XOnlyPublicKey>) -> Self {
+    pub fn new<S>(
+        name: S,
+        description: S,
+        descriptor: Descriptor<String>,
+        public_keys: Vec<XOnlyPublicKey>,
+    ) -> Self
+    where
+        S: Into<String>,
+    {
         Self {
+            name: Some(name.into()),
+            description: Some(description.into()),
             descriptor,
             public_keys,
         }
@@ -36,6 +48,14 @@ impl PolicyBackup {
         let mut json = String::new();
         file.read_to_string(&mut json)?;
         Ok(Self::from_json(json)?)
+    }
+
+    pub fn name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
+    pub fn description(&self) -> Option<String> {
+        self.description.clone()
     }
 
     pub fn descriptor(&self) -> Descriptor<String> {
