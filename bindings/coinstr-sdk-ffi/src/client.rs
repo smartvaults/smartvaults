@@ -1,26 +1,32 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use coinstr_sdk::client;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
+use coinstr_sdk::core::bitcoin::secp256k1::XOnlyPublicKey;
+use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::types::WordCount;
 use coinstr_sdk::core::Amount;
-use coinstr_sdk::nostr::prelude::Address;
+use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::{block_on, EventId};
 
 use crate::error::Result;
+use crate::{Balance, CompletedProposal, Policy, Proposal};
 
 pub struct Coinstr {
     inner: client::Coinstr,
 }
 
 impl Coinstr {
+    /// Open keychain
     pub fn open(
         base_path: String,
         name: String,
@@ -32,6 +38,7 @@ impl Coinstr {
         })
     }
 
+    /// Generate keychain
     pub fn generate(
         base_path: String,
         name: String,
@@ -52,6 +59,7 @@ impl Coinstr {
         })
     }
 
+    /// Restore keychain
     pub fn restore(
         base_path: String,
         name: String,
@@ -73,32 +81,49 @@ impl Coinstr {
         })
     }
 
+    /// Save keychain
     pub fn save(&self) -> Result<()> {
         Ok(self.inner.save()?)
     }
 
+    /// Check keychain password
     pub fn check_password(&self, password: String) -> bool {
         self.inner.check_password(password)
     }
 
-    pub fn wipe(&self) -> Result<()> {
-        Ok(self.inner.wipe()?)
+    // TODO: add `rename` method
+
+    // TODO: add `change_password` method
+
+    /// Permanent delete the keychain
+    pub fn wipe(&self, password: String) -> Result<()> {
+        Ok(self.inner.wipe(password)?)
     }
 
+    // TODO: add `keychain` method
+
+    // TODO: add `keys` method
+
+    /// Get current bitcoin network
     pub fn network(&self) -> Network {
         self.inner.network()
     }
 
+    /// Add new relay
     pub fn add_relay(&self, url: String) -> Result<()> {
         block_on(async move { Ok(self.inner.add_relay(url, None).await?) })
     }
 
+    /// Connect relays
     pub fn connect(&self) {
         block_on(async move {
             self.inner.connect().await;
         })
     }
 
+    /// Add relays
+    /// Connect
+    /// Rebroadcast stored events
     pub fn add_relays_and_connect(&self, relays: Vec<String>) -> Result<()> {
         block_on(async move { Ok(self.inner.add_relays_and_connect(relays).await?) })
     }
@@ -107,16 +132,63 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.remove_relay(url).await?) })
     }
 
+    /// Shutdown client
     pub fn shutdown(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.clone().shutdown().await?) })
     }
 
+    /// Set the electrum endpoint
     pub fn set_electrum_endpoint(&self, endpoint: String) {
         self.inner.set_electrum_endpoint(endpoint)
     }
 
+    /// Get the electrum endpoint
     pub fn electrum_endpoint(&self) -> Result<String> {
         Ok(self.inner.electrum_endpoint()?)
+    }
+
+    pub fn block_height(&self) -> u32 {
+        self.inner.block_height()
+    }
+
+    // TODO: add `get_contacts` method
+
+    /// Add new contact
+    pub fn add_contact(&self, public_key: String) -> Result<()> {
+        block_on(async move {
+            let public_key: XOnlyPublicKey = XOnlyPublicKey::from_str(&public_key)?;
+            Ok(self.inner.add_contact(public_key).await?)
+        })
+    }
+
+    /// Remove contact
+    pub fn remove_contact(&self, public_key: String) -> Result<()> {
+        block_on(async move {
+            let public_key: XOnlyPublicKey = XOnlyPublicKey::from_str(&public_key)?;
+            Ok(self.inner.remove_contact(public_key).await?)
+        })
+    }
+
+    pub fn get_policy_by_id(&self, policy_id: String) -> Result<Arc<Policy>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        Ok(Arc::new(self.inner.get_policy_by_id(policy_id)?.into()))
+    }
+
+    pub fn get_proposal_by_id(&self, proposal_id: String) -> Result<Proposal> {
+        let proposal_id = EventId::from_hex(proposal_id)?;
+        Ok(self.inner.get_proposal_by_id(proposal_id)?.1.into())
+    }
+
+    pub fn get_completed_proposal_by_id(
+        &self,
+        completed_proposal_id: String,
+    ) -> Result<CompletedProposal> {
+        let completed_proposal_id = EventId::from_hex(completed_proposal_id)?;
+        Ok(self
+            .inner
+            .get_completed_proposal_by_id(completed_proposal_id)?
+            .1
+            .into())
     }
 
     pub fn delete_policy_by_id(&self, policy_id: String, timeout: Option<Duration>) -> Result<()> {
@@ -154,19 +226,37 @@ impl Coinstr {
         })
     }
 
-    pub fn save_policy(
-        &self,
-        name: String,
-        description: String,
-        descriptor: String,
-    ) -> Result<String> {
+    pub fn delete_signer_by_id(&self, signer_id: String, timeout: Option<Duration>) -> Result<()> {
         block_on(async move {
-            let policy_id = self
-                .inner
-                .save_policy(name, description, descriptor, None)
-                .await?;
-            Ok(policy_id.to_hex())
+            let signer_id = EventId::from_hex(signer_id)?;
+            Ok(self.inner.delete_signer_by_id(signer_id, timeout).await?)
         })
+    }
+
+    pub fn get_policies(&self) -> Result<HashMap<String, Arc<Policy>>> {
+        let policies = self.inner.get_policies()?;
+        Ok(policies
+            .into_iter()
+            .map(|(policy_id, res)| (policy_id.to_hex(), Arc::new(res.policy.into())))
+            .collect())
+    }
+
+    // TODO: add `get_detailed_policies` method
+
+    pub fn get_proposals(&self) -> Result<HashMap<String, Proposal>> {
+        let proposals = self.inner.get_proposals()?;
+        Ok(proposals
+            .into_iter()
+            .map(|(proposal_id, (_, proposal))| (proposal_id.to_hex(), proposal.into()))
+            .collect())
+    }
+
+    pub fn get_completed_proposals(&self) -> Result<HashMap<String, CompletedProposal>> {
+        let completed_proposals = self.inner.get_completed_proposals()?;
+        Ok(completed_proposals
+            .into_iter()
+            .map(|(proposal_id, (_, proposal))| (proposal_id.to_hex(), proposal.into()))
+            .collect())
     }
 
     pub fn spend(
@@ -220,20 +310,73 @@ impl Coinstr {
         })
     }
 
-    pub fn approve(&self, proposal_id: String) -> Result<()> {
+    pub fn approve(&self, proposal_id: String) -> Result<String> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
-            self.inner.approve(proposal_id).await?;
-            Ok(())
+            let (approval_id, ..) = self.inner.approve(proposal_id).await?;
+            Ok(approval_id.to_hex())
         })
     }
 
-    pub fn finalize(&self, proposal_id: String, timeout: Option<Duration>) -> Result<()> {
+    pub fn approve_with_signed_psbt(
+        &self,
+        proposal_id: String,
+        signed_psbt: String,
+    ) -> Result<String> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
-            self.inner.finalize(proposal_id, timeout).await?;
-            Ok(())
+            let signed_psbt = PartiallySignedTransaction::from_str(&signed_psbt)?;
+            let (approval_id, ..) = self
+                .inner
+                .approve_with_signed_psbt(proposal_id, signed_psbt)
+                .await?;
+            Ok(approval_id.to_hex())
         })
+    }
+
+    pub fn finalize(
+        &self,
+        proposal_id: String,
+        timeout: Option<Duration>,
+    ) -> Result<CompletedProposal> {
+        block_on(async move {
+            let proposal_id = EventId::from_hex(proposal_id)?;
+            Ok(self.inner.finalize(proposal_id, timeout).await?.into())
+        })
+    }
+
+    pub fn rebroadcast_all_events(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.rebroadcast_all_events().await?) })
+    }
+
+    pub fn republish_shared_key_for_policy(&self, policy_id: String) -> Result<()> {
+        block_on(async move {
+            let policy_id = EventId::from_hex(policy_id)?;
+            Ok(self
+                .inner
+                .republish_shared_key_for_policy(policy_id)
+                .await?)
+        })
+    }
+
+    pub fn get_balance(&self, policy_id: String) -> Result<Option<Arc<Balance>>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        Ok(self
+            .inner
+            .get_balance(policy_id)
+            .map(|b| Arc::new(b.into())))
+    }
+
+    pub fn get_total_balance(&self) -> Result<Arc<Balance>> {
+        Ok(Arc::new(self.inner.get_total_balance()?.0.into()))
+    }
+
+    pub fn get_last_unused_address(&self, policy_id: String) -> Result<Option<String>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        Ok(self
+            .inner
+            .get_last_unused_address(policy_id)
+            .map(|a| a.to_string()))
     }
 
     pub fn sync(&self) {

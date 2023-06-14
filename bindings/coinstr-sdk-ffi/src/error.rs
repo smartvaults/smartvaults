@@ -42,6 +42,18 @@ impl From<coinstr_sdk::core::bdk::electrum_client::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::core::bitcoin::secp256k1::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bitcoin::secp256k1::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
+impl From<coinstr_sdk::core::bitcoin::psbt::PsbtParseError> for FFIError {
+    fn from(e: coinstr_sdk::core::bitcoin::psbt::PsbtParseError) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::nostr::event::id::Error> for FFIError {
     fn from(e: coinstr_sdk::nostr::event::id::Error) -> Self {
         Self::Generic { err: e.to_string() }

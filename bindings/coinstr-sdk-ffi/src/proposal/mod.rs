@@ -3,6 +3,10 @@
 
 use coinstr_sdk::core::proposal;
 
+mod completed;
+
+pub use self::completed::CompletedProposal;
+
 #[derive(Clone)]
 pub enum Proposal {
     Spending {
