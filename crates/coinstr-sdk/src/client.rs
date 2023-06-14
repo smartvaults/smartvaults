@@ -90,6 +90,8 @@ pub enum Error {
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
     Store(#[from] crate::db::Error),
+    #[error("password not match")]
+    PasswordNotMatch,
     #[error("not enough public keys")]
     NotEnoughPublicKeys,
     #[error("shared keys not found")]
@@ -330,10 +332,12 @@ impl Coinstr {
         Ok(util::dir::get_keychains_list(base_path, network)?)
     }
 
+    /// Save keychain
     pub fn save(&self) -> Result<(), Error> {
         Ok(self.keechain.save()?)
     }
 
+    /// Check keychain password
     pub fn check_password<S>(&self, password: S) -> bool
     where
         S: Into<String>,
@@ -341,6 +345,7 @@ impl Coinstr {
         self.keechain.check_password(password)
     }
 
+    /// Rename keychain file
     pub fn rename<S>(&mut self, new_name: S) -> Result<(), Error>
     where
         S: Into<String>,
@@ -348,6 +353,7 @@ impl Coinstr {
         Ok(self.keechain.rename(new_name)?)
     }
 
+    /// Change keychain password
     pub fn change_password<NPSW>(&mut self, get_new_password: NPSW) -> Result<(), Error>
     where
         NPSW: FnOnce() -> Result<String>,
@@ -355,8 +361,16 @@ impl Coinstr {
         Ok(self.keechain.change_password(get_new_password)?)
     }
 
-    pub fn wipe(&self) -> Result<(), Error> {
-        Ok(self.keechain.wipe()?)
+    /// Permanent delete the keychain
+    pub fn wipe<S>(&self, password: S) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        if self.check_password(password) {
+            Ok(self.keechain.wipe()?)
+        } else {
+            Err(Error::PasswordNotMatch)
+        }
     }
 
     pub fn keychain(&self) -> Keychain {
@@ -384,7 +398,7 @@ impl Coinstr {
 
     /// Add relays
     /// Connect
-    /// Rebroadcast all events
+    /// Rebroadcast stored events
     pub async fn add_relays_and_connect<S>(&self, relays: Vec<S>) -> Result<(), Error>
     where
         S: Into<String>,
@@ -471,7 +485,7 @@ impl Coinstr {
         Ok(self.db.get_proposal(proposal_id)?)
     }
 
-    pub async fn get_completed_proposal_by_id(
+    pub fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: EventId,
     ) -> Result<(EventId, CompletedProposal), Error> {
@@ -1042,7 +1056,7 @@ impl Coinstr {
         Ok((proposal_id, proposal, policy_id))
     }
 
-    pub async fn verify_proof(&self, proposal: CompletedProposal) -> Result<u64, Error> {
+    pub fn verify_proof(&self, proposal: CompletedProposal) -> Result<u64, Error> {
         if let CompletedProposal::ProofOfReserve {
             message,
             descriptor,
@@ -1060,9 +1074,9 @@ impl Coinstr {
         }
     }
 
-    pub async fn verify_proof_by_id(&self, proposal_id: EventId) -> Result<u64, Error> {
-        let (_policy_id, proposal) = self.get_completed_proposal_by_id(proposal_id).await?;
-        self.verify_proof(proposal).await
+    pub fn verify_proof_by_id(&self, proposal_id: EventId) -> Result<u64, Error> {
+        let (_policy_id, proposal) = self.get_completed_proposal_by_id(proposal_id)?;
+        self.verify_proof(proposal)
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {

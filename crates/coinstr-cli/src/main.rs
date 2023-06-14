@@ -267,7 +267,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 Ok(())
             }
             ProofCommand::Verify { proposal_id } => {
-                let spendable = coinstr.verify_proof_by_id(proposal_id).await?;
+                let spendable = coinstr.verify_proof_by_id(proposal_id)?;
                 println!(
                     "Valid Proof - Spendable amount: {} sat",
                     format::number(spendable)

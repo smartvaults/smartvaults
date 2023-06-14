@@ -94,7 +94,7 @@ impl State for CompletedProposalState {
                     let client = ctx.client.clone();
                     let completed_proposal = self.completed_proposal.clone();
                     return Command::perform(
-                        async move { client.verify_proof(completed_proposal).await },
+                        async move { client.verify_proof(completed_proposal) },
                         |res| match res {
                             Ok(spendable) => CompletedProposalMessage::UpdateProofStatus(
                                 ProofStatus::Valid(spendable),
