@@ -68,6 +68,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS relays_index ON relays(url);
 -- Events
 CREATE TABLE IF NOT EXISTS events (
     event_id BLOB PRIMARY KEY NOT NULL,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE,
     event BLOB NOT NULL
 );
 
@@ -78,6 +79,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     timestamp BIGINT NOT NULL,
     seen BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS notifications_index ON notifications(notification);
 
 -- Contacts
 CREATE TABLE IF NOT EXISTS contacts (

@@ -320,6 +320,8 @@ impl Store {
     }
 
     pub fn delete_policy(&self, policy_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(policy_id)?;
+
         // Delete notification
         self.delete_notification(Notification::NewPolicy(policy_id))?;
 
@@ -475,6 +477,8 @@ impl Store {
     }
 
     pub fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(proposal_id)?;
+
         // Delete notification
         self.delete_notification(Notification::NewProposal(proposal_id))?;
 
@@ -559,6 +563,19 @@ impl Store {
         })
     }
 
+    pub fn approved_proposal_exists(&self, approved_proposal_id: EventId) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);",
+        )?;
+        let mut rows = stmt.query([approved_proposal_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
     pub fn completed_proposal_exists(&self, completed_proposal_id: EventId) -> Result<bool, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
@@ -629,6 +646,8 @@ impl Store {
     }
 
     pub fn delete_completed_proposal(&self, completed_proposal_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(completed_proposal_id)?;
+
         let conn = self.pool.get()?;
         conn.execute(
             "DELETE FROM completed_proposals WHERE completed_proposal_id = ?;",
@@ -800,6 +819,8 @@ impl Store {
             self.delete_signer(event_id)?;
         } else if self.my_shared_signer_exists(event_id)? || self.shared_signer_exists(event_id)? {
             self.delete_shared_signer(event_id)?;
+        } else {
+            self.set_event_as_deleted(event_id)?;
         };
 
         Ok(())
@@ -842,6 +863,35 @@ impl Store {
             events.push(event);
         }
         Ok(events)
+    }
+
+    pub fn get_event_by_id(&self, event_id: EventId) -> Result<Event, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT event FROM events WHERE event_id = ?;")?;
+        let mut rows = stmt.query([event_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound("event".into()))?;
+        let json: String = row.get(0)?;
+        Ok(Event::from_json(json)?)
+    }
+
+    pub fn event_was_deleted(&self, event_id: EventId) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT EXISTS(SELECT 1 FROM events WHERE event_id = ? AND deleted = 1 LIMIT 1);",
+        )?;
+        let mut rows = stmt.query([event_id.to_hex()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
+    pub fn set_event_as_deleted(&self, event_id: EventId) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("UPDATE events SET deleted = 1 WHERE event_id = ?")?;
+        stmt.execute([event_id.to_hex()])?;
+        Ok(())
     }
 
     pub fn save_pending_event(&self, event: &Event) -> Result<(), Error> {
@@ -977,6 +1027,8 @@ impl Store {
     }
 
     pub fn delete_signer(&self, signer_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(signer_id)?;
+
         // Delete notification
         //self.delete_notification(Notification::NewProposal(proposal_id))?;
 
@@ -997,6 +1049,8 @@ impl Store {
     }
 
     pub fn delete_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(shared_signer_id)?;
+
         let conn = self.pool.get()?;
         conn.execute(
             "DELETE FROM my_shared_signers WHERE shared_signer_id = ?;",
