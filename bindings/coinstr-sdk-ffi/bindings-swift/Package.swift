@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "bindings-swift",
+    name: "coinstr-sdk-swift",
     platforms: [
         .iOS(.v14),
     ],
