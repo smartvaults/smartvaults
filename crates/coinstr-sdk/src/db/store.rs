@@ -967,6 +967,15 @@ impl Store {
         Ok(signers)
     }
 
+    pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("SELECT signer FROM signers WHERE signer_id = ?;")?;
+        let mut rows = stmt.query([signer_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound("signer".into()))?;
+        let signer: String = row.get(0)?;
+        Ok(Signer::decrypt_with_keys(&self.keys, signer)?)
+    }
+
     pub fn delete_signer(&self, signer_id: EventId) -> Result<(), Error> {
         // Delete notification
         //self.delete_notification(Notification::NewProposal(proposal_id))?;

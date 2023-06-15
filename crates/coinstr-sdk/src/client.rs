@@ -492,6 +492,10 @@ impl Coinstr {
         Ok(self.db.get_completed_proposal(completed_proposal_id)?)
     }
 
+    pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
+        Ok(self.db.get_signer_by_id(signer_id)?)
+    }
+
     pub async fn delete_policy_by_id(
         &self,
         policy_id: EventId,
@@ -1524,18 +1528,20 @@ impl Coinstr {
 
     pub async fn share_signer(
         &self,
-        public_key: XOnlyPublicKey,
         signer_id: EventId,
-        shared_signer: SharedSigner,
+        public_key: XOnlyPublicKey,
     ) -> Result<EventId, Error> {
-        let keys = self.client.keys();
-        let content = nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
+        let keys: Keys = self.client.keys();
+        let signer: Signer = self.get_signer_by_id(signer_id)?;
+        let shared_signer: SharedSigner = signer.to_shared_signer();
+        let content: String =
+            nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
         let tags = &[
             Tag::Event(signer_id, None, None),
             Tag::PubKey(public_key, None),
         ];
-        let event = EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-        Ok(self.client.send_event(event).await?)
+        let event: Event = EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+        self.send_event(event).await
     }
 
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
