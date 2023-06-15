@@ -232,8 +232,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             Ok(())
         }
         Command::Finalize { proposal_id } => {
-            let completed_proposal: CompletedProposal =
-                coinstr.finalize(proposal_id, TIMEOUT).await?;
+            let completed_proposal: CompletedProposal = coinstr.finalize(proposal_id).await?;
 
             match completed_proposal {
                 CompletedProposal::Spending { tx, .. } => {
@@ -343,11 +342,9 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 completed,
             } => {
                 if completed {
-                    Ok(coinstr
-                        .delete_completed_proposal_by_id(proposal_id, TIMEOUT)
-                        .await?)
+                    Ok(coinstr.delete_completed_proposal_by_id(proposal_id).await?)
                 } else {
-                    Ok(coinstr.delete_proposal_by_id(proposal_id, TIMEOUT).await?)
+                    Ok(coinstr.delete_proposal_by_id(proposal_id).await?)
                 }
             }
         },

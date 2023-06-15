@@ -152,7 +152,7 @@ impl State for CompletedProposalState {
                     return Command::perform(
                         async move {
                             client
-                                .delete_completed_proposal_by_id(completed_proposal_id, None)
+                                .delete_completed_proposal_by_id(completed_proposal_id)
                                 .await
                         },
                         |res| match res {

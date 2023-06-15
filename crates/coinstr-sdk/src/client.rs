@@ -526,23 +526,21 @@ impl Coinstr {
         Ok(())
     }
 
-    pub async fn delete_proposal_by_id(
-        &self,
-        proposal_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<(), Error> {
+    pub async fn delete_proposal_by_id(&self, proposal_id: EventId) -> Result<(), Error> {
         // Get the proposal
-        let filter = Filter::new().id(proposal_id).kind(PROPOSAL_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
+        let proposal_event = self.db.get_event_by_id(proposal_id)?;
+        if proposal_event.kind != PROPOSAL_KIND {
+            return Err(Error::ProposalNotFound);
+        }
+
         let policy_id =
-            util::extract_first_event_id(proposal_event).ok_or(Error::PolicyNotFound)?;
+            util::extract_first_event_id(&proposal_event).ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
         let shared_keys = self.db.get_shared_key(policy_id)?;
 
         // Extract `p` tags from proposal event to notify users about proposal deletion
-        let mut tags: Vec<Tag> = util::extract_tags_by_kind(proposal_event, TagKind::P)
+        let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
             .into_iter()
             .cloned()
             .collect();
@@ -571,15 +569,14 @@ impl Coinstr {
     pub async fn delete_completed_proposal_by_id(
         &self,
         completed_proposal_id: EventId,
-        timeout: Option<Duration>,
     ) -> Result<(), Error> {
         // Get the completed proposal
-        let filter = Filter::new()
-            .id(completed_proposal_id)
-            .kind(COMPLETED_PROPOSAL_KIND);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
-        let proposal_event = events.first().ok_or(Error::ProposalNotFound)?;
-        let policy_id = util::extract_tags_by_kind(proposal_event, TagKind::E)
+        let proposal_event = self.db.get_event_by_id(completed_proposal_id)?;
+        if proposal_event.kind != COMPLETED_PROPOSAL_KIND {
+            return Err(Error::ProposalNotFound);
+        }
+
+        let policy_id = util::extract_tags_by_kind(&proposal_event, TagKind::E)
             .get(1)
             .map(|t| {
                 if let Tag::Event(event_id, ..) = t {
@@ -595,7 +592,7 @@ impl Coinstr {
         let shared_keys = self.db.get_shared_key(*policy_id)?;
 
         // Extract `p` tags from proposal event to notify users about proposal deletion
-        let mut tags: Vec<Tag> = util::extract_tags_by_kind(proposal_event, TagKind::P)
+        let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
             .into_iter()
             .cloned()
             .collect();
@@ -958,11 +955,7 @@ impl Coinstr {
         Ok((event_id, approved_proposal))
     }
 
-    pub async fn finalize(
-        &self,
-        proposal_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<CompletedProposal, Error> {
+    pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {
         // Get PSBTs
         let GetApprovedProposals {
             policy_id,
@@ -1000,7 +993,7 @@ impl Coinstr {
         let event_id = self.send_event(event).await?;
 
         // Delete the proposal
-        if let Err(e) = self.delete_proposal_by_id(proposal_id, timeout).await {
+        if let Err(e) = self.delete_proposal_by_id(proposal_id).await {
             log::error!("Impossibe to delete proposal {proposal_id}: {e}");
         }
 
@@ -1305,6 +1298,11 @@ impl Coinstr {
     }
 
     async fn handle_event(&self, event: Event) -> Result<Option<Message>> {
+        if self.db.event_was_deleted(event.id)? {
+            log::warn!("Received an event that was deleted: {}", event.id);
+            return Ok(None);
+        }
+
         if let Err(e) = self.db.save_event(&event) {
             log::error!("Impossible to save event {}: {e}", event.id);
         }
@@ -1353,7 +1351,9 @@ impl Coinstr {
             } else {
                 log::error!("Impossible to find policy id in proposal {}", event.id);
             }
-        } else if event.kind == APPROVED_PROPOSAL_KIND {
+        } else if event.kind == APPROVED_PROPOSAL_KIND
+            && !self.db.approved_proposal_exists(event.id)?
+        {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
@@ -1380,7 +1380,9 @@ impl Coinstr {
                     event.id
                 );
             }
-        } else if event.kind == COMPLETED_PROPOSAL_KIND {
+        } else if event.kind == COMPLETED_PROPOSAL_KIND
+            && !self.db.completed_proposal_exists(event.id)?
+        {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
                 self.db.delete_proposal(proposal_id)?;
                 if let Some(Tag::Event(policy_id, ..)) =

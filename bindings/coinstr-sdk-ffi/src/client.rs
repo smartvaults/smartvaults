@@ -198,30 +198,19 @@ impl Coinstr {
         })
     }
 
-    pub fn delete_proposal_by_id(
-        &self,
-        proposal_id: String,
-        timeout: Option<Duration>,
-    ) -> Result<()> {
+    pub fn delete_proposal_by_id(&self, proposal_id: String) -> Result<()> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
-            Ok(self
-                .inner
-                .delete_proposal_by_id(proposal_id, timeout)
-                .await?)
+            Ok(self.inner.delete_proposal_by_id(proposal_id).await?)
         })
     }
 
-    pub fn delete_completed_proposal_by_id(
-        &self,
-        completed_proposal_id: String,
-        timeout: Option<Duration>,
-    ) -> Result<()> {
+    pub fn delete_completed_proposal_by_id(&self, completed_proposal_id: String) -> Result<()> {
         block_on(async move {
             let completed_proposal_id = EventId::from_hex(completed_proposal_id)?;
             Ok(self
                 .inner
-                .delete_completed_proposal_by_id(completed_proposal_id, timeout)
+                .delete_completed_proposal_by_id(completed_proposal_id)
                 .await?)
         })
     }
@@ -334,14 +323,10 @@ impl Coinstr {
         })
     }
 
-    pub fn finalize(
-        &self,
-        proposal_id: String,
-        timeout: Option<Duration>,
-    ) -> Result<CompletedProposal> {
+    pub fn finalize(&self, proposal_id: String) -> Result<CompletedProposal> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
-            Ok(self.inner.finalize(proposal_id, timeout).await?.into())
+            Ok(self.inner.finalize(proposal_id).await?.into())
         })
     }
 

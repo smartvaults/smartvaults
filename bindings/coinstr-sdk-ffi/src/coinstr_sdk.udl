@@ -92,9 +92,9 @@ interface Coinstr {
     [Throws=FFIError]
     void delete_policy_by_id(string policy_id, duration? timeout);  
     [Throws=FFIError]
-    void delete_proposal_by_id(string proposal_id, duration? timeout);  
+    void delete_proposal_by_id(string proposal_id);  
     [Throws=FFIError]
-    void delete_completed_proposal_by_id(string completed_proposal_id, duration? timeout);
+    void delete_completed_proposal_by_id(string completed_proposal_id);
     [Throws=FFIError]
     void delete_signer_by_id(string signer_id, duration? timeout); 
 
@@ -114,7 +114,7 @@ interface Coinstr {
     [Throws=FFIError]
     string approve_with_signed_psbt(string proposal_id, string signed_psbt);
     [Throws=FFIError]
-    CompletedProposal finalize(string proposal_id, duration? timeout);
+    CompletedProposal finalize(string proposal_id);
 
     [Throws=FFIError]
     void rebroadcast_all_events();

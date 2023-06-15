@@ -182,7 +182,7 @@ impl State for ProposalState {
                     let proposal_id = self.proposal_id;
 
                     return Command::perform(
-                        async move { client.finalize(proposal_id, None).await },
+                        async move { client.finalize(proposal_id).await },
                         |res| match res {
                             Ok(proposal) => match proposal {
                                 CompletedProposal::Spending { tx, .. } => {
@@ -253,7 +253,7 @@ impl State for ProposalState {
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
                     return Command::perform(
-                        async move { client.delete_proposal_by_id(proposal_id, None).await },
+                        async move { client.delete_proposal_by_id(proposal_id).await },
                         |res| match res {
                             Ok(_) => Message::View(Stage::Proposals),
                             Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
