@@ -28,7 +28,7 @@ where
     fn stream(self: Box<Self>, _input: BoxStream<I>) -> BoxStream<Self::Output> {
         let mut receiver = self.client.sync();
         let stream = stream! {
-            while let Some(item) = receiver.recv().await {
+            while let Ok(item) = receiver.recv().await {
                 if let Some(Message::Notification(notification)) = item {
                     match notification {
                         Notification::NewPolicy(_) => if let Err(e) = DesktopNotification::new()

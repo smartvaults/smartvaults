@@ -31,7 +31,7 @@ use nostr_sdk::{event, Event, Keys, Metadata, Timestamp, Url};
 use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::OpenFlags;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
 use super::model::{
@@ -801,7 +801,7 @@ impl Store {
                 wallet.sync(blockchain, SyncOptions::default())?;
                 self.update_last_sync(policy_id, Some(Timestamp::now()))?;
                 if let Some(sender) = sender {
-                    let _ = sender.try_send(Some(Message::WalletSyncCompleted(policy_id)));
+                    let _ = sender.send(Some(Message::WalletSyncCompleted(policy_id)));
                 }
             }
         }

@@ -32,9 +32,9 @@ use nostr_sdk::{
     nips, Client, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options,
     Relay, RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::broadcast::{self, Receiver, Sender};
 
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COINSTR_ACCOUNT_INDEX,
@@ -151,6 +151,7 @@ pub struct Coinstr {
     client: Client,
     endpoint: Arc<RwLock<Option<String>>>,
     pub db: Store,
+    sync_channel: Arc<Mutex<Option<Sender<Option<Message>>>>>,
 }
 
 impl Coinstr {
@@ -202,6 +203,7 @@ impl Coinstr {
             client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
+            sync_channel: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -262,6 +264,7 @@ impl Coinstr {
             client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
+            sync_channel: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -322,6 +325,7 @@ impl Coinstr {
             client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
+            sync_channel: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -1171,7 +1175,7 @@ impl Coinstr {
                             let event_id = event.id;
                             match this.handle_event(event).await {
                                 Ok(notification) => {
-                                    sender.try_send(notification).ok();
+                                    sender.send(notification).ok();
                                 }
                                 Err(e) => {
                                     log::error!(
@@ -1197,104 +1201,110 @@ impl Coinstr {
     }
 
     pub fn sync(&self) -> Receiver<Option<Message>> {
-        let (sender, receiver) = mpsc::channel::<Option<Message>>(1024);
-        let this = self.clone();
-        thread::spawn(async move {
-            // Sync timechain
-            let timechain_sync: AbortHandle = this.sync_with_timechain(sender.clone());
+        let mut sync_channel = self.sync_channel.lock();
+        if let Some(sender) = sync_channel.as_ref() {
+            sender.subscribe()
+        } else {
+            let (sender, receiver) = broadcast::channel::<Option<Message>>(1024);
+            *sync_channel = Some(sender.clone());
+            let this = self.clone();
+            thread::spawn(async move {
+                // Sync timechain
+                let timechain_sync: AbortHandle = this.sync_with_timechain(sender.clone());
 
-            // Pending events handler
-            let pending_event_handler = this.handle_pending_events(sender.clone());
+                // Pending events handler
+                let pending_event_handler = this.handle_pending_events(sender.clone());
 
-            let keys = this.client.keys();
+                let keys = this.client.keys();
 
-            let base_filter = Filter::new().kinds(vec![
-                POLICY_KIND,
-                PROPOSAL_KIND,
-                APPROVED_PROPOSAL_KIND,
-                COMPLETED_PROPOSAL_KIND,
-                SHARED_KEY_KIND,
-                SIGNERS_KIND,
-                SHARED_SIGNERS_KIND,
-                Kind::EventDeletion,
-            ]);
+                let base_filter = Filter::new().kinds(vec![
+                    POLICY_KIND,
+                    PROPOSAL_KIND,
+                    APPROVED_PROPOSAL_KIND,
+                    COMPLETED_PROPOSAL_KIND,
+                    SHARED_KEY_KIND,
+                    SIGNERS_KIND,
+                    SHARED_SIGNERS_KIND,
+                    Kind::EventDeletion,
+                ]);
 
-            for (relay_url, relay) in this.client.relays().await {
-                let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
-                    Ok(ts) => ts,
-                    Err(e) => {
-                        log::error!("Impossible to get last relay sync: {e}");
-                        Timestamp::from(0)
-                    }
-                };
-                let author_filter = base_filter
-                    .clone()
-                    .author(keys.public_key().to_string())
-                    .since(last_sync);
-                let pubkey_filter = base_filter
-                    .clone()
-                    .pubkey(keys.public_key())
-                    .since(last_sync);
-                let contacts_filters = Filter::new()
-                    .author(keys.public_key().to_string())
-                    .kind(Kind::ContactList)
-                    .since(last_sync);
-                if let Err(e) = relay
-                    .subscribe(vec![author_filter, pubkey_filter, contacts_filters], false)
-                    .await
-                {
-                    log::error!("Impossible to subscribe to {relay_url}: {e}");
-                }
-            }
-
-            let _ = this
-                .client
-                .handle_notifications(|notification| async {
-                    match notification {
-                        RelayPoolNotification::Event(_, event) => {
-                            let event_id = event.id;
-                            if event.is_expired() {
-                                log::warn!("Event {event_id} expired");
-                            } else {
-                                match this.handle_event(event).await {
-                                    Ok(notification) => {
-                                        sender.try_send(notification).ok();
-                                    }
-                                    Err(e) => {
-                                        log::error!("Impossible to handle event {event_id}: {e}");
-                                    }
-                                }
-                            }
+                for (relay_url, relay) in this.client.relays().await {
+                    let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
+                        Ok(ts) => ts,
+                        Err(e) => {
+                            log::error!("Impossible to get last relay sync: {e}");
+                            Timestamp::from(0)
                         }
-                        RelayPoolNotification::Message(relay_url, relay_msg) => {
-                            if let RelayMessage::EndOfStoredEvents(subscription_id) = relay_msg {
-                                log::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
-                                if let Ok(relay) = this.client.relay(&relay_url).await {
-                                    let subscription = relay.subscription().await;
-                                    if subscription.id() == subscription_id {
-                                        if let Err(e) = this
-                                            .db
-                                            .save_last_relay_sync(&relay_url, Timestamp::now())
-                                        {
-                                            log::error!("Impossible to save last relay sync: {e}");
+                    };
+                    let author_filter = base_filter
+                        .clone()
+                        .author(keys.public_key().to_string())
+                        .since(last_sync);
+                    let pubkey_filter = base_filter
+                        .clone()
+                        .pubkey(keys.public_key())
+                        .since(last_sync);
+                    let contacts_filters = Filter::new()
+                        .author(keys.public_key().to_string())
+                        .kind(Kind::ContactList)
+                        .since(last_sync);
+                    if let Err(e) = relay
+                        .subscribe(vec![author_filter, pubkey_filter, contacts_filters], false)
+                        .await
+                    {
+                        log::error!("Impossible to subscribe to {relay_url}: {e}");
+                    }
+                }
+
+                let _ = this
+                    .client
+                    .handle_notifications(|notification| async {
+                        match notification {
+                            RelayPoolNotification::Event(_, event) => {
+                                let event_id = event.id;
+                                if event.is_expired() {
+                                    log::warn!("Event {event_id} expired");
+                                } else {
+                                    match this.handle_event(event).await {
+                                        Ok(notification) => {
+                                            sender.send(notification).ok();
+                                        }
+                                        Err(e) => {
+                                            log::error!("Impossible to handle event {event_id}: {e}");
                                         }
                                     }
                                 }
                             }
+                            RelayPoolNotification::Message(relay_url, relay_msg) => {
+                                if let RelayMessage::EndOfStoredEvents(subscription_id) = relay_msg {
+                                    log::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
+                                    if let Ok(relay) = this.client.relay(&relay_url).await {
+                                        let subscription = relay.subscription().await;
+                                        if subscription.id() == subscription_id {
+                                            if let Err(e) = this
+                                                .db
+                                                .save_last_relay_sync(&relay_url, Timestamp::now())
+                                            {
+                                                log::error!("Impossible to save last relay sync: {e}");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            RelayPoolNotification::Shutdown => {
+                                log::debug!("Received shutdown msg");
+                                timechain_sync.abort();
+                                pending_event_handler.abort();
+                            }
                         }
-                        RelayPoolNotification::Shutdown => {
-                            log::debug!("Received shutdown msg");
-                            timechain_sync.abort();
-                            pending_event_handler.abort();
-                        }
-                    }
 
-                    Ok(())
-                })
-                .await;
-            log::debug!("Exited from nostr sync thread");
-        });
-        receiver
+                        Ok(())
+                    })
+                    .await;
+                log::debug!("Exited from nostr sync thread");
+            });
+            receiver
+        }
     }
 
     async fn handle_event(&self, event: Event) -> Result<Option<Message>> {
