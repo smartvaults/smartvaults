@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+mod amount;
 mod balance;
 mod client;
 mod error;
@@ -25,6 +26,7 @@ mod ffi {
     pub use crate::get_keychains_list;
 
     // Coinstr
+    pub use crate::amount::Amount;
     pub use crate::balance::Balance;
     pub use crate::client::Coinstr;
     pub use crate::policy::Policy;

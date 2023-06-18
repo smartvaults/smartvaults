@@ -35,6 +35,13 @@ interface Policy {
     string descriptor();
 };
 
+interface Amount {
+    [Name=custom]
+    constructor(u64 amount);
+    [Name=max]
+    constructor();
+};
+
 [Enum]
 interface Proposal {
   Spending(string descriptor, string to_address, u64 amount, string description, string psbt);
@@ -108,11 +115,9 @@ interface Coinstr {
     record<DOMString, CompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]
-    string spend(string policy_id, string to_address, u64 amount, string description, u16 target_blocks);
+    string spend(string policy_id, string to_address, Amount amount, string description, u16 target_blocks);
     [Throws=FFIError]
-    string self_transfer(string from_policy_id, string to_policy_id, u64 amount, u16 target_blocks);
-    [Throws=FFIError]
-    string spend_all(string policy_id, string to_address, string description, u16 target_blocks);    
+    string self_transfer(string from_policy_id, string to_policy_id, Amount amount, u16 target_blocks);   
     [Throws=FFIError]
     string approve(string proposal_id);
     [Throws=FFIError]

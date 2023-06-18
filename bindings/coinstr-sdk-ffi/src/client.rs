@@ -14,12 +14,11 @@ use coinstr_sdk::core::bitcoin::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::types::WordCount;
-use coinstr_sdk::core::Amount;
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::{block_on, EventId};
 
 use crate::error::Result;
-use crate::{Balance, CompletedProposal, Policy, Proposal};
+use crate::{Amount, Balance, CompletedProposal, Policy, Proposal};
 
 pub struct Coinstr {
     inner: client::Coinstr,
@@ -256,7 +255,7 @@ impl Coinstr {
         &self,
         policy_id: String,
         to_address: String,
-        amount: u64,
+        amount: Arc<Amount>,
         description: String,
         target_blocks: u16,
     ) -> Result<String> {
@@ -269,13 +268,7 @@ impl Coinstr {
             let to_address = Address::from_str(&to_address)?;
             let (proposal_id, ..) = self
                 .inner
-                .spend(
-                    policy_id,
-                    to_address,
-                    Amount::Custom(amount),
-                    description,
-                    fee_rate,
-                )
+                .spend(policy_id, to_address, amount.inner(), description, fee_rate)
                 .await?;
             Ok(proposal_id.to_hex())
         })
@@ -285,7 +278,7 @@ impl Coinstr {
         &self,
         from_policy_id: String,
         to_policy_id: String,
-        amount: u64,
+        amount: Arc<Amount>,
         target_blocks: u16,
     ) -> Result<String> {
         block_on(async move {
@@ -297,34 +290,7 @@ impl Coinstr {
             let to_policy_id = EventId::from_hex(to_policy_id)?;
             let (proposal_id, ..) = self
                 .inner
-                .self_transfer(
-                    from_policy_id,
-                    to_policy_id,
-                    Amount::Custom(amount),
-                    fee_rate,
-                )
-                .await?;
-            Ok(proposal_id.to_hex())
-        })
-    }
-
-    pub fn spend_all(
-        &self,
-        policy_id: String,
-        to_address: String,
-        description: String,
-        target_blocks: u16,
-    ) -> Result<String> {
-        block_on(async move {
-            let endpoint: String = self.inner.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            let fee_rate = blockchain.estimate_fee(target_blocks as usize)?;
-
-            let policy_id = EventId::from_hex(policy_id)?;
-            let to_address = Address::from_str(&to_address)?;
-            let (proposal_id, ..) = self
-                .inner
-                .spend(policy_id, to_address, Amount::Max, description, fee_rate)
+                .self_transfer(from_policy_id, to_policy_id, amount.inner(), fee_rate)
                 .await?;
             Ok(proposal_id.to_hex())
         })
