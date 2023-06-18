@@ -5,14 +5,15 @@ use iced::widget::{radio, Column};
 use iced::{Command, Element};
 
 use crate::app::component::Dashboard;
-use crate::app::{Context, Message, State};
-use crate::component::Text;
+use crate::app::{Context, Message, Stage, State};
+use crate::component::{button, Text};
 use crate::constants::APP_NAME;
 use crate::theme::Theme;
 
 #[derive(Debug, Clone)]
 pub enum SettingMessage {
     ThemeChanged(Theme),
+    ClearCache,
 }
 
 #[derive(Debug, Default)]
@@ -33,6 +34,13 @@ impl State for SettingState {
         if let Message::Setting(msg) = message {
             match msg {
                 SettingMessage::ThemeChanged(theme) => ctx.theme = theme,
+                SettingMessage::ClearCache => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.clear_cache().await.unwrap() },
+                        move |_| Message::View(Stage::Dashboard),
+                    );
+                }
             }
         }
 
@@ -53,7 +61,9 @@ impl State for SettingState {
                 ))
             },
         );
-        let content = Column::new().push(choose_theme);
+        let content = Column::new()
+            .push(choose_theme)
+            .push(button::danger_border("Clear cache").on_press(SettingMessage::ClearCache.into()));
         Dashboard::new().view(ctx, content, true, true)
     }
 }
