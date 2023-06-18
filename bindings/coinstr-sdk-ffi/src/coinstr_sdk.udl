@@ -60,6 +60,8 @@ interface Coinstr {
     boolean check_password(string password);
     [Throws=FFIError]
     void wipe(string password);
+    [Throws=FFIError]
+    void clear_cache();
 
     Network network();
 

@@ -100,6 +100,10 @@ impl Coinstr {
         Ok(self.inner.wipe(password)?)
     }
 
+    pub fn clear_cache(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.clear_cache().await?) })
+    }
+
     // TODO: add `keychain` method
 
     // TODO: add `keys` method
