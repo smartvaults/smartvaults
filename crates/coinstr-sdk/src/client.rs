@@ -829,6 +829,26 @@ impl Coinstr {
         }
     }
 
+    /// Spend to another [`Policy`]
+    pub async fn self_transfer(
+        &self,
+        from_policy_id: EventId,
+        to_policy_id: EventId,
+        amount: Amount,
+        fee_rate: FeeRate,
+    ) -> Result<(EventId, Proposal), Error> {
+        let address = self
+            .get_last_unused_address(to_policy_id)
+            .ok_or(Error::PolicyNotFound)?;
+        let description: String = format!(
+            "Self transfer from policy #{} to #{}",
+            util::cut_event_id(from_policy_id),
+            util::cut_event_id(to_policy_id)
+        );
+        self.spend(from_policy_id, address, amount, description, fee_rate)
+            .await
+    }
+
     fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
     where
         S: Into<String>,

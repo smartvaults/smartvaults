@@ -281,6 +281,33 @@ impl Coinstr {
         })
     }
 
+    pub fn self_transfer(
+        &self,
+        from_policy_id: String,
+        to_policy_id: String,
+        amount: u64,
+        target_blocks: u16,
+    ) -> Result<String> {
+        block_on(async move {
+            let endpoint: String = self.inner.electrum_endpoint()?;
+            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
+            let fee_rate = blockchain.estimate_fee(target_blocks as usize)?;
+
+            let from_policy_id = EventId::from_hex(from_policy_id)?;
+            let to_policy_id = EventId::from_hex(to_policy_id)?;
+            let (proposal_id, ..) = self
+                .inner
+                .self_transfer(
+                    from_policy_id,
+                    to_policy_id,
+                    Amount::Custom(amount),
+                    fee_rate,
+                )
+                .await?;
+            Ok(proposal_id.to_hex())
+        })
+    }
+
     pub fn spend_all(
         &self,
         policy_id: String,
