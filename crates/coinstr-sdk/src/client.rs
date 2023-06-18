@@ -397,6 +397,7 @@ impl Coinstr {
             .handle_notifications(|notification: RelayPoolNotification| async move {
                 if let RelayPoolNotification::Stop = notification {
                     self.db.wipe()?;
+                    self.client.clear_already_seen_events().await;
                     self.client.start().await;
                     self.sync();
                 }
