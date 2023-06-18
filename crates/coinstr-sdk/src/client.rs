@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -32,7 +33,7 @@ use nostr_sdk::{
     nips, Client, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options,
     Relay, RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
@@ -53,7 +54,9 @@ pub enum Error {
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
-    Keechain(#[from] coinstr_core::types::keychain::Error),
+    Keechain(#[from] coinstr_core::types::keechain::Error),
+    #[error(transparent)]
+    Keychain(#[from] coinstr_core::types::keychain::Error),
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
@@ -151,7 +154,8 @@ pub struct Coinstr {
     client: Client,
     endpoint: Arc<RwLock<Option<String>>>,
     pub db: Store,
-    sync_channel: Arc<Mutex<Option<Sender<Option<Message>>>>>,
+    syncing: Arc<AtomicBool>,
+    sync_channel: Sender<Option<Message>>,
 }
 
 impl Coinstr {
@@ -197,13 +201,16 @@ impl Coinstr {
             .wait_for_send(false)
             .wait_for_subscription(false);
 
+        let (sender, _) = broadcast::channel::<Option<Message>>(1024);
+
         Ok(Self {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
-            sync_channel: Arc::new(Mutex::new(None)),
+            syncing: Arc::new(AtomicBool::new(false)),
+            sync_channel: sender,
         })
     }
 
@@ -258,13 +265,16 @@ impl Coinstr {
             .wait_for_send(false)
             .wait_for_subscription(false);
 
+        let (sender, _) = broadcast::channel::<Option<Message>>(1024);
+
         Ok(Self {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
-            sync_channel: Arc::new(Mutex::new(None)),
+            syncing: Arc::new(AtomicBool::new(false)),
+            sync_channel: sender,
         })
     }
 
@@ -319,13 +329,16 @@ impl Coinstr {
             .wait_for_send(false)
             .wait_for_subscription(false);
 
+        let (sender, _) = broadcast::channel::<Option<Message>>(1024);
+
         Ok(Self {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
             endpoint: Arc::new(RwLock::new(None)),
             db,
-            sync_channel: Arc::new(Mutex::new(None)),
+            syncing: Arc::new(AtomicBool::new(false)),
+            sync_channel: sender,
         })
     }
 
@@ -375,6 +388,22 @@ impl Coinstr {
         } else {
             Err(Error::PasswordNotMatch)
         }
+    }
+
+    /// Clear cache
+    pub async fn clear_cache(&self) -> Result<(), Error> {
+        self.client.stop().await?;
+        self.client
+            .handle_notifications(|notification: RelayPoolNotification| async move {
+                if let RelayPoolNotification::Stop = notification {
+                    self.db.wipe()?;
+                    self.client.start().await;
+                    self.sync();
+                }
+                Ok(false)
+            })
+            .await?;
+        Ok(())
     }
 
     pub fn keychain(&self) -> Keychain {
@@ -1120,7 +1149,7 @@ impl Coinstr {
         Ok(signer)
     }
 
-    fn sync_with_timechain(&self, sender: Sender<Option<Message>>) -> AbortHandle {
+    fn sync_with_timechain(&self) -> AbortHandle {
         let this = self.clone();
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
         let timechain_sync = async move {
@@ -1145,9 +1174,9 @@ impl Coinstr {
             }
 
             loop {
-                if let Err(e) = this
-                    .db
-                    .sync_with_timechain(&blockchain, Some(&sender), false)
+                if let Err(e) =
+                    this.db
+                        .sync_with_timechain(&blockchain, Some(&this.sync_channel), false)
                 {
                     log::error!("Impossible to sync wallets: {e}");
                 }
@@ -1164,7 +1193,7 @@ impl Coinstr {
         abort_handle
     }
 
-    fn handle_pending_events(&self, sender: Sender<Option<Message>>) -> AbortHandle {
+    fn handle_pending_events(&self) -> AbortHandle {
         let this = self.clone();
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
         let fut = async move {
@@ -1175,7 +1204,7 @@ impl Coinstr {
                             let event_id = event.id;
                             match this.handle_event(event).await {
                                 Ok(notification) => {
-                                    sender.send(notification).ok();
+                                    this.sync_channel.send(notification).ok();
                                 }
                                 Err(e) => {
                                     log::error!(
@@ -1200,20 +1229,24 @@ impl Coinstr {
         abort_handle
     }
 
-    pub fn sync(&self) -> Receiver<Option<Message>> {
-        let mut sync_channel = self.sync_channel.lock();
-        if let Some(sender) = sync_channel.as_ref() {
-            sender.subscribe()
+    pub fn sync_notifications(&self) -> Receiver<Option<Message>> {
+        self.sync_channel.subscribe()
+    }
+
+    pub fn sync(&self) {
+        if self.syncing.load(Ordering::SeqCst) {
+            log::warn!("Syncing threads are already running");
         } else {
-            let (sender, receiver) = broadcast::channel::<Option<Message>>(1024);
-            *sync_channel = Some(sender.clone());
+            let _ = self
+                .syncing
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(true));
             let this = self.clone();
             thread::spawn(async move {
                 // Sync timechain
-                let timechain_sync: AbortHandle = this.sync_with_timechain(sender.clone());
+                let timechain_sync: AbortHandle = this.sync_with_timechain();
 
                 // Pending events handler
-                let pending_event_handler = this.handle_pending_events(sender.clone());
+                let pending_event_handler = this.handle_pending_events();
 
                 let keys = this.client.keys();
 
@@ -1267,7 +1300,7 @@ impl Coinstr {
                                 } else {
                                     match this.handle_event(event).await {
                                         Ok(notification) => {
-                                            sender.send(notification).ok();
+                                            this.sync_channel.send(notification).ok();
                                         }
                                         Err(e) => {
                                             log::error!("Impossible to handle event {event_id}: {e}");
@@ -1291,19 +1324,19 @@ impl Coinstr {
                                     }
                                 }
                             }
-                            RelayPoolNotification::Shutdown => {
-                                log::debug!("Received shutdown msg");
+                            RelayPoolNotification::Stop | RelayPoolNotification::Shutdown => {
+                                log::debug!("Received stop/shutdown msg");
                                 timechain_sync.abort();
                                 pending_event_handler.abort();
+                                let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
 
-                        Ok(())
+                        Ok(false)
                     })
                     .await;
                 log::debug!("Exited from nostr sync thread");
             });
-            receiver
         }
     }
 

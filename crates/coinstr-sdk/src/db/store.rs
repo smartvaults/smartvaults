@@ -30,6 +30,7 @@ use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
 use nostr_sdk::{event, Event, Keys, Metadata, Timestamp, Url};
 use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::config::DbConfig;
 use rusqlite::OpenFlags;
 use tokio::sync::broadcast::Sender;
 
@@ -197,6 +198,21 @@ impl Store {
     /// Close db
     pub fn close(self) {
         drop(self);
+    }
+
+    pub fn wipe(&self) -> Result<(), Error> {
+        let mut conn = self.pool.get()?;
+
+        // Reset DB
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_RESET_DATABASE, true)?;
+        conn.execute("VACUUM;", [])?;
+        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_RESET_DATABASE, false)?;
+
+        // Execute migrations
+        conn.execute_batch(STARTUP_SQL)?;
+        migration::run(&mut conn)?;
+
+        Ok(())
     }
 
     pub fn block_height(&self) -> u32 {
