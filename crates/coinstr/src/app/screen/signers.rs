@@ -3,7 +3,8 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_sdk::core::signer::{Signer, SignerType};
+use coinstr_sdk::core::signer::Signer;
+use coinstr_sdk::db::model::GetSharedSignerResult;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -17,7 +18,12 @@ use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE};
 
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
-    LoadSigners(BTreeMap<EventId, Signer>),
+    LoadSigners(
+        (
+            BTreeMap<EventId, Signer>,
+            BTreeMap<EventId, GetSharedSignerResult>,
+        ),
+    ),
     Reload,
 }
 
@@ -26,6 +32,7 @@ pub struct SignersState {
     loading: bool,
     loaded: bool,
     signers: BTreeMap<EventId, Signer>,
+    shared_signers: BTreeMap<EventId, GetSharedSignerResult>,
 }
 
 impl SignersState {
@@ -42,9 +49,14 @@ impl State for SignersState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_signers().unwrap() }, |signers| {
-            SignersMessage::LoadSigners(signers).into()
-        })
+        Command::perform(
+            async move {
+                let signers = client.get_signers().unwrap();
+                let shared_signers = client.get_shared_signers().unwrap();
+                (signers, shared_signers)
+            },
+            |signers| SignersMessage::LoadSigners(signers).into(),
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -54,8 +66,9 @@ impl State for SignersState {
 
         if let Message::Signers(msg) = message {
             match msg {
-                SignersMessage::LoadSigners(signers) => {
+                SignersMessage::LoadSigners((signers, shared_signers)) => {
                     self.signers = signers;
+                    self.shared_signers = shared_signers;
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
@@ -72,7 +85,7 @@ impl State for SignersState {
         let mut center_y = true;
 
         if self.loaded {
-            if self.signers.is_empty() {
+            if self.signers.is_empty() && self.shared_signers.is_empty() {
                 let add_signer_btn = button::primary_with_icon(PLUS, "Add signer")
                     .width(Length::Fixed(250.0))
                     .on_press(Message::View(Stage::AddSigner));
@@ -97,7 +110,10 @@ impl State for SignersState {
                     reload_btn = reload_btn.on_press(SignersMessage::Reload.into());
                 }
 
+                // My Signers
+
                 content = content
+                    .push(Text::new("My Signers").bigger().bold().view())
                     .push(
                         Row::new()
                             .push(
@@ -132,14 +148,6 @@ impl State for SignersState {
                     .push(rule::horizontal_bold());
 
                 for (signer_id, signer) in self.signers.iter() {
-                    let mut fullscreen_btn =
-                        button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0));
-
-                    if signer.signer_type() != SignerType::Seed {
-                        fullscreen_btn = fullscreen_btn
-                            .on_press(Message::View(Stage::Signer(*signer_id, signer.clone())));
-                    }
-
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*signer_id))
@@ -168,11 +176,92 @@ impl State for SignersState {
                                 .width(Length::Fixed(40.0)),
                         )
                         .push(button::border_only_icon(SHARE).width(Length::Fixed(40.0)))
-                        .push(fullscreen_btn)
+                        .push(
+                            button::primary_only_icon(FULLSCREEN)
+                                .width(Length::Fixed(40.0))
+                                .on_press(Message::View(Stage::Signer(*signer_id, signer.clone()))),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
                     content = content.push(row).push(rule::horizontal());
+                }
+
+                // Shared Signers
+
+                if !self.shared_signers.is_empty() {
+                    content = content
+                        .push(Space::with_height(Length::Fixed(40.0)))
+                        .push(Text::new("Contacts's Signers").bigger().bold().view())
+                        .push(
+                            Row::new()
+                                .push(
+                                    Text::new("ID")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fixed(115.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new("Fingerprint")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fixed(175.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new("Owner")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fill)
+                                        .view(),
+                                )
+                                .push(Space::with_width(Length::Fixed(40.0)))
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .width(Length::Fill),
+                        )
+                        .push(rule::horizontal_bold());
+
+                    for (
+                        shared_signer_id,
+                        GetSharedSignerResult {
+                            owner_public_key,
+                            shared_signer,
+                        },
+                    ) in self.shared_signers.iter()
+                    {
+                        let row = Row::new()
+                            .push(
+                                Text::new(util::cut_event_id(*shared_signer_id))
+                                    .width(Length::Fixed(115.0))
+                                    .view(),
+                            )
+                            .push(
+                                Text::new(shared_signer.fingerprint().to_string())
+                                    .width(Length::Fixed(175.0))
+                                    .view(),
+                            )
+                            .push(
+                                Text::new(util::cut_public_key(*owner_public_key))
+                                    .width(Length::Fill)
+                                    .view(),
+                            )
+                            .push(
+                                button::border_only_icon(CLIPBOARD)
+                                    .on_press(Message::Clipboard(
+                                        shared_signer
+                                            .descriptor_public_key()
+                                            .map(|d| d.to_string())
+                                            .unwrap_or_default(),
+                                    ))
+                                    .width(Length::Fixed(40.0)),
+                            )
+                            .spacing(10)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fill);
+                        content = content.push(row).push(rule::horizontal());
+                    }
                 }
             }
         } else {
