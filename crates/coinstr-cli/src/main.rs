@@ -352,6 +352,9 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     Ok(coinstr.delete_proposal_by_id(proposal_id).await?)
                 }
             }
+            DeleteCommand::Signer { signer_id } => {
+                Ok(coinstr.delete_signer_by_id(signer_id, TIMEOUT).await?)
+            }
         },
         Command::Exit => std::process::exit(0x01),
     }

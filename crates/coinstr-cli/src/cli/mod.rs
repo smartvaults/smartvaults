@@ -254,4 +254,10 @@ pub enum DeleteCommand {
         #[arg(long)]
         completed: bool,
     },
+    /// Delete signer by id
+    Signer {
+        /// Signer id
+        #[arg(required = true)]
+        signer_id: EventId,
+    },
 }
