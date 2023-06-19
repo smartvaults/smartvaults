@@ -1158,6 +1158,27 @@ impl Store {
         Ok(XOnlyPublicKey::from_str(&public_key)?)
     }
 
+    pub fn get_my_shared_signers(
+        &self,
+        signer_id: EventId,
+    ) -> Result<BTreeMap<EventId, XOnlyPublicKey>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT shared_signer_id, public_key FROM my_shared_signers WHERE signer_id = ?;",
+        )?;
+        let mut rows = stmt.query([signer_id.to_hex()])?;
+        let mut map = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let shared_signer_id: String = row.get(0)?;
+            let public_key: String = row.get(1)?;
+            map.insert(
+                EventId::from_hex(shared_signer_id)?,
+                XOnlyPublicKey::from_str(&public_key)?,
+            );
+        }
+        Ok(map)
+    }
+
     pub fn get_contacts_public_keys(&self) -> Result<HashSet<XOnlyPublicKey>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT public_key FROM contacts;")?;

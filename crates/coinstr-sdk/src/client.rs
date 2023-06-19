@@ -138,12 +138,8 @@ pub enum Message {
 }
 
 fn coinstr_signer(seed: Seed, network: Network) -> Result<(EventId, Signer), Error> {
-    let signer_id = EventId::from_slice(&[
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0,
-    ])?;
     let signer = Signer::from_seed("Coinstr", None, seed, Some(COINSTR_ACCOUNT_INDEX), network)?;
-    Ok((signer_id, signer))
+    Ok((EventId::all_zeros(), signer))
 }
 
 /// Coinstr
@@ -527,7 +523,11 @@ impl Coinstr {
     }
 
     pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        Ok(self.db.get_signer_by_id(signer_id)?)
+        if signer_id == EventId::all_zeros() {
+            Ok(coinstr_signer(self.keechain.keychain.seed(), self.network)?.1)
+        } else {
+            Ok(self.db.get_signer_by_id(signer_id)?)
+        }
     }
 
     pub async fn delete_policy_by_id(
@@ -1622,6 +1622,13 @@ impl Coinstr {
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
         self.send_event(event).await?;
         Ok(())
+    }
+
+    pub fn get_my_shared_signers(
+        &self,
+        signer_id: EventId,
+    ) -> Result<BTreeMap<EventId, XOnlyPublicKey>, Error> {
+        Ok(self.db.get_my_shared_signers(signer_id)?)
     }
 
     pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
