@@ -6,6 +6,7 @@ use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_sdk::nostr::EventId;
 
 pub mod io;
+pub mod parser;
 mod types;
 
 use self::types::{CliNetwork, CliWordCount};

@@ -15,8 +15,10 @@ clap = { version = "4.2", features = ["derive"] }
 coinstr-common = { version = "0.1", path = "../coinstr-common" }
 coinstr-sdk = { version = "0.1", path = "../coinstr-sdk" }
 dialoguer = "0.10"
+once_cell = "1.18"
 owo-colors = "3.5"
 prettytable-rs = "0.10"
+regex = "1.8"
 rustyline = { version = "11.0", default-features = false }
 termtree = "0.4"
 tokio = { version = "1.27", features = ["macros"] }

@@ -131,8 +131,8 @@ async fn run() -> Result<()> {
                 match readline {
                     Ok(line) => {
                         let _ = rl.add_history_entry(line.as_str());
-                        let mut vec: Vec<&str> = line.as_str().split_whitespace().collect(); // TODO: find another way instead of split whitespace
-                        vec.insert(0, "");
+                        let mut vec: Vec<String> = cli::parser::split(&line)?;
+                        vec.insert(0, String::new());
                         match Command::try_parse_from(vec) {
                             Ok(command) => {
                                 if let Err(e) = handle_command(command, &coinstr).await {
