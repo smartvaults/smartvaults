@@ -22,6 +22,7 @@ mod util;
 
 use self::cli::{
     io, Cli, CliCommand, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand,
+    ShareCommand,
 };
 
 const TIMEOUT: Option<Duration> = Some(Duration::from_secs(300));
@@ -291,18 +292,6 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 println!("Policy saved: {policy_id}");
                 Ok(())
             }
-            AddCommand::SharedSigner {
-                signer_id,
-                public_key,
-            } => {
-                coinstr.share_signer(signer_id, public_key).await?;
-                println!(
-                    "Signer {} shared with {}",
-                    coinstr_sdk::util::cut_event_id(signer_id),
-                    coinstr_sdk::util::cut_public_key(public_key)
-                );
-                Ok(())
-            }
         },
         Command::Get { command } => match command {
             GetCommand::Contacts => {
@@ -347,6 +336,21 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             GetCommand::Signers => {
                 let signers = coinstr.get_signers()?;
                 util::print_signers(signers);
+                Ok(())
+            }
+        },
+        Command::Share { command } => match command {
+            ShareCommand::Signer {
+                signer_id,
+                public_key,
+            } => {
+                let shared_signer_id = coinstr.share_signer(signer_id, public_key).await?;
+                println!(
+                    "Signer {} shared with {}",
+                    coinstr_sdk::util::cut_event_id(signer_id),
+                    coinstr_sdk::util::cut_public_key(public_key)
+                );
+                println!("Shared Signer ID: {shared_signer_id}");
                 Ok(())
             }
         },

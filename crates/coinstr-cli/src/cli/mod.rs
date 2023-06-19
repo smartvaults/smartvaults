@@ -139,17 +139,23 @@ pub enum Command {
         #[command(subcommand)]
         command: ProofCommand,
     },
-    /// Add commands
+    /// Add
     #[command(arg_required_else_help = true)]
     Add {
         #[command(subcommand)]
         command: AddCommand,
     },
-    /// Get data about policies and proposals
+    /// Get
     #[command(arg_required_else_help = true)]
     Get {
         #[command(subcommand)]
         command: GetCommand,
+    },
+    /// Share
+    #[command(arg_required_else_help = true)]
+    Share {
+        #[command(subcommand)]
+        command: ShareCommand,
     },
     /// Delete
     #[command(arg_required_else_help = true)]
@@ -204,13 +210,6 @@ pub enum AddCommand {
         /// Custom nostr pubkeys
         custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
     },
-    /// Share a signer
-    SharedSigner {
-        /// ID of the signer to share
-        signer_id: EventId,
-        /// Public Key of the user with whom to share the signer
-        public_key: XOnlyPublicKey,
-    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -242,6 +241,19 @@ pub enum GetCommand {
     },
     /// Get signers
     Signers,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ShareCommand {
+    /// Share a signer
+    Signer {
+        /// Signer ID
+        #[arg(required = true)]
+        signer_id: EventId,
+        /// Public Key of the user with whom to share the signer
+        #[arg(required = true)]
+        public_key: XOnlyPublicKey,
+    },
 }
 
 #[derive(Debug, Subcommand)]
