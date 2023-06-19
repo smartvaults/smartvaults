@@ -14,6 +14,7 @@ use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
 use coinstr_sdk::db::model::GetPolicyResult;
@@ -376,6 +377,24 @@ pub fn print_completed_proposals(proposals: BTreeMap<EventId, (EventId, Complete
                 ]);
             }
         }
+    }
+
+    table.printstd();
+}
+
+pub fn print_signers(signers: BTreeMap<EventId, Signer>) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "ID", "Name", "Fingerprint", "Type",]);
+
+    for (index, (signer_id, signer)) in signers.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            signer_id,
+            signer.name(),
+            signer.fingerprint(),
+            signer.signer_type(),
+        ]);
     }
 
     table.printstd();

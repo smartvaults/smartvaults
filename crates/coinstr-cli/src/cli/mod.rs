@@ -208,9 +208,9 @@ pub enum AddCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum GetCommand {
-    /// Get contacts list from nostr
+    /// Get contacts list
     Contacts,
-    /// Get policies list from nostr
+    /// Get policies list
     Policies,
     /// Get policy by id
     Policy {
@@ -221,7 +221,7 @@ pub enum GetCommand {
         #[arg(long)]
         export: bool,
     },
-    /// Get proposals list from nostr
+    /// Get proposals list
     Proposals {
         /// Get completed proposals
         #[arg(long)]
@@ -233,6 +233,8 @@ pub enum GetCommand {
         #[arg(required = true)]
         proposal_id: EventId,
     },
+    /// Get signers
+    Signers,
 }
 
 #[derive(Debug, Subcommand)]

@@ -332,6 +332,11 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 util::print_proposal(proposal_id, proposal, policy_id);
                 Ok(())
             }
+            GetCommand::Signers => {
+                let signers = coinstr.get_signers()?;
+                util::print_signers(signers);
+                Ok(())
+            }
         },
         Command::Delete { command } => match command {
             DeleteCommand::Policy { policy_id } => {
