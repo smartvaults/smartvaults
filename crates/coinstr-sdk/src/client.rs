@@ -1642,6 +1642,7 @@ impl Coinstr {
         ];
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
         self.send_event(event).await?;
+        self.db.delete_shared_signer(shared_signer_id)?;
         Ok(())
     }
 
