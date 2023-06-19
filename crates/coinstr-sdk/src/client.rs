@@ -1506,7 +1506,7 @@ impl Coinstr {
                     .save_my_shared_signer(signer_id, event.id, public_key)?;
             } else {
                 let shared_signer =
-                    nip04::decrypt(&keys.secret_key()?, &public_key, event.content)?;
+                    nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
                 let shared_signer = SharedSigner::from_json(shared_signer)?;
                 self.db
                     .save_shared_signer(event.id, event.pubkey, shared_signer)?;
