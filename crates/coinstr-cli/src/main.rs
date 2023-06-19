@@ -358,6 +358,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             DeleteCommand::SharedSigner { shared_signer_id } => {
                 Ok(coinstr.revoke_shared_signer(shared_signer_id).await?)
             }
+            DeleteCommand::Cache => Ok(coinstr.clear_cache().await?),
         },
         Command::Exit => std::process::exit(0x01),
     }

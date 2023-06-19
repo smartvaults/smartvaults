@@ -266,4 +266,6 @@ pub enum DeleteCommand {
         #[arg(required = true)]
         shared_signer_id: EventId,
     },
+    /// Clear cache
+    Cache,
 }
