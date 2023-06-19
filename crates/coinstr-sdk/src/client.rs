@@ -1623,7 +1623,12 @@ impl Coinstr {
             Tag::PubKey(public_key, None),
         ];
         let event: Event = EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-        self.send_event(event).await
+        let event_id = self.send_event(event).await?;
+
+        self.db
+            .save_my_shared_signer(signer_id, event_id, public_key)?;
+
+        Ok(event_id)
     }
 
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
