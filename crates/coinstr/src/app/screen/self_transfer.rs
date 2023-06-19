@@ -2,13 +2,10 @@
 // Distributed under the MIT software license
 
 use std::fmt;
-use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::Balance;
-use coinstr_sdk::core::bitcoin::Address;
-use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::db::model::GetPolicyResult;
 use coinstr_sdk::nostr::EventId;
@@ -41,14 +38,13 @@ impl fmt::Display for PolicyPicLisk {
 }
 
 #[derive(Debug, Clone)]
-pub enum SpendMessage {
+pub enum SelfTransferMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
-    PolicySelectd(PolicyPicLisk),
+    FromPolicySelectd(PolicyPicLisk),
+    ToPolicySelectd(PolicyPicLisk),
     LoadBalance(EventId),
-    AddressChanged(String),
     AmountChanged(Option<u64>),
     SendAllBtnPressed,
-    DescriptionChanged(String),
     FeeRateChanged(FeeRate),
     BalanceChanged(Option<Balance>),
     ErrorChanged(Option<String>),
@@ -57,14 +53,13 @@ pub enum SpendMessage {
     SendProposal,
 }
 
-#[derive(Debug)]
-pub struct SpendState {
-    policy: Option<PolicyPicLisk>,
+#[derive(Debug, Default)]
+pub struct SelfTransferState {
     policies: Vec<PolicyPicLisk>,
-    to_address: String,
+    from_policy: Option<PolicyPicLisk>,
+    to_policy: Option<PolicyPicLisk>,
     amount: Option<u64>,
     send_all: bool,
-    description: String,
     fee_rate: FeeRate,
     balance: Option<Balance>,
     reviewing: bool,
@@ -73,38 +68,21 @@ pub struct SpendState {
     error: Option<String>,
 }
 
-impl SpendState {
-    pub fn new(policy: Option<(EventId, Policy)>) -> Self {
-        Self {
-            policy: policy.map(|(policy_id, policy)| PolicyPicLisk {
-                policy_id,
-                name: policy.name,
-            }),
-            policies: Vec::new(),
-            to_address: String::new(),
-            amount: None,
-            send_all: false,
-            description: String::new(),
-            fee_rate: FeeRate::default(),
-            balance: None,
-            reviewing: false,
-            loading: false,
-            loaded: false,
-            error: None,
-        }
+impl SelfTransferState {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn spend(
         &mut self,
         ctx: &mut Context,
-        policy_id: EventId,
-        to_address: Address,
+        from_policy_id: EventId,
+        to_policy_id: EventId,
         amount: Amount,
     ) -> Command<Message> {
         self.loading = true;
 
         let client = ctx.client.clone();
-        let description = self.description.clone();
         let target_blocks = self.fee_rate.target_blocks();
 
         Command::perform(
@@ -114,21 +92,21 @@ impl SpendState {
                 let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
                 let (proposal_id, ..) = client
-                    .spend(policy_id, to_address, amount, description, fee_rate)
+                    .self_transfer(from_policy_id, to_policy_id, amount, fee_rate)
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
             },
             |res| match res {
                 Ok(proposal_id) => Message::View(Stage::Proposal(proposal_id)),
-                Err(e) => SpendMessage::ErrorChanged(Some(e.to_string())).into(),
+                Err(e) => SelfTransferMessage::ErrorChanged(Some(e.to_string())).into(),
             },
         )
     }
 }
 
-impl State for SpendState {
+impl State for SelfTransferState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Send")
+        format!("{APP_NAME} - Self transfer")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
@@ -148,51 +126,52 @@ impl State for SpendState {
                     )
                     .collect()
             },
-            |p| SpendMessage::LoadPolicies(p).into(),
+            |p| SelfTransferMessage::LoadPolicies(p).into(),
         )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
-        if let Message::Spend(msg) = message {
+        if let Message::SelfTransfer(msg) = message {
             match msg {
-                SpendMessage::LoadPolicies(policies) => {
+                SelfTransferMessage::LoadPolicies(policies) => {
                     self.policies = policies;
                     self.loading = false;
                     self.loaded = true;
-                    if let Some(policy) = self.policy.as_ref() {
+                    if let Some(policy) = self.from_policy.as_ref() {
                         let policy_id = policy.policy_id;
                         return Command::perform(async {}, move |_| {
-                            SpendMessage::LoadBalance(policy_id).into()
+                            SelfTransferMessage::LoadBalance(policy_id).into()
                         });
                     }
                 }
-                SpendMessage::PolicySelectd(policy) => {
+                SelfTransferMessage::FromPolicySelectd(policy) => {
                     let policy_id = policy.policy_id;
-                    self.policy = Some(policy);
+                    self.from_policy = Some(policy);
                     return Command::perform(async {}, move |_| {
-                        SpendMessage::LoadBalance(policy_id).into()
+                        SelfTransferMessage::LoadBalance(policy_id).into()
                     });
                 }
-                SpendMessage::LoadBalance(policy_id) => {
+                SelfTransferMessage::ToPolicySelectd(policy) => {
+                    self.to_policy = Some(policy);
+                }
+                SelfTransferMessage::LoadBalance(policy_id) => {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move { client.get_balance(policy_id) },
-                        |balance| SpendMessage::BalanceChanged(balance).into(),
+                        |balance| SelfTransferMessage::BalanceChanged(balance).into(),
                     );
                 }
-                SpendMessage::BalanceChanged(balance) => self.balance = balance,
-                SpendMessage::AddressChanged(value) => self.to_address = value,
-                SpendMessage::AmountChanged(value) => self.amount = value,
-                SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
-                SpendMessage::DescriptionChanged(value) => self.description = value,
-                SpendMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
-                SpendMessage::ErrorChanged(error) => {
+                SelfTransferMessage::BalanceChanged(balance) => self.balance = balance,
+                SelfTransferMessage::AmountChanged(value) => self.amount = value,
+                SelfTransferMessage::SendAllBtnPressed => self.send_all = !self.send_all,
+                SelfTransferMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
+                SelfTransferMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;
                 }
-                SpendMessage::Review => match &self.policy {
-                    Some(_) => match Address::from_str(&self.to_address) {
-                        Ok(_) => {
+                SelfTransferMessage::Review => match &self.from_policy {
+                    Some(_) => match &self.to_policy {
+                        Some(_) => {
                             if self.send_all {
                                 self.error = None;
                                 self.reviewing = true;
@@ -206,25 +185,31 @@ impl State for SpendState {
                                 };
                             }
                         }
-                        Err(e) => self.error = Some(e.to_string()),
+                        None => self.error = Some(String::from("You must select a policy")),
                     },
                     None => self.error = Some(String::from("You must select a policy")),
                 },
-                SpendMessage::EditProposal => self.reviewing = false,
-                SpendMessage::SendProposal => match &self.policy {
-                    Some(policy) => {
-                        let policy_id = policy.policy_id;
-                        match Address::from_str(&self.to_address) {
-                            Ok(to_address) => {
+                SelfTransferMessage::EditProposal => self.reviewing = false,
+                SelfTransferMessage::SendProposal => match &self.from_policy {
+                    Some(from_policy) => {
+                        let from_policy_id = from_policy.policy_id;
+                        match &self.to_policy {
+                            Some(to_policy) => {
+                                let to_policy_id = to_policy.policy_id;
                                 if self.send_all {
-                                    return self.spend(ctx, policy_id, to_address, Amount::Max);
+                                    return self.spend(
+                                        ctx,
+                                        from_policy_id,
+                                        to_policy_id,
+                                        Amount::Max,
+                                    );
                                 } else {
                                     match self.amount {
                                         Some(amount) => {
                                             return self.spend(
                                                 ctx,
-                                                policy_id,
-                                                to_address,
+                                                from_policy_id,
+                                                to_policy_id,
                                                 Amount::Custom(amount),
                                             )
                                         }
@@ -232,7 +217,7 @@ impl State for SpendState {
                                     };
                                 }
                             }
-                            Err(e) => self.error = Some(e.to_string()),
+                            None => self.error = Some(String::from("You must select a policy")),
                         }
                     }
                     None => self.error = Some(String::from("You must select a policy")),
@@ -246,9 +231,9 @@ impl State for SpendState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let content = if self.loaded {
             if self.reviewing {
-                let policy = Column::new()
-                    .push(Row::new().push(Text::new("Policy").bold().view()))
-                    .push(Row::new().push(if let Some(policy) = &self.policy {
+                let from_policy = Column::new()
+                    .push(Row::new().push(Text::new("From policy").bold().view()))
+                    .push(Row::new().push(if let Some(policy) = &self.from_policy {
                         Text::new(policy.to_string()).view()
                     } else {
                         Text::new("Policy not selected").color(DARK_RED).view()
@@ -256,9 +241,13 @@ impl State for SpendState {
                     .spacing(5)
                     .width(Length::Fill);
 
-                let address = Column::new()
-                    .push(Row::new().push(Text::new("Address").bold().view()))
-                    .push(Row::new().push(Text::new(&self.to_address).view()))
+                let to_policy = Column::new()
+                    .push(Row::new().push(Text::new("To policy").bold().view()))
+                    .push(Row::new().push(if let Some(policy) = &self.to_policy {
+                        Text::new(policy.to_string()).view()
+                    } else {
+                        Text::new("Policy not selected").color(DARK_RED).view()
+                    }))
                     .spacing(5)
                     .width(Length::Fill);
 
@@ -276,16 +265,6 @@ impl State for SpendState {
                     )
                     .spacing(5)
                     .width(Length::Fill);
-
-                let description = if !self.description.is_empty() {
-                    Column::new()
-                        .push(Row::new().push(Text::new("Description").bold().view()))
-                        .push(Row::new().push(Text::new(&self.description).view()))
-                        .spacing(5)
-                        .width(Length::Fill)
-                } else {
-                    Column::new()
-                };
 
                 let priority = Column::new()
                     .push(Row::new().push(Text::new("Priority").bold().view()))
@@ -314,26 +293,25 @@ impl State for SpendState {
 
                 if !self.loading {
                     send_proposal_btn =
-                        send_proposal_btn.on_press(SpendMessage::SendProposal.into());
-                    back_btn = back_btn.on_press(SpendMessage::EditProposal.into());
+                        send_proposal_btn.on_press(SelfTransferMessage::SendProposal.into());
+                    back_btn = back_btn.on_press(SelfTransferMessage::EditProposal.into());
                 }
 
                 Column::new()
-                    .push(policy)
-                    .push(address)
+                    .push(from_policy)
+                    .push(to_policy)
                     .push(amount)
-                    .push(description)
                     .push(priority)
                     .push(error)
                     .push(Space::with_height(Length::Fixed(15.0)))
                     .push(send_proposal_btn)
                     .push(back_btn)
             } else {
-                let policy_pick_list = Column::new()
-                    .push(Text::new("Policy").view())
+                let from_policy_pick_list = Column::new()
+                    .push(Text::new("From policy").view())
                     .push(
-                        PickList::new(self.policies.clone(), self.policy.clone(), |policy| {
-                            SpendMessage::PolicySelectd(policy).into()
+                        PickList::new(self.policies.clone(), self.from_policy.clone(), |policy| {
+                            SelfTransferMessage::FromPolicySelectd(policy).into()
                         })
                         .width(Length::Fill)
                         .text_size(20)
@@ -346,26 +324,28 @@ impl State for SpendState {
                     )
                     .spacing(5);
 
-                let address = Column::new()
+                let to_policy_pick_list = Column::new()
+                    .push(Text::new("To policy").view())
                     .push(
-                        TextInput::new("Address", &self.to_address)
-                            .on_input(|s| SpendMessage::AddressChanged(s).into())
-                            .placeholder("Address")
-                            .view(),
-                    )
-                    .push(
-                        Text::new("Transfer to other policy")
-                            .extra_light()
-                            .smaller()
-                            .on_press(Message::View(Stage::SelfTransfer))
-                            .view(),
+                        PickList::new(self.policies.clone(), self.to_policy.clone(), |policy| {
+                            SelfTransferMessage::ToPolicySelectd(policy).into()
+                        })
+                        .width(Length::Fill)
+                        .text_size(20)
+                        .padding(10)
+                        .placeholder(if self.policies.is_empty() {
+                            "No policy availabe"
+                        } else {
+                            "Select a policy"
+                        }),
                     )
                     .spacing(5);
 
                 let mut send_all_btn = button::border("Max").width(Length::Fixed(50.0));
 
-                if self.policy.is_some() {
-                    send_all_btn = send_all_btn.on_press(SpendMessage::SendAllBtnPressed.into());
+                if self.from_policy.is_some() && self.to_policy.is_some() {
+                    send_all_btn =
+                        send_all_btn.on_press(SelfTransferMessage::SendAllBtnPressed.into());
                 }
 
                 let amount = if self.send_all {
@@ -379,7 +359,9 @@ impl State for SpendState {
                                 Column::new()
                                     .push(
                                         NumericInput::new("Amount (sat)", self.amount)
-                                            .on_input(|s| SpendMessage::AmountChanged(s).into())
+                                            .on_input(|s| {
+                                                SelfTransferMessage::AmountChanged(s).into()
+                                            })
                                             .placeholder("Amount"),
                                     )
                                     .width(Length::Fill),
@@ -390,7 +372,7 @@ impl State for SpendState {
                     )
                 };
 
-                let your_balance = if self.policy.is_some() {
+                let your_balance = if self.from_policy.is_some() {
                     Text::new(match &self.balance {
                         Some(balance) => {
                             format!("Balance: {} sat", format::number(balance.get_spendable()))
@@ -405,17 +387,12 @@ impl State for SpendState {
                     Text::new("").view()
                 };
 
-                let description = TextInput::new("Description", &self.description)
-                    .on_input(|s| SpendMessage::DescriptionChanged(s).into())
-                    .placeholder("Description")
-                    .view();
-
                 let fee_high_priority = Row::new()
                     .push(Radio::new(
                         "",
                         FeeRate::High,
                         Some(self.fee_rate),
-                        |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+                        |fee_rate| SelfTransferMessage::FeeRateChanged(fee_rate).into(),
                     ))
                     .push(
                         Column::new()
@@ -431,7 +408,7 @@ impl State for SpendState {
                         "",
                         FeeRate::Medium,
                         Some(self.fee_rate),
-                        |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+                        |fee_rate| SelfTransferMessage::FeeRateChanged(fee_rate).into(),
                     ))
                     .push(
                         Column::new()
@@ -447,7 +424,7 @@ impl State for SpendState {
                         "",
                         FeeRate::Low,
                         Some(self.fee_rate),
-                        |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+                        |fee_rate| SelfTransferMessage::FeeRateChanged(fee_rate).into(),
                     ))
                     .push(
                         Column::new()
@@ -477,12 +454,12 @@ impl State for SpendState {
 
                 let continue_btn = button::primary("Continue")
                     .width(Length::Fill)
-                    .on_press(SpendMessage::Review.into());
+                    .on_press(SelfTransferMessage::Review.into());
 
                 Column::new()
                     .push(
                         Column::new()
-                            .push(Text::new("Send").size(24).bold().view())
+                            .push(Text::new("Self transfer").size(24).bold().view())
                             .push(
                                 Text::new("Create a new spending proposal")
                                     .extra_light()
@@ -492,11 +469,10 @@ impl State for SpendState {
                             .width(Length::Fill),
                     )
                     .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(policy_pick_list)
-                    .push(address)
+                    .push(from_policy_pick_list)
+                    .push(to_policy_pick_list)
                     .push(amount)
                     .push(your_balance)
-                    .push(description)
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(fee_selector)
                     .push(Space::with_height(Length::Fixed(5.0)))
@@ -522,14 +498,14 @@ impl State for SpendState {
     }
 }
 
-impl From<SpendState> for Box<dyn State> {
-    fn from(s: SpendState) -> Box<dyn State> {
+impl From<SelfTransferState> for Box<dyn State> {
+    fn from(s: SelfTransferState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<SpendMessage> for Message {
-    fn from(msg: SpendMessage) -> Self {
-        Self::Spend(msg)
+impl From<SelfTransferMessage> for Message {
+    fn from(msg: SelfTransferMessage) -> Self {
+        Self::SelfTransfer(msg)
     }
 }

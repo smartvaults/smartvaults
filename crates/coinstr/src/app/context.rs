@@ -20,6 +20,7 @@ pub enum Stage {
     Policy(EventId),
     Spend(Option<(EventId, Policy)>),
     Receive(Option<(EventId, Policy)>),
+    SelfTransfer,
     NewProof(Option<(EventId, Policy)>),
     Proposals,
     Proposal(EventId),
