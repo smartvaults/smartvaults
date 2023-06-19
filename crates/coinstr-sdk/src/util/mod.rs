@@ -40,3 +40,9 @@ pub fn extract_tags_by_kind(event: &Event, kind: TagKind) -> Vec<&Tag> {
 pub fn cut_event_id(event_id: EventId) -> String {
     event_id.to_string()[..8].to_string()
 }
+
+/// Get the first 8 chars of a [`XOnlyPublicKey`]
+pub fn cut_public_key(pk: XOnlyPublicKey) -> String {
+    let pk = pk.to_string();
+    format!("{}:{}", &pk[0..8], &pk[pk.len() - 8..])
+}

@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use coinstr_sdk::nostr::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::nostr::Metadata;
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -131,7 +132,7 @@ impl State for ContactsState {
                 for (public_key, metadata) in self.contacts.iter() {
                     let row = Row::new()
                         .push(
-                            Text::new(cut_public_key(*public_key))
+                            Text::new(util::cut_public_key(*public_key))
                                 .width(Length::Fill)
                                 .view(),
                         )
@@ -176,9 +177,4 @@ impl From<ContactsMessage> for Message {
     fn from(msg: ContactsMessage) -> Self {
         Self::Contacts(msg)
     }
-}
-
-fn cut_public_key(pk: XOnlyPublicKey) -> String {
-    let pk = pk.to_string();
-    format!("{}:{}", &pk[0..8], &pk[pk.len() - 8..])
 }

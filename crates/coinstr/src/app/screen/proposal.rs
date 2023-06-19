@@ -3,7 +3,6 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Psbt;
@@ -468,7 +467,7 @@ impl State for ProposalState {
                                         .view(),
                                 )
                                 .push(
-                                    Text::new(cut_public_key(*public_key))
+                                    Text::new(util::cut_public_key(*public_key))
                                         .width(Length::Fill)
                                         .view(),
                                 )
@@ -498,9 +497,4 @@ impl From<ProposalMessage> for Message {
     fn from(msg: ProposalMessage) -> Self {
         Self::Proposal(msg)
     }
-}
-
-fn cut_public_key(pk: XOnlyPublicKey) -> String {
-    let pk = pk.to_string();
-    format!("{}:{}", &pk[0..8], &pk[pk.len() - 8..])
 }
