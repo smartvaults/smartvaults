@@ -260,4 +260,10 @@ pub enum DeleteCommand {
         #[arg(required = true)]
         signer_id: EventId,
     },
+    /// Revoke shared signer by id
+    SharedSigner {
+        /// Signer id
+        #[arg(required = true)]
+        shared_signer_id: EventId,
+    },
 }
