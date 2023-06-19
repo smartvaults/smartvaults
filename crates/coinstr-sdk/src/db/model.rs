@@ -3,6 +3,7 @@
 
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::Balance;
+use coinstr_core::signer::SharedSigner;
 use coinstr_core::{ApprovedProposal, Policy};
 use nostr_sdk::Timestamp;
 
@@ -33,4 +34,10 @@ pub struct GetApprovedProposalResult {
     pub public_key: XOnlyPublicKey,
     pub approved_proposal: ApprovedProposal,
     pub timestamp: Timestamp,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetSharedSignerResult {
+    pub owner_public_key: XOnlyPublicKey,
+    pub shared_signer: SharedSigner,
 }

@@ -37,6 +37,7 @@ use tokio::sync::broadcast::Sender;
 use super::migration::{self, MigrationError, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
+    GetSharedSignerResult,
 };
 use crate::client::{Message, Notification};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
@@ -1174,6 +1175,28 @@ impl Store {
             map.insert(
                 EventId::from_hex(shared_signer_id)?,
                 XOnlyPublicKey::from_str(&public_key)?,
+            );
+        }
+        Ok(map)
+    }
+
+    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSignerResult>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT shared_signer_id, owner_public_key, shared_signer FROM shared_signers;",
+        )?;
+        let mut rows = stmt.query([])?;
+        let mut map = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let shared_signer_id: String = row.get(0)?;
+            let public_key: String = row.get(1)?;
+            let shared_signer: String = row.get(2)?;
+            map.insert(
+                EventId::from_hex(shared_signer_id)?,
+                GetSharedSignerResult {
+                    owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
+                    shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
+                },
             );
         }
         Ok(map)
