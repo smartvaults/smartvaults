@@ -291,6 +291,18 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 println!("Policy saved: {policy_id}");
                 Ok(())
             }
+            AddCommand::SharedSigner {
+                signer_id,
+                public_key,
+            } => {
+                coinstr.share_signer(signer_id, public_key).await?;
+                println!(
+                    "Signer {} shared with {}",
+                    coinstr_sdk::util::cut_event_id(signer_id),
+                    coinstr_sdk::util::cut_public_key(public_key)
+                );
+                Ok(())
+            }
         },
         Command::Get { command } => match command {
             GetCommand::Contacts => {

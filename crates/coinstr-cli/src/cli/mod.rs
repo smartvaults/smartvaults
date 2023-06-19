@@ -133,8 +133,6 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: EventId,
     },
-    /// Rebroadcast all events to connected relays
-    Rebroadcast,
     /// Proof of Reserve commands
     #[command(arg_required_else_help = true)]
     Proof {
@@ -159,6 +157,8 @@ pub enum Command {
         #[command(subcommand)]
         command: DeleteCommand,
     },
+    /// Rebroadcast all events to connected relays
+    Rebroadcast,
     /// Exit
     Exit,
 }
@@ -203,6 +203,13 @@ pub enum AddCommand {
         descriptor: String,
         /// Custom nostr pubkeys
         custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
+    },
+    /// Share a signer
+    SharedSigner {
+        /// ID of the signer to share
+        signer_id: EventId,
+        /// Public Key of the user with whom to share the signer
+        public_key: XOnlyPublicKey,
     },
 }
 
