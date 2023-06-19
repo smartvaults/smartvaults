@@ -117,6 +117,8 @@ pub enum Error {
     SignerIdNotFound,
     #[error("public key not found")]
     PublicKeyNotFound,
+    #[error("can't delete Coinstr Signer")]
+    CantDeleteCoinstrSigner,
     #[error("{0}")]
     Generic(String),
 }
@@ -651,15 +653,25 @@ impl Coinstr {
         if signer_id != EventId::all_zeros() {
             let keys = self.client.keys();
 
-            // TODO: delete shared signers and notify the interested users (tag pubkey in deletion event)
+            let my_shared_signers = self.db.get_my_shared_signers(signer_id)?;
+            let mut tags: Vec<Tag> = Vec::new();
 
-            let event = EventBuilder::new(Kind::EventDeletion, "", &[]).to_event(&keys)?;
+            tags.push(Tag::Event(signer_id, None, None));
+
+            for (shared_signer_id, public_key) in my_shared_signers.into_iter() {
+                tags.push(Tag::PubKey(public_key, None));
+                tags.push(Tag::Event(shared_signer_id, None, None));
+            }
+
+            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
             self.send_event(event).await?;
 
             self.db.delete_signer(signer_id)?;
-        }
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(Error::CantDeleteCoinstrSigner)
+        }
     }
 
     pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
