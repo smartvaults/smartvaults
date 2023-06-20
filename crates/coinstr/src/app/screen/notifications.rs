@@ -15,6 +15,7 @@ use crate::theme::color::GREY;
 #[derive(Debug, Clone)]
 pub enum NotificationsMessage {
     LoadNotifications(Vec<GetNotificationsResult>),
+    OpenNotification(Notification),
     MarkAllAsSeen,
     Reload,
 }
@@ -60,6 +61,22 @@ impl State for NotificationsState {
                     self.notifications = list;
                     self.loading = false;
                     self.loaded = true;
+                }
+                NotificationsMessage::OpenNotification(notification) => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move {
+                            client.mark_notification_as_seen(notification).unwrap();
+                            match notification {
+                                Notification::NewPolicy(id) => Message::View(Stage::Policy(id)),
+                                Notification::NewProposal(id) => Message::View(Stage::Proposal(id)),
+                                Notification::NewSharedSigner { .. } => {
+                                    Message::View(Stage::Signers)
+                                }
+                            }
+                        },
+                        |msg| msg,
+                    );
                 }
                 NotificationsMessage::MarkAllAsSeen => {
                     let client = ctx.client.clone();
@@ -163,17 +180,10 @@ impl State for NotificationsState {
                                 .push(datetime.view())
                                 .push(
                                     description
-                                        .on_press(match notification {
-                                            Notification::NewPolicy(id) => {
-                                                Message::View(Stage::Policy(*id))
-                                            }
-                                            Notification::NewProposal(id) => {
-                                                Message::View(Stage::Proposal(*id))
-                                            }
-                                            Notification::NewSharedSigner { .. } => {
-                                                Message::View(Stage::Signers)
-                                            }
-                                        })
+                                        .on_press(
+                                            NotificationsMessage::OpenNotification(*notification)
+                                                .into(),
+                                        )
                                         .width(Length::Fill)
                                         .view(),
                                 )
