@@ -111,6 +111,9 @@ impl App {
     pub fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::View(stage) => {
+                if stage.is_breadcrumb_first_level() {
+                    self.ctx.reset_breadcrumb();
+                }
                 self.ctx.set_stage(stage);
                 self.state = new_state(&self.ctx);
                 self.state.load(&self.ctx)

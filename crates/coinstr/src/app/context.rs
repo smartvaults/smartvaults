@@ -1,12 +1,14 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::fmt;
+
 use coinstr_sdk::core::bitcoin::{Network, Txid};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::CompletedProposal;
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::nostr::EventId;
-use coinstr_sdk::Coinstr;
+use coinstr_sdk::{util, Coinstr};
 
 use crate::theme::Theme;
 use crate::RUNTIME;
@@ -40,9 +42,58 @@ pub enum Stage {
     Setting,
 }
 
+impl fmt::Display for Stage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Dashboard => write!(f, "Dashboard"),
+            Self::Policies => write!(f, "Policies"),
+            Self::AddPolicy => write!(f, "Add policy"),
+            Self::RestorePolicy => write!(f, "Restore policy"),
+            Self::Policy(id) => write!(f, "Policy #{}", util::cut_event_id(*id)),
+            Self::Spend(_) => write!(f, "Spend"),
+            Self::Receive(_) => write!(f, "Receive"),
+            Self::SelfTransfer => write!(f, "Self transfer"),
+            Self::NewProof(_) => write!(f, "New Proof"),
+            Self::Proposals => write!(f, "Proposals"),
+            Self::Proposal(id) => write!(f, "Proposal #{}", util::cut_event_id(*id)),
+            Self::Transaction(txid) => write!(f, "Tx #{}", util::cut_txid(*txid)),
+            Self::Transactions(_) => write!(f, "Transactions"),
+            Self::History => write!(f, "History"),
+            Self::CompletedProposal(..) => write!(f, "Completed proposal"),
+            Self::Signers => write!(f, "Signers"),
+            Self::Signer(id, ..) => write!(f, "Signer #{}", util::cut_event_id(*id)),
+            Self::AddSigner => write!(f, "Add signer"),
+            Self::AddHWSigner => write!(f, "Add HW signer"),
+            Self::AddAirGapSigner => write!(f, "Add AirGap signer"),
+            Self::ShareSigner(id) => write!(f, "Share signer #{}", util::cut_event_id(*id)),
+            Self::Contacts => write!(f, "Contacts"),
+            Self::Notifications => write!(f, "Notifications"),
+            Self::Profile => write!(f, "Profile"),
+            Self::Setting => write!(f, "Setting"),
+        }
+    }
+}
+
 impl Default for Stage {
     fn default() -> Self {
         Self::Dashboard
+    }
+}
+
+impl Stage {
+    pub fn is_breadcrumb_first_level(&self) -> bool {
+        matches!(
+            self,
+            Stage::Dashboard
+                | Stage::Policies
+                | Stage::Proposals
+                | Stage::History
+                | Stage::Signers
+                | Stage::Contacts
+                | Stage::Setting
+                | Stage::Notifications
+                | Stage::Profile
+        )
     }
 }
 
@@ -50,6 +101,7 @@ pub struct Context {
     pub stage: Stage,
     pub client: Coinstr,
     pub theme: Theme,
+    pub breadcrumb: Vec<Stage>,
 }
 
 impl Context {
@@ -89,13 +141,24 @@ impl Context {
         });
 
         Self {
-            stage,
+            stage: stage.clone(),
             client: coinstr,
             theme,
+            breadcrumb: vec![stage],
         }
     }
 
     pub fn set_stage(&mut self, stage: Stage) {
+        if self.breadcrumb.contains(&stage) {
+            if let Some(index) = self.breadcrumb.iter().position(|s| s == &stage) {
+                self.breadcrumb = self.breadcrumb.clone().into_iter().take(index).collect();
+            }
+        }
+        self.breadcrumb.push(stage.clone());
         self.stage = stage;
+    }
+
+    pub fn reset_breadcrumb(&mut self) {
+        self.breadcrumb.clear();
     }
 }

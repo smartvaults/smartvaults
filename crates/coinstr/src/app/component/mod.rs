@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 mod balances;
+mod breadcrumb;
 mod dashboard;
 mod proposals_list;
 mod transactions_list;

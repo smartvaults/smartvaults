@@ -5,6 +5,7 @@ use coinstr_sdk::util::format;
 use iced::widget::Row;
 use iced::{Alignment, Color, Length};
 
+use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
 use crate::component::{button, rule, Icon, Text};
 use crate::theme::color::RED;
@@ -36,7 +37,7 @@ impl Navbar {
         Row::new()
             .push(
                 Row::new()
-                    .push(Text::new("Path > to > screen").extra_light().view())
+                    .push(Breadcrumb::new(ctx.breadcrumb.clone()).view())
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .spacing(10)

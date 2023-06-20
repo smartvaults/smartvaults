@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::XOnlyPublicKey;
+use bdk::bitcoin::{Txid, XOnlyPublicKey};
 use nostr_sdk::{Event, EventId, Tag, TagKind};
 
 pub(crate) mod dir;
@@ -45,4 +45,9 @@ pub fn cut_event_id(event_id: EventId) -> String {
 pub fn cut_public_key(pk: XOnlyPublicKey) -> String {
     let pk = pk.to_string();
     format!("{}:{}", &pk[0..8], &pk[pk.len() - 8..])
+}
+
+/// Get the first 8 chars of an [`Txid`]
+pub fn cut_txid(txid: Txid) -> String {
+    txid.to_string()[..8].to_string()
 }
