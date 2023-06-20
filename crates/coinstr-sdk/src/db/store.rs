@@ -1076,12 +1076,13 @@ impl Store {
         self.set_event_as_deleted(shared_signer_id)?;
 
         // Delete notification
-        let owner_public_key: XOnlyPublicKey =
-            self.get_owner_public_key_for_shared_signer(shared_signer_id)?;
-        self.delete_notification(Notification::NewSharedSigner {
-            shared_signer_id,
-            owner_public_key,
-        })?;
+        if let Ok(owner_public_key) = self.get_owner_public_key_for_shared_signer(shared_signer_id)
+        {
+            self.delete_notification(Notification::NewSharedSigner {
+                shared_signer_id,
+                owner_public_key,
+            })?;
+        }
 
         let conn = self.pool.get()?;
         conn.execute(

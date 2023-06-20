@@ -17,6 +17,7 @@ pub enum NotificationsMessage {
     LoadNotifications(Vec<GetNotificationsResult>),
     OpenNotification(Notification),
     MarkAllAsSeen,
+    DeleteAll,
     Reload,
 }
 
@@ -85,6 +86,13 @@ impl State for NotificationsState {
                         |_| NotificationsMessage::Reload.into(),
                     );
                 }
+                NotificationsMessage::DeleteAll => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.delete_all_notifications().unwrap() },
+                        |_| NotificationsMessage::Reload.into(),
+                    );
+                }
                 NotificationsMessage::Reload => {
                     return self.load(ctx);
                 }
@@ -106,10 +114,16 @@ impl State for NotificationsState {
 
             content = content
                 .push(
-                    Row::new().push(
-                        button::border("Mark all as seen")
-                            .on_press(NotificationsMessage::MarkAllAsSeen.into()),
-                    ),
+                    Row::new()
+                        .push(
+                            button::border("Mark all as seen")
+                                .on_press(NotificationsMessage::MarkAllAsSeen.into()),
+                        )
+                        .push(
+                            button::danger_border("Delete all")
+                                .on_press(NotificationsMessage::DeleteAll.into()),
+                        )
+                        .spacing(10),
                 )
                 .push(
                     Row::new()
