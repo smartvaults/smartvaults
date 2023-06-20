@@ -131,6 +131,10 @@ pub enum Notification {
         proposal_id: EventId,
         approval_id: EventId,
     } */
+    NewSharedSigner {
+        shared_signer_id: EventId,
+        owner_public_key: XOnlyPublicKey,
+    },
 }
 
 impl Serde for Notification {}
@@ -1510,6 +1514,12 @@ impl Coinstr {
                 let shared_signer = SharedSigner::from_json(shared_signer)?;
                 self.db
                     .save_shared_signer(event.id, event.pubkey, shared_signer)?;
+                let notification = Notification::NewSharedSigner {
+                    shared_signer_id: event.id,
+                    owner_public_key: event.pubkey,
+                };
+                self.db.save_notification(notification)?;
+                return Ok(Some(Message::Notification(notification)));
             }
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {

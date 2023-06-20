@@ -1068,6 +1068,14 @@ impl Store {
     pub fn delete_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
         self.set_event_as_deleted(shared_signer_id)?;
 
+        // Delete notification
+        let owner_public_key: XOnlyPublicKey =
+            self.get_owner_public_key_for_shared_signer(shared_signer_id)?;
+        self.delete_notification(Notification::NewSharedSigner {
+            shared_signer_id,
+            owner_public_key,
+        })?;
+
         let conn = self.pool.get()?;
         conn.execute(
             "DELETE FROM my_shared_signers WHERE shared_signer_id = ?;",
@@ -1178,6 +1186,22 @@ impl Store {
             );
         }
         Ok(map)
+    }
+
+    pub fn get_owner_public_key_for_shared_signer(
+        &self,
+        shared_signer_id: EventId,
+    ) -> Result<XOnlyPublicKey, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT owner_public_key FROM shared_signers WHERE shared_signer_id = ? LIMIT 1;",
+        )?;
+        let mut rows = stmt.query([shared_signer_id.to_hex()])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("shared signer".into()))?;
+        let public_key: String = row.get(0)?;
+        Ok(XOnlyPublicKey::from_str(&public_key)?)
     }
 
     pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSignerResult>, Error> {

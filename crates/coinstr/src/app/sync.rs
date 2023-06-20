@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 
 use async_stream::stream;
 use coinstr_sdk::client::Message;
-use coinstr_sdk::{Coinstr, Notification};
+use coinstr_sdk::{util, Coinstr, Notification};
 use iced::Subscription;
 use iced_futures::BoxStream;
 use notify_rust::Notification as DesktopNotification;
@@ -43,7 +43,13 @@ where
                         .body("New proposal")
                         .show() {
                             log::error!("Impossible to send desktop notification: {e}");
-                        }
+                        },
+                        Notification::NewSharedSigner { shared_signer_id, owner_public_key } => if let Err(e) = DesktopNotification::new()
+                        .summary("Coinstr")
+                        .body(&format!("{} shared a signer with you: #{}", util::cut_public_key(owner_public_key), util::cut_event_id(shared_signer_id)))
+                        .show() {
+                            log::error!("Impossible to send desktop notification: {e}");
+                        },
                     }
                 }
                 yield ();

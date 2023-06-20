@@ -137,6 +137,16 @@ impl State for NotificationsState {
                         Notification::NewProposal(id) => {
                             format!("New proposal: #{}", util::cut_event_id(*id))
                         }
+                        Notification::NewSharedSigner {
+                            shared_signer_id,
+                            owner_public_key,
+                        } => {
+                            format!(
+                                "{} shared a signer with you: #{}",
+                                util::cut_public_key(*owner_public_key),
+                                util::cut_event_id(*shared_signer_id)
+                            )
+                        }
                     });
 
                     if *seen {
@@ -159,6 +169,9 @@ impl State for NotificationsState {
                                             }
                                             Notification::NewProposal(id) => {
                                                 Message::View(Stage::Proposal(*id))
+                                            }
+                                            Notification::NewSharedSigner { .. } => {
+                                                Message::View(Stage::Signers)
                                             }
                                         })
                                         .width(Length::Fill)
