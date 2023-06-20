@@ -1682,4 +1682,8 @@ impl Coinstr {
     pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
         Ok(self.db.mark_notification_as_seen(notification)?)
     }
+
+    pub fn delete_all_notifications(&self) -> Result<(), Error> {
+        Ok(self.db.delete_all_notifications()?)
+    }
 }

@@ -990,6 +990,13 @@ impl Store {
         Ok(())
     }
 
+    pub fn delete_all_notifications(&self) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("DELETE FROM notifications;")?;
+        stmt.execute([])?;
+        Ok(())
+    }
+
     pub fn delete_notification(&self, notification: Notification) -> Result<(), Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE notification = ?")?;
