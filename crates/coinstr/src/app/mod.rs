@@ -19,8 +19,8 @@ use self::screen::{
     AddAirGapSignerState, AddHWSignerState, AddPolicyState, AddSignerState, CompletedProposalState,
     ContactsState, DashboardState, HistoryState, NewProofState, NotificationsState, PoliciesState,
     PolicyState, ProfileState, ProposalState, ProposalsState, ReceiveState, RestorePolicyState,
-    SelfTransferState, SettingState, SignerState, SignersState, SpendState, TransactionState,
-    TransactionsState,
+    SelfTransferState, SettingState, ShareSignerState, SignerState, SignersState, SpendState,
+    TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -71,6 +71,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddSigner => AddSignerState::new().into(),
         Stage::AddHWSigner => AddHWSignerState::new().into(),
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
+        Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
         Stage::Contacts => ContactsState::new().into(),
         Stage::Notifications => NotificationsState::new().into(),
         Stage::Profile => ProfileState::new().into(),

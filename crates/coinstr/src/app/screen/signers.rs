@@ -175,7 +175,11 @@ impl State for SignersState {
                                 ))
                                 .width(Length::Fixed(40.0)),
                         )
-                        .push(button::border_only_icon(SHARE).width(Length::Fixed(40.0)))
+                        .push(
+                            button::border_only_icon(SHARE)
+                                .width(Length::Fixed(40.0))
+                                .on_press(Message::View(Stage::ShareSigner(*signer_id))),
+                        )
                         .push(
                             button::primary_only_icon(FULLSCREEN)
                                 .width(Length::Fixed(40.0))

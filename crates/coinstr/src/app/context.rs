@@ -33,6 +33,7 @@ pub enum Stage {
     AddSigner,
     AddHWSigner,
     AddAirGapSigner,
+    ShareSigner(EventId),
     Contacts,
     Notifications,
     Profile,
