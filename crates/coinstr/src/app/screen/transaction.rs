@@ -4,7 +4,7 @@
 use coinstr_sdk::core::bdk::TransactionDetails;
 use coinstr_sdk::core::bitcoin::{Address, Txid};
 use coinstr_sdk::nostr::Timestamp;
-use coinstr_sdk::util::format;
+use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row, Space};
 use iced::{Command, Element, Length};
 
@@ -41,7 +41,7 @@ impl TransactionState {
 
 impl State for TransactionState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Tx {}", self.txid)
+        format!("{APP_NAME} - Tx #{}", util::cut_txid(self.txid))
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
