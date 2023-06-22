@@ -3,6 +3,7 @@
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::types::backup::PolicyBackup;
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -126,6 +127,23 @@ impl State for RestorePolicyState {
             .placeholder("Policy descriptor")
             .view();
 
+        let mut public_keys = Column::new()
+            .push(Text::new("Public Keys").view())
+            .spacing(5)
+            .width(Length::Fill);
+
+        if self.public_keys.is_empty() {
+            public_keys = public_keys.push(Text::new("No public keys").smaller().view())
+        } else {
+            for public_key in self.public_keys.iter() {
+                public_keys = public_keys.push(
+                    Text::new(format!("- {}", util::cut_public_key(*public_key)))
+                        .smaller()
+                        .view(),
+                )
+            }
+        }
+
         let error = if let Some(error) = &self.error {
             Row::new().push(Text::new(error).color(DARK_RED).view())
         } else {
@@ -147,6 +165,7 @@ impl State for RestorePolicyState {
             .push(name)
             .push(description)
             .push(descriptor)
+            .push(public_keys)
             .push(error)
             .push(Space::with_height(Length::Fixed(15.0)));
 
