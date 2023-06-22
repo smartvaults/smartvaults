@@ -16,16 +16,28 @@ use crate::theme::icon::FULLSCREEN;
 pub struct PendingProposalsList {
     map: BTreeMap<EventId, (EventId, Proposal)>,
     take: Option<usize>,
+    hide_policy_id: bool,
 }
 
 impl PendingProposalsList {
     pub fn new(map: BTreeMap<EventId, (EventId, Proposal)>) -> Self {
-        Self { map, take: None }
+        Self {
+            map,
+            take: None,
+            hide_policy_id: false,
+        }
     }
 
     pub fn take(self, num: usize) -> Self {
         Self {
             take: Some(num),
+            ..self
+        }
+    }
+
+    pub fn hide_policy_id(self) -> Self {
+        Self {
+            hide_policy_id: true,
             ..self
         }
     }
@@ -41,13 +53,15 @@ impl PendingProposalsList {
                             .width(Length::Fixed(115.0))
                             .view(),
                     )
-                    .push(
+                    .push(if self.hide_policy_id {
+                        Text::new("").view()
+                    } else {
                         Text::new("Policy ID")
                             .bold()
                             .bigger()
                             .width(Length::Fixed(115.0))
-                            .view(),
-                    )
+                            .view()
+                    })
                     .push(
                         Text::new("Type")
                             .bold()
@@ -93,12 +107,14 @@ impl PendingProposalsList {
                                 .on_press(Message::View(Stage::Proposal(*proposal_id)))
                                 .view(),
                         )
-                        .push(
+                        .push(if self.hide_policy_id {
+                            Text::new("").view()
+                        } else {
                             Text::new(util::cut_event_id(*policy_id))
                                 .width(Length::Fixed(115.0))
                                 .on_press(Message::View(Stage::Policy(*policy_id)))
-                                .view(),
-                        )
+                                .view()
+                        })
                         .push(Text::new("spending").width(Length::Fixed(125.0)).view())
                         .push(
                             Text::new(format!("{} sat", format::big_number(*amount)))
@@ -121,12 +137,14 @@ impl PendingProposalsList {
                                 .on_press(Message::View(Stage::Proposal(*proposal_id)))
                                 .view(),
                         )
-                        .push(
+                        .push(if self.hide_policy_id {
+                            Text::new("").view()
+                        } else {
                             Text::new(util::cut_event_id(*policy_id))
                                 .width(Length::Fixed(115.0))
                                 .on_press(Message::View(Stage::Policy(*policy_id)))
-                                .view(),
-                        )
+                                .view()
+                        })
                         .push(
                             Text::new("proof-of-reserve")
                                 .width(Length::Fixed(125.0))

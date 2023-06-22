@@ -692,6 +692,13 @@ impl Coinstr {
         Ok(self.db.get_proposals()?)
     }
 
+    pub fn get_proposals_by_policy_id(
+        &self,
+        policy_id: EventId,
+    ) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+        Ok(self.db.get_proposals_by_policy_id(policy_id)?)
+    }
+
     pub fn get_completed_proposals(
         &self,
     ) -> Result<BTreeMap<EventId, (EventId, CompletedProposal)>, Error> {

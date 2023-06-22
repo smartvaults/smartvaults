@@ -1,9 +1,12 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::BTreeMap;
+
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::signer::Signer;
+use coinstr_sdk::core::Proposal;
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::{util, Notification};
@@ -11,7 +14,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 
-use crate::app::component::{Balances, Dashboard, TransactionsList};
+use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
@@ -27,6 +30,7 @@ pub enum PolicyMessage {
     Delete,
     LoadPolicy(
         Policy,
+        BTreeMap<EventId, (EventId, Proposal)>,
         Option<Signer>,
         Option<Balance>,
         Option<Transactions>,
@@ -43,6 +47,7 @@ pub struct PolicyState {
     loaded: bool,
     policy_id: EventId,
     policy: Option<Policy>,
+    proposals: BTreeMap<EventId, (EventId, Proposal)>,
     signer: Option<Signer>,
     balance: Option<Balance>,
     transactions: Option<Transactions>,
@@ -57,6 +62,7 @@ impl PolicyState {
             loaded: false,
             policy_id,
             policy: None,
+            proposals: BTreeMap::new(),
             signer: None,
             balance: None,
             transactions: None,
@@ -85,14 +91,16 @@ impl State for PolicyState {
                     .ok()?;
                 let (policy, balance, list, last_sync) =
                     client.db.policy_with_details(policy_id)?;
+                let proposals = client.get_proposals_by_policy_id(policy_id).ok()?;
                 let signer = client
                     .search_signer_by_descriptor(policy.descriptor.clone())
                     .ok();
-                Some((policy, signer, balance, list, last_sync))
+                Some((policy, proposals, signer, balance, list, last_sync))
             },
             |res| match res {
-                Some((policy, signer, balance, list, last_sync)) => {
-                    PolicyMessage::LoadPolicy(policy, signer, balance, list, last_sync).into()
+                Some((policy, proposals, signer, balance, list, last_sync)) => {
+                    PolicyMessage::LoadPolicy(policy, proposals, signer, balance, list, last_sync)
+                        .into()
                 }
                 None => Message::View(Stage::Policies),
             },
@@ -173,8 +181,9 @@ impl State for PolicyState {
                         );
                     }
                 }
-                PolicyMessage::LoadPolicy(policy, signer, balance, list, last_sync) => {
+                PolicyMessage::LoadPolicy(policy, proposals, signer, balance, list, last_sync) => {
                     self.policy = Some(policy);
+                    self.proposals = proposals;
                     self.signer = signer;
                     self.balance = balance;
                     self.transactions = list;
@@ -217,11 +226,6 @@ impl State for PolicyState {
             center_y = false;
             center_x = false;
 
-            let title = format!("Policy #{}", util::cut_event_id(self.policy_id));
-            content = content
-                .push(Text::new(title).size(40).bold().view())
-                .push(Space::with_height(Length::Fixed(30.0)));
-
             let mut republish_shared_keys_btn =
                 button::border_only_icon(GLOBE).width(Length::Fixed(40.0));
 
@@ -237,6 +241,7 @@ impl State for PolicyState {
             }
 
             content = content
+                .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
                     Row::new()
                         .push(
@@ -319,8 +324,25 @@ impl State for PolicyState {
                     Text::new(error).color(RED).view()
                 } else {
                     Text::new("").view()
-                })
+                });
+
+            if !self.proposals.is_empty() {
+                content = content
+                    .push(Space::with_height(Length::Fixed(20.0)))
+                    .push(Text::new("Pending proposals").bold().size(25).view())
+                    .push(Space::with_height(Length::Fixed(5.0)))
+                    .push(
+                        PendingProposalsList::new(self.proposals.clone())
+                            .hide_policy_id()
+                            .take(3)
+                            .view(),
+                    );
+            }
+
+            content = content
                 .push(Space::with_height(Length::Fixed(20.0)))
+                .push(Text::new("Transactions").bold().size(25).view())
+                .push(Space::with_height(Length::Fixed(5.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())
                         .take(5)

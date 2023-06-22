@@ -478,6 +478,29 @@ impl Store {
         Ok(proposals)
     }
 
+    pub fn get_proposals_by_policy_id(
+        &self,
+        policy_id: EventId,
+    ) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn
+            .prepare_cached("SELECT proposal_id, proposal FROM proposals WHERE policy_id = ?;")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let mut proposals = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let proposal_id: String = row.get(0)?;
+            let proposal: String = row.get(1)?;
+            proposals.insert(
+                EventId::from_hex(proposal_id)?,
+                (
+                    policy_id,
+                    Proposal::decrypt_with_keys(&self.keys, proposal)?,
+                ),
+            );
+        }
+        Ok(proposals)
+    }
+
     pub fn get_proposal(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached(
