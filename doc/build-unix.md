@@ -55,3 +55,9 @@ GUI dependencies:
 ```
 sudo dnf install clang clang-devel clang-tools-extra speech-dispatcher-devel libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel
 ```
+
+### MacOS
+
+```
+xcode-select --install
+```
