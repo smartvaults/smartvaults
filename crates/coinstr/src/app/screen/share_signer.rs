@@ -117,8 +117,9 @@ impl State for ShareSignerState {
 
         if self.loaded {
             if self.contacts.is_empty() {
-                let add_contact_btn =
-                    button::primary_with_icon(PLUS, "Add contacts").width(Length::Fixed(250.0));
+                let add_contact_btn = button::primary_with_icon(PLUS, "Add contacts")
+                    .on_press(Message::View(Stage::AddContact))
+                    .width(Length::Fixed(250.0));
                 let reload_btn = button::border_with_icon(RELOAD, "Reload")
                     .width(Length::Fixed(250.0))
                     .on_press(ShareSignerMessage::Reload.into());

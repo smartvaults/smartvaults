@@ -16,11 +16,11 @@ use crate::theme::Theme;
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
-    AddAirGapSignerState, AddHWSignerState, AddPolicyState, AddSignerState, CompletedProposalState,
-    ContactsState, DashboardState, HistoryState, NewProofState, NotificationsState, PoliciesState,
-    PolicyState, ProfileState, ProposalState, ProposalsState, ReceiveState, RestorePolicyState,
-    SelfTransferState, SettingState, ShareSignerState, SignerState, SignersState, SpendState,
-    TransactionState, TransactionsState,
+    AddAirGapSignerState, AddContactState, AddHWSignerState, AddPolicyState, AddSignerState,
+    CompletedProposalState, ContactsState, DashboardState, HistoryState, NewProofState,
+    NotificationsState, PoliciesState, PolicyState, ProfileState, ProposalState, ProposalsState,
+    ReceiveState, RestorePolicyState, SelfTransferState, SettingState, ShareSignerState,
+    SignerState, SignersState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -73,6 +73,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
         Stage::Contacts => ContactsState::new().into(),
+        Stage::AddContact => AddContactState::new().into(),
         Stage::Notifications => NotificationsState::new().into(),
         Stage::Profile => ProfileState::new().into(),
         Stage::Setting => SettingState::new().into(),

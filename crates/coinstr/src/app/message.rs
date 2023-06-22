@@ -2,12 +2,12 @@
 // Distributed under the MIT software license
 
 use super::screen::{
-    AddAirGapSignerMessage, AddHWSignerMessage, AddPolicyMessage, AddSignerMessage,
-    CompletedProposalMessage, ContactsMessage, DashboardMessage, HistoryMessage, NewProofMessage,
-    NotificationsMessage, PoliciesMessage, PolicyMessage, ProfileMessage, ProposalMessage,
-    ProposalsMessage, ReceiveMessage, RestorePolicyMessage, SelfTransferMessage, SettingMessage,
-    ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage, TransactionMessage,
-    TransactionsMessage,
+    AddAirGapSignerMessage, AddContactMessage, AddHWSignerMessage, AddPolicyMessage,
+    AddSignerMessage, CompletedProposalMessage, ContactsMessage, DashboardMessage, HistoryMessage,
+    NewProofMessage, NotificationsMessage, PoliciesMessage, PolicyMessage, ProfileMessage,
+    ProposalMessage, ProposalsMessage, ReceiveMessage, RestorePolicyMessage, SelfTransferMessage,
+    SettingMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
+    TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -36,6 +36,7 @@ pub enum Message {
     AddAirGapSigner(AddAirGapSignerMessage),
     ShareSigner(ShareSignerMessage),
     Contacts(ContactsMessage),
+    AddContact(AddContactMessage),
     Notifications(NotificationsMessage),
     Profile(ProfileMessage),
     Setting(SettingMessage),

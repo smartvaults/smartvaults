@@ -73,8 +73,9 @@ impl State for ContactsState {
 
         if self.loaded {
             if self.contacts.is_empty() {
-                let add_contact_btn =
-                    button::primary_with_icon(PLUS, "Add contacts").width(Length::Fixed(250.0));
+                let add_contact_btn = button::primary_with_icon(PLUS, "Add contacts")
+                    .on_press(Message::View(Stage::AddContact))
+                    .width(Length::Fixed(250.0));
                 let reload_btn = button::border_with_icon(RELOAD, "Reload")
                     .width(Length::Fixed(250.0))
                     .on_press(ContactsMessage::Reload.into());
@@ -89,7 +90,7 @@ impl State for ContactsState {
 
                 let add_contact_btn = button::border_only_icon(PLUS)
                     .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::AddPolicy));
+                    .on_press(Message::View(Stage::AddContact));
                 let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
                 if !self.loading {
