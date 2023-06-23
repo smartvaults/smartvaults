@@ -44,6 +44,16 @@ where
                         .show() {
                             log::error!("Impossible to send desktop notification: {e}");
                         },
+                        Notification::NewApproval { proposal_id, public_key } => if let Err(e) = DesktopNotification::new()
+                        .summary("Coinstr")
+                        .body(&format!(
+                            "{} approved proposal #{}",
+                            util::cut_public_key(public_key),
+                            util::cut_event_id(proposal_id)
+                        ))
+                        .show() {
+                            log::error!("Impossible to send desktop notification: {e}");
+                        },
                         Notification::NewSharedSigner { shared_signer_id, owner_public_key } => if let Err(e) = DesktopNotification::new()
                         .summary("Coinstr")
                         .body(&format!("{} shared a signer with you: #{}", util::cut_public_key(owner_public_key), util::cut_event_id(shared_signer_id)))

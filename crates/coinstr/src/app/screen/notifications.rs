@@ -71,6 +71,9 @@ impl State for NotificationsState {
                             match notification {
                                 Notification::NewPolicy(id) => Message::View(Stage::Policy(id)),
                                 Notification::NewProposal(id) => Message::View(Stage::Proposal(id)),
+                                Notification::NewApproval { proposal_id, .. } => {
+                                    Message::View(Stage::Proposal(proposal_id))
+                                }
                                 Notification::NewSharedSigner { .. } => {
                                     Message::View(Stage::Signers)
                                 }
@@ -167,6 +170,16 @@ impl State for NotificationsState {
                         }
                         Notification::NewProposal(id) => {
                             format!("New proposal: #{}", util::cut_event_id(*id))
+                        }
+                        Notification::NewApproval {
+                            proposal_id,
+                            public_key,
+                        } => {
+                            format!(
+                                "{} approved proposal #{}",
+                                util::cut_public_key(*public_key),
+                                util::cut_event_id(*proposal_id)
+                            )
                         }
                         Notification::NewSharedSigner {
                             shared_signer_id,

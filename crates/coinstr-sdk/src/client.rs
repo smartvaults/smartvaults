@@ -127,10 +127,10 @@ pub enum Error {
 pub enum Notification {
     NewPolicy(EventId),
     NewProposal(EventId),
-    /* NewApproval {
+    NewApproval {
         proposal_id: EventId,
-        approval_id: EventId,
-    } */
+        public_key: XOnlyPublicKey,
+    },
     NewSharedSigner {
         shared_signer_id: EventId,
         owner_public_key: XOnlyPublicKey,
@@ -1482,6 +1482,12 @@ impl Coinstr {
                             approved_proposal,
                             event.created_at,
                         )?;
+                        let notification = Notification::NewApproval {
+                            proposal_id,
+                            public_key: event.pubkey,
+                        };
+                        self.db.save_notification(event.id, notification)?;
+                        return Ok(Some(Message::Notification(notification)));
                     } else {
                         self.db.save_pending_event(&event)?;
                     }
