@@ -1,13 +1,15 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::util;
 use iced::widget::Column;
-use iced::{Command, Element};
+use iced::{Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
-use crate::component::Text;
+use crate::component::{button, Text};
 use crate::constants::APP_NAME;
+use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
 pub enum ProfileMessage {}
@@ -49,6 +51,16 @@ impl State for ProfileState {
         if self.loaded {
             center_y = false;
             center_x = false;
+
+            let public_key = ctx.client.keys().public_key();
+
+            content = content
+                .push(Text::new(util::cut_public_key(public_key)).view())
+                .push(
+                    button::border_only_icon(CLIPBOARD)
+                        .on_press(Message::Clipboard(public_key.to_string()))
+                        .width(Length::Fixed(40.0)),
+                );
         } else {
             content = content.push(Text::new("Loading...").view());
         }
