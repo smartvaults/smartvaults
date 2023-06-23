@@ -5,9 +5,6 @@ use std::time::Duration;
 
 use nostr_sdk::Kind;
 
-// Derivation paths
-pub const COINSTR_ACCOUNT_INDEX: u32 = 784923;
-
 // Kinds
 pub const SHARED_KEY_KIND: Kind = Kind::Custom(9288);
 pub const POLICY_KIND: Kind = Kind::Custom(9289);

@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::constants::COINSTR_ACCOUNT_INDEX;
+use coinstr_sdk::core::constants::COINSTR_ACCOUNT_INDEX;
 use coinstr_sdk::core::hwi::types::HWIDevice;
 use coinstr_sdk::core::hwi::HWIClient;
 use coinstr_sdk::core::signer::Signer;

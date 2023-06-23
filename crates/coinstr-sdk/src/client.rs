@@ -20,6 +20,7 @@ use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{Balance, FeeRate, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
+use coinstr_core::constants::COINSTR_ACCOUNT_INDEX;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
@@ -38,9 +39,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
 use crate::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COINSTR_ACCOUNT_INDEX,
-    COMPLETED_PROPOSAL_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND,
-    SIGNERS_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
+    PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
     GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,

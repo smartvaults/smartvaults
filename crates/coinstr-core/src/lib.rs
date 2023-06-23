@@ -5,6 +5,7 @@
 pub use hwi;
 pub use keechain_core::*;
 
+pub mod constants;
 pub mod policy;
 pub mod proposal;
 pub mod reserves;
