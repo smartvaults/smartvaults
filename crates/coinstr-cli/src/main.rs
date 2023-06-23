@@ -37,25 +37,6 @@ async fn main() {
 async fn run() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
-    let relays: Vec<String> = match network {
-        Network::Bitcoin => vec![
-            "wss://relay.house".into(),
-            "wss://relay.snort.social".into(),
-            "wss://relay.nostr.bg".into(),
-            "wss://relay.nostr.ch".into(),
-            "wss://relay.nostr.info".into(),
-            "wss://nostr.rocks".into(),
-            "wss://relay.damus.io".into(),
-            "wss://nostr.bitcoiner.social".into(),
-        ],
-        _ => vec![
-            "wss://relay.rip".into(),
-            "wss://nos.lol".into(),
-            "wss://relay.nostrich.de".into(),
-            "wss://nostr.mom".into(),
-            "wss://nostr.openchain.fr".into(),
-        ],
-    };
     let base_path: PathBuf = coinstr_common::base_path()?;
 
     let endpoint: &str = match network {
@@ -121,6 +102,7 @@ async fn run() -> Result<()> {
         }
         CliCommand::Open { name } => {
             let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
+            let relays = coinstr.default_relays();
             coinstr.add_relays_and_connect(relays).await?;
             coinstr.set_electrum_endpoint(endpoint);
             coinstr.sync();

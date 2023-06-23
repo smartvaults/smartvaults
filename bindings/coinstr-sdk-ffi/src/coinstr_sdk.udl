@@ -75,6 +75,7 @@ interface Coinstr {
     [Throws=FFIError]
     void add_relay(string url);
     void connect();
+    sequence<string> default_relays();
     [Throws=FFIError]
     void add_relays_and_connect(sequence<string> relays);
     [Throws=FFIError]

@@ -115,25 +115,7 @@ impl Context {
             Network::Signet => "tcp://signet-electrumx.wakiyamap.dev:50001",
             Network::Regtest => "tcp://localhost:60401",
         };
-        let relays: Vec<String> = match coinstr.network() {
-            Network::Bitcoin => vec![
-                "wss://relay.house".into(),
-                "wss://relay.snort.social".into(),
-                "wss://relay.nostr.bg".into(),
-                "wss://relay.nostr.ch".into(),
-                "wss://relay.nostr.info".into(),
-                "wss://nostr.rocks".into(),
-                "wss://relay.damus.io".into(),
-                "wss://nostr.bitcoiner.social".into(),
-            ],
-            _ => vec![
-                "wss://relay.rip".into(),
-                "wss://nos.lol".into(),
-                "wss://relay.nostrich.de".into(),
-                "wss://nostr.mom".into(),
-                "wss://nostr.openchain.fr".into(),
-            ],
-        };
+        let relays = coinstr.default_relays();
         coinstr.set_electrum_endpoint(endpoint);
         RUNTIME.block_on(async {
             coinstr

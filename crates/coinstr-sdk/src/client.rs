@@ -434,6 +434,29 @@ impl Coinstr {
         self.client.connect().await;
     }
 
+    /// Get default relays for current [`Network`]
+    pub fn default_relays(&self) -> Vec<String> {
+        match self.network {
+            Network::Bitcoin => vec![
+                "wss://relay.house".into(),
+                "wss://relay.snort.social".into(),
+                "wss://relay.nostr.bg".into(),
+                "wss://relay.nostr.ch".into(),
+                "wss://relay.nostr.info".into(),
+                "wss://nostr.rocks".into(),
+                "wss://relay.damus.io".into(),
+                "wss://nostr.bitcoiner.social".into(),
+            ],
+            _ => vec![
+                "wss://relay.rip".into(),
+                "wss://nos.lol".into(),
+                "wss://relay.nostrich.de".into(),
+                "wss://nostr.mom".into(),
+                "wss://nostr.openchain.fr".into(),
+            ],
+        }
+    }
+
     /// Add relays
     /// Connect
     /// Rebroadcast stored events

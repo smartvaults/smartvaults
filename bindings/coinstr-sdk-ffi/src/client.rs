@@ -124,6 +124,10 @@ impl Coinstr {
         })
     }
 
+    pub fn default_relays(&self) -> Vec<String> {
+        self.inner.default_relays()
+    }
+
     /// Add relays
     /// Connect
     /// Rebroadcast stored events
