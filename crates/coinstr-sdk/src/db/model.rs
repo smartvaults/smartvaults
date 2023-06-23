@@ -7,7 +7,7 @@ use coinstr_core::signer::SharedSigner;
 use coinstr_core::{ApprovedProposal, Policy};
 use nostr_sdk::Timestamp;
 
-use crate::Notification;
+use crate::types::Notification;
 
 #[derive(Debug, Clone)]
 pub struct GetPolicyResult {

@@ -39,7 +39,8 @@ use super::model::{
     GetApprovedProposalResult, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
     GetSharedSignerResult,
 };
-use crate::client::{Message, Notification};
+use crate::client::Message;
+use crate::types::Notification;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 
 const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);

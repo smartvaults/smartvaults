@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::db::model::GetNotificationsResult;
-use coinstr_sdk::{util, Notification};
+use coinstr_sdk::Notification;
 use iced::widget::{Column, Row};
 use iced::{Alignment, Command, Element, Length};
 
@@ -164,34 +164,7 @@ impl State for NotificationsState {
                     let mut datetime =
                         Text::new(timestamp.to_human_datetime()).width(Length::Fixed(225.0));
 
-                    let mut description = Text::new(match notification {
-                        Notification::NewPolicy(id) => {
-                            format!("New policy: #{}", util::cut_event_id(*id))
-                        }
-                        Notification::NewProposal(id) => {
-                            format!("New proposal: #{}", util::cut_event_id(*id))
-                        }
-                        Notification::NewApproval {
-                            proposal_id,
-                            public_key,
-                        } => {
-                            format!(
-                                "{} approved proposal #{}",
-                                util::cut_public_key(*public_key),
-                                util::cut_event_id(*proposal_id)
-                            )
-                        }
-                        Notification::NewSharedSigner {
-                            shared_signer_id,
-                            owner_public_key,
-                        } => {
-                            format!(
-                                "{} shared a signer with you: #{}",
-                                util::cut_public_key(*owner_public_key),
-                                util::cut_event_id(*shared_signer_id)
-                            )
-                        }
-                    });
+                    let mut description = Text::new(notification.to_string());
 
                     if *seen {
                         datetime = datetime.color(GREY).extra_light();

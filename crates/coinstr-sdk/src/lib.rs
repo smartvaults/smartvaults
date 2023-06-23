@@ -11,4 +11,5 @@ mod thread;
 pub mod types;
 pub mod util;
 
-pub use self::client::{Coinstr, Notification};
+pub use self::client::Coinstr;
+pub use self::types::Notification;

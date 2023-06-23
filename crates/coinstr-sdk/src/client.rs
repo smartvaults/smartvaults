@@ -35,7 +35,6 @@ use nostr_sdk::{
     Relay, RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use parking_lot::RwLock;
-use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
 use crate::constants::{
@@ -47,7 +46,7 @@ use crate::db::model::{
 };
 use crate::db::store::{GetApprovedProposals, Transactions};
 use crate::db::Store;
-use crate::types::backup::PolicyBackup;
+use crate::types::{Notification, PolicyBackup};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 use crate::{thread, util};
 
@@ -122,22 +121,6 @@ pub enum Error {
     #[error("{0}")]
     Generic(String),
 }
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum Notification {
-    NewPolicy(EventId),
-    NewProposal(EventId),
-    NewApproval {
-        proposal_id: EventId,
-        public_key: XOnlyPublicKey,
-    },
-    NewSharedSigner {
-        shared_signer_id: EventId,
-        owner_public_key: XOnlyPublicKey,
-    },
-}
-
-impl Serde for Notification {}
 
 #[derive(Debug, Clone)]
 pub enum Message {

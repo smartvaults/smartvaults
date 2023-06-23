@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 
 use async_stream::stream;
 use coinstr_sdk::client::Message;
-use coinstr_sdk::{util, Coinstr, Notification};
+use coinstr_sdk::Coinstr;
 use iced::Subscription;
 use iced_futures::BoxStream;
 use notify_rust::Notification as DesktopNotification;
@@ -31,36 +31,9 @@ where
         let stream = stream! {
             while let Ok(item) = receiver.recv().await {
                 if let Some(Message::Notification(notification)) = item {
-                    match notification {
-                        Notification::NewPolicy(_) => if let Err(e) = DesktopNotification::new()
-                        .summary("Coinstr")
-                        .body("New policy")
-                        .show() {
-                            log::error!("Impossible to send desktop notification: {e}");
-                        },
-                        Notification::NewProposal(_) => if let Err(e) = DesktopNotification::new()
-                        .summary("Coinstr")
-                        .body("New proposal")
-                        .show() {
-                            log::error!("Impossible to send desktop notification: {e}");
-                        },
-                        Notification::NewApproval { proposal_id, public_key } => if let Err(e) = DesktopNotification::new()
-                        .summary("Coinstr")
-                        .body(&format!(
-                            "{} approved proposal #{}",
-                            util::cut_public_key(public_key),
-                            util::cut_event_id(proposal_id)
-                        ))
-                        .show() {
-                            log::error!("Impossible to send desktop notification: {e}");
-                        },
-                        Notification::NewSharedSigner { shared_signer_id, owner_public_key } => if let Err(e) = DesktopNotification::new()
-                        .summary("Coinstr")
-                        .body(&format!("{} shared a signer with you: #{}", util::cut_public_key(owner_public_key), util::cut_event_id(shared_signer_id)))
-                        .show() {
-                            log::error!("Impossible to send desktop notification: {e}");
-                        },
-                    }
+                    if let Err(e) = DesktopNotification::new().summary("Coinstr").body(&notification.to_string()).show() {
+                        log::error!("Impossible to send desktop notification: {e}");
+                    };
                 }
                 yield ();
             }
