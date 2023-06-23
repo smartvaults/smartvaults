@@ -13,6 +13,7 @@ use crate::theme::Theme;
 #[derive(Debug, Clone)]
 pub enum SettingMessage {
     ThemeChanged(Theme),
+    RebroadcastAllEvents,
     ClearCache,
 }
 
@@ -34,6 +35,13 @@ impl State for SettingState {
         if let Message::Setting(msg) = message {
             match msg {
                 SettingMessage::ThemeChanged(theme) => ctx.theme = theme,
+                SettingMessage::RebroadcastAllEvents => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.rebroadcast_all_events().await.unwrap() },
+                        move |_| Message::View(Stage::Dashboard),
+                    );
+                }
                 SettingMessage::ClearCache => {
                     let client = ctx.client.clone();
                     return Command::perform(
@@ -63,6 +71,10 @@ impl State for SettingState {
         );
         let content = Column::new()
             .push(choose_theme)
+            .push(
+                button::primary("Rebroadcast all events")
+                    .on_press(SettingMessage::RebroadcastAllEvents.into()),
+            )
             .push(button::danger_border("Clear cache").on_press(SettingMessage::ClearCache.into()));
         Dashboard::new().view(ctx, content, true, true)
     }
