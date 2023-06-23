@@ -9,7 +9,7 @@ use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::Proposal;
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::{EventId, Timestamp};
-use coinstr_sdk::{util, Notification};
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -86,9 +86,7 @@ impl State for PolicyState {
         self.loading = true;
         Command::perform(
             async move {
-                client
-                    .mark_notification_as_seen(Notification::NewPolicy(policy_id))
-                    .ok()?;
+                client.mark_notification_as_seen_by_id(policy_id).ok()?;
                 let (policy, balance, list, last_sync) =
                     client.db.policy_with_details(policy_id)?;
                 let proposals = client.get_proposals_by_policy_id(policy_id).ok()?;

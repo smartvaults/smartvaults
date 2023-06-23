@@ -1445,7 +1445,7 @@ impl Coinstr {
                 } else {
                     self.db.save_policy(event.id, policy, nostr_pubkeys)?;
                     let notification = Notification::NewPolicy(event.id);
-                    self.db.save_notification(notification)?;
+                    self.db.save_notification(event.id, notification)?;
                     return Ok(Some(Message::Notification(notification)));
                 }
             } else {
@@ -1457,7 +1457,7 @@ impl Coinstr {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
                     self.db.save_proposal(event.id, policy_id, proposal)?;
                     let notification = Notification::NewProposal(event.id);
-                    self.db.save_notification(notification)?;
+                    self.db.save_notification(event.id, notification)?;
                     return Ok(Some(Message::Notification(notification)));
                 } else {
                     self.db.save_pending_event(&event)?;
@@ -1548,7 +1548,7 @@ impl Coinstr {
                     shared_signer_id: event.id,
                     owner_public_key: event.pubkey,
                 };
-                self.db.save_notification(notification)?;
+                self.db.save_notification(event.id, notification)?;
                 return Ok(Some(Message::Notification(notification)));
             }
         } else if event.kind == Kind::EventDeletion {
@@ -1735,6 +1735,10 @@ impl Coinstr {
 
     pub fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
         Ok(self.db.mark_all_notifications_as_seen()?)
+    }
+
+    pub fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
+        Ok(self.db.mark_notification_as_seen_by_id(event_id)?)
     }
 
     pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {

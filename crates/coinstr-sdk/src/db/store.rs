@@ -340,7 +340,7 @@ impl Store {
         self.set_event_as_deleted(policy_id)?;
 
         // Delete notification
-        self.delete_notification(Notification::NewPolicy(policy_id))?;
+        self.delete_notification(policy_id)?;
 
         // Delete policy
         let conn = self.pool.get()?;
@@ -520,7 +520,7 @@ impl Store {
         self.set_event_as_deleted(proposal_id)?;
 
         // Delete notification
-        self.delete_notification(Notification::NewProposal(proposal_id))?;
+        self.delete_notification(proposal_id)?;
 
         // Delete proposal
         let conn = self.pool.get()?;
@@ -956,12 +956,20 @@ impl Store {
         Ok(events)
     }
 
-    pub fn save_notification(&self, notification: Notification) -> Result<(), Error> {
+    pub fn save_notification(
+        &self,
+        event_id: EventId,
+        notification: Notification,
+    ) -> Result<(), Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached(
-            "INSERT OR IGNORE INTO notifications (notification, timestamp) VALUES (?, ?);",
+            "INSERT OR IGNORE INTO notifications (event_id, notification, timestamp) VALUES (?, ?, ?);",
         )?;
-        stmt.execute((notification.as_json(), Timestamp::now().as_u64()))?;
+        stmt.execute((
+            event_id.to_hex(),
+            notification.as_json(),
+            Timestamp::now().as_u64(),
+        ))?;
         Ok(())
     }
 
@@ -998,6 +1006,14 @@ impl Store {
         Ok(count)
     }
 
+    pub fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE event_id = ?")?;
+        stmt.execute([event_id.to_hex()])?;
+        Ok(())
+    }
+
     pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
         let conn = self.pool.get()?;
         let mut stmt =
@@ -1020,10 +1036,10 @@ impl Store {
         Ok(())
     }
 
-    pub fn delete_notification(&self, notification: Notification) -> Result<(), Error> {
+    pub fn delete_notification(&self, event_id: EventId) -> Result<(), Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE notification = ?")?;
-        stmt.execute([notification.as_json()])?;
+        let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE event_id = ?")?;
+        stmt.execute([event_id.to_hex()])?;
         Ok(())
     }
 
@@ -1099,13 +1115,7 @@ impl Store {
         self.set_event_as_deleted(shared_signer_id)?;
 
         // Delete notification
-        if let Ok(owner_public_key) = self.get_owner_public_key_for_shared_signer(shared_signer_id)
-        {
-            self.delete_notification(Notification::NewSharedSigner {
-                shared_signer_id,
-                owner_public_key,
-            })?;
-        }
+        self.delete_notification(shared_signer_id)?;
 
         let conn = self.pool.get()?;
         conn.execute(
