@@ -20,6 +20,21 @@ enum LogLevel {
     "Trace",
 };
 
+enum RelayStatus {
+    "Initialized",
+    "Connected",
+    "Connecting",
+    "Disconnected",
+    "Stopped",
+    "Terminated",
+};
+
+interface Relay {
+    string url();
+    RelayStatus status();
+    boolean is_connected();
+};
+
 enum Network {
     "Bitcoin",
     "Testnet",
@@ -83,6 +98,7 @@ interface Coinstr {
 
     [Throws=FFIError]
     void add_relay(string url);
+    sequence<Relay> relays();
     void connect();
     sequence<string> default_relays();
     [Throws=FFIError]

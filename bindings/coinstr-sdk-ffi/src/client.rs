@@ -18,7 +18,7 @@ use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::{block_on, EventId};
 
 use crate::error::Result;
-use crate::{Amount, Balance, CompletedProposal, Policy, Proposal};
+use crate::{Amount, Balance, CompletedProposal, Policy, Proposal, Relay};
 
 pub struct Coinstr {
     inner: client::Coinstr,
@@ -115,6 +115,17 @@ impl Coinstr {
     /// Add new relay
     pub fn add_relay(&self, url: String) -> Result<()> {
         block_on(async move { Ok(self.inner.add_relay(url, None).await?) })
+    }
+
+    pub fn relays(&self) -> Vec<Arc<Relay>> {
+        block_on(async move {
+            self.inner
+                .relays()
+                .await
+                .into_values()
+                .map(|relay| Arc::new(relay.into()))
+                .collect()
+        })
     }
 
     /// Connect relays

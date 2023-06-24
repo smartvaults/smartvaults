@@ -8,6 +8,7 @@ mod error;
 mod logger;
 mod policy;
 mod proposal;
+mod relay;
 
 use self::error::Result;
 
@@ -22,6 +23,7 @@ mod ffi {
     // External
     pub use coinstr_sdk::core::bitcoin::Network;
     pub use coinstr_sdk::core::types::WordCount;
+    pub use coinstr_sdk::nostr::RelayStatus;
 
     // Namespace
     pub use crate::get_keychains_list;
@@ -33,6 +35,7 @@ mod ffi {
     pub use crate::client::Coinstr;
     pub use crate::policy::Policy;
     pub use crate::proposal::{CompletedProposal, Proposal};
+    pub use crate::relay::Relay;
 
     // UDL
     uniffi_macros::include_scaffolding!("coinstr_sdk");
