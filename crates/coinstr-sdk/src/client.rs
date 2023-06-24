@@ -1182,8 +1182,12 @@ impl Coinstr {
         Ok(signer_id)
     }
 
+    /// Get all own signers and contacts shared signers
     pub fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
-        Ok(self.db.get_all_signers()?)
+        Ok(GetAllSigners {
+            my: self.get_signers()?,
+            contacts: self.get_shared_signers()?,
+        })
     }
 
     pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {

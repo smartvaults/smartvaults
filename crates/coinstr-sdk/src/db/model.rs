@@ -7,7 +7,7 @@ use bdk::bitcoin::XOnlyPublicKey;
 use bdk::Balance;
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, Policy};
-use nostr_sdk::Timestamp;
+use nostr_sdk::{EventId, Timestamp};
 
 use crate::types::Notification;
 
@@ -44,8 +44,8 @@ pub struct GetSharedSignerResult {
     pub shared_signer: SharedSigner,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GetAllSigners {
-    pub my: Vec<Signer>,
-    pub contacts: BTreeMap<XOnlyPublicKey, Vec<SharedSigner>>,
+    pub my: BTreeMap<EventId, Signer>,
+    pub contacts: BTreeMap<EventId, GetSharedSignerResult>,
 }
