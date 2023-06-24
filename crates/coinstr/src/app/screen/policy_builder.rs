@@ -355,38 +355,43 @@ fn view_signer_selector<'a>(
 
     let public_key = ctx.client.keys().public_key();
     for (signer_id, signer) in state.signers.my.iter() {
-        let descriptor = signer.descriptor_public_key().unwrap();
-        let row = Row::new()
-            .push(
-                Text::new(util::cut_event_id(*signer_id))
-                    .width(Length::Fixed(115.0))
-                    .view(),
-            )
-            .push(Text::new(signer.name()).width(Length::Fill).view())
-            .push(
-                Text::new(signer.fingerprint().to_string())
-                    .width(Length::Fixed(175.0))
-                    .view(),
-            )
-            .push(
-                Text::new(signer.signer_type().to_string())
-                    .width(Length::Fixed(125.0))
-                    .view(),
-            )
-            .push(if state.is_already_selected(&descriptor) {
-                button::primary("Selected").width(Length::Fixed(180.0))
-            } else {
-                button::border("Select")
-                    .width(Length::Fixed(180.0))
-                    .on_press(
-                        PolicyBuilderMessage::EditSigner(index, public_key, Box::new(descriptor))
+        if let Ok(descriptor) = signer.descriptor_public_key() {
+            let row = Row::new()
+                .push(
+                    Text::new(util::cut_event_id(*signer_id))
+                        .width(Length::Fixed(115.0))
+                        .view(),
+                )
+                .push(Text::new(signer.name()).width(Length::Fill).view())
+                .push(
+                    Text::new(signer.fingerprint().to_string())
+                        .width(Length::Fixed(175.0))
+                        .view(),
+                )
+                .push(
+                    Text::new(signer.signer_type().to_string())
+                        .width(Length::Fixed(125.0))
+                        .view(),
+                )
+                .push(if state.is_already_selected(&descriptor) {
+                    button::primary("Selected").width(Length::Fixed(180.0))
+                } else {
+                    button::border("Select")
+                        .width(Length::Fixed(180.0))
+                        .on_press(
+                            PolicyBuilderMessage::EditSigner(
+                                index,
+                                public_key,
+                                Box::new(descriptor),
+                            )
                             .into(),
-                    )
-            })
-            .spacing(10)
-            .align_items(Alignment::Center)
-            .width(Length::Fill);
-        content = content.push(row).push(rule::horizontal());
+                        )
+                })
+                .spacing(10)
+                .align_items(Alignment::Center)
+                .width(Length::Fill);
+            content = content.push(row).push(rule::horizontal());
+        }
     }
 
     // Shared Signers
@@ -432,41 +437,42 @@ fn view_signer_selector<'a>(
         },
     ) in state.signers.contacts.iter()
     {
-        let descriptor = shared_signer.descriptor_public_key().unwrap();
-        let row = Row::new()
-            .push(
-                Text::new(util::cut_event_id(*shared_signer_id))
-                    .width(Length::Fixed(115.0))
-                    .view(),
-            )
-            .push(
-                Text::new(shared_signer.fingerprint().to_string())
-                    .width(Length::Fixed(175.0))
-                    .view(),
-            )
-            .push(
-                Text::new(util::cut_public_key(*owner_public_key))
-                    .width(Length::Fill)
-                    .view(),
-            )
-            .push(if state.is_already_selected(&descriptor) {
-                button::primary("Selected").width(Length::Fixed(180.0))
-            } else {
-                button::border("Select")
-                    .width(Length::Fixed(180.0))
-                    .on_press(
-                        PolicyBuilderMessage::EditSigner(
-                            index,
-                            *owner_public_key,
-                            Box::new(descriptor),
+        if let Ok(descriptor) = shared_signer.descriptor_public_key() {
+            let row = Row::new()
+                .push(
+                    Text::new(util::cut_event_id(*shared_signer_id))
+                        .width(Length::Fixed(115.0))
+                        .view(),
+                )
+                .push(
+                    Text::new(shared_signer.fingerprint().to_string())
+                        .width(Length::Fixed(175.0))
+                        .view(),
+                )
+                .push(
+                    Text::new(util::cut_public_key(*owner_public_key))
+                        .width(Length::Fill)
+                        .view(),
+                )
+                .push(if state.is_already_selected(&descriptor) {
+                    button::primary("Selected").width(Length::Fixed(180.0))
+                } else {
+                    button::border("Select")
+                        .width(Length::Fixed(180.0))
+                        .on_press(
+                            PolicyBuilderMessage::EditSigner(
+                                index,
+                                *owner_public_key,
+                                Box::new(descriptor),
+                            )
+                            .into(),
                         )
-                        .into(),
-                    )
-            })
-            .spacing(10)
-            .align_items(Alignment::Center)
-            .width(Length::Fill);
-        content = content.push(row).push(rule::horizontal());
+                })
+                .spacing(10)
+                .align_items(Alignment::Center)
+                .width(Length::Fill);
+            content = content.push(row).push(rule::horizontal());
+        }
     }
 
     content
