@@ -338,6 +338,16 @@ impl Store {
     }
 
     pub fn delete_policy(&self, policy_id: EventId) -> Result<(), Error> {
+        let proposal_ids = self.get_proposal_ids_by_policy_id(policy_id)?;
+        for proposal_id in proposal_ids.into_iter() {
+            self.delete_proposal(proposal_id)?;
+        }
+
+        let completed_proposal_ids = self.get_completed_proposal_ids_by_policy_id(policy_id)?;
+        for completed_proposal_id in completed_proposal_ids.into_iter() {
+            self.delete_completed_proposal(completed_proposal_id)?;
+        }
+
         self.set_event_as_deleted(policy_id)?;
 
         // Delete notification
@@ -361,6 +371,15 @@ impl Store {
         wallets.remove(&policy_id);
         log::info!("Deleted policy {policy_id}");
         Ok(())
+    }
+
+    pub fn get_event_ids_linked_to_policy(
+        &self,
+        policy_id: EventId,
+    ) -> Result<Vec<EventId>, Error> {
+        let proposal_ids = self.get_proposal_ids_by_policy_id(policy_id)?;
+        let completed_proposal_ids = self.get_completed_proposal_ids_by_policy_id(policy_id)?;
+        Ok([proposal_ids, completed_proposal_ids].concat())
     }
 
     pub fn shared_key_exists_for_policy(&self, policy_id: EventId) -> Result<bool, Error> {
@@ -477,6 +496,19 @@ impl Store {
             );
         }
         Ok(proposals)
+    }
+
+    fn get_proposal_ids_by_policy_id(&self, policy_id: EventId) -> Result<Vec<EventId>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare_cached("SELECT proposal_id FROM proposals WHERE policy_id = ?;")?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let mut ids = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let proposal_id: String = row.get(0)?;
+            ids.push(EventId::from_hex(proposal_id)?);
+        }
+        Ok(ids)
     }
 
     pub fn get_proposals_by_policy_id(
@@ -684,6 +716,23 @@ impl Store {
             EventId::from_hex(policy_id)?,
             CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
         ))
+    }
+
+    fn get_completed_proposal_ids_by_policy_id(
+        &self,
+        policy_id: EventId,
+    ) -> Result<Vec<EventId>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT completed_proposal_id FROM completed_proposals WHERE policy_id = ?;",
+        )?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let mut ids = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let completed_proposal_id: String = row.get(0)?;
+            ids.push(EventId::from_hex(completed_proposal_id)?);
+        }
+        Ok(ids)
     }
 
     pub fn delete_completed_proposal(&self, completed_proposal_id: EventId) -> Result<(), Error> {

@@ -545,27 +545,22 @@ impl Coinstr {
         }
     }
 
-    pub async fn delete_policy_by_id(
-        &self,
-        policy_id: EventId,
-        timeout: Option<Duration>,
-    ) -> Result<(), Error> {
+    pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
         // Get nostr pubkeys and shared keys
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
         let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         // Get all events linked to the policy
-        let filter = Filter::new().event(policy_id);
-        let events = self.client.get_events_of(vec![filter], timeout).await?;
+        let event_ids = self.db.get_event_ids_linked_to_policy(policy_id)?;
 
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
             .map(|p| Tag::PubKey(p, None))
             .collect();
         tags.push(Tag::Event(policy_id, None, None));
-        events
+        event_ids
             .into_iter()
-            .for_each(|e| tags.push(Tag::Event(e.id, None, None)));
+            .for_each(|id| tags.push(Tag::Event(id, None, None)));
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
         self.send_event(event).await?;
@@ -656,11 +651,7 @@ impl Coinstr {
         Ok(())
     }
 
-    pub async fn delete_signer_by_id(
-        &self,
-        signer_id: EventId,
-        _timeout: Option<Duration>,
-    ) -> Result<(), Error> {
+    pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
         if signer_id != EventId::all_zeros() {
             let keys = self.client.keys();
 

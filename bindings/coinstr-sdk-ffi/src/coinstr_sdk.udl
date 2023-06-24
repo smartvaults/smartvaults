@@ -125,13 +125,13 @@ interface Coinstr {
     CompletedProposal get_completed_proposal_by_id(string completed_proposal_id);
 
     [Throws=FFIError]
-    void delete_policy_by_id(string policy_id, duration? timeout);  
+    void delete_policy_by_id(string policy_id);  
     [Throws=FFIError]
     void delete_proposal_by_id(string proposal_id);  
     [Throws=FFIError]
     void delete_completed_proposal_by_id(string completed_proposal_id);
     [Throws=FFIError]
-    void delete_signer_by_id(string signer_id, duration? timeout); 
+    void delete_signer_by_id(string signer_id); 
 
     [Throws=FFIError]
     record<DOMString, Policy> get_policies();

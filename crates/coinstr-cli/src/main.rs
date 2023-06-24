@@ -3,7 +3,6 @@
 
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time::Duration;
 
 use clap::Parser;
 use cli::AddCommand;
@@ -24,8 +23,6 @@ use self::cli::{
     io, Cli, CliCommand, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand,
     ShareCommand,
 };
-
-const TIMEOUT: Option<Duration> = Some(Duration::from_secs(30));
 
 #[tokio::main]
 async fn main() {
@@ -338,7 +335,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         },
         Command::Delete { command } => match command {
             DeleteCommand::Policy { policy_id } => {
-                Ok(coinstr.delete_policy_by_id(policy_id, TIMEOUT).await?)
+                Ok(coinstr.delete_policy_by_id(policy_id).await?)
             }
             DeleteCommand::Proposal {
                 proposal_id,
@@ -351,7 +348,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 }
             }
             DeleteCommand::Signer { signer_id } => {
-                Ok(coinstr.delete_signer_by_id(signer_id, TIMEOUT).await?)
+                Ok(coinstr.delete_signer_by_id(signer_id).await?)
             }
             DeleteCommand::SharedSigner { shared_signer_id } => {
                 Ok(coinstr.revoke_shared_signer(shared_signer_id).await?)

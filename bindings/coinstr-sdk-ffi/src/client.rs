@@ -4,7 +4,6 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
 
 use coinstr_sdk::client;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
@@ -209,10 +208,10 @@ impl Coinstr {
             .into())
     }
 
-    pub fn delete_policy_by_id(&self, policy_id: String, timeout: Option<Duration>) -> Result<()> {
+    pub fn delete_policy_by_id(&self, policy_id: String) -> Result<()> {
         block_on(async move {
             let policy_id = EventId::from_hex(policy_id)?;
-            Ok(self.inner.delete_policy_by_id(policy_id, timeout).await?)
+            Ok(self.inner.delete_policy_by_id(policy_id).await?)
         })
     }
 
@@ -233,10 +232,10 @@ impl Coinstr {
         })
     }
 
-    pub fn delete_signer_by_id(&self, signer_id: String, timeout: Option<Duration>) -> Result<()> {
+    pub fn delete_signer_by_id(&self, signer_id: String) -> Result<()> {
         block_on(async move {
             let signer_id = EventId::from_hex(signer_id)?;
-            Ok(self.inner.delete_signer_by_id(signer_id, timeout).await?)
+            Ok(self.inner.delete_signer_by_id(signer_id).await?)
         })
     }
 

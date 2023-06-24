@@ -89,7 +89,7 @@ impl State for SignerState {
                         let client = ctx.client.clone();
                         let signer_id = self.signer_id;
                         return Command::perform(
-                            async move { client.delete_signer_by_id(signer_id, None).await },
+                            async move { client.delete_signer_by_id(signer_id).await },
                             |res| match res {
                                 Ok(_) => Message::View(Stage::Signers),
                                 Err(e) => SignerMessage::ErrorChanged(Some(e.to_string())).into(),

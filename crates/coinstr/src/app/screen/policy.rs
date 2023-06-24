@@ -169,7 +169,7 @@ impl State for PolicyState {
                         return Command::perform(
                             async move {
                                 client.save_policy_backup(policy_id, &path)?;
-                                client.delete_policy_by_id(policy_id, None).await?;
+                                client.delete_policy_by_id(policy_id).await?;
                                 Ok::<(), Box<dyn std::error::Error>>(())
                             },
                             |res| match res {
