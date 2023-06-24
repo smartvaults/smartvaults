@@ -20,7 +20,7 @@ use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, RED, YELLOW};
-use crate::theme::icon::{SAVE, TRASH};
+use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
@@ -388,6 +388,8 @@ impl State for ProposalState {
                     }
 
                     let mut export_btn = button::border_with_icon(SAVE, "Export PSBT");
+                    let copy_psbt = button::border_with_icon(CLIPBOARD, "Copy PSBT")
+                        .on_press(Message::Clipboard(proposal.psbt().as_base64()));
                     let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
 
                     if !self.loading {
@@ -402,6 +404,7 @@ impl State for ProposalState {
                                 .push(approve_btn)
                                 .push(finalize_btn)
                                 .push(export_btn)
+                                .push(copy_psbt)
                                 .push(delete_btn)
                                 .spacing(10),
                         )
