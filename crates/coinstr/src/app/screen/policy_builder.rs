@@ -57,6 +57,16 @@ impl PolicyBuilderState {
 
         false
     }
+
+    fn pk_is_already_selected(&self, public_key: XOnlyPublicKey) -> bool {
+        for (pk, ..) in self.policy.iter().flatten() {
+            if pk == &public_key {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 impl State for PolicyBuilderState {
@@ -375,6 +385,8 @@ fn view_signer_selector<'a>(
                 )
                 .push(if state.is_already_selected(&descriptor) {
                     button::primary("Selected").width(Length::Fixed(180.0))
+                } else if state.pk_is_already_selected(public_key) {
+                    button::border("Select").width(Length::Fixed(180.0))
                 } else {
                     button::border("Select")
                         .width(Length::Fixed(180.0))
@@ -456,6 +468,8 @@ fn view_signer_selector<'a>(
                 )
                 .push(if state.is_already_selected(&descriptor) {
                     button::primary("Selected").width(Length::Fixed(180.0))
+                } else if state.pk_is_already_selected(*owner_public_key) {
+                    button::border("Select").width(Length::Fixed(180.0))
                 } else {
                     button::border("Select")
                         .width(Length::Fixed(180.0))
