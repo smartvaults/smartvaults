@@ -504,7 +504,8 @@ impl Coinstr {
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
         contacts.push(Contact::new::<String>(public_key, None, None));
-        self.client.set_contact_list(contacts).await?;
+        let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
+        self.send_event(event).await?;
         self.db.save_contact(public_key)?;
         Ok(())
     }
@@ -517,7 +518,8 @@ impl Coinstr {
             .filter(|p| p != &public_key)
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
-        self.client.set_contact_list(contacts).await?;
+        let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
+        self.send_event(event).await?;
         self.db.delete_contact(public_key)?;
         Ok(())
     }
