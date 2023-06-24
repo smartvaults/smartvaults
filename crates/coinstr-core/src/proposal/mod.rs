@@ -164,9 +164,25 @@ impl Proposal {
         network: Network,
     ) -> Result<ApprovedProposal, Error> {
         // Sign the transaction
-        let mut psbt: PartiallySignedTransaction = self.psbt();
-        let _finalized: bool =
-            psbt.sign_custom(seed, Some(self.descriptor()), custom_signers, network)?;
+        // Try with `internal_key` set to `false
+        let psbt = {
+            let mut psbt: PartiallySignedTransaction = self.psbt();
+            match psbt.sign_custom(
+                seed,
+                Some(self.descriptor()),
+                custom_signers.clone(),
+                false,
+                network,
+            ) {
+                Ok(_) => psbt,
+                Err(KPsbtError::PsbtNotSigned) => {
+                    let mut psbt = self.psbt();
+                    psbt.sign_custom(seed, Some(self.descriptor()), custom_signers, true, network)?;
+                    psbt
+                }
+                Err(e) => return Err(Error::KPsbt(e)),
+            }
+        };
 
         match self {
             Proposal::Spending { .. } => Ok(ApprovedProposal::spending(psbt)),
