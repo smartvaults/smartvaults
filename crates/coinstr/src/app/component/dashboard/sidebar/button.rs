@@ -5,7 +5,7 @@ use iced::widget::{Button, Container, Row, Text};
 use iced::{Alignment, Length};
 
 use crate::app::{Context, Message};
-use crate::component::button::{BorderButtonStyle, PrimaryButtonStyle};
+use crate::component::button::ButtonStyle;
 
 #[derive(Clone)]
 pub struct SidebarButton<'a> {
@@ -19,11 +19,11 @@ impl<'a> SidebarButton<'a> {
     }
 
     pub fn view(&self, ctx: &Context, msg: Message) -> Container<'a, Message> {
-        let mut style = BorderButtonStyle.into();
+        let mut style = ButtonStyle::Bordered.into();
 
         if let Message::View(stage) = msg.clone() {
             if ctx.stage.eq(&stage) {
-                style = PrimaryButtonStyle.into();
+                style = ButtonStyle::Primary.into();
             }
         }
 

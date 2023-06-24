@@ -5,7 +5,7 @@ use iced::alignment::Horizontal;
 use iced::widget::{Button, Text as NativeText};
 use iced::{Color, Element, Font, Length};
 
-use super::button::TransparentButtonStyle;
+use super::button::ButtonStyle;
 use crate::theme::font::{BOLD, EXTRA_LIGHT, REGULAR};
 
 pub struct Text<Message> {
@@ -109,7 +109,7 @@ where
             Button::new(text)
                 .on_press(on_press)
                 .padding(0)
-                .style(TransparentButtonStyle::new(None).into())
+                .style(ButtonStyle::Transparent { text_color: None }.into())
                 .into()
         } else {
             text.into()
