@@ -151,10 +151,11 @@ impl State for PolicyBuilderState {
                                 coinstr_sdk::core::policy::builder::n_of_m_ext_multisig(
                                     threshold,
                                     descriptors,
-                                );
+                                )?;
                             client
                                 .save_policy(name, description, descriptor, custom_pubkeys)
-                                .await
+                                .await?;
+                            Ok::<(), Box<dyn std::error::Error>>(())
                         },
                         |res| match res {
                             Ok(_) => Message::View(Stage::Policies),
