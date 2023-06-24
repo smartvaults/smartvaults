@@ -36,8 +36,8 @@ use tokio::sync::broadcast::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
 use super::model::{
-    GetApprovedProposalResult, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
-    GetSharedSignerResult,
+    GetAllSigners, GetApprovedProposalResult, GetDetailedPolicyResult, GetNotificationsResult,
+    GetPolicyResult, GetSharedSignerResult,
 };
 use crate::client::Message;
 use crate::types::Notification;
@@ -1266,6 +1266,28 @@ impl Store {
             );
         }
         Ok(map)
+    }
+
+    /// Get all own signers and contacts shared signers
+    pub fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
+        let my = self.get_signers()?.into_values().collect();
+        let mut contacts = BTreeMap::new();
+
+        for GetSharedSignerResult {
+            owner_public_key,
+            shared_signer,
+        } in self.get_shared_signers()?.into_values()
+        {
+            if let Entry::Vacant(e) = contacts.entry(owner_public_key) {
+                e.insert(vec![shared_signer]);
+            } else if let Some(shared_signers) = contacts.get_mut(&owner_public_key) {
+                if !shared_signers.contains(&shared_signer) {
+                    shared_signers.push(shared_signer);
+                }
+            }
+        }
+
+        Ok(GetAllSigners { my, contacts })
     }
 
     pub fn get_contacts_public_keys(&self) -> Result<HashSet<XOnlyPublicKey>, Error> {

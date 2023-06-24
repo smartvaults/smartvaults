@@ -1,9 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::BTreeMap;
+
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::Balance;
-use coinstr_core::signer::SharedSigner;
+use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, Policy};
 use nostr_sdk::Timestamp;
 
@@ -40,4 +42,10 @@ pub struct GetApprovedProposalResult {
 pub struct GetSharedSignerResult {
     pub owner_public_key: XOnlyPublicKey,
     pub shared_signer: SharedSigner,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetAllSigners {
+    pub my: Vec<Signer>,
+    pub contacts: BTreeMap<XOnlyPublicKey, Vec<SharedSigner>>,
 }

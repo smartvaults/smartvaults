@@ -42,7 +42,8 @@ use crate::constants::{
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
-    GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
+    GetAllSigners, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
+    GetSharedSignerResult,
 };
 use crate::db::store::{GetApprovedProposals, Transactions};
 use crate::db::Store;
@@ -1179,6 +1180,10 @@ impl Coinstr {
         self.db.save_signer(signer_id, signer)?;
 
         Ok(signer_id)
+    }
+
+    pub fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
+        Ok(self.db.get_all_signers()?)
     }
 
     pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
