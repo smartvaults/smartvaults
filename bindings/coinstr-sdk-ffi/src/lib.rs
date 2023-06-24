@@ -5,6 +5,7 @@ mod amount;
 mod balance;
 mod client;
 mod error;
+mod logger;
 mod policy;
 mod proposal;
 
@@ -24,6 +25,7 @@ mod ffi {
 
     // Namespace
     pub use crate::get_keychains_list;
+    pub use crate::logger::{init_logger, LogLevel};
 
     // Coinstr
     pub use crate::amount::Amount;
