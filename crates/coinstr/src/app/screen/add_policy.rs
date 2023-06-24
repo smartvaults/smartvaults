@@ -173,12 +173,16 @@ impl State for AddPolicyState {
             Row::new()
         };
 
+        let save_policy_btn = button::primary("Save policy")
+            .on_press(AddPolicyMessage::SavePolicy.into())
+            .width(Length::Fill);
+
         let restore_policy_btn = button::border("Restore policy backup")
             .on_press(Message::View(Stage::RestorePolicy))
             .width(Length::Fill);
 
-        let save_policy_btn = button::primary("Save policy")
-            .on_press(AddPolicyMessage::SavePolicy.into())
+        let policy_builder_btn = button::border("Policy builder")
+            .on_press(Message::View(Stage::PolicyBuilder))
             .width(Length::Fill);
 
         let content = if self.selecting {
@@ -201,6 +205,7 @@ impl State for AddPolicyState {
                 .push(Space::with_height(Length::Fixed(15.0)))
                 .push(save_policy_btn)
                 .push(restore_policy_btn)
+                .push(policy_builder_btn)
                 .align_items(Alignment::Center)
                 .spacing(10)
                 .padding(20)

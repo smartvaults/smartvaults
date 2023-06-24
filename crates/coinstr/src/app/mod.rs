@@ -18,9 +18,10 @@ pub use self::message::Message;
 use self::screen::{
     AddAirGapSignerState, AddContactState, AddHWSignerState, AddPolicyState, AddSignerState,
     CompletedProposalState, ContactsState, DashboardState, HistoryState, NewProofState,
-    NotificationsState, PoliciesState, PolicyState, ProfileState, ProposalState, ProposalsState,
-    ReceiveState, RestorePolicyState, SelfTransferState, SettingState, ShareSignerState,
-    SignerState, SignersState, SpendState, TransactionState, TransactionsState,
+    NotificationsState, PoliciesState, PolicyBuilderState, PolicyState, ProfileState,
+    ProposalState, ProposalsState, ReceiveState, RestorePolicyState, SelfTransferState,
+    SettingState, ShareSignerState, SignerState, SignersState, SpendState, TransactionState,
+    TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -47,6 +48,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Dashboard => DashboardState::new().into(),
         Stage::Policies => PoliciesState::new().into(),
         Stage::AddPolicy => AddPolicyState::new().into(),
+        Stage::PolicyBuilder => PolicyBuilderState::new().into(),
         Stage::RestorePolicy => RestorePolicyState::new().into(),
         Stage::Policy(policy_id) => PolicyState::new(*policy_id).into(),
         Stage::Spend(policy) => SpendState::new(policy.clone()).into(),
