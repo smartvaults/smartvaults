@@ -25,7 +25,7 @@ use self::cli::{
     ShareCommand,
 };
 
-const TIMEOUT: Option<Duration> = Some(Duration::from_secs(300));
+const TIMEOUT: Option<Duration> = Some(Duration::from_secs(30));
 
 #[tokio::main]
 async fn main() {
