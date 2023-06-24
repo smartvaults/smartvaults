@@ -54,7 +54,7 @@ mod test {
         let desc_b: DescriptorPublicKey =
             seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
 
-        let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b]);
+        let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b])?;
         let policy: Policy = Policy::from_policy("Name", "Description", &policy)?;
         let descriptor: String = policy.descriptor.to_string();
 
@@ -92,7 +92,7 @@ mod test {
         let desc_b: DescriptorPublicKey =
             seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
 
-        let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b]);
+        let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b])?;
         let policy: Policy = Policy::from_policy("Name", "Description", &policy)?;
         let descriptor: String = policy.descriptor.to_string();
 
