@@ -135,15 +135,11 @@ impl State for PolicyBuilderState {
                     let descriptors: Vec<DescriptorPublicKey> = self
                         .policy
                         .iter()
-                        .filter(|v| v.is_some())
-                        .map(|v| v.as_ref().unwrap().1.clone())
+                        .flatten()
+                        .map(|(_, desc)| desc.clone())
                         .collect();
-                    let public_keys: Vec<XOnlyPublicKey> = self
-                        .policy
-                        .iter()
-                        .filter(|v| v.is_some())
-                        .map(|v| v.as_ref().unwrap().0)
-                        .collect();
+                    let public_keys: Vec<XOnlyPublicKey> =
+                        self.policy.iter().flatten().map(|(pk, ..)| *pk).collect();
                     return Command::perform(
                         async move {
                             let custom_pubkeys = if public_keys.is_empty() {
