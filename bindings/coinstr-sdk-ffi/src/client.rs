@@ -17,7 +17,7 @@ use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::{block_on, EventId};
 
 use crate::error::Result;
-use crate::{Amount, Balance, CompletedProposal, Policy, Proposal, Relay};
+use crate::{Amount, Balance, CompletedProposal, Policy, Proposal, Relay, Utxo};
 
 pub struct Coinstr {
     inner: client::Coinstr,
@@ -361,6 +361,16 @@ impl Coinstr {
             .inner
             .get_balance(policy_id)
             .map(|b| Arc::new(b.into())))
+    }
+
+    pub fn get_utxos(&self, policy_id: String) -> Result<Vec<Arc<Utxo>>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        Ok(self
+            .inner
+            .get_utxos(policy_id)?
+            .into_iter()
+            .map(|u| Arc::new(u.into()))
+            .collect())
     }
 
     pub fn get_total_balance(&self) -> Result<Arc<Balance>> {

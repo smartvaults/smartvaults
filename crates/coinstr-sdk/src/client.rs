@@ -18,7 +18,7 @@ use bdk::database::{MemoryDatabase, SqliteDatabase};
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
-use bdk::{Balance, FeeRate, SyncOptions, TransactionDetails, Wallet};
+use bdk::{Balance, FeeRate, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::constants::COINSTR_ACCOUNT_INDEX;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
@@ -1574,6 +1574,11 @@ impl Coinstr {
 
     pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
         self.db.get_last_unused_address(policy_id)
+    }
+
+    /// Get wallet UTXOs
+    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
+        Ok(self.db.get_utxos(policy_id)?)
     }
 
     pub fn get_total_balance(&self) -> Result<Balance, Error> {

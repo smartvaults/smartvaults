@@ -48,6 +48,17 @@ enum WordCount {
     "W24",
 };
 
+interface OutPoint {
+    string txid();
+    u32 vout();
+};
+
+interface Utxo {
+    OutPoint outpoint();
+    u64 value();
+    boolean is_spent();
+};
+
 interface Balance {
     u64 get_spendable();
     u64 get_total();
@@ -158,6 +169,8 @@ interface Coinstr {
 
     [Throws=FFIError]
     Balance? get_balance(string policy_id);
+    [Throws=FFIError]
+    sequence<Utxo> get_utxos(string policy_id);
     [Throws=FFIError]
     Balance get_total_balance();
     [Throws=FFIError]

@@ -9,6 +9,7 @@ mod logger;
 mod policy;
 mod proposal;
 mod relay;
+mod utxo;
 
 use self::error::Result;
 
@@ -36,6 +37,7 @@ mod ffi {
     pub use crate::policy::Policy;
     pub use crate::proposal::{CompletedProposal, Proposal};
     pub use crate::relay::Relay;
+    pub use crate::utxo::{OutPoint, Utxo};
 
     // UDL
     uniffi_macros::include_scaffolding!("coinstr_sdk");

@@ -18,7 +18,7 @@ use bdk::bitcoin::{Address, Network, Txid};
 use bdk::blockchain::Blockchain;
 use bdk::database::SqliteDatabase;
 use bdk::wallet::AddressIndex;
-use bdk::{Balance, SyncOptions, TransactionDetails, Wallet};
+use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::policy::{self, Policy};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::signer::{SharedSigner, Signer};
@@ -832,6 +832,12 @@ impl Store {
             .get_address(AddressIndex::LastUnused)
             .ok()
             .map(|a| a.address)
+    }
+
+    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
+        let wallets = self.wallets.lock();
+        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        Ok(wallet.list_unspent()?)
     }
 
     pub fn get_total_balance(&self) -> Result<Balance, Error> {
