@@ -5,8 +5,7 @@
 
 #![allow(clippy::type_complexity)]
 
-use std::collections::btree_map::Entry;
-use std::collections::hash_map::Entry as HashMapEntry;
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ops::Add;
 use std::path::{Path, PathBuf};
@@ -36,8 +35,8 @@ use tokio::sync::broadcast::Sender;
 
 use super::migration::{self, MigrationError, STARTUP_SQL};
 use super::model::{
-    GetApprovedProposalResult, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
-    GetSharedSignerResult,
+    GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
+    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
 };
 use crate::client::Message;
 use crate::types::Notification;
@@ -100,12 +99,6 @@ pub enum Error {
     WalletNotFound,
 }
 
-pub struct GetApprovedProposals {
-    pub policy_id: EventId,
-    pub proposal: Proposal,
-    pub approved_proposals: Vec<ApprovedProposal>,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct BlockHeight {
     height: Arc<AtomicU32>,
@@ -141,7 +134,7 @@ pub struct Store {
     pool: SqlitePool,
     keys: Keys,
     block_height: BlockHeight,
-    wallets: Arc<Mutex<BTreeMap<EventId, Wallet<SqliteDatabase>>>>,
+    wallets: Arc<Mutex<HashMap<EventId, Wallet<SqliteDatabase>>>>,
     timechain_db_path: PathBuf,
     network: Network,
 }
@@ -169,7 +162,7 @@ impl Store {
         Ok(Self {
             pool,
             keys: keys.clone(),
-            wallets: Arc::new(Mutex::new(BTreeMap::new())),
+            wallets: Arc::new(Mutex::new(HashMap::new())),
             block_height: BlockHeight::default(),
             timechain_db_path: timechain_db_path.as_ref().to_path_buf(),
             network,
@@ -636,6 +629,19 @@ impl Store {
         })
     }
 
+    pub fn get_policy_id_by_approval_id(&self, approval_id: EventId) -> Result<EventId, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached(
+            "SELECT proposal_id FROM approved_proposals WHERE approval_id = ? LIMIT 1;",
+        )?;
+        let mut rows = stmt.query([approval_id.to_hex()])?;
+        let row = rows.next()?.ok_or(Error::NotFound("approval".into()))?;
+        let proposal_id: String = row.get(0)?;
+        let proposal_id = EventId::from_hex(proposal_id)?;
+        let (policy_id, ..) = self.get_proposal(proposal_id)?;
+        Ok(policy_id)
+    }
+
     pub fn approved_proposal_exists(&self, approved_proposal_id: EventId) -> Result<bool, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare(
@@ -647,6 +653,22 @@ impl Store {
             None => 0,
         };
         Ok(exists == 1)
+    }
+
+    pub fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(approval_id)?;
+
+        // Delete notification
+        self.delete_notification(approval_id)?;
+
+        // Delete policy
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM approved_proposals WHERE approval_id = ?;",
+            [approval_id.to_hex()],
+        )?;
+        log::info!("Deleted approval {approval_id}");
+        Ok(())
     }
 
     pub fn completed_proposal_exists(&self, completed_proposal_id: EventId) -> Result<bool, Error> {
@@ -768,7 +790,7 @@ impl Store {
                 tx, description, ..
             } = proposal
             {
-                if let HashMapEntry::Vacant(e) = map.entry(tx.txid()) {
+                if let Entry::Vacant(e) = map.entry(tx.txid()) {
                     e.insert(description);
                 }
             }
@@ -903,6 +925,8 @@ impl Store {
             self.delete_policy(event_id)?;
         } else if self.proposal_exists(event_id)? {
             self.delete_proposal(event_id)?;
+        } else if self.approved_proposal_exists(event_id)? {
+            self.delete_approval(event_id)?;
         } else if self.completed_proposal_exists(event_id)? {
             self.delete_completed_proposal(event_id)?;
         } else if self.signer_exists(event_id)? {

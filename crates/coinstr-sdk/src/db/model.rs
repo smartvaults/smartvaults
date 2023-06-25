@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::Balance;
 use coinstr_core::signer::{SharedSigner, Signer};
-use coinstr_core::{ApprovedProposal, Policy};
+use coinstr_core::{ApprovedProposal, Policy, Proposal};
 use nostr_sdk::{EventId, Timestamp};
 
 use crate::types::Notification;
@@ -22,6 +22,12 @@ pub struct GetDetailedPolicyResult {
     pub policy: Policy,
     pub balance: Option<Balance>,
     pub last_sync: Option<Timestamp>,
+}
+
+pub struct GetApprovedProposals {
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+    pub approved_proposals: Vec<ApprovedProposal>,
 }
 
 #[derive(Debug, Clone)]

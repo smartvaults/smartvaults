@@ -42,11 +42,10 @@ use crate::constants::{
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
-    GetAllSigners, GetDetailedPolicyResult, GetNotificationsResult, GetPolicyResult,
-    GetSharedSignerResult,
+    GetAllSigners, GetApprovedProposals, GetDetailedPolicyResult, GetNotificationsResult,
+    GetPolicyResult, GetSharedSignerResult,
 };
-use crate::db::store::{GetApprovedProposals, Transactions};
-use crate::db::Store;
+use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 use crate::{thread, util};
@@ -1034,6 +1033,26 @@ impl Coinstr {
         )?;
 
         Ok((event_id, approved_proposal))
+    }
+
+    pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
+        let policy_id = self.db.get_policy_id_by_approval_id(approval_id)?;
+
+        // Get nostr pubkeys linked to policy
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+
+        let mut tags: Vec<Tag> = nostr_pubkeys
+            .into_iter()
+            .map(|p| Tag::PubKey(p, None))
+            .collect();
+        tags.push(Tag::Event(approval_id, None, None));
+
+        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&self.keys())?;
+        self.send_event(event).await?;
+
+        self.db.delete_approval(approval_id)?;
+
+        Ok(())
     }
 
     pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {

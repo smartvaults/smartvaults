@@ -36,6 +36,7 @@ pub enum ProposalMessage {
     Reload,
     CheckPsbts,
     ExportPsbt,
+    RevokeApproval(EventId),
     Delete,
     ErrorChanged(Option<String>),
 }
@@ -196,32 +197,28 @@ impl State for ProposalState {
                 ProposalMessage::Signed(value) => self.signed = value,
                 ProposalMessage::Reload => return self.load(ctx),
                 ProposalMessage::CheckPsbts => {
-                    if !self.signed {
-                        if let Some(proposal) = &self.proposal {
-                            let client = ctx.client.clone();
-                            let proposal = proposal.clone();
-                            let approved_proposals = self
-                                .approved_proposals
-                                .iter()
-                                .map(
-                                    |(
-                                        _,
-                                        GetApprovedProposalResult {
-                                            approved_proposal, ..
-                                        },
-                                    )| {
-                                        approved_proposal.clone()
+                    if let Some(proposal) = &self.proposal {
+                        let client = ctx.client.clone();
+                        let proposal = proposal.clone();
+                        let approved_proposals = self
+                            .approved_proposals
+                            .iter()
+                            .map(
+                                |(
+                                    _,
+                                    GetApprovedProposalResult {
+                                        approved_proposal, ..
                                     },
-                                )
-                                .collect();
-                            return Command::perform(
-                                async move { proposal.finalize(approved_proposals, client.network()) },
-                                |res| match res {
-                                    Ok(_) => ProposalMessage::Signed(true).into(),
-                                    Err(_) => ProposalMessage::Signed(false).into(),
-                                },
-                            );
-                        }
+                                )| { approved_proposal.clone() },
+                            )
+                            .collect();
+                        return Command::perform(
+                            async move { proposal.finalize(approved_proposals, client.network()) },
+                            |res| match res {
+                                Ok(_) => ProposalMessage::Signed(true).into(),
+                                Err(_) => ProposalMessage::Signed(false).into(),
+                            },
+                        );
                     }
                 }
                 ProposalMessage::ExportPsbt => {
@@ -244,6 +241,17 @@ impl State for ProposalState {
                             }
                         }
                     }
+                }
+                ProposalMessage::RevokeApproval(approval_id) => {
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.revoke_approval(approval_id).await },
+                        |res| match res {
+                            Ok(_) => ProposalMessage::Reload.into(),
+                            Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
                 }
                 ProposalMessage::Delete => {
                     self.loading = true;
@@ -441,12 +449,14 @@ impl State for ProposalState {
                                             .width(Length::Fill)
                                             .view(),
                                     )
+                                    .push(Space::with_width(Length::Fixed(40.0)))
                                     .spacing(10)
                                     .align_items(Alignment::Center)
                                     .width(Length::Fill),
                             )
                             .push(rule::horizontal_bold());
 
+                        let my_public_key = ctx.client.keys().public_key();
                         for (
                             approval_id,
                             GetApprovedProposalResult {
@@ -456,7 +466,7 @@ impl State for ProposalState {
                             },
                         ) in self.approved_proposals.iter()
                         {
-                            let row = Row::new()
+                            let mut row = Row::new()
                                 .push(
                                     Text::new(util::cut_event_id(*approval_id))
                                         .width(Length::Fixed(115.0))
@@ -475,6 +485,22 @@ impl State for ProposalState {
                                 .spacing(10)
                                 .align_items(Alignment::Center)
                                 .width(Length::Fill);
+
+                            if my_public_key == *public_key {
+                                row = row.push(
+                                    button::danger_border_only_icon(TRASH)
+                                        .width(Length::Fixed(40.0))
+                                        .on_press(
+                                            ProposalMessage::RevokeApproval(*approval_id).into(),
+                                        ),
+                                )
+                            } else {
+                                row = row.push(
+                                    Row::new()
+                                        .push(Space::with_height(Length::Fixed(40.0)))
+                                        .push(Space::with_width(Length::Fixed(40.0))),
+                                );
+                            }
                             content = content.push(row).push(rule::horizontal());
                         }
                     }
