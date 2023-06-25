@@ -834,22 +834,17 @@ impl Store {
             .map(|a| a.address)
     }
 
-    pub fn get_total_balance(&self) -> Result<(Balance, bool), Error> {
-        let mut synced = true;
+    pub fn get_total_balance(&self) -> Result<Balance, Error> {
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
-        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
+        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()?.into_iter() {
             if !already_seen.contains(&policy.descriptor) {
-                if last_sync.is_none() {
-                    synced = false;
-                    break;
-                }
                 let balance = self.get_balance(policy_id).unwrap_or_default();
                 total_balance = total_balance.add(balance);
                 already_seen.push(policy.descriptor);
             }
         }
-        Ok((total_balance, synced))
+        Ok(total_balance)
     }
 
     pub fn get_all_transactions(&self) -> Result<Vec<(TransactionDetails, Option<String>)>, Error> {

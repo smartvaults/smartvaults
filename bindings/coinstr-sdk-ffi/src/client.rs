@@ -364,7 +364,7 @@ impl Coinstr {
     }
 
     pub fn get_total_balance(&self) -> Result<Arc<Balance>> {
-        Ok(Arc::new(self.inner.get_total_balance()?.0.into()))
+        Ok(Arc::new(self.inner.get_total_balance()?.into()))
     }
 
     pub fn get_last_unused_address(&self, policy_id: String) -> Result<Option<String>> {

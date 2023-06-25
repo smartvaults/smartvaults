@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::proposal::Proposal;
@@ -59,22 +58,14 @@ impl State for DashboardState {
         self.loading = true;
         Command::perform(
             async move {
-                let (balance, synced) = client.get_total_balance().unwrap();
+                let balance = client.get_total_balance().unwrap();
                 let txs = client.get_all_transactions().unwrap();
                 let proposals = client.get_proposals().unwrap();
 
-                if !synced {
-                    tokio::time::sleep(Duration::from_secs(1)).await;
-                }
-
-                (balance, proposals, txs, synced)
+                (balance, proposals, txs)
             },
-            |(balance, proposals, txs, synced)| {
-                if synced {
-                    DashboardMessage::Load(Some(balance), proposals, Some(txs)).into()
-                } else {
-                    DashboardMessage::Reload.into()
-                }
+            |(balance, proposals, txs)| {
+                DashboardMessage::Load(Some(balance), proposals, Some(txs)).into()
             },
         )
     }

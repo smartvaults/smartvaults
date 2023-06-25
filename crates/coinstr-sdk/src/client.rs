@@ -26,7 +26,8 @@ use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::{extract_public_keys, Serde};
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
-use futures_util::future::{AbortHandle, Abortable};
+
+use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::secp256k1::SecretKey;
@@ -1227,8 +1228,7 @@ impl Coinstr {
 
     fn sync_with_timechain(&self) -> AbortHandle {
         let this = self.clone();
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-        let timechain_sync = async move {
+        thread::abortable(async move {
             let blockchain: ElectrumBlockchain;
             loop {
                 match this.electrum_endpoint() {
@@ -1258,21 +1258,12 @@ impl Coinstr {
                 }
                 thread::sleep(Duration::from_secs(3)).await;
             }
-        };
-
-        let future = Abortable::new(timechain_sync, abort_registration);
-        thread::spawn(async {
-            let _ = future.await;
-            log::debug!("Exited from wallet sync thread");
-        });
-
-        abort_handle
+        })
     }
 
     fn handle_pending_events(&self) -> AbortHandle {
         let this = self.clone();
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-        let fut = async move {
+        thread::abortable(async move {
             loop {
                 match this.db.get_pending_events() {
                     Ok(events) => {
@@ -1294,15 +1285,7 @@ impl Coinstr {
                 }
                 thread::sleep(Duration::from_secs(30)).await;
             }
-        };
-
-        let future = Abortable::new(fut, abort_registration);
-        thread::spawn(async {
-            let _ = future.await;
-            log::debug!("Exited from pending events handler thread");
-        });
-
-        abort_handle
+        })
     }
 
     pub fn sync_notifications(&self) -> Receiver<Option<Message>> {
@@ -1593,7 +1576,7 @@ impl Coinstr {
         self.db.get_last_unused_address(policy_id)
     }
 
-    pub fn get_total_balance(&self) -> Result<(Balance, bool), Error> {
+    pub fn get_total_balance(&self) -> Result<Balance, Error> {
         Ok(self.db.get_total_balance()?)
     }
 
