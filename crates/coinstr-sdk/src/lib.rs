@@ -7,7 +7,6 @@ pub use nostr_sdk as nostr;
 pub mod client;
 pub mod constants;
 pub mod db;
-mod thread;
 pub mod types;
 pub mod util;
 

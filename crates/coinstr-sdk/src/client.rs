@@ -30,6 +30,7 @@ use futures_util::future::{AbortHandle, Abortable};
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::secp256k1::SecretKey;
+use nostr_sdk::util::thread;
 use nostr_sdk::{
     nips, Client, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, Options,
     Relay, RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
@@ -47,8 +48,8 @@ use crate::db::model::{
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
+use crate::util;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
-use crate::{thread, util};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
