@@ -1406,11 +1406,12 @@ impl Store {
             }
             None => {
                 // Save public_key to metadata table
+                let metadata = Metadata::default();
                 conn.execute(
-                    "INSERT OR IGNORE INTO metadata (public_key) VALUES (?);",
-                    [public_key.to_string()],
+                    "INSERT OR IGNORE INTO metadata (public_key, metadata) VALUES (?, ?);",
+                    (public_key.to_string(), metadata.as_json()),
                 )?;
-                Ok(Metadata::default())
+                Ok(metadata)
             }
         }
     }
