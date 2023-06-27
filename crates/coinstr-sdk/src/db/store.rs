@@ -1392,8 +1392,11 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_metadata(&self, public_key: XOnlyPublicKey) -> Result<Metadata, Error> {
-        let conn = self.pool.get()?;
+    fn get_metadata_with_conn(
+        &self,
+        conn: &PooledConnection,
+        public_key: XOnlyPublicKey,
+    ) -> Result<Metadata, Error> {
         let mut stmt = conn.prepare("SELECT metadata FROM metadata WHERE public_key = ?;")?;
         let mut rows = stmt.query([public_key.to_string()])?;
         match rows.next()? {
@@ -1410,6 +1413,11 @@ impl Store {
                 Ok(Metadata::default())
             }
         }
+    }
+
+    pub fn get_metadata(&self, public_key: XOnlyPublicKey) -> Result<Metadata, Error> {
+        let conn = self.pool.get()?;
+        self.get_metadata_with_conn(&conn, public_key)
     }
 
     pub fn get_public_key_name(&self, public_key: XOnlyPublicKey) -> String {
@@ -1438,7 +1446,7 @@ impl Store {
         while let Ok(Some(row)) = rows.next() {
             let public_key: String = row.get(0)?;
             let public_key = XOnlyPublicKey::from_str(&public_key)?;
-            contacts.insert(public_key, self.get_metadata(public_key)?);
+            contacts.insert(public_key, self.get_metadata_with_conn(&conn, public_key)?);
         }
         Ok(contacts)
     }
