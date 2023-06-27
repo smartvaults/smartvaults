@@ -3,7 +3,6 @@
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::types::backup::PolicyBackup;
-use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -137,9 +136,12 @@ impl State for RestorePolicyState {
         } else {
             for public_key in self.public_keys.iter() {
                 public_keys = public_keys.push(
-                    Text::new(format!("- {}", util::cut_public_key(*public_key)))
-                        .smaller()
-                        .view(),
+                    Text::new(format!(
+                        "- {}",
+                        ctx.client.db.get_public_key_name(*public_key)
+                    ))
+                    .smaller()
+                    .view(),
                 )
             }
         }

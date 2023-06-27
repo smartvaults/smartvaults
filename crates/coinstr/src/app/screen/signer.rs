@@ -182,7 +182,7 @@ impl State for SignerState {
                                 .view(),
                         )
                         .push(
-                            Text::new(util::cut_public_key(*public_key))
+                            Text::new(ctx.client.db.get_public_key_name(*public_key))
                                 .width(Length::Fill)
                                 .view(),
                         )

@@ -493,21 +493,36 @@ impl Coinstr {
         self.db.block_height()
     }
 
+    pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {
+        let keys = self.keys();
+        let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
+        self.send_event(event).await?;
+        self.db.set_metadata(keys.public_key(), metadata)?;
+        Ok(())
+    }
+
+    pub fn get_profile(&self) -> Result<Metadata, Error> {
+        Ok(self.db.get_metadata(self.keys().public_key())?)
+    }
+
     pub fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
         Ok(self.db.get_contacts_with_metadata()?)
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
-        let mut contacts: Vec<Contact> = self
-            .db
-            .get_contacts_public_keys()?
-            .into_iter()
-            .map(|p| Contact::new::<String>(p, None, None))
-            .collect();
-        contacts.push(Contact::new::<String>(public_key, None, None));
-        let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
-        self.send_event(event).await?;
-        self.db.save_contact(public_key)?;
+        if public_key != self.keys().public_key() {
+            let mut contacts: Vec<Contact> = self
+                .db
+                .get_contacts_public_keys()?
+                .into_iter()
+                .map(|p| Contact::new::<String>(p, None, None))
+                .collect();
+            contacts.push(Contact::new::<String>(public_key, None, None));
+            let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
+            self.send_event(event).await?;
+            self.db.save_contact(public_key)?;
+        }
+
         Ok(())
     }
 
@@ -1360,12 +1375,24 @@ impl Coinstr {
                         .clone()
                         .pubkey(keys.public_key())
                         .since(last_sync);
+                    let metadata_filters = Filter::new()
+                        .author(keys.public_key().to_string())
+                        .kind(Kind::Metadata)
+                        .since(last_sync);
                     let contacts_filters = Filter::new()
                         .author(keys.public_key().to_string())
                         .kind(Kind::ContactList)
                         .since(last_sync);
                     if let Err(e) = relay
-                        .subscribe(vec![author_filter, pubkey_filter, contacts_filters], false)
+                        .subscribe(
+                            vec![
+                                author_filter,
+                                pubkey_filter,
+                                metadata_filters,
+                                contacts_filters,
+                            ],
+                            false,
+                        )
                         .await
                     {
                         log::error!("Impossible to subscribe to {relay_url}: {e}");
@@ -1586,7 +1613,7 @@ impl Coinstr {
             self.db.save_contacts(contacts)?;
         } else if event.kind == Kind::Metadata {
             let metadata = Metadata::from_json(event.content)?;
-            self.db.set_metdata(event.pubkey, metadata)?;
+            self.db.set_metadata(event.pubkey, metadata)?;
         }
 
         Ok(None)

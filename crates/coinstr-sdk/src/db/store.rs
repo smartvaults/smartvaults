@@ -40,6 +40,7 @@ use super::model::{
 use crate::client::Message;
 use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, METADATA_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
 use crate::types::Notification;
+use crate::util;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
@@ -1362,15 +1363,18 @@ impl Store {
     }
 
     pub fn save_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("INSERT OR IGNORE INTO contacts (public_key) VALUES (?);")?;
-        stmt.execute([public_key.to_string()])?;
-        let mut stmt = conn.prepare_cached(
-            "INSERT OR IGNORE INTO metadata (public_key, metadata) VALUES (?, ?);",
-        )?;
-        stmt.execute([public_key.to_string(), Metadata::default().as_json()])?;
-        log::info!("Saved contact {public_key}");
+        if public_key != self.keys.public_key() {
+            let conn = self.pool.get()?;
+            let mut stmt =
+                conn.prepare_cached("INSERT OR IGNORE INTO contacts (public_key) VALUES (?);")?;
+            stmt.execute([public_key.to_string()])?;
+            let mut stmt = conn.prepare_cached(
+                "INSERT OR IGNORE INTO metadata (public_key, metadata) VALUES (?, ?);",
+            )?;
+            stmt.execute([public_key.to_string(), Metadata::default().as_json()])?;
+            log::info!("Saved contact {public_key}");
+        }
+
         Ok(())
     }
 
@@ -1392,11 +1396,38 @@ impl Store {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT metadata FROM metadata WHERE public_key = ?;")?;
         let mut rows = stmt.query([public_key.to_string()])?;
-        let row = rows
-            .next()?
-            .ok_or(Error::NotFound("metadata public key".into()))?;
-        let metadata: String = row.get(0)?;
-        Ok(Metadata::from_json(metadata)?)
+        match rows.next()? {
+            Some(row) => {
+                let metadata: String = row.get(0)?;
+                Ok(Metadata::from_json(metadata)?)
+            }
+            None => {
+                // Save public_key to metadata table
+                conn.execute(
+                    "INSERT OR IGNORE INTO metadata (public_key) VALUES (?);",
+                    [public_key.to_string()],
+                )?;
+                Ok(Metadata::default())
+            }
+        }
+    }
+
+    pub fn get_public_key_name(&self, public_key: XOnlyPublicKey) -> String {
+        match self.get_metadata(public_key) {
+            Ok(metadata) => {
+                if let Some(display_name) = metadata.display_name {
+                    display_name
+                } else if let Some(name) = metadata.name {
+                    name
+                } else {
+                    util::cut_public_key(public_key)
+                }
+            }
+            Err(e) => {
+                log::error!("{e}");
+                util::cut_public_key(public_key)
+            }
+        }
     }
 
     pub fn get_contacts_with_metadata(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
@@ -1434,10 +1465,14 @@ impl Store {
         Ok(public_keys)
     }
 
-    pub fn set_metdata(&self, public_key: XOnlyPublicKey, metadata: Metadata) -> Result<(), Error> {
+    pub fn set_metadata(
+        &self,
+        public_key: XOnlyPublicKey,
+        metadata: Metadata,
+    ) -> Result<(), Error> {
         let conn = self.pool.get()?;
         let last_sync = Timestamp::now().as_u64();
-        let mut stmt = conn.prepare_cached("INSERT INTO metadata (public_key, metadata, last_sync) VALUES (?, ?, ?) ON CONFLICT(public_key) DO UPDATE SET metadata = ? AND last_sync = ?;")?;
+        let mut stmt = conn.prepare_cached("INSERT INTO metadata (public_key, metadata, last_sync) VALUES (?, ?, ?) ON CONFLICT(public_key) DO UPDATE SET metadata = ?, last_sync = ?;")?;
         stmt.execute((
             public_key.to_string(),
             metadata.as_json(),
