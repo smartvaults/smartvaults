@@ -19,7 +19,7 @@ use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
 use coinstr_sdk::db::model::GetPolicyResult;
 use coinstr_sdk::nostr::prelude::{FromMnemonic, ToBech32, XOnlyPublicKey};
-use coinstr_sdk::nostr::{EventId, Keys, Metadata, SECP256K1};
+use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
@@ -394,6 +394,37 @@ pub fn print_signers(signers: BTreeMap<EventId, Signer>) {
             signer.name(),
             signer.fingerprint(),
             signer.signer_type(),
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub async fn print_relays(relays: BTreeMap<Url, Relay>) {
+    let mut table = Table::new();
+
+    table.set_titles(row![
+        "#",
+        "Url",
+        "Status",
+        "Attemps",
+        "Success",
+        "Connected at"
+    ]);
+
+    for (index, (url, relay)) in relays.into_iter().enumerate() {
+        let stats = relay.stats();
+        table.add_row(row![
+            index + 1,
+            url,
+            relay.status().await,
+            stats.attempts(),
+            stats.success(),
+            if stats.connected_at() == Timestamp::from(0) {
+                String::from("-")
+            } else {
+                stats.connected_at().to_human_datetime()
+            }
         ]);
     }
 

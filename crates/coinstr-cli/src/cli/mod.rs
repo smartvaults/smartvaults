@@ -241,6 +241,8 @@ pub enum GetCommand {
     },
     /// Get signers
     Signers,
+    /// Get relays
+    Relays,
 }
 
 #[derive(Debug, Subcommand)]

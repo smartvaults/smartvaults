@@ -317,6 +317,11 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 util::print_signers(signers);
                 Ok(())
             }
+            GetCommand::Relays => {
+                let relays = coinstr.relays().await;
+                util::print_relays(relays).await;
+                Ok(())
+            }
         },
         Command::Share { command } => match command {
             ShareCommand::Signer {

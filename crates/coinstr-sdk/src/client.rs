@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
@@ -463,8 +463,8 @@ impl Coinstr {
         Ok(self.client.remove_relay(url).await?)
     }
 
-    pub async fn relays(&self) -> HashMap<Url, Relay> {
-        self.client.relays().await
+    pub async fn relays(&self) -> BTreeMap<Url, Relay> {
+        self.client.relays().await.into_iter().collect()
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {

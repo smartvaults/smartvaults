@@ -19,7 +19,6 @@ bdk = { version = "0.28", default-features = false, features = ["std", "electrum
 coinstr-core = { path = "../coinstr-core" }
 futures-util = "0.3"
 log = "0.4"
-# nostr = { version = "=0.22.0-bitcoin-v0.29", default-features = false }
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
 parking_lot = "0.12"
 r2d2 = "0.8"
