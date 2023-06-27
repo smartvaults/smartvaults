@@ -18,3 +18,8 @@ pub const SHARED_SIGNERS_KIND: Kind = Kind::Custom(9295);
 
 // Expirations
 pub const APPROVED_PROPOSAL_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7);
+
+// Sync intervals
+pub const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
+pub const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
+pub const METADATA_SYNC_INTERVAL: Duration = Duration::from_secs(3600);

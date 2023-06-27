@@ -1288,6 +1288,29 @@ impl Coinstr {
         })
     }
 
+    fn sync_metadata(&self) -> AbortHandle {
+        let this = self.clone();
+        thread::abortable(async move {
+            loop {
+                match this.db.get_unsynced_metadata_pubkeys() {
+                    Ok(public_keys) => {
+                        if !public_keys.is_empty() {
+                            let timeout = Duration::from_secs(10 * public_keys.len() as u64);
+                            let filter = Filter::new()
+                                .kind(Kind::Metadata)
+                                .authors(public_keys.into_iter().map(|p| p.to_string()).collect());
+                            this.client.req_events_of(vec![filter], Some(timeout)).await;
+                        } else {
+                            log::debug!("No public keys metadata to sync")
+                        }
+                    }
+                    Err(e) => log::error!("Impossible to get unsynced metadata public keys: {e}"),
+                }
+                thread::sleep(Duration::from_secs(60)).await;
+            }
+        })
+    }
+
     pub fn sync_notifications(&self) -> Receiver<Option<Message>> {
         self.sync_channel.subscribe()
     }
@@ -1306,6 +1329,7 @@ impl Coinstr {
 
                 // Pending events handler
                 let pending_event_handler = this.handle_pending_events();
+                let metadata_sync = this.sync_metadata();
 
                 let keys = this.client.keys();
 
@@ -1387,6 +1411,7 @@ impl Coinstr {
                                 log::debug!("Received stop/shutdown msg");
                                 timechain_sync.abort();
                                 pending_event_handler.abort();
+                                metadata_sync.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
@@ -1559,6 +1584,9 @@ impl Coinstr {
                 }
             }
             self.db.save_contacts(contacts)?;
+        } else if event.kind == Kind::Metadata {
+            let metadata = Metadata::from_json(event.content)?;
+            self.db.set_metdata(event.pubkey, metadata)?;
         }
 
         Ok(None)

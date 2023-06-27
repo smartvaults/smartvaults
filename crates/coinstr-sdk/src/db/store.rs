@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 
 use bdk::bitcoin::{Address, Network, Txid};
 use bdk::blockchain::Blockchain;
@@ -39,11 +38,9 @@ use super::model::{
     GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
 };
 use crate::client::Message;
+use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, METADATA_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
 use crate::types::Notification;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
-
-const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
-const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
 pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
@@ -1413,5 +1410,41 @@ impl Store {
             contacts.insert(public_key, self.get_metadata(public_key)?);
         }
         Ok(contacts)
+    }
+
+    pub fn get_unsynced_metadata_pubkeys(&self) -> Result<Vec<XOnlyPublicKey>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT public_key, last_sync FROM metadata;")?;
+        let mut rows = stmt.query([])?;
+        let mut public_keys: Vec<XOnlyPublicKey> = Vec::new();
+        let now = Timestamp::now();
+        while let Ok(Some(row)) = rows.next() {
+            let public_key: String = row.get(0)?;
+            let public_key: XOnlyPublicKey = XOnlyPublicKey::from_str(&public_key)?;
+            let last_sync: Option<u64> = row.get(1)?;
+
+            if let Some(last_sync) = last_sync {
+                if last_sync + METADATA_SYNC_INTERVAL.as_secs() < now.as_u64() {
+                    public_keys.push(public_key);
+                }
+            } else {
+                public_keys.push(public_key);
+            }
+        }
+        Ok(public_keys)
+    }
+
+    pub fn set_metdata(&self, public_key: XOnlyPublicKey, metadata: Metadata) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let last_sync = Timestamp::now().as_u64();
+        let mut stmt = conn.prepare_cached("INSERT INTO metadata (public_key, metadata, last_sync) VALUES (?, ?, ?) ON CONFLICT(public_key) DO UPDATE SET metadata = ? AND last_sync = ?;")?;
+        stmt.execute((
+            public_key.to_string(),
+            metadata.as_json(),
+            last_sync,
+            metadata.as_json(),
+            last_sync,
+        ))?;
+        Ok(())
     }
 }
