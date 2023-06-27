@@ -1,23 +1,27 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util;
 use iced::widget::Column;
 use iced::{Command, Element, Length};
 
 use crate::app::component::Dashboard;
-use crate::app::{Context, Message, State};
+use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text};
 use crate::constants::APP_NAME;
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
-pub enum ProfileMessage {}
+pub enum ProfileMessage {
+    LoadProfile { metadata: Metadata },
+}
 
 #[derive(Debug, Default)]
 pub struct ProfileState {
     loading: bool,
     loaded: bool,
+    metadata: Metadata,
 }
 
 impl ProfileState {
@@ -31,15 +35,29 @@ impl State for ProfileState {
         format!("{APP_NAME} - Profile")
     }
 
-    fn load(&mut self, _ctx: &Context) -> Command<Message> {
+    fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loaded = true;
-        Command::none()
+        let client = ctx.client.clone();
+        Command::perform(async move { client.get_profile().unwrap() }, |metadata| {
+            ProfileMessage::LoadProfile { metadata }.into()
+        })
     }
 
-    fn update(&mut self, ctx: &mut Context, _message: Message) -> Command<Message> {
+    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if !self.loaded && !self.loading {
             return self.load(ctx);
         }
+
+        if let Message::Profile(msg) = message {
+            match msg {
+                ProfileMessage::LoadProfile { metadata } => {
+                    self.metadata = metadata;
+                    self.loading = false;
+                    self.loaded = true;
+                }
+            }
+        }
+
         Command::none()
     }
 
@@ -60,7 +78,29 @@ impl State for ProfileState {
                     button::border_only_icon(CLIPBOARD)
                         .on_press(Message::Clipboard(public_key.to_string()))
                         .width(Length::Fixed(40.0)),
-                );
+                )
+                .push(
+                    Text::new(format!(
+                        "Name: {}",
+                        self.metadata.name.clone().unwrap_or_default()
+                    ))
+                    .view(),
+                )
+                .push(
+                    Text::new(format!(
+                        "Display name: {}",
+                        self.metadata.display_name.clone().unwrap_or_default()
+                    ))
+                    .view(),
+                )
+                .push(
+                    Text::new(format!(
+                        "NIP-05: {}",
+                        self.metadata.nip05.clone().unwrap_or_default()
+                    ))
+                    .view(),
+                )
+                .push(button::border("Edit profile").on_press(Message::View(Stage::EditProfile)));
         } else {
             content = content.push(Text::new("Loading...").view());
         }

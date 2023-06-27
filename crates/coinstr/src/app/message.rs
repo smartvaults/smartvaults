@@ -3,11 +3,11 @@
 
 use super::screen::{
     AddAirGapSignerMessage, AddContactMessage, AddHWSignerMessage, AddPolicyMessage,
-    AddSignerMessage, CompletedProposalMessage, ContactsMessage, DashboardMessage, HistoryMessage,
-    NewProofMessage, NotificationsMessage, PoliciesMessage, PolicyBuilderMessage, PolicyMessage,
-    ProfileMessage, ProposalMessage, ProposalsMessage, ReceiveMessage, RestorePolicyMessage,
-    SelfTransferMessage, SettingMessage, ShareSignerMessage, SignerMessage, SignersMessage,
-    SpendMessage, TransactionMessage, TransactionsMessage,
+    AddSignerMessage, CompletedProposalMessage, ContactsMessage, DashboardMessage,
+    EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage,
+    PolicyBuilderMessage, PolicyMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
+    ReceiveMessage, RestorePolicyMessage, SelfTransferMessage, SettingMessage, ShareSignerMessage,
+    SignerMessage, SignersMessage, SpendMessage, TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -40,6 +40,7 @@ pub enum Message {
     AddContact(AddContactMessage),
     Notifications(NotificationsMessage),
     Profile(ProfileMessage),
+    EditProfile(EditProfileMessage),
     Setting(SettingMessage),
     Clipboard(String),
     Lock,

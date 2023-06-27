@@ -17,11 +17,11 @@ pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{
     AddAirGapSignerState, AddContactState, AddHWSignerState, AddPolicyState, AddSignerState,
-    CompletedProposalState, ContactsState, DashboardState, HistoryState, NewProofState,
-    NotificationsState, PoliciesState, PolicyBuilderState, PolicyState, ProfileState,
-    ProposalState, ProposalsState, ReceiveState, RestorePolicyState, SelfTransferState,
-    SettingState, ShareSignerState, SignerState, SignersState, SpendState, TransactionState,
-    TransactionsState,
+    CompletedProposalState, ContactsState, DashboardState, EditProfileState, HistoryState,
+    NewProofState, NotificationsState, PoliciesState, PolicyBuilderState, PolicyState,
+    ProfileState, ProposalState, ProposalsState, ReceiveState, RestorePolicyState,
+    SelfTransferState, SettingState, ShareSignerState, SignerState, SignersState, SpendState,
+    TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -78,6 +78,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddContact => AddContactState::new().into(),
         Stage::Notifications => NotificationsState::new().into(),
         Stage::Profile => ProfileState::new().into(),
+        Stage::EditProfile => EditProfileState::new().into(),
         Stage::Setting => SettingState::new().into(),
     }
 }

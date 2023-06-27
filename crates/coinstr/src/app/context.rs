@@ -41,6 +41,7 @@ pub enum Stage {
     AddContact,
     Notifications,
     Profile,
+    EditProfile,
     Setting,
 }
 
@@ -73,6 +74,7 @@ impl fmt::Display for Stage {
             Self::AddContact => write!(f, "Add"),
             Self::Notifications => write!(f, "Notifications"),
             Self::Profile => write!(f, "Profile"),
+            Self::EditProfile => write!(f, "Edit profile"),
             Self::Setting => write!(f, "Setting"),
         }
     }
