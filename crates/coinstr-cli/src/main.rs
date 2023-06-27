@@ -5,12 +5,13 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::Parser;
-use cli::AddCommand;
+use cli::{AddCommand, SetCommand};
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::{Amount, CompletedProposal, Keychain, Result};
+use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util::format;
 use coinstr_sdk::Coinstr;
 use rustyline::error::ReadlineError;
@@ -320,6 +321,27 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             GetCommand::Relays => {
                 let relays = coinstr.relays().await;
                 util::print_relays(relays).await;
+                Ok(())
+            }
+        },
+        Command::Set { command } => match command {
+            SetCommand::Metadata {
+                name,
+                display_name,
+                nip05,
+                empty,
+            } => {
+                let mut metadata = Metadata::new();
+                metadata.name = name;
+                metadata.display_name = display_name;
+                metadata.nip05 = nip05;
+
+                if metadata != Metadata::default() || empty {
+                    coinstr.set_metadata(metadata).await?;
+                } else {
+                    println!("No metadata passed with args! If you want to set empty metadata, use --empty flag");
+                }
+
                 Ok(())
             }
         },

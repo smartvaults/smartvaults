@@ -151,6 +151,12 @@ pub enum Command {
         #[command(subcommand)]
         command: GetCommand,
     },
+    /// Set
+    #[command(arg_required_else_help = true)]
+    Set {
+        #[command(subcommand)]
+        command: SetCommand,
+    },
     /// Share
     #[command(arg_required_else_help = true)]
     Share {
@@ -243,6 +249,25 @@ pub enum GetCommand {
     Signers,
     /// Get relays
     Relays,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SetCommand {
+    /// Set metadata
+    Metadata {
+        // Profile name
+        #[arg(short, long)]
+        name: Option<String>,
+        /// Display name
+        #[arg(short, long)]
+        display_name: Option<String>,
+        /// NIP-05
+        #[arg(long)]
+        nip05: Option<String>,
+        /// Allow to set empty metadata
+        #[arg(long)]
+        empty: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
