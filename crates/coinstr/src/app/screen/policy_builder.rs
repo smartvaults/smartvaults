@@ -116,8 +116,13 @@ impl State for PolicyBuilderState {
                 }
                 PolicyBuilderMessage::EditSigner(index, pk, desc) => {
                     self.selecting_signer = None;
-                    // TODO: check if index exists
-                    self.policy[index] = Some((pk, *desc));
+                    match self.policy.get_mut(index) {
+                        Some(v) => *v = Some((pk, *desc)),
+                        None => {
+                            self.error =
+                                Some(String::from("Impossible to edit signer: index not found"))
+                        }
+                    };
                 }
                 PolicyBuilderMessage::RemoveSigner(index) => {
                     self.policy.remove(index);
@@ -222,7 +227,7 @@ impl State for PolicyBuilderState {
                                         .push(
                                             Text::new(format!(
                                                 "User: {}",
-                                                util::cut_public_key(*pk)
+                                                ctx.client.db.get_public_key_name(*pk)
                                             ))
                                             .smaller()
                                             .extra_light()
@@ -459,7 +464,7 @@ fn view_signer_selector<'a>(
                         .view(),
                 )
                 .push(
-                    Text::new(util::cut_public_key(*owner_public_key))
+                    Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
                         .width(Length::Fill)
                         .view(),
                 )
