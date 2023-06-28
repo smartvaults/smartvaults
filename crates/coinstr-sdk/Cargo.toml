@@ -12,9 +12,10 @@ keywords.workspace = true
 [features]
 default = []
 hwi = ["coinstr-core/hwi"]
-blocking = ["nostr-sdk/blocking"]
+blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 
 [dependencies]
+async-utility = "0.1"
 bdk = { version = "0.28", default-features = false, features = ["std", "electrum", "sqlite-bundled"] }
 coinstr-core = { path = "../coinstr-core" }
 futures-util = "0.3"
