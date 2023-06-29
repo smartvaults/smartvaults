@@ -13,11 +13,13 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD};
+use crate::theme::icon::{PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ContactsMessage {
     LoadContacts(BTreeMap<XOnlyPublicKey, Metadata>),
+    RemovePublicKey(XOnlyPublicKey),
+    ErrorChanged(Option<String>),
     Reload,
 }
 
@@ -26,6 +28,7 @@ pub struct ContactsState {
     loading: bool,
     loaded: bool,
     contacts: BTreeMap<XOnlyPublicKey, Metadata>,
+    error: Option<String>,
 }
 
 impl ContactsState {
@@ -58,13 +61,27 @@ impl State for ContactsState {
                     self.contacts = contacts;
                     self.loading = false;
                     self.loaded = true;
-                    Command::none()
                 }
-                ContactsMessage::Reload => self.load(ctx),
+                ContactsMessage::RemovePublicKey(public_key) => {
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.remove_contact(public_key).await },
+                        |res| match res {
+                            Ok(_) => ContactsMessage::Reload.into(),
+                            Err(e) => ContactsMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
+                }
+                ContactsMessage::ErrorChanged(error) => {
+                    self.error = error;
+                    self.loading = false;
+                }
+                ContactsMessage::Reload => return self.load(ctx),
             }
-        } else {
-            Command::none()
         }
+
+        Command::none()
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
@@ -153,7 +170,11 @@ impl State for ContactsState {
                                 .view(),
                         )
                         .push(Space::with_width(Length::Fixed(40.0)))
-                        .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                        .push(
+                            button::danger_border_only_icon(TRASH)
+                                .width(Length::Fixed(40.0))
+                                .on_press(ContactsMessage::RemovePublicKey(*public_key).into()),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
