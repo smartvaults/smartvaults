@@ -1,9 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::str::FromStr;
-
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::nostr::prelude::FromPkStr;
+use coinstr_sdk::nostr::Keys;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -44,10 +43,10 @@ impl State for AddContactState {
                 AddContactMessage::ErrorChanged(error) => self.error = error,
                 AddContactMessage::SaveContact => {
                     let client = ctx.client.clone();
-                    match XOnlyPublicKey::from_str(&self.public_key) {
-                        Ok(public_key) => {
+                    match Keys::from_pk_str(&self.public_key) {
+                        Ok(keys) => {
                             return Command::perform(
-                                async move { client.add_contact(public_key).await },
+                                async move { client.add_contact(keys.public_key()).await },
                                 |res| match res {
                                     Ok(_) => Message::View(Stage::Contacts),
                                     Err(e) => {
