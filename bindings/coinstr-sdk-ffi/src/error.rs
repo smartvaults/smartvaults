@@ -30,6 +30,12 @@ impl From<coinstr_sdk::client::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::nostr::key::Error> for FFIError {
+    fn from(e: coinstr_sdk::nostr::key::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::core::bdk::Error> for FFIError {
     fn from(e: coinstr_sdk::core::bdk::Error) -> Self {
         Self::Generic { err: e.to_string() }

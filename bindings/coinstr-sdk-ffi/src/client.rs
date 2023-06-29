@@ -9,12 +9,12 @@ use coinstr_sdk::client;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
-use coinstr_sdk::core::bitcoin::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::types::WordCount;
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
-use coinstr_sdk::nostr::{block_on, EventId};
+use coinstr_sdk::nostr::prelude::FromPkStr;
+use coinstr_sdk::nostr::{block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{Amount, Balance, CompletedProposal, Policy, Proposal, Relay, Utxo};
@@ -173,16 +173,16 @@ impl Coinstr {
     /// Add new contact
     pub fn add_contact(&self, public_key: String) -> Result<()> {
         block_on(async move {
-            let public_key: XOnlyPublicKey = XOnlyPublicKey::from_str(&public_key)?;
-            Ok(self.inner.add_contact(public_key).await?)
+            let keys: Keys = Keys::from_pk_str(&public_key)?;
+            Ok(self.inner.add_contact(keys.public_key()).await?)
         })
     }
 
     /// Remove contact
     pub fn remove_contact(&self, public_key: String) -> Result<()> {
         block_on(async move {
-            let public_key: XOnlyPublicKey = XOnlyPublicKey::from_str(&public_key)?;
-            Ok(self.inner.remove_contact(public_key).await?)
+            let keys: Keys = Keys::from_pk_str(&public_key)?;
+            Ok(self.inner.remove_contact(keys.public_key()).await?)
         })
     }
 
