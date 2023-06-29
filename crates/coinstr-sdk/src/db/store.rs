@@ -1229,6 +1229,23 @@ impl Store {
         Ok(exists == 1)
     }
 
+    pub fn my_shared_signer_already_shared(
+        &self,
+        signer_id: EventId,
+        public_key: XOnlyPublicKey,
+    ) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE signer_id = ? AND public_key = ? LIMIT 1);",
+        )?;
+        let mut rows = stmt.query([signer_id.to_hex(), public_key.to_string()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
     pub fn save_my_shared_signer(
         &self,
         signer_id: EventId,

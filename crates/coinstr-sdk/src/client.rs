@@ -120,6 +120,8 @@ pub enum Error {
     PublicKeyNotFound,
     #[error("can't delete Coinstr Signer")]
     CantDeleteCoinstrSigner,
+    #[error("signer already shared")]
+    SignerAlreadyShared,
     #[error("{0}")]
     Generic(String),
 }
@@ -1707,20 +1709,28 @@ impl Coinstr {
         signer_id: EventId,
         public_key: XOnlyPublicKey,
     ) -> Result<EventId, Error> {
-        let keys: Keys = self.client.keys();
-        let signer: Signer = self.get_signer_by_id(signer_id)?;
-        let shared_signer: SharedSigner = signer.to_shared_signer();
-        let content: String =
-            nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
-        let tags = &[
-            Tag::Event(signer_id, None, None),
-            Tag::PubKey(public_key, None),
-        ];
-        let event: Event = EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-        let event_id = self.send_event(event).await?;
-        self.db
-            .save_my_shared_signer(signer_id, event_id, public_key)?;
-        Ok(event_id)
+        if !self
+            .db
+            .my_shared_signer_already_shared(signer_id, public_key)?
+        {
+            let keys: Keys = self.client.keys();
+            let signer: Signer = self.get_signer_by_id(signer_id)?;
+            let shared_signer: SharedSigner = signer.to_shared_signer();
+            let content: String =
+                nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
+            let tags = &[
+                Tag::Event(signer_id, None, None),
+                Tag::PubKey(public_key, None),
+            ];
+            let event: Event =
+                EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+            let event_id = self.send_event(event).await?;
+            self.db
+                .save_my_shared_signer(signer_id, event_id, public_key)?;
+            Ok(event_id)
+        } else {
+            Err(Error::SignerAlreadyShared)
+        }
     }
 
     pub async fn share_signer_to_multiple_public_keys(
@@ -1737,17 +1747,24 @@ impl Coinstr {
         let shared_signer: SharedSigner = signer.to_shared_signer();
 
         for public_key in public_keys.into_iter() {
-            let content: String =
-                nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
-            let tags = &[
-                Tag::Event(signer_id, None, None),
-                Tag::PubKey(public_key, None),
-            ];
-            let event: Event =
-                EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-            let event_id = self.send_event(event).await?;
-            self.db
-                .save_my_shared_signer(signer_id, event_id, public_key)?;
+            if self
+                .db
+                .my_shared_signer_already_shared(signer_id, public_key)?
+            {
+                log::warn!("Signer {signer_id} already shared with {public_key}");
+            } else {
+                let content: String =
+                    nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
+                let tags = &[
+                    Tag::Event(signer_id, None, None),
+                    Tag::PubKey(public_key, None),
+                ];
+                let event: Event =
+                    EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+                let event_id = self.send_event(event).await?;
+                self.db
+                    .save_my_shared_signer(signer_id, event_id, public_key)?;
+            }
         }
 
         Ok(())

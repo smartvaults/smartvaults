@@ -18,7 +18,7 @@ use crate::theme::icon::{PLUS, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum ShareSignerMessage {
-    LoadContacts(BTreeMap<XOnlyPublicKey, Metadata>),
+    Load(BTreeMap<XOnlyPublicKey, Metadata>, Vec<XOnlyPublicKey>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     Share,
@@ -33,6 +33,7 @@ pub struct ShareSignerState {
     signer_id: EventId,
     contacts: BTreeMap<XOnlyPublicKey, Metadata>,
     public_keys: HashSet<XOnlyPublicKey>,
+    already_shared_with: Vec<XOnlyPublicKey>,
     error: Option<String>,
 }
 
@@ -44,6 +45,7 @@ impl ShareSignerState {
             signer_id,
             contacts: BTreeMap::new(),
             public_keys: HashSet::new(),
+            already_shared_with: Vec::new(),
             error: None,
         }
     }
@@ -60,9 +62,26 @@ impl State for ShareSignerState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_contacts().unwrap() }, |p| {
-            ShareSignerMessage::LoadContacts(p).into()
-        })
+        let signer_id = self.signer_id;
+        Command::perform(
+            async move {
+                let contacts = client.get_contacts().unwrap();
+                let mut already_shared_with: Vec<XOnlyPublicKey> = Vec::new();
+                for public_key in contacts.keys() {
+                    if client
+                        .db
+                        .my_shared_signer_already_shared(signer_id, *public_key)
+                        .unwrap()
+                    {
+                        already_shared_with.push(*public_key);
+                    }
+                }
+                (contacts, already_shared_with)
+            },
+            |(contacts, already_shared_with)| {
+                ShareSignerMessage::Load(contacts, already_shared_with).into()
+            },
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -72,8 +91,9 @@ impl State for ShareSignerState {
 
         if let Message::ShareSigner(msg) = message {
             match msg {
-                ShareSignerMessage::LoadContacts(contacts) => {
+                ShareSignerMessage::Load(contacts, already_shared_with) => {
                     self.contacts = contacts;
+                    self.already_shared_with = already_shared_with;
                     self.loading = false;
                     self.loaded = true;
                 }
@@ -168,7 +188,9 @@ impl State for ShareSignerState {
                     .push(rule::horizontal_bold());
 
                 for (public_key, metadata) in self.contacts.iter() {
-                    let select_btn = if self.public_keys.contains(public_key) {
+                    let select_btn = if self.already_shared_with.contains(public_key) {
+                        button::primary("Already shared")
+                    } else if self.public_keys.contains(public_key) {
                         button::primary("Selected")
                             .on_press(ShareSignerMessage::RemovePublicKey(*public_key).into())
                     } else {
