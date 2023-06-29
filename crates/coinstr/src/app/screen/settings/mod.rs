@@ -10,39 +10,41 @@ use crate::component::{button, Text};
 use crate::constants::APP_NAME;
 use crate::theme::Theme;
 
+pub mod relays;
+
 #[derive(Debug, Clone)]
-pub enum SettingMessage {
+pub enum SettingsMessage {
     ThemeChanged(Theme),
     RebroadcastAllEvents,
     ClearCache,
 }
 
 #[derive(Debug, Default)]
-pub struct SettingState {}
+pub struct SettingsState {}
 
-impl SettingState {
+impl SettingsState {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl State for SettingState {
+impl State for SettingsState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Setting")
+        format!("{APP_NAME} - Settings")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
-        if let Message::Setting(msg) = message {
+        if let Message::Settings(msg) = message {
             match msg {
-                SettingMessage::ThemeChanged(theme) => ctx.theme = theme,
-                SettingMessage::RebroadcastAllEvents => {
+                SettingsMessage::ThemeChanged(theme) => ctx.theme = theme,
+                SettingsMessage::RebroadcastAllEvents => {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move { client.rebroadcast_all_events().await.unwrap() },
                         move |_| Message::View(Stage::Dashboard),
                     );
                 }
-                SettingMessage::ClearCache => {
+                SettingsMessage::ClearCache => {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move { client.clear_cache().await.unwrap() },
@@ -65,29 +67,32 @@ impl State for SettingState {
                     format!("{theme}"),
                     *theme,
                     Some(ctx.theme),
-                    |theme| SettingMessage::ThemeChanged(theme).into(),
+                    |theme| SettingsMessage::ThemeChanged(theme).into(),
                 ))
             },
         );
         let content = Column::new()
             .push(choose_theme)
+            .push(button::primary("Relays").on_press(Message::View(Stage::Relays)))
             .push(
                 button::primary("Rebroadcast all events")
-                    .on_press(SettingMessage::RebroadcastAllEvents.into()),
+                    .on_press(SettingsMessage::RebroadcastAllEvents.into()),
             )
-            .push(button::danger_border("Clear cache").on_press(SettingMessage::ClearCache.into()));
+            .push(
+                button::danger_border("Clear cache").on_press(SettingsMessage::ClearCache.into()),
+            );
         Dashboard::new().view(ctx, content, true, true)
     }
 }
 
-impl From<SettingState> for Box<dyn State> {
-    fn from(s: SettingState) -> Box<dyn State> {
+impl From<SettingsState> for Box<dyn State> {
+    fn from(s: SettingsState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<SettingMessage> for Message {
-    fn from(msg: SettingMessage) -> Self {
-        Self::Setting(msg)
+impl From<SettingsMessage> for Message {
+    fn from(msg: SettingsMessage) -> Self {
+        Self::Settings(msg)
     }
 }

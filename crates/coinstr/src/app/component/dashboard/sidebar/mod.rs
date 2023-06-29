@@ -47,7 +47,7 @@ impl Sidebar {
         let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS).view())
             .view(ctx, Message::View(Stage::Contacts));
         let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
-            .view(ctx, Message::View(Stage::Setting));
+            .view(ctx, Message::View(Stage::Settings));
 
         // Identity
         let fingerprint = match ctx.client.keychain().seed.fingerprint(ctx.client.network()) {

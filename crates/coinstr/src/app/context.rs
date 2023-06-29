@@ -42,7 +42,8 @@ pub enum Stage {
     Notifications,
     Profile,
     EditProfile,
-    Setting,
+    Settings,
+    Relays,
 }
 
 impl fmt::Display for Stage {
@@ -75,7 +76,8 @@ impl fmt::Display for Stage {
             Self::Notifications => write!(f, "Notifications"),
             Self::Profile => write!(f, "Profile"),
             Self::EditProfile => write!(f, "Edit profile"),
-            Self::Setting => write!(f, "Setting"),
+            Self::Settings => write!(f, "Settings"),
+            Self::Relays => write!(f, "Relays"),
         }
     }
 }
@@ -96,7 +98,7 @@ impl Stage {
                 | Stage::History
                 | Stage::Signers
                 | Stage::Contacts
-                | Stage::Setting
+                | Stage::Settings
                 | Stage::Notifications
                 | Stage::Profile
         )

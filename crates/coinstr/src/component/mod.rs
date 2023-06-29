@@ -2,12 +2,14 @@
 // Distributed under the MIT software license
 
 pub mod button;
+mod circle;
 mod icon;
 mod numeric_input;
 pub mod rule;
 mod text;
 mod text_input;
 
+pub use self::circle::Circle;
 pub use self::icon::Icon;
 pub use self::numeric_input::NumericInput;
 pub use self::text::Text;
