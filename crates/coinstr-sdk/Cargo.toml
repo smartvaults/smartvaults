@@ -18,6 +18,7 @@ blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 async-utility = "0.1"
 bdk = { version = "0.28", default-features = false, features = ["std", "electrum", "sqlite-bundled"] }
 coinstr-core = { path = "../coinstr-core" }
+fern = { version = "0.6", default-features = false }
 futures-util = "0.3"
 log = "0.4"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", branch = "bitcoin-v0.29", default-features = false, features = ["nip04", "nip06", "nip19"] }
@@ -28,4 +29,3 @@ rusqlite = { version = "0.28", features = ["bundled", "serde_json"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 tokio = { version = "1", features = ["sync"] }
-

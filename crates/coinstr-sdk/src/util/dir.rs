@@ -34,6 +34,15 @@ where
     Ok(path)
 }
 
+pub(crate) fn logs_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
+where
+    P: AsRef<Path>,
+{
+    let path = network_path(base_path, network)?.join("logs");
+    std::fs::create_dir_all(path.as_path())?;
+    Ok(path)
+}
+
 pub(crate) fn user_db<P>(
     base_path: P,
     network: Network,

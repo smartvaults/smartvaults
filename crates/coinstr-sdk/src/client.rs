@@ -49,8 +49,8 @@ use crate::db::model::{
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
-use crate::util;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
+use crate::{logger, util};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -94,6 +94,8 @@ pub enum Error {
     Proof(#[from] ProofError),
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
+    #[error(transparent)]
+    Logger(#[from] fern::InitError),
     #[error(transparent)]
     Store(#[from] crate::db::Error),
     #[error("password not match")]
@@ -164,6 +166,10 @@ impl Coinstr {
     {
         let base_path = base_path.as_ref();
 
+        // Init logger
+        let logs_path = util::dir::logs_path(base_path, network)?;
+        logger::init(logs_path)?;
+
         // Open keychain
         let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
         let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
@@ -221,6 +227,10 @@ impl Coinstr {
         PASSP: FnOnce() -> Result<Option<String>>,
     {
         let base_path = base_path.as_ref();
+
+        // Init logger
+        let logs_path = util::dir::logs_path(base_path, network)?;
+        logger::init(logs_path)?;
 
         // Generate keychain
         let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
@@ -286,6 +296,10 @@ impl Coinstr {
         PASSP: FnOnce() -> Result<Option<String>>,
     {
         let base_path = base_path.as_ref();
+
+        // Init logger
+        let logs_path = util::dir::logs_path(base_path, network)?;
+        logger::init(logs_path)?;
 
         // Restore keychain
         let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;

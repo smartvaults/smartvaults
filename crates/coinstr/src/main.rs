@@ -30,8 +30,6 @@ fn parse_network(args: Vec<String>) -> Network {
 }
 
 pub fn main() -> iced::Result {
-    env_logger::init();
-
     let network = parse_network(std::env::args().collect());
     let mut settings = Settings::with_flags(network);
     settings.window.min_size = Some((1000, 700));

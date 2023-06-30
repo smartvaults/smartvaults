@@ -914,6 +914,7 @@ impl Store {
                 if let Some(sender) = sender {
                     let _ = sender.send(Some(Message::WalletSyncCompleted(policy_id)));
                 }
+                log::info!("Policy {policy_id} synced");
             }
         }
         Ok(())
