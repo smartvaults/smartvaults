@@ -62,7 +62,11 @@ impl State for SignerState {
         let client = ctx.client.clone();
         let signer_id = self.signer_id;
         Command::perform(
-            async move { client.get_my_shared_signers(signer_id).unwrap() },
+            async move {
+                client
+                    .get_my_shared_signers_by_signer_id(signer_id)
+                    .unwrap()
+            },
             |signers| SignerMessage::LoadMySharedSigners(signers).into(),
         )
     }

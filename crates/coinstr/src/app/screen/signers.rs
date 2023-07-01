@@ -14,7 +14,7 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::constants::APP_NAME;
-use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE};
+use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
@@ -104,6 +104,9 @@ impl State for SignersState {
                 let add_signer_btn = button::border_only_icon(PLUS)
                     .width(Length::Fixed(40.0))
                     .on_press(Message::View(Stage::AddSigner));
+                let revoke_all_btn = button::danger_border_only_icon(TRASH)
+                    .width(Length::Fixed(40.0))
+                    .on_press(Message::View(Stage::RevokeAllSigners));
                 let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
                 if !self.loading {
@@ -138,8 +141,8 @@ impl State for SignersState {
                                     .width(Length::Fixed(125.0))
                                     .view(),
                             )
-                            .push(Space::with_width(Length::Fixed(40.0)))
                             .push(add_signer_btn)
+                            .push(revoke_all_btn)
                             .push(reload_btn)
                             .spacing(10)
                             .align_items(Alignment::Center)

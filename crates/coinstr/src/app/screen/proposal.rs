@@ -364,7 +364,7 @@ impl State for ProposalState {
                             self.signer
                                 .as_ref()
                                 .map(|s| s.to_string())
-                                .unwrap_or_else(|| String::from("Unavailable"))
+                                .unwrap_or_else(|| String::from("Unknown"))
                         ))
                         .view(),
                     );

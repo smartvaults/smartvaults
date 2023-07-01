@@ -20,7 +20,6 @@ use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{Balance, FeeRate, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
-use coinstr_core::constants::COINSTR_ACCOUNT_INDEX;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
@@ -120,8 +119,6 @@ pub enum Error {
     SignerIdNotFound,
     #[error("public key not found")]
     PublicKeyNotFound,
-    #[error("can't delete Coinstr Signer")]
-    CantDeleteCoinstrSigner,
     #[error("signer already shared")]
     SignerAlreadyShared,
     #[error("{0}")]
@@ -132,11 +129,6 @@ pub enum Error {
 pub enum Message {
     Notification(Notification),
     WalletSyncCompleted(EventId),
-}
-
-fn coinstr_signer(seed: Seed, network: Network) -> Result<(EventId, Signer), Error> {
-    let signer = Signer::from_seed("Coinstr", None, seed, Some(COINSTR_ACCOUNT_INDEX), network)?;
-    Ok((EventId::all_zeros(), signer))
 }
 
 /// Coinstr
@@ -572,11 +564,7 @@ impl Coinstr {
     }
 
     pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        if signer_id == EventId::all_zeros() {
-            Ok(coinstr_signer(self.keechain.keychain.seed(), self.network)?.1)
-        } else {
-            Ok(self.db.get_signer_by_id(signer_id)?)
-        }
+        Ok(self.db.get_signer_by_id(signer_id)?)
     }
 
     pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
@@ -686,28 +674,24 @@ impl Coinstr {
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
-        if signer_id != EventId::all_zeros() {
-            let keys = self.client.keys();
+        let keys = self.client.keys();
 
-            let my_shared_signers = self.db.get_my_shared_signers(signer_id)?;
-            let mut tags: Vec<Tag> = Vec::new();
+        let my_shared_signers = self.db.get_my_shared_signers_by_signer_id(signer_id)?;
+        let mut tags: Vec<Tag> = Vec::new();
 
-            tags.push(Tag::Event(signer_id, None, None));
+        tags.push(Tag::Event(signer_id, None, None));
 
-            for (shared_signer_id, public_key) in my_shared_signers.into_iter() {
-                tags.push(Tag::PubKey(public_key, None));
-                tags.push(Tag::Event(shared_signer_id, None, None));
-            }
-
-            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
-            self.send_event(event).await?;
-
-            self.db.delete_signer(signer_id)?;
-
-            Ok(())
-        } else {
-            Err(Error::CantDeleteCoinstrSigner)
+        for (shared_signer_id, public_key) in my_shared_signers.into_iter() {
+            tags.push(Tag::PubKey(public_key, None));
+            tags.push(Tag::Event(shared_signer_id, None, None));
         }
+
+        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
+        self.send_event(event).await?;
+
+        self.db.delete_signer(signer_id)?;
+
+        Ok(())
     }
 
     pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
@@ -1236,10 +1220,7 @@ impl Coinstr {
     }
 
     pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
-        let mut signers = self.db.get_signers()?;
-        let (signer_id, signer) = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
-        signers.insert(signer_id, signer);
-        Ok(signers)
+        Ok(self.db.get_signers()?)
     }
 
     pub fn search_signer_by_descriptor(
@@ -1253,8 +1234,7 @@ impl Coinstr {
                 return Ok(signer);
             }
         }
-        let (_, signer) = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
-        Ok(signer)
+        Err(Error::SignerNotFound)
     }
 
     fn sync_with_timechain(&self) -> AbortHandle {
@@ -1784,6 +1764,20 @@ impl Coinstr {
         Ok(())
     }
 
+    pub async fn revoke_all_shared_signers(&self) -> Result<(), Error> {
+        let keys = self.client.keys();
+        for (shared_signer_id, public_key) in self.db.get_my_shared_signers()?.into_iter() {
+            let tags = &[
+                Tag::PubKey(public_key, None),
+                Tag::Event(shared_signer_id, None, None),
+            ];
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
+            self.send_event(event).await?;
+            self.db.delete_shared_signer(shared_signer_id)?;
+        }
+        Ok(())
+    }
+
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
         let keys = self.client.keys();
         let public_key = self
@@ -1799,11 +1793,11 @@ impl Coinstr {
         Ok(())
     }
 
-    pub fn get_my_shared_signers(
+    pub fn get_my_shared_signers_by_signer_id(
         &self,
         signer_id: EventId,
     ) -> Result<BTreeMap<EventId, XOnlyPublicKey>, Error> {
-        Ok(self.db.get_my_shared_signers(signer_id)?)
+        Ok(self.db.get_my_shared_signers_by_signer_id(signer_id)?)
     }
 
     pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSignerResult>, Error> {

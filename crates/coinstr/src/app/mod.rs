@@ -20,8 +20,8 @@ use self::screen::{
     CompletedProposalState, ContactsState, DashboardState, EditProfileState, HistoryState,
     NewProofState, NotificationsState, PoliciesState, PolicyBuilderState, PolicyState,
     ProfileState, ProposalState, ProposalsState, ReceiveState, RelaysState, RestorePolicyState,
-    SelfTransferState, SettingsState, ShareSignerState, SignerState, SignersState, SpendState,
-    TransactionState, TransactionsState,
+    RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState, SignerState,
+    SignersState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -69,6 +69,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
             .into()
         }
         Stage::Signers => SignersState::new().into(),
+        Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),
         Stage::Signer(signer_id, signer) => SignerState::new(*signer_id, signer.clone()).into(),
         Stage::AddSigner => AddSignerState::new().into(),
         Stage::AddHWSigner => AddHWSignerState::new().into(),
