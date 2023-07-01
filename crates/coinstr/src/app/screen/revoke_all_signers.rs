@@ -64,7 +64,7 @@ impl State for RevokeAllSignersState {
         let mut revoke_all_btn =
             button::danger_border("Revoke all shared signers").width(Length::Fill);
 
-        if self.confirm == String::from("CONFIRM") {
+        if self.confirm == *"CONFIRM" {
             revoke_all_btn = revoke_all_btn.on_press(RevokeAllSignersMessage::Revoke.into());
         }
 
