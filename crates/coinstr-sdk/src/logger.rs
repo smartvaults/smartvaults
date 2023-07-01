@@ -4,15 +4,32 @@
 use std::env;
 use std::path::Path;
 
+use bdk::bitcoin::Network;
 use fern::{Dispatch, InitError};
 use log::LevelFilter;
 use nostr_sdk::Timestamp;
+use thiserror::Error;
 
-pub(crate) fn init<P>(path: P) -> Result<(), InitError>
+use crate::util::dir;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+    #[error(transparent)]
+    Dir(#[from] dir::Error),
+    #[error(transparent)]
+    Log(#[from] log::SetLoggerError),
+    #[error(transparent)]
+    Logger(#[from] InitError),
+}
+
+pub fn init<P>(base_path: P, network: Network) -> Result<(), Error>
 where
     P: AsRef<Path>,
 {
-    let mut log_file = path.as_ref().join(Timestamp::now().as_u64().to_string());
+    let path = dir::logs_path(base_path, network)?;
+    let mut log_file = path.join(Timestamp::now().as_u64().to_string());
     log_file.set_extension("log");
 
     let mut dispatcher = Dispatch::new()

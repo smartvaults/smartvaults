@@ -13,7 +13,7 @@ use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::{Amount, CompletedProposal, Keychain, Result};
 use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util::format;
-use coinstr_sdk::Coinstr;
+use coinstr_sdk::{logger, Coinstr};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
@@ -42,6 +42,8 @@ async fn run() -> Result<()> {
         Network::Testnet => "ssl://blockstream.info:993",
         _ => panic!("Endpoints not availabe for this network"),
     };
+
+    logger::init(base_path.clone(), network)?;
 
     match args.command {
         CliCommand::Generate {

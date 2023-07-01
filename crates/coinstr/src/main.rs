@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::logger;
 use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
@@ -36,6 +37,9 @@ pub fn main() -> iced::Result {
     settings.text_multithreading = true;
     settings.antialiasing = false;
     settings.default_font = Some(theme::font::REGULAR_BYTES);
+
+    logger::init(BASE_PATH.clone(), network).unwrap();
+
     CoinstrApp::run(settings)
 }
 
