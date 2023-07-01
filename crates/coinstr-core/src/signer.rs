@@ -16,6 +16,7 @@ use keechain_core::types::{descriptors, Purpose, Seed};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::constants::COINSTR_ACCOUNT_INDEX;
 use crate::util::{Encryption, Serde};
 
 #[derive(Debug, Error)]
@@ -163,6 +164,10 @@ impl Signer {
     pub fn to_shared_signer(&self) -> SharedSigner {
         SharedSigner::from(self.clone())
     }
+}
+
+pub fn coinstr_signer(seed: Seed, network: Network) -> Result<Signer, Error> {
+    Signer::from_seed("Coinstr", None, seed, Some(COINSTR_ACCOUNT_INDEX), network)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
