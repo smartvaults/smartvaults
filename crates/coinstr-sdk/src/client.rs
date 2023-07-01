@@ -21,7 +21,7 @@ use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::{Balance, FeeRate, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
-use coinstr_core::signer::{SharedSigner, Signer};
+use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::{extract_public_keys, Serde};
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
@@ -119,6 +119,8 @@ pub enum Error {
     PublicKeyNotFound,
     #[error("signer already shared")]
     SignerAlreadyShared,
+    #[error("signer descriptor already exists")]
+    SignerDescriptorAlreadyExists,
     #[error("{0}")]
     Generic(String),
 }
@@ -1182,6 +1184,10 @@ impl Coinstr {
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
         let keys = self.client.keys();
 
+        if self.db.signer_descriptor_exists(signer.descriptor())? {
+            return Err(Error::SignerDescriptorAlreadyExists);
+        }
+
         // Compose the event
         let content: String = signer.encrypt_with_keys(&keys)?;
 
@@ -1195,6 +1201,16 @@ impl Coinstr {
         self.db.save_signer(signer_id, signer)?;
 
         Ok(signer_id)
+    }
+
+    pub fn coinstr_signer_exists(&self) -> Result<bool, Error> {
+        let signer = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
+        Ok(self.db.signer_descriptor_exists(signer.descriptor())?)
+    }
+
+    pub async fn save_coinstr_signer(&self) -> Result<EventId, Error> {
+        let signer = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
+        self.save_signer(signer).await
     }
 
     /// Get all own signers and contacts shared signers

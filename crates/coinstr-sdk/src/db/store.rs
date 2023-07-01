@@ -16,6 +16,7 @@ use std::sync::Arc;
 use bdk::bitcoin::{Address, Network, Txid};
 use bdk::blockchain::Blockchain;
 use bdk::database::SqliteDatabase;
+use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::AddressIndex;
 use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::policy::{self, Policy};
@@ -1152,6 +1153,19 @@ impl Store {
             );
         }
         Ok(signers)
+    }
+
+    pub(crate) fn signer_descriptor_exists(
+        &self,
+        descriptor: Descriptor<DescriptorPublicKey>,
+    ) -> Result<bool, Error> {
+        let signers = self.get_signers()?;
+        for signer in signers.into_values() {
+            if signer.descriptor() == descriptor {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {

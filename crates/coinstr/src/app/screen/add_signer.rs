@@ -10,10 +10,17 @@ use crate::component::button;
 use crate::constants::APP_NAME;
 
 #[derive(Debug, Clone)]
-pub enum AddSignerMessage {}
+pub enum AddSignerMessage {
+    LoadCoinstrSigner(bool),
+    AddCoinstrSigner,
+}
 
 #[derive(Debug, Default)]
-pub struct AddSignerState {}
+pub struct AddSignerState {
+    loading: bool,
+    loaded: bool,
+    coinstr_signer_exists: bool,
+}
 
 impl AddSignerState {
     pub fn new() -> Self {
@@ -26,12 +33,45 @@ impl State for AddSignerState {
         format!("{APP_NAME} - Add signer")
     }
 
-    fn update(&mut self, _ctx: &mut Context, _message: Message) -> Command<Message> {
+    fn load(&mut self, ctx: &Context) -> Command<Message> {
+        self.loading = true;
+        let client = ctx.client.clone();
+        Command::perform(
+            async move { client.coinstr_signer_exists().unwrap() },
+            |value| AddSignerMessage::LoadCoinstrSigner(value).into(),
+        )
+    }
+
+    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
+        if let Message::AddSigner(msg) = message {
+            match msg {
+                AddSignerMessage::LoadCoinstrSigner(value) => {
+                    self.coinstr_signer_exists = value;
+                    self.loading = false;
+                    self.loaded = true;
+                }
+                AddSignerMessage::AddCoinstrSigner => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.save_coinstr_signer().await.unwrap() },
+                        |_| Message::View(Stage::Signers),
+                    );
+                }
+            }
+        }
         Command::none()
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
+        let mut add_coinstr_signer_btn = button::primary("Coinstr Signer").width(Length::Fill);
+
+        if self.loaded && !self.coinstr_signer_exists {
+            add_coinstr_signer_btn =
+                add_coinstr_signer_btn.on_press(AddSignerMessage::AddCoinstrSigner.into());
+        }
+
         let content = Column::new()
+            .push(add_coinstr_signer_btn)
             .push(
                 button::primary("Connect Signing Device")
                     .on_press(Message::View(Stage::AddHWSigner))
