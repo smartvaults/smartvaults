@@ -82,7 +82,7 @@ impl Application for CoinstrApp {
         };
 
         let mut title = if title.is_empty() {
-            format!("{APP_NAME}")
+            APP_NAME.to_string()
         } else {
             format!("{APP_NAME} - {title}")
         };
