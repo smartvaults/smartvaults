@@ -13,7 +13,6 @@ use iced::{Command, Element, Length};
 use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
-use crate::constants::APP_NAME;
 
 #[derive(Debug, Clone)]
 pub enum DashboardMessage {
@@ -50,7 +49,7 @@ impl DashboardState {
 
 impl State for DashboardState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Dashboard")
+        String::from("Dashboard")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

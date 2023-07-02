@@ -11,7 +11,6 @@ use iced::{time, Alignment, Command, Element, Length, Subscription};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
 use crate::component::{button, rule, Circle, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::{BLACK, GREEN, GREY, RED, YELLOW};
 use crate::theme::icon::RELOAD;
 
@@ -43,7 +42,7 @@ impl RelaysState {
 
 impl State for RelaysState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Relays")
+        String::from("Relays")
     }
 
     fn subscription(&self) -> Subscription<Message> {

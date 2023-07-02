@@ -13,7 +13,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE, TRASH};
 
 #[derive(Debug, Clone)]
@@ -43,7 +42,7 @@ impl SignersState {
 
 impl State for SignersState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Signers")
+        String::from("Signers")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

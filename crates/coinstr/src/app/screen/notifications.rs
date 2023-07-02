@@ -9,7 +9,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::GREY;
 
 #[derive(Debug, Clone)]
@@ -36,7 +35,7 @@ impl NotificationsState {
 
 impl State for NotificationsState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Notifications")
+        String::from("Notifications")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

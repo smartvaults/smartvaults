@@ -12,7 +12,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -40,7 +39,7 @@ impl AddAirGapSignerState {
 
 impl State for AddAirGapSignerState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Add signer")
+        String::from("Add signer")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

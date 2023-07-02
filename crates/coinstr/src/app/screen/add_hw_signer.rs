@@ -11,7 +11,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::RELOAD;
 
@@ -43,7 +42,7 @@ impl AddHWSignerState {
 
 impl State for AddHWSignerState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Add signer")
+        String::from("Add signer")
     }
 
     fn load(&mut self, _ctx: &Context) -> Command<Message> {

@@ -10,7 +10,6 @@ use iced::{Command, Element, Length};
 
 use super::view;
 use crate::component::{button, rule, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::DARK_RED;
 use crate::BASE_PATH;
@@ -45,7 +44,7 @@ impl RestoreState {
 
 impl State for RestoreState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Restore")
+        String::from("Restore")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

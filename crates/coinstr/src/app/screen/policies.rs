@@ -13,7 +13,6 @@ use rfd::FileDialog;
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
@@ -38,7 +37,7 @@ impl PoliciesState {
 
 impl State for PoliciesState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Policies")
+        String::from("Policies")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

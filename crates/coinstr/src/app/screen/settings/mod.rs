@@ -7,7 +7,6 @@ use iced::{Command, Element};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text};
-use crate::constants::APP_NAME;
 use crate::theme::Theme;
 
 pub mod relays;
@@ -30,7 +29,7 @@ impl SettingsState {
 
 impl State for SettingsState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Settings")
+        String::from("Settings")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

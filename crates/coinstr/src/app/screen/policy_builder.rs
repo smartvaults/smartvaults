@@ -11,7 +11,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::TRASH;
 
@@ -71,7 +70,7 @@ impl PolicyBuilderState {
 
 impl State for PolicyBuilderState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Policy builder")
+        String::from("Policy builder")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

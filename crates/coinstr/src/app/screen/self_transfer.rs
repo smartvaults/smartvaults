@@ -16,7 +16,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, NumericInput, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -106,7 +105,7 @@ impl SelfTransferState {
 
 impl State for SelfTransferState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Self transfer")
+        String::from("Self transfer")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

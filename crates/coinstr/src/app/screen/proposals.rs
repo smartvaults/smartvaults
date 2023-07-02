@@ -11,7 +11,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::{Dashboard, PendingProposalsList};
 use crate::app::{Context, Message, State};
 use crate::component::{button, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
@@ -35,7 +34,7 @@ impl ProposalsState {
 
 impl State for ProposalsState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Proposals")
+        String::from("Proposals")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

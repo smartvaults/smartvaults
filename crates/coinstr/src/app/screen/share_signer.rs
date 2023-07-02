@@ -12,7 +12,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::RED;
 use crate::theme::icon::{PLUS, RELOAD};
 
@@ -53,10 +52,7 @@ impl ShareSignerState {
 
 impl State for ShareSignerState {
     fn title(&self) -> String {
-        format!(
-            "{APP_NAME} - Share Signer #{}",
-            util::cut_event_id(self.signer_id)
-        )
+        format!("Share Signer #{}", util::cut_event_id(self.signer_id))
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

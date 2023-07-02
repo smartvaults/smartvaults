@@ -13,7 +13,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -71,7 +70,7 @@ impl NewProofState {
 
 impl State for NewProofState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - New Proof of Reserve")
+        String::from("New Proof of Reserve")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

@@ -7,7 +7,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::button;
-use crate::constants::APP_NAME;
 
 #[derive(Debug, Clone)]
 pub enum AddSignerMessage {
@@ -30,7 +29,7 @@ impl AddSignerState {
 
 impl State for AddSignerState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Add signer")
+        String::from("Add signer")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

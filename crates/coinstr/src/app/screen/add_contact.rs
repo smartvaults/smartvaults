@@ -9,7 +9,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -33,7 +32,7 @@ impl AddContactState {
 
 impl State for AddContactState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Add contact")
+        String::from("Add contact")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

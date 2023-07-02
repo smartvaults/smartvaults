@@ -35,6 +35,10 @@ impl OpenState {
 }
 
 impl State for OpenState {
+    fn title(&self) -> String {
+        String::new()
+    }
+
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
         Command::perform(async {}, |_| Message::Open(OpenMessage::LoadKeychains))
     }

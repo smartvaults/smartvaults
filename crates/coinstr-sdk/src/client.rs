@@ -334,6 +334,11 @@ impl Coinstr {
         Ok(util::dir::get_keychains_list(base_path, network)?)
     }
 
+    /// Get keychain name
+    pub fn name(&self) -> Option<String> {
+        self.keechain.name()
+    }
+
     /// Save keychain
     pub fn save(&self) -> Result<(), Error> {
         Ok(self.keechain.save()?)

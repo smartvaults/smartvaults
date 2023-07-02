@@ -11,7 +11,6 @@ use iced::{Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, RED};
 
 #[derive(Debug, Clone)]
@@ -41,7 +40,7 @@ impl TransactionState {
 
 impl State for TransactionState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Tx #{}", util::cut_txid(self.txid))
+        format!("Tx #{}", util::cut_txid(self.txid))
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

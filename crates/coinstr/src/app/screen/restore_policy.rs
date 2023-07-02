@@ -10,7 +10,6 @@ use rfd::FileDialog;
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -47,7 +46,7 @@ impl RestorePolicyState {
 
 impl State for RestorePolicyState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Restore policy")
+        String::from("Restore policy")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

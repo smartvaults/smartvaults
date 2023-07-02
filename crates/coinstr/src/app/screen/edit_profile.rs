@@ -8,7 +8,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -40,7 +39,7 @@ impl EditProfileState {
 
 impl State for EditProfileState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Edit profile")
+        String::from("Edit profile")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

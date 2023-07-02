@@ -10,7 +10,6 @@ mod message;
 pub mod screen;
 mod sync;
 
-use crate::constants::APP_NAME;
 use crate::theme::Theme;
 
 pub use self::context::{Context, Stage};
@@ -26,9 +25,7 @@ use self::screen::{
 use self::sync::CoinstrSync;
 
 pub trait State {
-    fn title(&self) -> String {
-        APP_NAME.to_string()
-    }
+    fn title(&self) -> String;
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message>;
 
@@ -102,7 +99,10 @@ impl App {
     }
 
     pub fn title(&self) -> String {
-        self.state.title()
+        match self.ctx.client.name() {
+            Some(name) => format!("{} [{name}]", self.state.title()),
+            None => self.state.title(),
+        }
     }
 
     pub fn theme(&self) -> Theme {

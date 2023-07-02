@@ -12,7 +12,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::PLUS;
 
@@ -50,7 +49,7 @@ impl AddPolicyState {
 
 impl State for AddPolicyState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Add policy")
+        String::from("Add policy")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

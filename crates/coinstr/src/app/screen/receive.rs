@@ -15,7 +15,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
 use crate::component::{button, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone, Eq)]
@@ -75,7 +74,7 @@ impl ReceiveState {
 
 impl State for ReceiveState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Receive")
+        String::from("Receive")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

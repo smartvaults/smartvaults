@@ -17,7 +17,6 @@ use rfd::FileDialog;
 use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::RED;
 use crate::theme::icon::{CLIPBOARD, GLOBE, PATCH_CHECK, SAVE, TRASH};
 
@@ -74,10 +73,7 @@ impl PolicyState {
 
 impl State for PolicyState {
     fn title(&self) -> String {
-        format!(
-            "{APP_NAME} - Policy #{}",
-            util::cut_event_id(self.policy_id)
-        )
+        format!("Policy #{}", util::cut_event_id(self.policy_id))
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

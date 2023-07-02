@@ -12,14 +12,11 @@ pub use self::context::{Context, Stage};
 pub use self::message::Message;
 use self::screen::{GenerateState, OpenState, RestoreState};
 use crate::app::App;
-use crate::constants::APP_NAME;
 use crate::theme::Theme;
 use crate::CoinstrApp;
 
 pub trait State {
-    fn title(&self) -> String {
-        APP_NAME.to_string()
-    }
+    fn title(&self) -> String;
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message>;
 

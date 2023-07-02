@@ -12,7 +12,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::{PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
@@ -39,7 +38,7 @@ impl ContactsState {
 
 impl State for ContactsState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Contacts")
+        String::from("Contacts")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

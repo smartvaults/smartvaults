@@ -19,7 +19,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, NumericInput, Text, TextInput};
-use crate::constants::APP_NAME;
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -128,7 +127,7 @@ impl SpendState {
 
 impl State for SpendState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Send")
+        String::from("Send")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

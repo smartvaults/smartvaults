@@ -9,7 +9,6 @@ use iced::{Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
@@ -32,7 +31,7 @@ impl ProfileState {
 
 impl State for ProfileState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Profile")
+        String::from("Profile")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

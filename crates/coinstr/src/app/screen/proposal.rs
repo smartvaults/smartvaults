@@ -18,7 +18,6 @@ use rfd::FileDialog;
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
@@ -72,10 +71,7 @@ impl ProposalState {
 
 impl State for ProposalState {
     fn title(&self) -> String {
-        format!(
-            "{APP_NAME} - Proposal #{}",
-            util::cut_event_id(self.proposal_id)
-        )
+        format!("Proposal #{}", util::cut_event_id(self.proposal_id))
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

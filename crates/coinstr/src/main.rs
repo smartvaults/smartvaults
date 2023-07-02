@@ -16,6 +16,8 @@ mod constants;
 mod start;
 mod theme;
 
+use self::constants::APP_NAME;
+
 static BASE_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::base_path().expect("Impossible to get coinstr path"));
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));
@@ -79,11 +81,17 @@ impl Application for CoinstrApp {
             State::App(app) => (app.title(), app.ctx.client.network()),
         };
 
-        if network == Network::Bitcoin {
-            title
+        let mut title = if title.is_empty() {
+            format!("{APP_NAME}")
         } else {
-            format!("{title} [{network}]")
+            format!("{APP_NAME} - {title}")
+        };
+
+        if network != Network::Bitcoin {
+            title.push_str(&format!(" [{network}]"));
         }
+
+        title
     }
 
     fn theme(&self) -> Theme {

@@ -7,7 +7,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, TextInput};
-use crate::constants::APP_NAME;
 
 #[derive(Debug, Clone)]
 pub enum RevokeAllSignersMessage {
@@ -30,7 +29,7 @@ impl RevokeAllSignersState {
 
 impl State for RevokeAllSignersState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - Revoke all shared signers")
+        String::from("Revoke all shared signers")
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

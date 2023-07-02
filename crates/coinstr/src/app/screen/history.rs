@@ -11,7 +11,6 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::{CompletedProposalsList, Dashboard};
 use crate::app::{Context, Message, State};
 use crate::component::{button, Text};
-use crate::constants::APP_NAME;
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
@@ -35,7 +34,7 @@ impl HistoryState {
 
 impl State for HistoryState {
     fn title(&self) -> String {
-        format!("{APP_NAME} - History")
+        String::from("History")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {

@@ -14,7 +14,6 @@ use rfd::FileDialog;
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, Text};
-use crate::constants::APP_NAME;
 use crate::theme::color::{GREEN, GREY, RED};
 use crate::theme::icon::{PATCH_CHECK, SAVE, TRASH};
 
@@ -68,7 +67,7 @@ impl CompletedProposalState {
 impl State for CompletedProposalState {
     fn title(&self) -> String {
         format!(
-            "{APP_NAME} - Finalized proposal #{}",
+            "Finalized proposal #{}",
             util::cut_event_id(self.completed_proposal_id)
         )
     }
