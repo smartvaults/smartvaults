@@ -1,8 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 use clap::Parser;
 use cli::{AddCommand, SetCommand};
@@ -136,6 +139,46 @@ async fn run() -> Result<()> {
                     Err(e) => {
                         eprintln!("Error: {e}");
                         break;
+                    }
+                }
+            }
+
+            coinstr.shutdown().await?;
+
+            Ok(())
+        }
+        CliCommand::Batch { name, path } => {
+            let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
+            let relays = coinstr.default_relays();
+            coinstr.add_relays_and_connect(relays).await?;
+            coinstr.set_electrum_endpoint(endpoint);
+            coinstr.sync();
+
+            let file = File::open(path)?;
+            let reader = BufReader::new(file);
+
+            println!("Syncing...");
+
+            loop {
+                if coinstr.is_first_sync_completed() {
+                    println!("Sync completed");
+                    break;
+                }
+                tokio::time::sleep(Duration::from_secs(3)).await;
+            }
+
+            for line in reader.lines().flatten() {
+                let mut vec: Vec<String> = cli::parser::split(&line)?;
+                vec.insert(0, String::new());
+                println!("{line}");
+                match Command::try_parse_from(vec) {
+                    Ok(command) => {
+                        if let Err(e) = handle_command(command, &coinstr).await {
+                            eprintln!("Error: {e}");
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("{e}");
                     }
                 }
             }

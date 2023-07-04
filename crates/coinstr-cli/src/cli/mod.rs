@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::path::PathBuf;
+
 use clap::{Parser, Subcommand};
 use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_sdk::nostr::EventId;
@@ -52,6 +54,16 @@ pub enum CliCommand {
         /// Keychain name
         #[arg(required = true)]
         name: String,
+    },
+    /// Batch
+    #[command(arg_required_else_help = true)]
+    Batch {
+        /// Keychain name
+        #[arg(required = true)]
+        name: String,
+        /// Batch file
+        #[arg(required = true)]
+        path: PathBuf,
     },
     /// List keychains
     List,

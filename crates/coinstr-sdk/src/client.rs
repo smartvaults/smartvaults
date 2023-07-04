@@ -132,6 +132,23 @@ pub enum Message {
     WalletSyncCompleted(EventId),
 }
 
+#[derive(Debug, Clone, Default)]
+struct FirstSync {
+    wallets: Arc<AtomicBool>,
+}
+
+impl FirstSync {
+    fn completed(&self) -> bool {
+        self.wallets.load(Ordering::SeqCst)
+    }
+
+    fn set_wallets(&self, completed: bool) {
+        let _ = self
+            .wallets
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(completed));
+    }
+}
+
 /// Coinstr
 #[derive(Debug, Clone)]
 pub struct Coinstr {
@@ -142,6 +159,7 @@ pub struct Coinstr {
     pub db: Store,
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Option<Message>>,
+    first_sync: FirstSync,
 }
 
 impl Coinstr {
@@ -197,6 +215,7 @@ impl Coinstr {
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
+            first_sync: FirstSync::default(),
         })
     }
 
@@ -261,6 +280,7 @@ impl Coinstr {
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
+            first_sync: FirstSync::default(),
         })
     }
 
@@ -325,6 +345,7 @@ impl Coinstr {
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
+            first_sync: FirstSync::default(),
         })
     }
 
@@ -1273,11 +1294,12 @@ impl Coinstr {
             }
 
             loop {
-                if let Err(e) =
-                    this.db
-                        .sync_with_timechain(&blockchain, Some(&this.sync_channel), false)
+                match this
+                    .db
+                    .sync_with_timechain(&blockchain, Some(&this.sync_channel), false)
                 {
-                    log::error!("Impossible to sync wallets: {e}");
+                    Ok(_) => this.first_sync.set_wallets(true),
+                    Err(e) => log::error!("Impossible to sync wallets: {e}"),
                 }
                 thread::sleep(Duration::from_secs(3)).await;
             }
@@ -1332,6 +1354,10 @@ impl Coinstr {
                 thread::sleep(Duration::from_secs(60)).await;
             }
         })
+    }
+
+    pub fn is_first_sync_completed(&self) -> bool {
+        self.first_sync.completed()
     }
 
     pub fn sync_notifications(&self) -> Receiver<Option<Message>> {
