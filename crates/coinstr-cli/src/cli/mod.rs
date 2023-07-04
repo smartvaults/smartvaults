@@ -4,9 +4,12 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use coinstr_sdk::core::bdk::miniscript::{Descriptor, DescriptorPublicKey};
+use coinstr_sdk::core::bips::bip32::Fingerprint;
 use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_sdk::nostr::EventId;
 
+pub mod batch;
 pub mod io;
 pub mod parser;
 mod types;
@@ -227,6 +230,27 @@ pub enum AddCommand {
         descriptor: String,
         /// Custom nostr pubkeys
         custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
+    },
+    /// Add Coinstr Signer
+    CoinstrSigner {
+        /// Share with contacts
+        #[arg(long)]
+        share_with_contacts: bool,
+    },
+    /// Add AirGapped Signer
+    Signer {
+        /// Signer name
+        #[arg(required = true)]
+        name: String,
+        /// Signer fingerprint (master fingerprint)
+        #[arg(required = true)]
+        fingerprint: Fingerprint,
+        /// Signer name
+        #[arg(required = true)]
+        descriptor: Descriptor<DescriptorPublicKey>,
+        /// Share with contacts
+        #[arg(long)]
+        share_with_contacts: bool,
     },
 }
 

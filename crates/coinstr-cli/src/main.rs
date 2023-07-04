@@ -13,6 +13,7 @@ use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::{Amount, CompletedProposal, Keychain, Result};
 use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util::format;
@@ -23,7 +24,8 @@ use rustyline::DefaultEditor;
 mod cli;
 mod util;
 
-use self::cli::{
+use crate::cli::batch::BatchCommand;
+use crate::cli::{
     io, Cli, CliCommand, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand,
     ShareCommand,
 };
@@ -171,9 +173,9 @@ async fn run() -> Result<()> {
                 let mut vec: Vec<String> = cli::parser::split(&line)?;
                 vec.insert(0, String::new());
                 println!("{line}");
-                match Command::try_parse_from(vec) {
+                match BatchCommand::try_parse_from(vec) {
                     Ok(command) => {
-                        if let Err(e) = handle_command(command, &coinstr).await {
+                        if let Err(e) = handle_command(command.into(), &coinstr).await {
                             eprintln!("Error: {e}");
                         }
                     }
@@ -315,6 +317,32 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     .save_policy(name, description, descriptor, custom_pubkeys)
                     .await?;
                 println!("Policy saved: {policy_id}");
+                Ok(())
+            }
+            AddCommand::CoinstrSigner {
+                share_with_contacts,
+            } => {
+                let signer_id = coinstr.save_coinstr_signer().await?;
+                if share_with_contacts {
+                    for public_key in coinstr.get_contacts()?.into_keys() {
+                        coinstr.share_signer(signer_id, public_key).await?;
+                    }
+                }
+                Ok(())
+            }
+            AddCommand::Signer {
+                name,
+                fingerprint,
+                descriptor,
+                share_with_contacts,
+            } => {
+                let signer = Signer::new(name, None, fingerprint, descriptor, SignerType::AirGap)?;
+                let signer_id = coinstr.save_signer(signer).await?;
+                if share_with_contacts {
+                    for public_key in coinstr.get_contacts()?.into_keys() {
+                        coinstr.share_signer(signer_id, public_key).await?;
+                    }
+                }
                 Ok(())
             }
         },
