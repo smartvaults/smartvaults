@@ -29,6 +29,7 @@ pub struct RestorePolicyState {
     description: String,
     descriptor: String,
     public_keys: Vec<XOnlyPublicKey>,
+    loading: bool,
     error: Option<String>,
 }
 
@@ -54,7 +55,10 @@ impl State for RestorePolicyState {
             match msg {
                 RestorePolicyMessage::NameChanged(name) => self.name = name,
                 RestorePolicyMessage::DescriptionChanged(desc) => self.description = desc,
-                RestorePolicyMessage::ErrorChanged(error) => self.error = error,
+                RestorePolicyMessage::ErrorChanged(error) => {
+                    self.error = error;
+                    self.loading = false;
+                }
                 RestorePolicyMessage::SelectPolicyBackup => {
                     let path = FileDialog::new()
                         .set_title("Select policy backup")
@@ -82,6 +86,7 @@ impl State for RestorePolicyState {
                     self.public_keys = backup.public_keys();
                 }
                 RestorePolicyMessage::SavePolicy => {
+                    self.loading = true;
                     let client = ctx.client.clone();
                     let name = self.name.clone();
                     let description = self.description.clone();
@@ -176,12 +181,14 @@ impl State for RestorePolicyState {
                 .width(Length::Fill);
             content = content.push(select_policy_btn);
         } else {
-            let save_policy_btn = button::primary("Save policy")
-                .on_press(RestorePolicyMessage::SavePolicy.into())
-                .width(Length::Fill);
-            let clear_policy_btn = button::danger_border("Clear")
-                .on_press(RestorePolicyMessage::Clear.into())
-                .width(Length::Fill);
+            let mut save_policy_btn = button::primary("Save policy").width(Length::Fill);
+            let mut clear_policy_btn = button::danger_border("Clear").width(Length::Fill);
+
+            if !self.loading {
+                save_policy_btn = save_policy_btn.on_press(RestorePolicyMessage::SavePolicy.into());
+                clear_policy_btn = clear_policy_btn.on_press(RestorePolicyMessage::Clear.into());
+            }
+
             content = content.push(save_policy_btn).push(clear_policy_btn);
         }
 

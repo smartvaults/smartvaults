@@ -18,6 +18,7 @@ pub enum RevokeAllSignersMessage {
 #[derive(Debug, Default)]
 pub struct RevokeAllSignersState {
     confirm: String,
+    loading: bool,
     error: Option<String>,
 }
 
@@ -37,6 +38,7 @@ impl State for RevokeAllSignersState {
             match msg {
                 RevokeAllSignersMessage::ConfirmChanged(s) => self.confirm = s,
                 RevokeAllSignersMessage::Revoke => {
+                    self.loading = true;
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move { client.revoke_all_shared_signers().await },
@@ -48,7 +50,10 @@ impl State for RevokeAllSignersState {
                         },
                     );
                 }
-                RevokeAllSignersMessage::ErrorChanged(error) => self.error = error,
+                RevokeAllSignersMessage::ErrorChanged(error) => {
+                    self.error = error;
+                    self.loading = false;
+                }
             }
         }
 
@@ -63,7 +68,7 @@ impl State for RevokeAllSignersState {
         let mut revoke_all_btn =
             button::danger_border("Revoke all shared signers").width(Length::Fill);
 
-        if self.confirm == *"CONFIRM" {
+        if self.confirm == *"CONFIRM" && !self.loading {
             revoke_all_btn = revoke_all_btn.on_press(RevokeAllSignersMessage::Revoke.into());
         }
 

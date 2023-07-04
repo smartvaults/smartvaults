@@ -28,6 +28,7 @@ pub struct AddAirGapSignerState {
     name: String,
     fingerprint: String,
     descriptor: String,
+    loading: bool,
     error: Option<String>,
 }
 
@@ -50,8 +51,12 @@ impl State for AddAirGapSignerState {
                     self.fingerprint = fingerprint
                 }
                 AddAirGapSignerMessage::DescriptorChanged(desc) => self.descriptor = desc,
-                AddAirGapSignerMessage::ErrorChanged(error) => self.error = error,
+                AddAirGapSignerMessage::ErrorChanged(error) => {
+                    self.error = error;
+                    self.loading = false;
+                }
                 AddAirGapSignerMessage::SaveSigner => {
+                    self.loading = true;
                     let client = ctx.client.clone();
                     let name = self.name.clone();
                     let fingerprint = self.fingerprint.clone();
@@ -106,9 +111,11 @@ impl State for AddAirGapSignerState {
             Row::new()
         };
 
-        let save_signer_btn = button::primary("Save signer")
-            .on_press(AddAirGapSignerMessage::SaveSigner.into())
-            .width(Length::Fill);
+        let mut save_signer_btn = button::primary("Save signer").width(Length::Fill);
+
+        if !self.loading {
+            save_signer_btn = save_signer_btn.on_press(AddAirGapSignerMessage::SaveSigner.into());
+        }
 
         let content = Column::new()
             .push(

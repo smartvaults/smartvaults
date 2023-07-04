@@ -43,7 +43,11 @@ impl State for EditProfileState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
-        self.loaded = true;
+        if self.loading {
+            return Command::none();
+        }
+
+        self.loading = true;
         let client = ctx.client.clone();
         Command::perform(async move { client.get_profile().unwrap() }, |metadata| {
             EditProfileMessage::LoadMetadata(metadata).into()

@@ -21,6 +21,7 @@ pub enum AddContactMessage {
 #[derive(Debug, Default)]
 pub struct AddContactState {
     public_key: String,
+    loading: bool,
     error: Option<String>,
 }
 
@@ -39,11 +40,15 @@ impl State for AddContactState {
         if let Message::AddContact(msg) = message {
             match msg {
                 AddContactMessage::PublicKeyChanged(public_key) => self.public_key = public_key,
-                AddContactMessage::ErrorChanged(error) => self.error = error,
+                AddContactMessage::ErrorChanged(error) => {
+                    self.error = error;
+                    self.loading = false;
+                }
                 AddContactMessage::SaveContact => {
                     let client = ctx.client.clone();
                     match Keys::from_pk_str(&self.public_key) {
                         Ok(keys) => {
+                            self.loading = true;
                             return Command::perform(
                                 async move { client.add_contact(keys.public_key()).await },
                                 |res| match res {
@@ -52,7 +57,7 @@ impl State for AddContactState {
                                         AddContactMessage::ErrorChanged(Some(e.to_string())).into()
                                     }
                                 },
-                            )
+                            );
                         }
                         Err(e) => self.error = Some(e.to_string()),
                     }
@@ -75,9 +80,11 @@ impl State for AddContactState {
             Row::new()
         };
 
-        let save_contact_btn = button::primary("Save contact")
-            .on_press(AddContactMessage::SaveContact.into())
-            .width(Length::Fill);
+        let mut save_contact_btn = button::primary("Save contact").width(Length::Fill);
+
+        if !self.loading {
+            save_contact_btn = save_contact_btn.on_press(AddContactMessage::SaveContact.into());
+        }
 
         let content = Column::new()
             .push(

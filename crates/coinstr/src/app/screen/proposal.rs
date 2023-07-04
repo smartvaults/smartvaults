@@ -75,6 +75,10 @@ impl State for ProposalState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
         let client = ctx.client.clone();
         let proposal_id = self.proposal_id;
         self.loading = true;
@@ -191,7 +195,10 @@ impl State for ProposalState {
                     );
                 }
                 ProposalMessage::Signed(value) => self.signed = value,
-                ProposalMessage::Reload => return self.load(ctx),
+                ProposalMessage::Reload => {
+                    self.loading = false;
+                    return self.load(ctx);
+                }
                 ProposalMessage::CheckPsbts => {
                     if let Some(proposal) = &self.proposal {
                         let client = ctx.client.clone();

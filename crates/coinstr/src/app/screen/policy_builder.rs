@@ -74,6 +74,10 @@ impl State for PolicyBuilderState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(async move { client.get_all_signers().unwrap() }, |s| {

@@ -46,6 +46,10 @@ impl State for AddHWSignerState {
     }
 
     fn load(&mut self, _ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
         self.loading = true;
         Command::perform(
             async move {
@@ -73,9 +77,13 @@ impl State for AddHWSignerState {
                     self.loaded = true;
                     self.loading = false;
                 }
-                AddHWSignerMessage::ErrorChanged(error) => self.error = error,
+                AddHWSignerMessage::ErrorChanged(error) => {
+                    self.error = error;
+                    self.loading = false;
+                }
                 AddHWSignerMessage::SaveSigner => {
                     if let Some(device) = &self.device {
+                        self.loading = true;
                         let client = ctx.client.clone();
                         let name = self.name.clone();
                         let device = device.clone();

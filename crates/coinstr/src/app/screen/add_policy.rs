@@ -53,6 +53,10 @@ impl State for AddPolicyState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(

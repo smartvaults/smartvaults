@@ -12,7 +12,7 @@ use iced::{Alignment, Command, Element, Length};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
-use crate::theme::icon::{PLUS, RELOAD, TRASH};
+use crate::theme::icon::{CLIPBOARD, PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ContactsMessage {
@@ -42,6 +42,10 @@ impl State for ContactsState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(async move { client.get_contacts().unwrap() }, |p| {
@@ -76,7 +80,10 @@ impl State for ContactsState {
                     self.error = error;
                     self.loading = false;
                 }
-                ContactsMessage::Reload => return self.load(ctx),
+                ContactsMessage::Reload => {
+                    self.loading = false;
+                    return self.load(ctx);
+                }
             }
         }
 
@@ -147,6 +154,14 @@ impl State for ContactsState {
                     .push(rule::horizontal_bold());
 
                 for (public_key, metadata) in self.contacts.iter() {
+                    let mut remove_btn =
+                        button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
+
+                    if !self.loading {
+                        remove_btn = remove_btn
+                            .on_press(ContactsMessage::RemovePublicKey(*public_key).into());
+                    }
+
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_public_key(*public_key))
@@ -170,10 +185,11 @@ impl State for ContactsState {
                         )
                         .push(Space::with_width(Length::Fixed(40.0)))
                         .push(
-                            button::danger_border_only_icon(TRASH)
-                                .width(Length::Fixed(40.0))
-                                .on_press(ContactsMessage::RemovePublicKey(*public_key).into()),
+                            button::border_only_icon(CLIPBOARD)
+                                .on_press(Message::Clipboard(public_key.to_string()))
+                                .width(Length::Fixed(40.0)),
                         )
+                        .push(remove_btn)
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
