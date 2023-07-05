@@ -64,10 +64,58 @@ interface Balance {
     u64 get_total();
 };
 
+interface TransactionDetails {
+  u64? fee();
+  u64 received();
+  u64 sent();
+  string txid();
+  BlockTime? confirmation_time();
+};
+
+interface BlockTime {
+  u32 height();
+  u64 timestamp();
+};
+
+interface KeychainSeed {
+    string mnemonic();
+    string? passphrase();
+};
+
+interface Keys {
+    string public_key();
+    [Throws=FFIError]
+    string public_key_bech32();
+    [Throws=FFIError]
+    string secret_key();
+    [Throws=FFIError]
+    string secret_key_bech32();
+};
+
+interface Metadata {
+    string? name();
+    string? display_name();
+    string? nip05();
+};
+
 interface Policy {
     string name();
     string description();
     string descriptor();
+};
+
+enum SignerType {
+    "Seed",
+    "Hardware",
+    "AirGap",
+};
+
+interface Signer {
+    string name();
+    string fingerprint();
+    string descriptor();
+    SignerType signer_type();
+    string to_string();
 };
 
 interface Amount {
@@ -97,6 +145,7 @@ interface Coinstr {
     [Throws=FFIError, Name=restore]
     constructor(string base_path, string name, string password, string mnemonic, string? passphrase, Network network);
 
+    string? name();
     [Throws=FFIError]
     void save();
     boolean check_password(string password);
@@ -104,6 +153,9 @@ interface Coinstr {
     void wipe(string password);
     [Throws=FFIError]
     void clear_cache();
+
+    KeychainSeed seed();
+    Keys keys();
 
     Network network();
 
@@ -124,6 +176,12 @@ interface Coinstr {
     u32 block_height();
 
     [Throws=FFIError]
+    void set_metadata(string json);
+    [Throws=FFIError]
+    Metadata get_profile();
+    [Throws=FFIError]
+    record<DOMString, Metadata> get_contacts();
+    [Throws=FFIError]
     void add_contact(string public_key);
     [Throws=FFIError]
     void remove_contact(string public_key);
@@ -134,6 +192,8 @@ interface Coinstr {
     Proposal get_proposal_by_id(string proposal_id);  
     [Throws=FFIError]
     CompletedProposal get_completed_proposal_by_id(string completed_proposal_id);
+    [Throws=FFIError]
+    Signer get_signer_by_id(string signer_id); 
 
     [Throws=FFIError]
     void delete_policy_by_id(string policy_id);  
@@ -152,6 +212,8 @@ interface Coinstr {
     record<DOMString, CompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]
+    string save_policy(string name, string description, string descriptor, sequence<string> public_keys);
+    [Throws=FFIError]
     string spend(string policy_id, string to_address, Amount amount, string description, u16 target_blocks);
     [Throws=FFIError]
     string self_transfer(string from_policy_id, string to_policy_id, Amount amount, u16 target_blocks);   
@@ -160,7 +222,16 @@ interface Coinstr {
     [Throws=FFIError]
     string approve_with_signed_psbt(string proposal_id, string signed_psbt);
     [Throws=FFIError]
+    void revoke_approval(string approval_id);
+    [Throws=FFIError]
     CompletedProposal finalize(string proposal_id);
+    [Throws=FFIError]
+    string new_proof_proposal(string policy_id, string message);
+
+    [Throws=FFIError]
+    boolean coinstr_signer_exists();
+    [Throws=FFIError]
+    string save_coinstr_signer();
 
     [Throws=FFIError]
     void rebroadcast_all_events();
@@ -170,9 +241,13 @@ interface Coinstr {
     [Throws=FFIError]
     Balance? get_balance(string policy_id);
     [Throws=FFIError]
+    sequence<TransactionDetails> get_txs(string policy_id);
+    [Throws=FFIError]
     sequence<Utxo> get_utxos(string policy_id);
     [Throws=FFIError]
     Balance get_total_balance();
+    [Throws=FFIError]
+    sequence<TransactionDetails> get_all_txs();
     [Throws=FFIError]
     string? get_last_unused_address(string policy_id);
 

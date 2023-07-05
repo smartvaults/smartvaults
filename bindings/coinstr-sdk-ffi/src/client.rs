@@ -11,13 +11,17 @@ use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::types::WordCount;
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::prelude::FromPkStr;
-use coinstr_sdk::nostr::{block_on, EventId, Keys};
+use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
-use crate::{Amount, Balance, CompletedProposal, Policy, Proposal, Relay, Utxo};
+use crate::{
+    Amount, Balance, CompletedProposal, KeychainSeed, Metadata, Policy, Proposal, Relay, Signer,
+    TransactionDetails, Utxo,
+};
 
 pub struct Coinstr {
     inner: client::Coinstr,
@@ -79,6 +83,11 @@ impl Coinstr {
         })
     }
 
+    /// Get keychain name
+    pub fn name(&self) -> Option<String> {
+        self.inner.name()
+    }
+
     /// Save keychain
     pub fn save(&self) -> Result<()> {
         Ok(self.inner.save()?)
@@ -102,11 +111,14 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.clear_cache().await?) })
     }
 
-    // TODO: add `keychain` method
+    pub fn seed(&self) -> Arc<KeychainSeed> {
+        Arc::new(self.inner.keychain().seed().into())
+    }
 
-    // TODO: add `keys` method
+    pub fn keys(&self) -> Arc<crate::Keys> {
+        Arc::new(self.inner.keys().into())
+    }
 
-    /// Get current bitcoin network
     pub fn network(&self) -> Network {
         self.inner.network()
     }
@@ -114,17 +126,6 @@ impl Coinstr {
     /// Add new relay
     pub fn add_relay(&self, url: String) -> Result<()> {
         block_on(async move { Ok(self.inner.add_relay(url, None).await?) })
-    }
-
-    pub fn relays(&self) -> Vec<Arc<Relay>> {
-        block_on(async move {
-            self.inner
-                .relays()
-                .await
-                .into_values()
-                .map(|relay| Arc::new(relay.into()))
-                .collect()
-        })
     }
 
     /// Connect relays
@@ -149,6 +150,17 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.remove_relay(url).await?) })
     }
 
+    pub fn relays(&self) -> Vec<Arc<Relay>> {
+        block_on(async move {
+            self.inner
+                .relays()
+                .await
+                .into_values()
+                .map(|relay| Arc::new(relay.into()))
+                .collect()
+        })
+    }
+
     /// Shutdown client
     pub fn shutdown(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.clone().shutdown().await?) })
@@ -168,7 +180,25 @@ impl Coinstr {
         self.inner.block_height()
     }
 
-    // TODO: add `get_contacts` method
+    pub fn set_metadata(&self, json: String) -> Result<()> {
+        block_on(async move {
+            let metadata = nostr::Metadata::from_json(json)?;
+            Ok(self.inner.set_metadata(metadata).await?)
+        })
+    }
+
+    pub fn get_profile(&self) -> Result<Arc<Metadata>> {
+        Ok(Arc::new(self.inner.get_profile()?.into()))
+    }
+
+    pub fn get_contacts(&self) -> Result<HashMap<String, Arc<Metadata>>> {
+        Ok(self
+            .inner
+            .get_contacts()?
+            .into_iter()
+            .map(|(pk, m)| (pk.to_string(), Arc::new(m.into())))
+            .collect())
+    }
 
     /// Add new contact
     pub fn add_contact(&self, public_key: String) -> Result<()> {
@@ -206,6 +236,11 @@ impl Coinstr {
             .get_completed_proposal_by_id(completed_proposal_id)?
             .1
             .into())
+    }
+
+    pub fn get_signer_by_id(&self, signer_id: String) -> Result<Arc<Signer>> {
+        let signer_id = EventId::from_hex(signer_id)?;
+        Ok(Arc::new(self.inner.get_signer_by_id(signer_id)?.into()))
     }
 
     pub fn delete_policy_by_id(&self, policy_id: String) -> Result<()> {
@@ -263,6 +298,26 @@ impl Coinstr {
             .into_iter()
             .map(|(proposal_id, (_, proposal))| (proposal_id.to_hex(), proposal.into()))
             .collect())
+    }
+
+    pub fn save_policy(
+        &self,
+        name: String,
+        description: String,
+        descriptor: String,
+        public_keys: Vec<String>,
+    ) -> Result<String> {
+        block_on(async move {
+            let mut custom_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
+            for pk in public_keys.into_iter() {
+                custom_pubkeys.push(XOnlyPublicKey::from_str(&pk)?);
+            }
+            Ok(self
+                .inner
+                .save_policy(name, description, descriptor, Some(custom_pubkeys))
+                .await?
+                .to_hex())
+        })
     }
 
     pub fn spend(
@@ -334,6 +389,13 @@ impl Coinstr {
         })
     }
 
+    pub fn revoke_approval(&self, approval_id: String) -> Result<()> {
+        block_on(async move {
+            let approval_id = EventId::from_hex(approval_id)?;
+            Ok(self.inner.revoke_approval(approval_id).await?)
+        })
+    }
+
     pub fn finalize(&self, proposal_id: String) -> Result<CompletedProposal> {
         block_on(async move {
             let proposal_id = EventId::from_hex(proposal_id)?;
@@ -341,18 +403,38 @@ impl Coinstr {
         })
     }
 
-    pub fn rebroadcast_all_events(&self) -> Result<()> {
-        block_on(async move { Ok(self.inner.rebroadcast_all_events().await?) })
-    }
-
-    pub fn republish_shared_key_for_policy(&self, policy_id: String) -> Result<()> {
+    pub fn new_proof_proposal(&self, policy_id: String, message: String) -> Result<String> {
         block_on(async move {
             let policy_id = EventId::from_hex(policy_id)?;
             Ok(self
                 .inner
-                .republish_shared_key_for_policy(policy_id)
-                .await?)
+                .new_proof_proposal(policy_id, message)
+                .await?
+                .0
+                .to_hex())
         })
+    }
+
+    // TODO: add verify_proof
+
+    // TODO: add verify_proof_by_id
+
+    // TODO: add save_signer
+
+    pub fn coinstr_signer_exists(&self) -> Result<bool> {
+        Ok(self.inner.coinstr_signer_exists()?)
+    }
+
+    pub fn save_coinstr_signer(&self) -> Result<String> {
+        block_on(async move { Ok(self.inner.save_coinstr_signer().await?.to_hex()) })
+    }
+
+    // TODO: add get_all_signers
+
+    // TODO: add get_signers
+
+    pub fn sync(&self) {
+        self.inner.sync();
     }
 
     pub fn get_balance(&self, policy_id: String) -> Result<Option<Arc<Balance>>> {
@@ -361,6 +443,17 @@ impl Coinstr {
             .inner
             .get_balance(policy_id)
             .map(|b| Arc::new(b.into())))
+    }
+
+    pub fn get_txs(&self, policy_id: String) -> Result<Vec<Arc<TransactionDetails>>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        Ok(self
+            .inner
+            .get_txs(policy_id)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|tx| Arc::new(tx.into()))
+            .collect())
     }
 
     pub fn get_utxos(&self, policy_id: String) -> Result<Vec<Arc<Utxo>>> {
@@ -377,6 +470,17 @@ impl Coinstr {
         Ok(Arc::new(self.inner.get_total_balance()?.into()))
     }
 
+    pub fn get_all_txs(&self) -> Result<Vec<Arc<TransactionDetails>>> {
+        Ok(self
+            .inner
+            .get_all_transactions()?
+            .into_iter()
+            .map(|(tx, ..)| Arc::new(tx.into()))
+            .collect())
+    }
+
+    // TODO: add get_tx
+
     pub fn get_last_unused_address(&self, policy_id: String) -> Result<Option<String>> {
         let policy_id = EventId::from_hex(policy_id)?;
         Ok(self
@@ -385,7 +489,17 @@ impl Coinstr {
             .map(|a| a.to_string()))
     }
 
-    pub fn sync(&self) {
-        self.inner.sync();
+    pub fn rebroadcast_all_events(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.rebroadcast_all_events().await?) })
+    }
+
+    pub fn republish_shared_key_for_policy(&self, policy_id: String) -> Result<()> {
+        block_on(async move {
+            let policy_id = EventId::from_hex(policy_id)?;
+            Ok(self
+                .inner
+                .republish_shared_key_for_policy(policy_id)
+                .await?)
+        })
     }
 }
