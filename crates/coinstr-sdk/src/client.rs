@@ -456,11 +456,10 @@ impl Coinstr {
                 "wss://nostr.bitcoiner.social".into(),
             ],
             _ => vec![
-                "wss://relay.rip".into(),
+                "wss://test.relay.report".into(),
                 "wss://nos.lol".into(),
                 "wss://relay.nostrich.de".into(),
                 "wss://nostr.mom".into(),
-                "wss://nostr.openchain.fr".into(),
             ],
         }
     }
