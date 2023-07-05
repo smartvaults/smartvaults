@@ -1,6 +1,6 @@
 [package]
 name = "coinstr"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description.workspace = true
 homepage.workspace = true
@@ -11,8 +11,8 @@ keywords.workspace = true
 
 [dependencies]
 async-stream = "0.3"
-coinstr-common = { version = "0.1", path = "../coinstr-common" }
-coinstr-sdk = { version = "0.1", path = "../coinstr-sdk", features = ["hwi"] }
+coinstr-common = { path = "../coinstr-common" }
+coinstr-sdk = { path = "../coinstr-sdk", features = ["hwi"] }
 iced = { version = "0.9", default-features = false, features = ["image", "glow", "qr_code", "svg", "tokio"] }
 iced_futures = "0.6"
 iced_lazy = "0.6"
