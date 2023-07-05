@@ -1659,6 +1659,10 @@ impl Coinstr {
         self.db.get_balance(policy_id)
     }
 
+    pub fn get_txs(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
+        self.db.get_txs(policy_id)
+    }
+
     pub fn get_txs_with_descriptions(&self, policy_id: EventId) -> Option<Transactions> {
         self.db.get_txs_with_descriptions(policy_id)
     }
