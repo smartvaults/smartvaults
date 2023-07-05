@@ -1,4 +1,4 @@
-# Coinstr Core FFI
+# Coinstr SDK FFI
 
 ## Prerequisites
 
