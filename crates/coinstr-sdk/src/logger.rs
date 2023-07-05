@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use bdk::bitcoin::Network;
 use fern::{Dispatch, InitError};
@@ -29,7 +29,23 @@ where
     P: AsRef<Path>,
 {
     let path = dir::logs_path(base_path, network)?;
-    let mut log_file = path.join(Timestamp::now().as_u64().to_string());
+    let now = Timestamp::now();
+    let human_date = now.to_human_datetime();
+    let date: Option<&str> = human_date
+        .split('T')
+        .collect::<Vec<&str>>()
+        .first()
+        .copied();
+    let path: PathBuf = match date {
+        Some(date) => {
+            let path = path.join(date);
+            std::fs::create_dir_all(path.as_path())?;
+            path
+        }
+        None => path,
+    };
+
+    let mut log_file = path.join(now.as_u64().to_string());
     log_file.set_extension("log");
 
     let mut dispatcher = Dispatch::new()
