@@ -1510,8 +1510,8 @@ impl Store {
     pub fn save_nostr_connect_uri(&self, uri: NostrConnectURI) -> Result<(), Error> {
         let conn = self.pool.get()?;
         conn.execute(
-            "INSERT OR IGNORE INTO nostr_connect_session (uri, timestamp) VALUES (?, ?);",
-            (uri.to_string(), Timestamp::now().as_u64()),
+            "INSERT OR IGNORE INTO nostr_connect_session (app_public_key, uri, timestamp) VALUES (?, ?, ?);",
+            (uri.public_key.to_string(), uri.to_string(), Timestamp::now().as_u64()),
         )?;
         Ok(())
     }

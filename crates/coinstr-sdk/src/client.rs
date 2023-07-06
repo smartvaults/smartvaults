@@ -30,7 +30,8 @@ use async_utility::thread;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
-use nostr_sdk::nips::nip46::Message as NIP46Message;
+use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
+use nostr_sdk::prelude::NostrConnectURI;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -499,6 +500,24 @@ impl Coinstr {
         let event_id = event.id;
         let msg = ClientMessage::new_event(event);
         self.client.send_msg_with_custom_wait(msg, wait).await?;
+        Ok(event_id)
+    }
+
+    async fn send_event_to<S>(
+        &self,
+        url: S,
+        event: Event,
+        wait: Option<Duration>,
+    ) -> Result<EventId, Error>
+    where
+        S: Into<String>,
+    {
+        self.db.save_event(&event)?;
+        let event_id = event.id;
+        let msg = ClientMessage::new_event(event);
+        self.client
+            .send_msg_to_with_custom_wait(url, msg, wait)
+            .await?;
         Ok(event_id)
     }
 
@@ -1884,5 +1903,33 @@ impl Coinstr {
 
     pub fn delete_all_notifications(&self) -> Result<(), Error> {
         Ok(self.db.delete_all_notifications()?)
+    }
+
+    pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
+        // TODO: find a better way to avoid to stop and restart the client
+        self.client.stop().await?;
+        let url = uri.relay_url.as_str();
+        self.client
+            .handle_notifications(|notification: RelayPoolNotification| async move {
+                if let RelayPoolNotification::Stop = notification {
+                    self.client.add_relay(url, None).await?;
+                    self.client.start().await;
+                    self.sync();
+                }
+                Ok(false)
+            })
+            .await?;
+
+        // Send connect ACK
+        let keys = self.client.keys();
+        let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
+        let nip46_event =
+            EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+        self.send_event_to(url, nip46_event, Some(Duration::from_secs(5)))
+            .await?;
+
+        self.db.save_nostr_connect_uri(uri)?;
+
+        Ok(())
     }
 }
