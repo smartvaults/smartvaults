@@ -19,84 +19,36 @@ use bdk::database::SqliteDatabase;
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::AddressIndex;
 use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
-use coinstr_core::policy::{self, Policy};
+use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::signer::{SharedSigner, Signer};
-use coinstr_core::util::serde::{Error as SerdeError, Serde};
+use coinstr_core::util::serde::Serde;
 use coinstr_core::ApprovedProposal;
-use nostr_sdk::event::id::{self, EventId};
+use nostr_sdk::event::id::EventId;
+use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI};
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
-use nostr_sdk::{event, Event, Keys, Metadata, Timestamp, Url};
+use nostr_sdk::{Event, Keys, Metadata, Timestamp, Url};
 use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::config::DbConfig;
 use rusqlite::OpenFlags;
 use tokio::sync::broadcast::Sender;
 
-use super::migration::{self, MigrationError, STARTUP_SQL};
+use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
     GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
 };
+use super::Error;
 use crate::client::Message;
 use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, METADATA_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
 use crate::types::Notification;
 use crate::util;
-use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
+use crate::util::encryption::EncryptionWithKeys;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
 pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
 pub type Transactions = Vec<(TransactionDetails, Option<String>)>;
-
-/// Store error
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    /// Sqlite error
-    #[error(transparent)]
-    Sqlite(#[from] rusqlite::Error),
-    /// Sqlite Pool error
-    #[error(transparent)]
-    Pool(#[from] r2d2::Error),
-    /// Migration error
-    #[error(transparent)]
-    Migration(#[from] MigrationError),
-    /// Bdk error
-    #[error(transparent)]
-    Bdk(#[from] bdk::Error),
-    /// Encryption error
-    #[error(transparent)]
-    EncryptionWithKeys(#[from] EncryptionWithKeysError),
-    /// Keys error
-    #[error(transparent)]
-    Keys(#[from] nostr_sdk::nostr::key::Error),
-    /// EventId error
-    #[error(transparent)]
-    EventId(#[from] id::Error),
-    /// Event error
-    #[error(transparent)]
-    Event(#[from] event::Error),
-    /// Metadata error
-    #[error(transparent)]
-    Metadata(#[from] nostr_sdk::types::metadata::Error),
-    /// JSON error
-    #[error(transparent)]
-    JSON(#[from] SerdeError),
-    /// Secp256k1 error
-    #[error(transparent)]
-    Secp256k1(#[from] nostr_sdk::secp256k1::Error),
-    /// Policy error
-    #[error(transparent)]
-    Policy(#[from] policy::Error),
-    /// Not found
-    #[error("impossible to open policy {0} db")]
-    FailedToOpenPolicyDb(EventId),
-    /// Not found
-    #[error("sqlite: {0} not found")]
-    NotFound(String),
-    /// Wallet ot found
-    #[error("wallet not found")]
-    WalletNotFound,
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct BlockHeight {
@@ -1552,6 +1504,45 @@ impl Store {
             metadata.as_json(),
             last_sync,
         ))?;
+        Ok(())
+    }
+
+    pub fn save_nostr_connect_uri(&self, uri: NostrConnectURI) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO nostr_connect_session (uri, timestamp) VALUES (?, ?);",
+            (uri.to_string(), Timestamp::now().as_u64()),
+        )?;
+        Ok(())
+    }
+
+    pub fn nostr_connect_session_exists(
+        &self,
+        app_public_key: XOnlyPublicKey,
+    ) -> Result<bool, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT EXISTS(SELECT 1 FROM nostr_connect_session WHERE app_public_key = ? LIMIT 1);",
+        )?;
+        let mut rows = stmt.query([app_public_key.to_string()])?;
+        let exists: u8 = match rows.next()? {
+            Some(row) => row.get(0)?,
+            None => 0,
+        };
+        Ok(exists == 1)
+    }
+
+    pub fn save_nostr_connect_request(
+        &self,
+        event_id: EventId,
+        app_public_key: XOnlyPublicKey,
+        message: NIP46Message,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO nostr_connect_requests (event_id, app_public_key, message, timestamp) VALUES (?, ?, ?, ?);",
+            (event_id.to_hex(), app_public_key.to_string(), message.as_json(), Timestamp::now().as_u64()),
+        )?;
         Ok(())
     }
 }

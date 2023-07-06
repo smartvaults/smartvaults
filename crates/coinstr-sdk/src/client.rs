@@ -30,6 +30,7 @@ use async_utility::thread;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
+use nostr_sdk::nips::nip46::Message as NIP46Message;
 use nostr_sdk::secp256k1::SecretKey;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -1507,8 +1508,7 @@ impl Coinstr {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
             if !self.db.shared_key_exists_for_policy(policy_id)? {
                 let keys = self.client.keys();
-                let content =
-                    nips::nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
+                let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
                 self.db.save_shared_key(policy_id, shared_key)?;
@@ -1656,8 +1656,14 @@ impl Coinstr {
         } else if event.kind == Kind::Metadata {
             let metadata = Metadata::from_json(event.content)?;
             self.db.set_metadata(event.pubkey, metadata)?;
-        } else if event.kind == Kind::NostrConnect {
-            // TODO: save in `nostr_connect_requests` table
+        } else if event.kind == Kind::NostrConnect
+            && self.db.nostr_connect_session_exists(event.pubkey)?
+        {
+            let keys = self.client.keys();
+            let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
+            let msg = NIP46Message::from_json(content)?;
+            self.db
+                .save_nostr_connect_request(event.id, event.pubkey, msg)?;
         }
 
         Ok(None)
