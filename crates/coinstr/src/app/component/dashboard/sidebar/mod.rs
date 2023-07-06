@@ -13,7 +13,7 @@ use crate::component::{Icon, Text};
 use crate::constants::APP_LOGO;
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::{
-    CONTACTS, FINGERPRINT, HISTORY, HOME, KEY, LOCK, SEND_PENDING, SETTING, WALLET,
+    CONTACTS, FINGERPRINT, HISTORY, HOME, KEY, LINK, LOCK, SEND_PENDING, SETTING, WALLET,
 };
 
 const MAX_WIDTH: f32 = 240.0;
@@ -46,6 +46,8 @@ impl Sidebar {
             .view(ctx, Message::View(Stage::Signers));
         let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS).view())
             .view(ctx, Message::View(Stage::Contacts));
+        let connect_button = SidebarButton::new("Connect", Icon::new(LINK).view())
+            .view(ctx, Message::View(Stage::NostrConnect));
         let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
             .view(ctx, Message::View(Stage::Settings));
 
@@ -88,6 +90,7 @@ impl Sidebar {
                 history_button,
                 signers_button,
                 contacts_button,
+                connect_button,
                 settings_button,
             ]),
             sidebar_menu(vec![

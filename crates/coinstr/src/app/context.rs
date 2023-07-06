@@ -45,6 +45,7 @@ pub enum Stage {
     EditProfile,
     Settings,
     Relays,
+    NostrConnect,
 }
 
 impl fmt::Display for Stage {
@@ -80,6 +81,7 @@ impl fmt::Display for Stage {
             Self::EditProfile => write!(f, "Edit profile"),
             Self::Settings => write!(f, "Settings"),
             Self::Relays => write!(f, "Relays"),
+            Self::NostrConnect => write!(f, "Connect"),
         }
     }
 }

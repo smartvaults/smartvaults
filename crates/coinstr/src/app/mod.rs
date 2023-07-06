@@ -79,6 +79,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::EditProfile => EditProfileState::new().into(),
         Stage::Settings => SettingsState::new().into(),
         Stage::Relays => RelaysState::new().into(),
+        Stage::NostrConnect => todo!(),
     }
 }
 

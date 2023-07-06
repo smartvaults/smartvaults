@@ -36,3 +36,4 @@ pub const EYE: char = '\u{F341}';
 pub const EYE_SLASH: char = '\u{F340}';
 pub const SHARE: char = '\u{F52E}';
 pub const WALLET: char = '\u{F615}';
+pub const LINK: char = '\u{F470}';
