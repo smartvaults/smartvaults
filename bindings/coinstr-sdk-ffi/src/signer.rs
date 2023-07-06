@@ -30,8 +30,7 @@ impl Signer {
         self.inner.signer_type()
     }
 
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
+    pub fn display(&self) -> String {
         self.inner.to_string()
     }
 }

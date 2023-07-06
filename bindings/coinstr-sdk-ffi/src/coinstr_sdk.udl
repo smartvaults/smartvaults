@@ -115,7 +115,7 @@ interface Signer {
     string fingerprint();
     string descriptor();
     SignerType signer_type();
-    string to_string();
+    string display();
 };
 
 interface Amount {
