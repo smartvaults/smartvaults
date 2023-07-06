@@ -1307,7 +1307,7 @@ impl Coinstr {
                     Ok(_) => this.first_sync.set_wallets(true),
                     Err(e) => log::error!("Impossible to sync wallets: {e}"),
                 }
-                thread::sleep(Duration::from_secs(3)).await;
+                thread::sleep(Duration::from_secs(5)).await;
             }
         })
     }
@@ -1415,21 +1415,21 @@ impl Coinstr {
                         .clone()
                         .pubkey(keys.public_key())
                         .since(last_sync);
-                    let metadata_filters = Filter::new()
-                        .author(keys.public_key().to_string())
-                        .kind(Kind::Metadata)
+                    let nostr_connect_filter = Filter::new()
+                        .pubkey(keys.public_key())
+                        .kind(Kind::NostrConnect)
                         .since(last_sync);
-                    let contacts_filters = Filter::new()
+                    let other_filters = Filter::new()
                         .author(keys.public_key().to_string())
-                        .kind(Kind::ContactList)
+                        .kinds(vec![Kind::Metadata, Kind::ContactList])
                         .since(last_sync);
                     if let Err(e) = relay
                         .subscribe(
                             vec![
                                 author_filter,
                                 pubkey_filter,
-                                metadata_filters,
-                                contacts_filters,
+                                nostr_connect_filter,
+                                other_filters,
                             ],
                             None,
                         )
@@ -1497,8 +1497,10 @@ impl Coinstr {
             return Ok(None);
         }
 
-        if let Err(e) = self.db.save_event(&event) {
-            log::error!("Impossible to save event {}: {e}", event.id);
+        if event.kind != Kind::NostrConnect {
+            if let Err(e) = self.db.save_event(&event) {
+                log::error!("Impossible to save event {}: {e}", event.id);
+            }
         }
 
         if event.kind == SHARED_KEY_KIND {
@@ -1654,6 +1656,8 @@ impl Coinstr {
         } else if event.kind == Kind::Metadata {
             let metadata = Metadata::from_json(event.content)?;
             self.db.set_metadata(event.pubkey, metadata)?;
+        } else if event.kind == Kind::NostrConnect {
+            // TODO: save in `nostr_connect_requests` table
         }
 
         Ok(None)
