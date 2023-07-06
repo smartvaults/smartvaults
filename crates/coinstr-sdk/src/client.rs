@@ -1504,9 +1504,7 @@ impl Coinstr {
                 let shared_key = Keys::new(sk);
                 self.db.save_shared_key(policy_id, shared_key)?;
             }
-        } else if event.kind == POLICY_KIND {
-            // Not check if policy exists otherwise the BDK wallet will not load
-            // if the keechain account is opened multiple times on the same computer
+        } else if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
             if let Ok(shared_key) = self.db.get_shared_key(event.id) {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
