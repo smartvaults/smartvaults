@@ -904,6 +904,11 @@ impl Store {
             self.block_height.just_synced();
         }
 
+        let loaded_wallet_ids: Vec<EventId> = {
+            let wallets = self.wallets.lock();
+            wallets.keys().copied().collect()
+        };
+
         for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
             let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
             if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
@@ -912,6 +917,15 @@ impl Store {
                 let wallet = Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?;
                 wallet.sync(blockchain, SyncOptions::default())?;
                 self.update_last_sync(policy_id, Some(Timestamp::now()))?;
+
+                if !loaded_wallet_ids.contains(&policy_id) {
+                    // Load wallet
+                    let mut wallets = self.wallets.lock();
+                    if let Entry::Vacant(e) = wallets.entry(policy_id) {
+                        e.insert(wallet);
+                    }
+                }
+
                 if let Some(sender) = sender {
                     let _ = sender.send(Some(Message::WalletSyncCompleted(policy_id)));
                 }
