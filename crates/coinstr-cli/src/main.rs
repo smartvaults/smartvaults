@@ -318,8 +318,8 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 util::print_sessions(sessions);
                 Ok(())
             }
-            ConnectCommand::Requests { approved: _ } => {
-                let requests = coinstr.get_nostr_connect_requests()?;
+            ConnectCommand::Requests { approved } => {
+                let requests = coinstr.get_nostr_connect_requests(approved)?;
                 util::print_requests(requests)?;
                 Ok(())
             }

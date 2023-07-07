@@ -464,7 +464,6 @@ pub fn print_requests(requests: BTreeMap<EventId, NostrConnectRequest>) -> Resul
         "App Public Key",
         "Method",
         "Requested at",
-        "Approved"
     ]);
 
     for (index, (event_id, req)) in requests.into_iter().enumerate() {
@@ -474,7 +473,6 @@ pub fn print_requests(requests: BTreeMap<EventId, NostrConnectRequest>) -> Resul
             util::cut_public_key(req.app_public_key),
             req.message.to_request()?.method(),
             req.timestamp.to_human_datetime(),
-            req.approved,
         ]);
     }
 

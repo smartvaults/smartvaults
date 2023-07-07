@@ -1613,10 +1613,11 @@ impl Store {
 
     pub fn get_nostr_connect_requests(
         &self,
+        approved: bool,
     ) -> Result<BTreeMap<EventId, NostrConnectRequest>, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT event_id, app_public_key, message, timestamp, approved FROM nostr_connect_requests;")?;
-        let mut rows = stmt.query([])?;
+        let mut stmt = conn.prepare("SELECT event_id, app_public_key, message, timestamp, approved FROM nostr_connect_requests WHERE approved = ?;")?;
+        let mut rows = stmt.query([approved])?;
         let mut requests: BTreeMap<EventId, NostrConnectRequest> = BTreeMap::new();
         while let Ok(Some(row)) = rows.next() {
             let event_id: String = row.get(0)?;

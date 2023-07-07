@@ -1996,8 +1996,9 @@ impl Coinstr {
 
     pub fn get_nostr_connect_requests(
         &self,
+        approved: bool,
     ) -> Result<BTreeMap<EventId, NostrConnectRequest>, Error> {
-        Ok(self.db.get_nostr_connect_requests()?)
+        Ok(self.db.get_nostr_connect_requests(approved)?)
     }
 
     pub async fn approve_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
