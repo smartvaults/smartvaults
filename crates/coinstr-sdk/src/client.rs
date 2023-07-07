@@ -47,7 +47,7 @@ use crate::constants::{
 };
 use crate::db::model::{
     GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
+    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult, NostrConnectRequest,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -1960,5 +1960,11 @@ impl Coinstr {
             .await?;
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
+    }
+
+    pub fn get_nostr_connect_requests(
+        &self,
+    ) -> Result<BTreeMap<EventId, NostrConnectRequest>, Error> {
+        Ok(self.db.get_nostr_connect_requests()?)
     }
 }

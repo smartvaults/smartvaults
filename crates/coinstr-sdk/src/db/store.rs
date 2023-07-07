@@ -37,7 +37,7 @@ use tokio::sync::broadcast::Sender;
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
+    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult, NostrConnectRequest,
 };
 use super::Error;
 use crate::client::Message;
@@ -1609,5 +1609,31 @@ impl Store {
         )?;
         log::info!("Deleted nostr connect session {app_public_key}");
         Ok(())
+    }
+
+    pub fn get_nostr_connect_requests(
+        &self,
+    ) -> Result<BTreeMap<EventId, NostrConnectRequest>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT event_id, app_public_key, message, timestamp, approved FROM nostr_connect_requests;")?;
+        let mut rows = stmt.query([])?;
+        let mut requests: BTreeMap<EventId, NostrConnectRequest> = BTreeMap::new();
+        while let Ok(Some(row)) = rows.next() {
+            let event_id: String = row.get(0)?;
+            let app_public_key: String = row.get(1)?;
+            let message: String = row.get(2)?;
+            let timestamp: u64 = row.get(3)?;
+            let approved: bool = row.get(4)?;
+            requests.insert(
+                EventId::from_hex(event_id)?,
+                NostrConnectRequest {
+                    app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
+                    message: NIP46Message::from_json(message)?,
+                    timestamp: Timestamp::from(timestamp),
+                    approved,
+                },
+            );
+        }
+        Ok(requests)
     }
 }
