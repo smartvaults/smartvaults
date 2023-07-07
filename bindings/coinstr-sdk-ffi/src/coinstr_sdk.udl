@@ -209,6 +209,8 @@ interface Coinstr {
     [Throws=FFIError]
     record<DOMString, Proposal> get_proposals();
     [Throws=FFIError]
+    boolean proposal_is_signed(string proposal_id);
+    [Throws=FFIError]
     record<DOMString, CompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]

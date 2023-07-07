@@ -13,6 +13,7 @@ use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::types::WordCount;
+use coinstr_sdk::db::model::GetApprovedProposalResult;
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
@@ -290,6 +291,25 @@ impl Coinstr {
             .into_iter()
             .map(|(proposal_id, (_, proposal))| (proposal_id.to_hex(), proposal.into()))
             .collect())
+    }
+
+    pub fn proposal_is_signed(&self, proposal_id: String) -> Result<bool> {
+        let proposal_id = EventId::from_hex(proposal_id)?;
+        let proposal = self.inner.get_proposal_by_id(proposal_id)?.1;
+        let approvals = self
+            .inner
+            .get_approvals_by_proposal_id(proposal_id)?
+            .iter()
+            .map(
+                |(
+                    _,
+                    GetApprovedProposalResult {
+                        approved_proposal, ..
+                    },
+                )| { approved_proposal.clone() },
+            )
+            .collect();
+        Ok(proposal.finalize(approvals, self.inner.network()).is_ok())
     }
 
     pub fn get_completed_proposals(&self) -> Result<HashMap<String, CompletedProposal>> {
