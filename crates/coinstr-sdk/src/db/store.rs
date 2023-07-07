@@ -1636,4 +1636,34 @@ impl Store {
         }
         Ok(requests)
     }
+
+    pub fn get_nostr_connect_request(
+        &self,
+        event_id: EventId,
+    ) -> Result<NostrConnectRequest, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT app_public_key, message, timestamp, approved FROM nostr_connect_requests WHERE event_id = ?;")?;
+        let mut rows = stmt.query([event_id.to_hex()])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("nostr connect request".into()))?;
+        let app_public_key: String = row.get(0)?;
+        let message: String = row.get(1)?;
+        let timestamp: u64 = row.get(2)?;
+        let approved: bool = row.get(3)?;
+        Ok(NostrConnectRequest {
+            app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
+            message: NIP46Message::from_json(message)?,
+            timestamp: Timestamp::from(timestamp),
+            approved,
+        })
+    }
+
+    pub fn set_nostr_connect_request_as_approved(&self, event_id: EventId) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn
+            .prepare_cached("UPDATE nostr_connect_requests SET approved = 1 WHERE event_id = ?")?;
+        stmt.execute([event_id.to_hex()])?;
+        Ok(())
+    }
 }

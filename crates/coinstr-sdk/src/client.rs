@@ -77,8 +77,6 @@ pub enum Error {
     #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
     #[error(transparent)]
-    NIP04(#[from] nostr_sdk::nips::nip04::Error),
-    #[error(transparent)]
     Policy(#[from] coinstr_core::policy::Error),
     #[error(transparent)]
     Proposal(#[from] coinstr_core::proposal::Error),
@@ -89,7 +87,11 @@ pub enum Error {
     #[error(transparent)]
     Util(#[from] coinstr_core::util::Error),
     #[error(transparent)]
+    NIP04(#[from] nostr_sdk::nips::nip04::Error),
+    #[error(transparent)]
     NIP06(#[from] nostr_sdk::nips::nip06::Error),
+    #[error(transparent)]
+    NIP46(#[from] nostr_sdk::nips::nip46::Error),
     #[error(transparent)]
     BIP32(#[from] coinstr_core::bitcoin::util::bip32::Error),
     #[error(transparent)]
@@ -124,6 +126,10 @@ pub enum Error {
     SignerAlreadyShared,
     #[error("signer descriptor already exists")]
     SignerDescriptorAlreadyExists,
+    #[error("nostr connect request already approved")]
+    NostrConnectRequestAlreadyApproved,
+    #[error("impossible to generate nostr connect response")]
+    CantGenerateNostrConnectResponse,
     #[error("{0}")]
     Generic(String),
 }
@@ -1966,5 +1972,29 @@ impl Coinstr {
         &self,
     ) -> Result<BTreeMap<EventId, NostrConnectRequest>, Error> {
         Ok(self.db.get_nostr_connect_requests()?)
+    }
+
+    pub async fn approve_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
+        let NostrConnectRequest {
+            app_public_key,
+            message,
+            approved,
+            ..
+        } = self.db.get_nostr_connect_request(event_id)?;
+        if !approved {
+            let uri = self.db.get_nostr_connect_session(app_public_key)?;
+            let keys = self.client.keys();
+            let msg = message
+                .generate_response(&keys)?
+                .ok_or(Error::CantGenerateNostrConnectResponse)?;
+            let nip46_event =
+                EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+            self.send_event_to(uri.relay_url, nip46_event, Some(Duration::from_secs(30)))
+                .await?;
+            self.db.set_nostr_connect_request_as_approved(event_id)?;
+            Ok(())
+        } else {
+            Err(Error::NostrConnectRequestAlreadyApproved)
+        }
     }
 }
