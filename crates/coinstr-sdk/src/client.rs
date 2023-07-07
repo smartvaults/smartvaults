@@ -1694,14 +1694,29 @@ impl Coinstr {
             let keys = self.client.keys();
             let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
             let msg = NIP46Message::from_json(content)?;
-            match msg.to_request()? {
-                NIP46Request::Disconnect => {
-                    self.disconnect_nostr_connect_session(event.pubkey).await?;
-                }
-                _ => self
-                    .db
-                    .save_nostr_connect_request(event.id, event.pubkey, msg)?,
-            };
+            if let Ok(request) = msg.to_request() {
+                match request {
+                    NIP46Request::Disconnect => {
+                        self.disconnect_nostr_connect_session(event.pubkey).await?;
+                    }
+                    NIP46Request::GetPublicKey => {
+                        let uri = self.db.get_nostr_connect_session(event.pubkey)?;
+                        let msg = msg
+                            .generate_response(&keys)?
+                            .ok_or(Error::CantGenerateNostrConnectResponse)?;
+                        let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
+                            .to_event(&keys)?;
+                        self.client
+                            .send_event_to_with_custom_wait(uri.relay_url, nip46_event, None)
+                            .await?;
+                    }
+                    _ => {
+                        self.db
+                            .save_nostr_connect_request(event.id, event.pubkey, msg)?;
+                        // TODO: save/send notification
+                    }
+                };
+            }
         }
 
         Ok(None)
