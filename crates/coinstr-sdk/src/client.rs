@@ -77,6 +77,8 @@ pub enum Error {
     #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
     #[error(transparent)]
+    Relay(#[from] nostr_sdk::relay::Error),
+    #[error(transparent)]
     Policy(#[from] coinstr_core::policy::Error),
     #[error(transparent)]
     Proposal(#[from] coinstr_core::proposal::Error),
@@ -1404,6 +1406,42 @@ impl Coinstr {
         self.sync_channel.subscribe()
     }
 
+    fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
+        let base_filter = Filter::new().kinds(vec![
+            POLICY_KIND,
+            PROPOSAL_KIND,
+            APPROVED_PROPOSAL_KIND,
+            COMPLETED_PROPOSAL_KIND,
+            SHARED_KEY_KIND,
+            SIGNERS_KIND,
+            SHARED_SIGNERS_KIND,
+            Kind::EventDeletion,
+        ]);
+
+        let keys = self.client.keys();
+
+        let author_filter = base_filter
+            .clone()
+            .author(keys.public_key().to_string())
+            .since(since);
+        let pubkey_filter = base_filter.pubkey(keys.public_key()).since(since);
+        let nostr_connect_filter = Filter::new()
+            .pubkey(keys.public_key())
+            .kind(Kind::NostrConnect)
+            .since(since);
+        let other_filters = Filter::new()
+            .author(keys.public_key().to_string())
+            .kinds(vec![Kind::Metadata, Kind::ContactList])
+            .since(since);
+
+        vec![
+            author_filter,
+            pubkey_filter,
+            nostr_connect_filter,
+            other_filters,
+        ]
+    }
+
     pub fn sync(&self) {
         if self.syncing.load(Ordering::SeqCst) {
             log::warn!("Syncing threads are already running");
@@ -1420,19 +1458,6 @@ impl Coinstr {
                 let pending_event_handler = this.handle_pending_events();
                 let metadata_sync = this.sync_metadata();
 
-                let keys = this.client.keys();
-
-                let base_filter = Filter::new().kinds(vec![
-                    POLICY_KIND,
-                    PROPOSAL_KIND,
-                    APPROVED_PROPOSAL_KIND,
-                    COMPLETED_PROPOSAL_KIND,
-                    SHARED_KEY_KIND,
-                    SIGNERS_KIND,
-                    SHARED_SIGNERS_KIND,
-                    Kind::EventDeletion,
-                ]);
-
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
                         Ok(ts) => ts,
@@ -1441,34 +1466,8 @@ impl Coinstr {
                             Timestamp::from(0)
                         }
                     };
-                    let author_filter = base_filter
-                        .clone()
-                        .author(keys.public_key().to_string())
-                        .since(last_sync);
-                    let pubkey_filter = base_filter
-                        .clone()
-                        .pubkey(keys.public_key())
-                        .since(last_sync);
-                    let nostr_connect_filter = Filter::new()
-                        .pubkey(keys.public_key())
-                        .kind(Kind::NostrConnect)
-                        .since(last_sync);
-                    let other_filters = Filter::new()
-                        .author(keys.public_key().to_string())
-                        .kinds(vec![Kind::Metadata, Kind::ContactList])
-                        .since(last_sync);
-                    if let Err(e) = relay
-                        .subscribe(
-                            vec![
-                                author_filter,
-                                pubkey_filter,
-                                nostr_connect_filter,
-                                other_filters,
-                            ],
-                            None,
-                        )
-                        .await
-                    {
+                    let filters = this.sync_filters(last_sync);
+                    if let Err(e) = relay.subscribe(filters, None).await {
                         log::error!("Impossible to subscribe to {relay_url}: {e}");
                     }
                 }
@@ -1926,18 +1925,22 @@ impl Coinstr {
     }
 
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
-        // TODO: find a better way to avoid to stop and restart the client
-        self.client.stop().await?;
-        let url = uri.relay_url.as_str();
+        let relay_url: Url = uri.relay_url.clone();
+        self.client.add_relay(relay_url.as_str(), None).await?;
+        self.client.connect().await;
+
+        let last_sync: Timestamp = match self.db.get_last_relay_sync(&relay_url) {
+            Ok(ts) => ts,
+            Err(e) => {
+                log::error!("Impossible to get last relay sync: {e}");
+                Timestamp::from(0)
+            }
+        };
+        let filters = self.sync_filters(last_sync);
         self.client
-            .handle_notifications(|notification: RelayPoolNotification| async move {
-                if let RelayPoolNotification::Stop = notification {
-                    self.client.add_relay(url, None).await?;
-                    self.client.start().await;
-                    self.sync();
-                }
-                Ok(false)
-            })
+            .relay(&relay_url)
+            .await?
+            .subscribe(filters, None)
             .await?;
 
         // Send connect ACK
@@ -1945,7 +1948,7 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(url, nip46_event, Some(Duration::from_secs(30)))
+        self.send_event_to(relay_url, nip46_event, Some(Duration::from_secs(30)))
             .await?;
 
         self.db.save_nostr_connect_uri(uri)?;
