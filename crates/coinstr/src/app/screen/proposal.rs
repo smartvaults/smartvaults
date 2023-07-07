@@ -94,7 +94,6 @@ impl State for ProposalState {
                         proposal,
                         policy_id,
                         client
-                            .db
                             .get_approvals_by_proposal_id(proposal_id)
                             .unwrap_or_default(),
                         signer,

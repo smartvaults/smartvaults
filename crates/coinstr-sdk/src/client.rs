@@ -44,8 +44,8 @@ use crate::constants::{
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
-    GetAllSigners, GetApprovedProposals, GetDetailedPolicyResult, GetNotificationsResult,
-    GetPolicyResult, GetSharedSignerResult,
+    GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
+    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -730,6 +730,13 @@ impl Coinstr {
         policy_id: EventId,
     ) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
         Ok(self.db.get_proposals_by_policy_id(policy_id)?)
+    }
+
+    pub fn get_approvals_by_proposal_id(
+        &self,
+        proposal_id: EventId,
+    ) -> Result<BTreeMap<EventId, GetApprovedProposalResult>, Error> {
+        Ok(self.db.get_approvals_by_proposal_id(proposal_id)?)
     }
 
     pub fn get_completed_proposals(
