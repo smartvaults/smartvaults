@@ -1574,4 +1574,40 @@ impl Store {
         }
         Ok(urls)
     }
+
+    pub fn get_nostr_connect_session(
+        &self,
+        app_public_key: XOnlyPublicKey,
+    ) -> Result<NostrConnectURI, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT uri FROM nostr_connect_sessions WHERE app_public_key = ?;")?;
+        let mut rows = stmt.query([app_public_key.to_string()])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("nostr connect session".into()))?;
+        let uri: String = row.get(0)?;
+        Ok(NostrConnectURI::from_str(&uri)?)
+    }
+
+    pub fn delete_nostr_connect_session(
+        &self,
+        app_public_key: XOnlyPublicKey,
+    ) -> Result<(), Error> {
+        // Delete notifications
+        //self.delete_notification(policy_id)?;
+
+        // Delete session
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM nostr_connect_sessions WHERE app_public_key = ?;",
+            [app_public_key.to_string()],
+        )?;
+        conn.execute(
+            "DELETE FROM nostr_connect_requests WHERE app_public_key = ?;",
+            [app_public_key.to_string()],
+        )?;
+        log::info!("Deleted nostr connect session {app_public_key}");
+        Ok(())
+    }
 }

@@ -1944,4 +1944,19 @@ impl Coinstr {
     pub fn get_nostr_connect_sessions(&self) -> Result<Vec<(NostrConnectURI, Timestamp)>, Error> {
         Ok(self.db.get_nostr_connect_sessions()?)
     }
+
+    pub async fn disconnect_nostr_connect_session(
+        &self,
+        app_public_key: XOnlyPublicKey,
+    ) -> Result<(), Error> {
+        let uri = self.db.get_nostr_connect_session(app_public_key)?;
+        let keys = self.client.keys();
+        let msg = NIP46Message::request(NIP46Request::Disconnect);
+        let nip46_event =
+            EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+        self.send_event_to(uri.relay_url, nip46_event, Some(Duration::from_secs(30)))
+            .await?;
+        self.db.delete_nostr_connect_session(app_public_key)?;
+        Ok(())
+    }
 }
