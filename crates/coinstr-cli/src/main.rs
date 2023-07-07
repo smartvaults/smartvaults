@@ -8,7 +8,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{AddCommand, SetCommand};
+use cli::{AddCommand, ConnectCommand, SetCommand};
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
@@ -301,6 +301,19 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 );
                 Ok(())
             }
+        },
+        Command::Connect { command } => match command {
+            ConnectCommand::New { uri } => {
+                coinstr.new_nostr_connect_session(uri).await?;
+                Ok(())
+            }
+            ConnectCommand::Sessions => {
+                let sessions = coinstr.get_nostr_connect_sessions()?;
+                util::print_sessions(sessions);
+                Ok(())
+            }
+            ConnectCommand::List { approved: _ } => todo!(),
+            ConnectCommand::Approve { request_id: _ } => todo!(),
         },
         Command::Add { command } => match command {
             AddCommand::Contact { public_key } => {

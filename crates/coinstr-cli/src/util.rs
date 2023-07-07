@@ -18,7 +18,7 @@ use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
 use coinstr_sdk::db::model::GetPolicyResult;
-use coinstr_sdk::nostr::prelude::{FromMnemonic, ToBech32, XOnlyPublicKey};
+use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
 use owo_colors::colors::css::Lime;
@@ -425,6 +425,30 @@ pub async fn print_relays(relays: BTreeMap<Url, Relay>) {
             } else {
                 stats.connected_at().to_human_datetime()
             }
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_sessions(sessions: Vec<(NostrConnectURI, Timestamp)>) {
+    let mut table = Table::new();
+
+    table.set_titles(row![
+        "#",
+        "App Name",
+        "App Public Key",
+        "Relay Url",
+        "Connected at"
+    ]);
+
+    for (index, (uri, timestamp)) in sessions.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            uri.metadata.name,
+            uri.public_key,
+            uri.relay_url,
+            timestamp.to_human_datetime(),
         ]);
     }
 

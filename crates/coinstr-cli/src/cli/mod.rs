@@ -1,12 +1,15 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+#![allow(clippy::large_enum_variant)]
+
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use coinstr_sdk::core::bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_sdk::core::bips::bip32::Fingerprint;
 use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
+use coinstr_sdk::nostr::prelude::NostrConnectURI;
 use coinstr_sdk::nostr::EventId;
 
 pub mod batch;
@@ -154,6 +157,12 @@ pub enum Command {
         #[command(subcommand)]
         command: ProofCommand,
     },
+    /// Nostr Connect commands
+    #[command(arg_required_else_help = true)]
+    Connect {
+        #[command(subcommand)]
+        command: ConnectCommand,
+    },
     /// Add
     #[command(arg_required_else_help = true)]
     Add {
@@ -206,6 +215,30 @@ pub enum ProofCommand {
         /// Proposal id
         #[arg(required = true)]
         proposal_id: EventId,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConnectCommand {
+    /// New session
+    New {
+        /// Nostr Connect URI
+        #[arg(required = true)]
+        uri: NostrConnectURI,
+    },
+    /// List sessions
+    Sessions,
+    /// List requests
+    List {
+        /// Get approved requests
+        #[arg(long)]
+        approved: bool,
+    },
+    /// Approve request
+    Approve {
+        /// Request ID
+        #[arg(required = true)]
+        request_id: EventId,
     },
 }
 
