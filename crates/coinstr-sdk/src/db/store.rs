@@ -1559,4 +1559,19 @@ impl Store {
         }
         Ok(sessions)
     }
+
+    pub fn get_nostr_connect_sessions_relays(&self) -> Result<Vec<Url>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT uri FROM nostr_connect_sessions;")?;
+        let mut rows = stmt.query([])?;
+        let mut urls = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let uri: String = row.get(0)?;
+            let uri: NostrConnectURI = NostrConnectURI::from_str(&uri)?;
+            if !urls.contains(&uri.relay_url) {
+                urls.push(uri.relay_url);
+            }
+        }
+        Ok(urls)
+    }
 }

@@ -466,6 +466,13 @@ impl Coinstr {
         }
     }
 
+    async fn load_nostr_connect_relays(&self) -> Result<(), Error> {
+        let relays = self.db.get_nostr_connect_sessions_relays()?;
+        let relays = relays.into_iter().map(|r| (r, None)).collect();
+        self.client.add_relays(relays).await?;
+        Ok(())
+    }
+
     /// Add relays
     /// Connect
     /// Rebroadcast stored events
@@ -475,6 +482,7 @@ impl Coinstr {
     {
         let relays = relays.into_iter().map(|r| (r, None)).collect();
         self.client.add_relays(relays).await?;
+        self.load_nostr_connect_relays().await?;
         self.client.connect().await;
         self.rebroadcast_all_events().await?;
         Ok(())
