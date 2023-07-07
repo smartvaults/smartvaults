@@ -1925,11 +1925,15 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(url, nip46_event, Some(Duration::from_secs(5)))
+        self.send_event_to(url, nip46_event, Some(Duration::from_secs(30)))
             .await?;
 
         self.db.save_nostr_connect_uri(uri)?;
 
         Ok(())
+    }
+
+    pub fn get_nostr_connect_sessions(&self) -> Result<Vec<(NostrConnectURI, Timestamp)>, Error> {
+        Ok(self.db.get_nostr_connect_sessions()?)
     }
 }

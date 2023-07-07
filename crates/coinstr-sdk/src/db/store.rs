@@ -1510,7 +1510,7 @@ impl Store {
     pub fn save_nostr_connect_uri(&self, uri: NostrConnectURI) -> Result<(), Error> {
         let conn = self.pool.get()?;
         conn.execute(
-            "INSERT OR IGNORE INTO nostr_connect_session (app_public_key, uri, timestamp) VALUES (?, ?, ?);",
+            "INSERT OR IGNORE INTO nostr_connect_sessions (app_public_key, uri, timestamp) VALUES (?, ?, ?);",
             (uri.public_key.to_string(), uri.to_string(), Timestamp::now().as_u64()),
         )?;
         Ok(())
@@ -1522,7 +1522,7 @@ impl Store {
     ) -> Result<bool, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare(
-            "SELECT EXISTS(SELECT 1 FROM nostr_connect_session WHERE app_public_key = ? LIMIT 1);",
+            "SELECT EXISTS(SELECT 1 FROM nostr_connect_sessions WHERE app_public_key = ? LIMIT 1);",
         )?;
         let mut rows = stmt.query([app_public_key.to_string()])?;
         let exists: u8 = match rows.next()? {
@@ -1544,5 +1544,19 @@ impl Store {
             (event_id.to_hex(), app_public_key.to_string(), message.as_json(), Timestamp::now().as_u64()),
         )?;
         Ok(())
+    }
+
+    pub fn get_nostr_connect_sessions(&self) -> Result<Vec<(NostrConnectURI, Timestamp)>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT uri, timestamp FROM nostr_connect_sessions;")?;
+        let mut rows = stmt.query([])?;
+        let mut sessions: Vec<(NostrConnectURI, Timestamp)> = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let uri: String = row.get(0)?;
+            let uri: NostrConnectURI = NostrConnectURI::from_str(&uri)?;
+            let timestamp: u64 = row.get(1)?;
+            sessions.push((uri, Timestamp::from(timestamp)));
+        }
+        Ok(sessions)
     }
 }

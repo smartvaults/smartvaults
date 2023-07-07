@@ -39,6 +39,9 @@ pub enum Error {
     /// Metadata error
     #[error(transparent)]
     Metadata(#[from] nostr_sdk::types::metadata::Error),
+    /// NIP46 error
+    #[error(transparent)]
+    NIP46(#[from] nostr_sdk::nips::nip46::Error),
     /// JSON error
     #[error(transparent)]
     JSON(#[from] SerdeError),
