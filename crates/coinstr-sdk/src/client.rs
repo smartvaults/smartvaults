@@ -519,7 +519,7 @@ impl Coinstr {
         Ok(event_id)
     }
 
-    async fn send_event_to<S>(
+    /* async fn send_event_to<S>(
         &self,
         url: S,
         event: Event,
@@ -535,7 +535,7 @@ impl Coinstr {
             .send_msg_to_with_custom_wait(url, msg, wait)
             .await?;
         Ok(event_id)
-    }
+    } */
 
     pub fn set_electrum_endpoint<S>(&self, endpoint: S)
     where
@@ -1927,7 +1927,9 @@ impl Coinstr {
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
         let relay_url: Url = uri.relay_url.clone();
         self.client.add_relay(relay_url.as_str(), None).await?;
-        self.client.connect().await;
+
+        let relay = self.client.relay(&relay_url).await?;
+        relay.connect(true).await;
 
         let last_sync: Timestamp = match self.db.get_last_relay_sync(&relay_url) {
             Ok(ts) => ts,
@@ -1937,18 +1939,15 @@ impl Coinstr {
             }
         };
         let filters = self.sync_filters(last_sync);
-        self.client
-            .relay(&relay_url)
-            .await?
-            .subscribe(filters, None)
-            .await?;
+        relay.subscribe(filters, None).await?;
 
         // Send connect ACK
         let keys = self.client.keys();
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(relay_url, nip46_event, Some(Duration::from_secs(30)))
+        self.client
+            .send_event_to_with_custom_wait(relay_url, nip46_event, Some(Duration::from_secs(30)))
             .await?;
 
         self.db.save_nostr_connect_uri(uri)?;
@@ -1969,7 +1968,12 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Disconnect);
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(uri.relay_url, nip46_event, Some(Duration::from_secs(30)))
+        self.client
+            .send_event_to_with_custom_wait(
+                uri.relay_url,
+                nip46_event,
+                Some(Duration::from_secs(30)),
+            )
             .await?;
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
@@ -1996,7 +2000,12 @@ impl Coinstr {
                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
             let nip46_event =
                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-            self.send_event_to(uri.relay_url, nip46_event, Some(Duration::from_secs(30)))
+            self.client
+                .send_event_to_with_custom_wait(
+                    uri.relay_url,
+                    nip46_event,
+                    Some(Duration::from_secs(30)),
+                )
                 .await?;
             self.db.set_nostr_connect_request_as_approved(event_id)?;
             Ok(())
