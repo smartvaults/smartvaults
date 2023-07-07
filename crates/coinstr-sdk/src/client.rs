@@ -1711,8 +1711,12 @@ impl Coinstr {
                             .await?;
                     }
                     _ => {
-                        self.db
-                            .save_nostr_connect_request(event.id, event.pubkey, msg)?;
+                        self.db.save_nostr_connect_request(
+                            event.id,
+                            event.pubkey,
+                            msg,
+                            event.created_at,
+                        )?;
                         // TODO: save/send notification
                     }
                 };
