@@ -318,8 +318,15 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 util::print_sessions(sessions);
                 Ok(())
             }
-            ConnectCommand::List { approved: _ } => todo!(),
-            ConnectCommand::Approve { request_id: _ } => todo!(),
+            ConnectCommand::Requests { approved: _ } => {
+                let requests = coinstr.get_nostr_connect_requests()?;
+                util::print_requests(requests)?;
+                Ok(())
+            }
+            ConnectCommand::Approve { request_id } => {
+                coinstr.approve_nostr_connect_request(request_id).await?;
+                Ok(())
+            }
         },
         Command::Add { command } => match command {
             AddCommand::Contact { public_key } => {

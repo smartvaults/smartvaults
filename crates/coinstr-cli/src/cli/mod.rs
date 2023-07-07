@@ -235,7 +235,7 @@ pub enum ConnectCommand {
     /// List sessions
     Sessions,
     /// List requests
-    List {
+    Requests {
         /// Get approved requests
         #[arg(long)]
         approved: bool,

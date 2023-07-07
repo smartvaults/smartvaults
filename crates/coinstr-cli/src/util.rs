@@ -17,7 +17,7 @@ use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
-use coinstr_sdk::db::model::GetPolicyResult;
+use coinstr_sdk::db::model::{GetPolicyResult, NostrConnectRequest};
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
@@ -453,4 +453,32 @@ pub fn print_sessions(sessions: Vec<(NostrConnectURI, Timestamp)>) {
     }
 
     table.printstd();
+}
+
+pub fn print_requests(requests: BTreeMap<EventId, NostrConnectRequest>) -> Result<()> {
+    let mut table = Table::new();
+
+    table.set_titles(row![
+        "#",
+        "Event ID",
+        "App Public Key",
+        "Method",
+        "Requested at",
+        "Approved"
+    ]);
+
+    for (index, (event_id, req)) in requests.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            event_id,
+            util::cut_public_key(req.app_public_key),
+            req.message.to_request()?.method(),
+            req.timestamp.to_human_datetime(),
+            req.approved,
+        ]);
+    }
+
+    table.printstd();
+
+    Ok(())
 }
