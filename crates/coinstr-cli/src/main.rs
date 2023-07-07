@@ -307,6 +307,12 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 coinstr.new_nostr_connect_session(uri).await?;
                 Ok(())
             }
+            ConnectCommand::Disconnect { app_public_key } => {
+                coinstr
+                    .disconnect_nostr_connect_session(app_public_key)
+                    .await?;
+                Ok(())
+            }
             ConnectCommand::Sessions => {
                 let sessions = coinstr.get_nostr_connect_sessions()?;
                 util::print_sessions(sessions);

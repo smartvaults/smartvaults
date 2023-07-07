@@ -226,6 +226,12 @@ pub enum ConnectCommand {
         #[arg(required = true)]
         uri: NostrConnectURI,
     },
+    /// Disconnect session
+    Disconnect {
+        /// App Public Key
+        #[arg(required = true)]
+        app_public_key: XOnlyPublicKey,
+    },
     /// List sessions
     Sessions,
     /// List requests
