@@ -3,8 +3,9 @@
 
 use std::collections::BTreeMap;
 
+use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::db::model::NostrConnectRequest;
-use coinstr_sdk::nostr::prelude::NostrConnectURI;
+use coinstr_sdk::nostr::nips::nip46::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -26,6 +27,7 @@ pub enum ConnectMessage {
     ),
     ApproveRequest(EventId),
     DeleteRequest(EventId),
+    DisconnectSession(XOnlyPublicKey),
     ErrorChanged(Option<String>),
     Reload,
 }
@@ -93,6 +95,21 @@ impl State for ConnectState {
                     let client = ctx.client.clone();
                     Command::perform(
                         async move { client.delete_nostr_connect_request(id) },
+                        |res| match res {
+                            Ok(_) => ConnectMessage::Reload.into(),
+                            Err(e) => ConnectMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    )
+                }
+                ConnectMessage::DisconnectSession(app_public_key) => {
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    Command::perform(
+                        async move {
+                            client
+                                .disconnect_nostr_connect_session(app_public_key)
+                                .await
+                        },
                         |res| match res {
                             Ok(_) => ConnectMessage::Reload.into(),
                             Err(e) => ConnectMessage::ErrorChanged(Some(e.to_string())).into(),
@@ -184,6 +201,14 @@ impl State for ConnectState {
                     .push(rule::horizontal_bold());
 
                 for (uri, timestamp) in self.sessions.iter() {
+                    let mut disconnect_btn =
+                        button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
+
+                    if !self.loading {
+                        disconnect_btn = disconnect_btn
+                            .on_press(ConnectMessage::DisconnectSession(uri.public_key).into());
+                    }
+
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_public_key(uri.public_key))
@@ -205,7 +230,7 @@ impl State for ConnectState {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0)))
+                        .push(disconnect_btn)
                         .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
                         .spacing(10)
                         .align_items(Alignment::Center)
