@@ -38,6 +38,7 @@ pub use self::add_hw_signer::{AddHWSignerMessage, AddHWSignerState};
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
 pub use self::add_signer::{AddSignerMessage, AddSignerState};
 pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalState};
+pub use self::connect::add_session::{AddNostrConnectSessionMessage, AddNostrConnectSessionState};
 pub use self::connect::{ConnectMessage, ConnectState};
 pub use self::contacts::{ContactsMessage, ContactsState};
 pub use self::dashboard::{DashboardMessage, DashboardState};
