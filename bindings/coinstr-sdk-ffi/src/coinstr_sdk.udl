@@ -253,5 +253,8 @@ interface Coinstr {
     [Throws=FFIError]
     string? get_last_unused_address(string policy_id);
 
+    [Throws=FFIError]
+    void approve_nostr_connect_request(string event_id);
+
     void sync();
 };

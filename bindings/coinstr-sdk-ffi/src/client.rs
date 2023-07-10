@@ -522,4 +522,9 @@ impl Coinstr {
                 .await?)
         })
     }
+
+    pub fn approve_nostr_connect_request(&self, event_id: String) -> Result<()> {
+        let event_id = EventId::from_hex(event_id)?;
+        block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id).await?) })
+    }
 }
