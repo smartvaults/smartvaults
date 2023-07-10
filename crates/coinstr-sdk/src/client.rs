@@ -2033,4 +2033,8 @@ impl Coinstr {
             Err(Error::NostrConnectRequestAlreadyApproved)
         }
     }
+
+    pub fn delete_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
+        Ok(self.db.delete_nostr_connect_request(event_id)?)
+    }
 }

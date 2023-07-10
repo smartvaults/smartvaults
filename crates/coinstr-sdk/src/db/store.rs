@@ -1668,4 +1668,18 @@ impl Store {
         stmt.execute([event_id.to_hex()])?;
         Ok(())
     }
+
+    pub fn delete_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
+        // Delete notifications
+        //self.delete_notification(policy_id)?;
+
+        // Delete
+        let conn = self.pool.get()?;
+        conn.execute(
+            "DELETE FROM nostr_connect_requests WHERE event_id = ?;",
+            [event_id.to_hex()],
+        )?;
+        log::info!("Deleted nostr connect request {event_id}");
+        Ok(())
+    }
 }
