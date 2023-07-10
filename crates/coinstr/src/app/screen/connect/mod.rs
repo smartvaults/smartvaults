@@ -170,7 +170,7 @@ impl State for ConnectState {
                                 Text::new("App Public Key")
                                     .bold()
                                     .bigger()
-                                    .width(Length::Fixed(225.0))
+                                    .width(Length::Fixed(175.0))
                                     .view(),
                             )
                             .push(
