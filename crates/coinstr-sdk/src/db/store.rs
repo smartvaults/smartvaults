@@ -86,6 +86,7 @@ pub struct Store {
     keys: Keys,
     block_height: BlockHeight,
     wallets: Arc<Mutex<HashMap<EventId, Wallet<SqliteDatabase>>>>,
+    nostr_connect_auto_approve: Arc<Mutex<HashMap<XOnlyPublicKey, Timestamp>>>,
     timechain_db_path: PathBuf,
     network: Network,
 }
@@ -114,6 +115,7 @@ impl Store {
             pool,
             keys: keys.clone(),
             wallets: Arc::new(Mutex::new(HashMap::new())),
+            nostr_connect_auto_approve: Arc::new(Mutex::new(HashMap::new())),
             block_height: BlockHeight::default(),
             timechain_db_path: timechain_db_path.as_ref().to_path_buf(),
             network,
@@ -1667,6 +1669,36 @@ impl Store {
             .prepare_cached("UPDATE nostr_connect_requests SET approved = 1 WHERE event_id = ?")?;
         stmt.execute([event_id.to_hex()])?;
         Ok(())
+    }
+
+    pub fn set_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey, until: Timestamp) {
+        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+        nostr_connect_auto_approve.insert(app_public_key, until);
+    }
+
+    pub fn is_nostr_connect_session_pre_authorized(&self, app_public_key: XOnlyPublicKey) -> bool {
+        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+        if let Some(until) = nostr_connect_auto_approve.get(&app_public_key) {
+            if Timestamp::now() < *until {
+                return true;
+            } else {
+                nostr_connect_auto_approve.remove(&app_public_key);
+            }
+        }
+        false
+    }
+
+    pub fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
+        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+        nostr_connect_auto_approve.remove(&app_public_key);
+    }
+
+    pub fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<XOnlyPublicKey, Timestamp> {
+        let nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+        nostr_connect_auto_approve
+            .iter()
+            .map(|(pk, ts)| (*pk, *ts))
+            .collect()
     }
 
     pub fn delete_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {

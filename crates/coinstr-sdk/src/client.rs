@@ -1697,7 +1697,8 @@ impl Coinstr {
             if let Ok(request) = msg.to_request() {
                 match request {
                     NIP46Request::Disconnect => {
-                        self.disconnect_nostr_connect_session(event.pubkey).await?;
+                        self.disconnect_nostr_connect_session(event.pubkey, None)
+                            .await?;
                     }
                     NIP46Request::GetPublicKey => {
                         let uri = self.db.get_nostr_connect_session(event.pubkey)?;
@@ -1711,13 +1712,35 @@ impl Coinstr {
                             .await?;
                     }
                     _ => {
-                        self.db.save_nostr_connect_request(
-                            event.id,
-                            event.pubkey,
-                            msg,
-                            event.created_at,
-                        )?;
-                        // TODO: save/send notification
+                        if self
+                            .db
+                            .is_nostr_connect_session_pre_authorized(event.pubkey)
+                        {
+                            let uri = self.db.get_nostr_connect_session(event.pubkey)?;
+                            let keys = self.client.keys();
+                            let msg = msg
+                                .generate_response(&keys)?
+                                .ok_or(Error::CantGenerateNostrConnectResponse)?;
+                            let nip46_event =
+                                EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
+                                    .to_event(&keys)?;
+                            self.client
+                                .send_event_to_with_custom_wait(uri.relay_url, nip46_event, None)
+                                .await?;
+                            log::info!(
+                                "Auto approved nostr connect request {} for app {}",
+                                event.id,
+                                event.pubkey
+                            )
+                        } else {
+                            self.db.save_nostr_connect_request(
+                                event.id,
+                                event.pubkey,
+                                msg,
+                                event.created_at,
+                            )?;
+                            // TODO: save/send notification
+                        }
                     }
                 };
             }
@@ -1981,6 +2004,7 @@ impl Coinstr {
     pub async fn disconnect_nostr_connect_session(
         &self,
         app_public_key: XOnlyPublicKey,
+        wait: Option<Duration>,
     ) -> Result<(), Error> {
         let uri = self.db.get_nostr_connect_session(app_public_key)?;
         let keys = self.client.keys();
@@ -1988,11 +2012,7 @@ impl Coinstr {
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
         self.client
-            .send_event_to_with_custom_wait(
-                uri.relay_url,
-                nip46_event,
-                Some(Duration::from_secs(30)),
-            )
+            .send_event_to_with_custom_wait(uri.relay_url, nip46_event, wait)
             .await?;
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
@@ -2032,6 +2052,24 @@ impl Coinstr {
         } else {
             Err(Error::NostrConnectRequestAlreadyApproved)
         }
+    }
+
+    pub fn auto_approve_nostr_connect_requests(
+        &self,
+        app_public_key: XOnlyPublicKey,
+        duration: Duration,
+    ) {
+        let until: Timestamp = Timestamp::now() + duration;
+        self.db
+            .set_nostr_connect_auto_approve(app_public_key, until);
+    }
+
+    pub fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
+        self.db.revoke_nostr_connect_auto_approve(app_public_key);
+    }
+
+    pub fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<XOnlyPublicKey, Timestamp> {
+        self.db.get_nostr_connect_pre_authorizations()
     }
 
     pub fn delete_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
