@@ -246,6 +246,23 @@ pub enum ConnectCommand {
         #[arg(required = true)]
         request_id: EventId,
     },
+    /// Autoapprove
+    Autoapprove {
+        /// App Public Key
+        #[arg(required = true)]
+        app_public_key: XOnlyPublicKey,
+        /// Seconds
+        #[arg(required = true)]
+        seconds: u64,
+    },
+    /// Auto approve authorizations
+    Authorizations,
+    /// Revoke auto-approve
+    Revoke {
+        /// App Public Key
+        #[arg(required = true)]
+        app_public_key: XOnlyPublicKey,
+    },
 }
 
 #[derive(Debug, Subcommand)]

@@ -480,3 +480,15 @@ pub fn print_requests(requests: BTreeMap<EventId, NostrConnectRequest>) -> Resul
 
     Ok(())
 }
+
+pub fn print_authorizations(authorizations: BTreeMap<XOnlyPublicKey, Timestamp>) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "App Public Key", "Authorized until",]);
+
+    for (index, (app_public_key, until)) in authorizations.into_iter().enumerate() {
+        table.add_row(row![index + 1, app_public_key, until.to_human_datetime(),]);
+    }
+
+    table.printstd();
+}

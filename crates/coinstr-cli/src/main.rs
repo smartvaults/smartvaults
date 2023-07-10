@@ -309,7 +309,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             ConnectCommand::Disconnect { app_public_key } => {
                 coinstr
-                    .disconnect_nostr_connect_session(app_public_key)
+                    .disconnect_nostr_connect_session(app_public_key, Some(Duration::from_secs(30)))
                     .await?;
                 Ok(())
             }
@@ -325,6 +325,25 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             ConnectCommand::Approve { request_id } => {
                 coinstr.approve_nostr_connect_request(request_id).await?;
+                Ok(())
+            }
+            ConnectCommand::Autoapprove {
+                app_public_key,
+                seconds,
+            } => {
+                coinstr.auto_approve_nostr_connect_requests(
+                    app_public_key,
+                    Duration::from_secs(seconds),
+                );
+                Ok(())
+            }
+            ConnectCommand::Authorizations => {
+                let authorizations = coinstr.get_nostr_connect_pre_authorizations();
+                util::print_authorizations(authorizations);
+                Ok(())
+            }
+            ConnectCommand::Revoke { app_public_key } => {
+                coinstr.revoke_nostr_connect_auto_approve(app_public_key);
                 Ok(())
             }
         },
