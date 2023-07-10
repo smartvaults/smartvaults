@@ -107,6 +107,7 @@ impl Stage {
                 | Stage::Settings
                 | Stage::Notifications
                 | Stage::Profile
+                | Stage::NostrConnect
         )
     }
 }
