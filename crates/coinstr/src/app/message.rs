@@ -3,7 +3,7 @@
 
 use super::screen::{
     AddAirGapSignerMessage, AddContactMessage, AddHWSignerMessage, AddPolicyMessage,
-    AddSignerMessage, CompletedProposalMessage, ContactsMessage, DashboardMessage,
+    AddSignerMessage, CompletedProposalMessage, ConnectMessage, ContactsMessage, DashboardMessage,
     EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage,
     PolicyBuilderMessage, PolicyMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
     ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
@@ -45,6 +45,7 @@ pub enum Message {
     EditProfile(EditProfileMessage),
     Settings(SettingsMessage),
     Relays(RelaysMessage),
+    Connect(ConnectMessage),
     Clipboard(String),
     Lock,
     Sync,

@@ -91,13 +91,19 @@ where
 {
     match icon {
         Some(icon) => {
+            let text = t.into();
+
+            let mut icon = Icon::new(icon);
+
+            if text.is_empty() {
+                icon = icon.width(Length::Fill);
+            }
+
             let mut row = Row::new()
-                .push(Icon::new(icon).view())
+                .push(icon.view())
                 .spacing(10)
                 .width(Length::Fill)
                 .align_items(Alignment::Center);
-
-            let text = t.into();
 
             if !text.is_empty() {
                 row = row.push(Text::new(text).view());
