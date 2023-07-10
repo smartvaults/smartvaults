@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::db::model::NostrConnectRequest;
@@ -17,7 +18,7 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{button, rule, Text};
 use crate::theme::color::RED;
-use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, TRASH};
+use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOPWATCH, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ConnectMessage {
@@ -109,7 +110,10 @@ impl State for ConnectState {
                     Command::perform(
                         async move {
                             client
-                                .disconnect_nostr_connect_session(app_public_key)
+                                .disconnect_nostr_connect_session(
+                                    app_public_key,
+                                    Some(Duration::from_secs(30)),
+                                )
                                 .await
                         },
                         |res| match res {
@@ -194,6 +198,7 @@ impl State for ConnectState {
                                     .width(Length::Fill)
                                     .view(),
                             )
+                            .push(Space::with_width(Length::Fixed(40.0)))
                             .push(add_session_btn)
                             .push(reload_btn)
                             .spacing(10)
@@ -232,6 +237,7 @@ impl State for ConnectState {
                                 .width(Length::Fill)
                                 .view(),
                         )
+                        .push(button::border_only_icon(STOPWATCH).width(Length::Fixed(40.0)))
                         .push(disconnect_btn)
                         .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
                         .spacing(10)
