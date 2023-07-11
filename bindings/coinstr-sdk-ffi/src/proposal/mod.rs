@@ -3,8 +3,10 @@
 
 use coinstr_sdk::core::proposal;
 
+mod approved;
 mod completed;
 
+pub use self::approved::ApprovedProposal;
 pub use self::completed::CompletedProposal;
 
 #[derive(Clone)]

@@ -43,7 +43,7 @@ mod ffi {
     pub use crate::key::Keys;
     pub use crate::metadata::Metadata;
     pub use crate::policy::Policy;
-    pub use crate::proposal::{CompletedProposal, Proposal};
+    pub use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
     pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;
     pub use crate::signer::Signer;

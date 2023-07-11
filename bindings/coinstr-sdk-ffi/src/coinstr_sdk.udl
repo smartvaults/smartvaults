@@ -132,6 +132,12 @@ interface Proposal {
 };
 
 [Enum]
+interface ApprovedProposal {
+  Spending(string psbt);
+  ProofOfReserve(string psbt);
+};
+
+[Enum]
 interface CompletedProposal {
   Spending(string txid, string description);
   ProofOfReserve(string descriptor, string message, string psbt);
