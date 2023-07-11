@@ -160,11 +160,44 @@ pub fn print_policy(
     );
 
     if !txs.is_empty() {
-        println!("{}", "Latest transactions".fg::<BlazeOrange>().underline());
-        for tx in txs.into_iter().take(10) {
-            println!("{tx:?}")
-        }
+        println!(
+            "{}",
+            "Latest 10 transactions".fg::<BlazeOrange>().underline()
+        );
+        print_txs(txs, 10);
     }
+}
+
+pub fn print_txs(txs: Vec<TransactionDetails>, limit: usize) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "Txid", "Sent", "Received", "Total", "Date/Time"]);
+
+    for (index, tx) in txs.into_iter().take(limit).enumerate() {
+        let (total, positive): (u64, bool) = {
+            let received: i64 = tx.received as i64;
+            let sent: i64 = tx.sent as i64;
+            let tot = received - sent;
+            let positive = tot >= 0;
+            (tot.unsigned_abs(), positive)
+        };
+        table.add_row(row![
+            index + 1,
+            tx.txid,
+            format!("{} sat", format::number(tx.sent)),
+            format!("{} sat", format::number(tx.received)),
+            format!(
+                "{}{} sat",
+                if positive { "+" } else { "-" },
+                format::number(total)
+            ),
+            tx.confirmation_time
+                .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
+                .unwrap_or_else(|| String::from("pending"))
+        ]);
+    }
+
+    table.printstd();
 }
 
 fn display_key(key: &PkOrF) -> String {
