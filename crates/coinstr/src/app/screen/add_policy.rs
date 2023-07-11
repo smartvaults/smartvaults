@@ -211,7 +211,9 @@ impl State for AddPolicyState {
                 .max_width(400)
         };
 
-        Dashboard::new().view(ctx, content, true, center_y)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, center_y)
     }
 }
 

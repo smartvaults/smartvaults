@@ -83,13 +83,7 @@ impl State for TransactionsState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        let mut center_y = true;
-        let mut center_x = true;
-
         if self.loaded {
-            center_y = false;
-            center_x = false;
-
             let title = match self.policy_id {
                 Some(policy_id) => {
                     format!("Transactions of policy #{}", util::cut_event_id(policy_id))
@@ -100,11 +94,11 @@ impl State for TransactionsState {
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(40.0)))
                 .push(TransactionsList::new(Some(self.transactions.clone())).view());
-        } else {
-            content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, center_x, center_y)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, false, false)
     }
 }
 

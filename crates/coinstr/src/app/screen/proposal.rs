@@ -283,15 +283,9 @@ impl State for ProposalState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        let mut center_y = true;
-        let mut center_x = true;
-
         if self.loaded {
             if let Some(proposal) = &self.proposal {
                 if let Some(policy_id) = self.policy_id {
-                    center_y = false;
-                    center_x = false;
-
                     content = content
                         .push(
                             Text::new(format!(
@@ -516,11 +510,11 @@ impl State for ProposalState {
                     }
                 }
             }
-        } else {
-            content = content.push(Text::new("Loading...").view())
         };
 
-        let dashboard = Dashboard::new().view(ctx, content, center_x, center_y);
+        let dashboard = Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, false, false);
 
         Modal::new(self.show_modal, dashboard, || {
             Card::new(

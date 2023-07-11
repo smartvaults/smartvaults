@@ -120,7 +120,9 @@ impl State for EditProfileState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let content = if self.loaded {
+        let mut content = Column::new();
+
+        if self.loaded {
             let name = TextInput::new("Name", &self.name)
                 .on_input(|s| EditProfileMessage::NameChanged(s).into())
                 .placeholder("Name")
@@ -146,7 +148,7 @@ impl State for EditProfileState {
                 .on_press(EditProfileMessage::Save.into())
                 .width(Length::Fill);
 
-            Column::new()
+            content = content
                 .push(Text::new("Edit profile").size(24).bold().view())
                 .push(name)
                 .push(display_name)
@@ -157,12 +159,12 @@ impl State for EditProfileState {
                 .align_items(Alignment::Center)
                 .spacing(10)
                 .padding(20)
-                .max_width(400)
-        } else {
-            Column::new().push(Text::new("Loading...").view())
-        };
+                .max_width(400);
+        }
 
-        Dashboard::new().view(ctx, content, true, true)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, true)
     }
 }
 

@@ -131,11 +131,11 @@ impl State for DashboardState {
                         .take(3)
                         .view(),
                 );
-        } else {
-            content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, center_x, center_y)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, center_x, center_y)
     }
 }
 

@@ -91,11 +91,8 @@ impl State for RelaysState {
 
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
-        let mut center_y = true;
 
         if self.loaded {
-            center_y = false;
-
             let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
 
             if !self.loading {
@@ -178,11 +175,11 @@ impl State for RelaysState {
                     .width(Length::Fill);
                 content = content.push(row).push(rule::horizontal());
             }
-        } else {
-            content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, true, center_y)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, false)
     }
 }
 

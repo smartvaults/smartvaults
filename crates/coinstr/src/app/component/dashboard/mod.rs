@@ -5,6 +5,7 @@ use iced::widget::{Column, Container, Row, Rule, Scrollable};
 use iced::{Element, Length};
 
 use crate::app::{Context, Message};
+use crate::component::Text;
 
 mod navbar;
 mod sidebar;
@@ -13,11 +14,18 @@ use self::navbar::Navbar;
 use self::sidebar::Sidebar;
 
 #[derive(Clone, Default)]
-pub struct Dashboard;
+pub struct Dashboard {
+    loaded: bool,
+}
 
 impl Dashboard {
     pub fn new() -> Self {
-        Self::default()
+        Self { loaded: true }
+    }
+
+    #[allow(clippy::needless_update)]
+    pub fn loaded(self, loaded: bool) -> Self {
+        Self { loaded, ..self }
     }
 
     pub fn view<'a, T>(
@@ -52,7 +60,19 @@ impl Dashboard {
                             .height(Length::Fill),
                     )
                     .push(Rule::vertical(1))
-                    .push(Column::new().push(Navbar::new().view(ctx)).push(content)),
+                    .push(
+                        Column::new()
+                            .push(Navbar::new().view(ctx))
+                            .push(if self.loaded {
+                                content
+                            } else {
+                                Container::new(Text::new("Loading...").view())
+                                    .width(Length::Fill)
+                                    .height(Length::Fill)
+                                    .center_x()
+                                    .center_y()
+                            }),
+                    ),
             )
             .width(Length::Fill)
             .height(Length::Fill)

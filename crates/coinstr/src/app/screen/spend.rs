@@ -247,7 +247,9 @@ impl State for SpendState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let content = if self.loaded {
+        let mut content = Column::new();
+
+        if self.loaded {
             if self.reviewing {
                 let policy = Column::new()
                     .push(Row::new().push(Text::new("Policy").bold().view()))
@@ -321,7 +323,7 @@ impl State for SpendState {
                     back_btn = back_btn.on_press(SpendMessage::EditProposal.into());
                 }
 
-                Column::new()
+                content = content
                     .push(policy)
                     .push(address)
                     .push(amount)
@@ -482,7 +484,7 @@ impl State for SpendState {
                     .width(Length::Fill)
                     .on_press(SpendMessage::Review.into());
 
-                Column::new()
+                content = content
                     .push(
                         Column::new()
                             .push(Text::new("Send").size(24).bold().view())
@@ -505,11 +507,9 @@ impl State for SpendState {
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(error)
                     .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(continue_btn)
+                    .push(continue_btn);
             }
-        } else {
-            Column::new().push(Text::new("Loading...").view())
-        };
+        }
 
         let content = Container::new(
             content
@@ -521,7 +521,9 @@ impl State for SpendState {
         .width(Length::Fill)
         .center_x();
 
-        Dashboard::new().view(ctx, content, true, true)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, true)
     }
 }
 

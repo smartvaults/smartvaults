@@ -237,11 +237,11 @@ impl State for AddHWSignerState {
                     content = content.push(row).push(rule::horizontal());
                 }
             }
-        } else {
-            content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, true, center_y)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, center_y)
     }
 }
 

@@ -232,7 +232,9 @@ impl State for SelfTransferState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let content = if self.loaded {
+        let mut content = Column::new();
+
+        if self.loaded {
             if self.reviewing {
                 let from_policy = Column::new()
                     .push(Row::new().push(Text::new("From policy").bold().view()))
@@ -300,7 +302,7 @@ impl State for SelfTransferState {
                     back_btn = back_btn.on_press(SelfTransferMessage::EditProposal.into());
                 }
 
-                Column::new()
+                content = content
                     .push(from_policy)
                     .push(to_policy)
                     .push(amount)
@@ -308,7 +310,7 @@ impl State for SelfTransferState {
                     .push(error)
                     .push(Space::with_height(Length::Fixed(15.0)))
                     .push(send_proposal_btn)
-                    .push(back_btn)
+                    .push(back_btn);
             } else {
                 let from_policy_pick_list = Column::new()
                     .push(Text::new("From policy").view())
@@ -459,7 +461,7 @@ impl State for SelfTransferState {
                     .width(Length::Fill)
                     .on_press(SelfTransferMessage::Review.into());
 
-                Column::new()
+                content = content
                     .push(
                         Column::new()
                             .push(Text::new("Self transfer").size(24).bold().view())
@@ -481,11 +483,9 @@ impl State for SelfTransferState {
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(error)
                     .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(continue_btn)
+                    .push(continue_btn);
             }
-        } else {
-            Column::new().push(Text::new("Loading...").view())
-        };
+        }
 
         let content = Container::new(
             content
@@ -497,7 +497,9 @@ impl State for SelfTransferState {
         .width(Length::Fill)
         .center_x();
 
-        Dashboard::new().view(ctx, content, true, true)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, true)
     }
 }
 

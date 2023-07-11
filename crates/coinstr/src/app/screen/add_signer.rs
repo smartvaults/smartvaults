@@ -90,7 +90,9 @@ impl State for AddSignerState {
             .padding(20)
             .max_width(400);
 
-        Dashboard::new().view(ctx, content, true, true)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, true)
     }
 }
 

@@ -143,8 +143,10 @@ impl State for ReceiveState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let content = if self.loaded {
-            let mut content = Column::new()
+        let mut content = Column::new();
+
+        if self.loaded {
+            content = content
                 .push(
                     Column::new()
                         .push(Text::new("Receive").size(24).bold().view())
@@ -205,16 +207,16 @@ impl State for ReceiveState {
                     );
             }
 
-            content
+            content = content
                 .align_items(Alignment::Center)
                 .spacing(10)
                 .padding(20)
                 .max_width(400)
-        } else {
-            Column::new().push(Text::new("Loading...").view())
-        };
+        }
 
-        Dashboard::new().view(ctx, content, true, true)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, true)
     }
 }
 

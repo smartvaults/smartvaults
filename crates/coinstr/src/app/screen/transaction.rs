@@ -77,13 +77,7 @@ impl State for TransactionState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(20).padding(20);
 
-        let mut center_y = true;
-        let mut center_x = true;
-
         if let Some((tx, description)) = &self.tx {
-            center_y = false;
-            center_x = false;
-
             let (total, positive): (u64, bool) = {
                 let received: i64 = tx.received as i64;
                 let sent: i64 = tx.sent as i64;
@@ -302,11 +296,11 @@ impl State for TransactionState {
                         .spacing(50)
                         .width(Length::Fill),
                 )
-        } else {
-            content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, center_x, center_y)
+        Dashboard::new()
+            .loaded(self.loaded && self.tx.is_some())
+            .view(ctx, content, false, false)
     }
 }
 
