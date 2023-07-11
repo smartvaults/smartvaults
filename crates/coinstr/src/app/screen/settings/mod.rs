@@ -6,7 +6,7 @@ use iced::{Command, Element};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::Theme;
 
 pub mod relays;
@@ -72,13 +72,24 @@ impl State for SettingsState {
         );
         let content = Column::new()
             .push(choose_theme)
-            .push(button::primary("Relays").on_press(Message::View(Stage::Relays)))
             .push(
-                button::primary("Rebroadcast all events")
-                    .on_press(SettingsMessage::RebroadcastAllEvents.into()),
+                Button::new()
+                    .text("Relays")
+                    .on_press(Message::View(Stage::Relays))
+                    .view(),
             )
             .push(
-                button::danger_border("Clear cache").on_press(SettingsMessage::ClearCache.into()),
+                Button::new()
+                    .text("Rebroadcast all events")
+                    .on_press(SettingsMessage::RebroadcastAllEvents.into())
+                    .view(),
+            )
+            .push(
+                Button::new()
+                    .text("Clear cache")
+                    .style(ButtonStyle::BorderedDanger)
+                    .on_press(SettingsMessage::ClearCache.into())
+                    .view(),
             );
         Dashboard::new().view(ctx, content, true, true)
     }

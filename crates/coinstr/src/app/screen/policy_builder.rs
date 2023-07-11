@@ -10,7 +10,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::TRASH;
 
@@ -201,14 +201,20 @@ impl State for PolicyBuilderState {
                     .view(),
                 )
                 .push(
-                    button::border("+")
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("+")
                         .on_press(PolicyBuilderMessage::IncreaseThreshold.into())
-                        .width(Length::Fixed(40.0)),
+                        .width(Length::Fixed(40.0))
+                        .view(),
                 )
                 .push(
-                    button::border("-")
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("-")
                         .on_press(PolicyBuilderMessage::DecreaseThreshold.into())
-                        .width(Length::Fixed(40.0)),
+                        .width(Length::Fixed(40.0))
+                        .view(),
                 )
                 .spacing(10)
                 .align_items(Alignment::Center);
@@ -244,9 +250,12 @@ impl State for PolicyBuilderState {
                                         .width(Length::Fill),
                                 )
                                 .push(
-                                    button::danger_border_only_icon(TRASH)
+                                    Button::new()
+                                        .style(ButtonStyle::BorderedDanger)
+                                        .icon(TRASH)
                                         .on_press(PolicyBuilderMessage::RemoveSigner(index).into())
-                                        .width(Length::Fixed(40.0)),
+                                        .width(Length::Fixed(40.0))
+                                        .view(),
                                 )
                                 .spacing(10)
                                 .align_items(Alignment::Center)
@@ -257,17 +266,24 @@ impl State for PolicyBuilderState {
                         pks = pks.push(
                             Row::new()
                                 .push(
-                                    button::primary("Set").width(Length::Fill).on_press(
-                                        PolicyBuilderMessage::SelectingSigner {
-                                            index: Some(index),
-                                        }
-                                        .into(),
-                                    ),
+                                    Button::new()
+                                        .text("Set")
+                                        .width(Length::Fill)
+                                        .on_press(
+                                            PolicyBuilderMessage::SelectingSigner {
+                                                index: Some(index),
+                                            }
+                                            .into(),
+                                        )
+                                        .view(),
                                 )
                                 .push(
-                                    button::danger_border_only_icon(TRASH)
+                                    Button::new()
+                                        .style(ButtonStyle::BorderedDanger)
+                                        .icon(TRASH)
                                         .on_press(PolicyBuilderMessage::RemoveSigner(index).into())
-                                        .width(Length::Fixed(40.0)),
+                                        .width(Length::Fixed(40.0))
+                                        .view(),
                                 )
                                 .spacing(10),
                         )
@@ -275,9 +291,12 @@ impl State for PolicyBuilderState {
                 }
             }
 
-            let add_new_pk_btn = button::border("Add new slot")
+            let add_new_pk_btn = Button::new()
+                .style(ButtonStyle::Bordered)
+                .text("Add new slot")
                 .on_press(PolicyBuilderMessage::AddSigner.into())
-                .width(Length::Fill);
+                .width(Length::Fill)
+                .view();
 
             let error = if let Some(error) = &self.error {
                 Row::new().push(Text::new(error).color(DARK_RED).view())
@@ -285,13 +304,18 @@ impl State for PolicyBuilderState {
                 Row::new()
             };
 
-            let restore_policy_btn = button::border("Restore policy backup")
+            let restore_policy_btn = Button::new()
+                .style(ButtonStyle::Bordered)
+                .text("Restore policy backup")
                 .on_press(Message::View(Stage::RestorePolicy))
-                .width(Length::Fill);
+                .width(Length::Fill)
+                .view();
 
-            let save_policy_btn = button::primary("Save policy")
+            let save_policy_btn = Button::new()
+                .text("Save policy")
                 .on_press(PolicyBuilderMessage::SavePolicy.into())
-                .width(Length::Fill);
+                .width(Length::Fill)
+                .view();
 
             Column::new()
                 .push(
@@ -384,11 +408,20 @@ fn view_signer_selector<'a>(
                         .view(),
                 )
                 .push(if state.is_already_selected(&descriptor) {
-                    button::primary("Selected").width(Length::Fixed(180.0))
+                    Button::new()
+                        .text("Selected")
+                        .width(Length::Fixed(180.0))
+                        .view()
                 } else if state.pk_is_already_selected(public_key) {
-                    button::border("Select").width(Length::Fixed(180.0))
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("Select")
+                        .width(Length::Fixed(180.0))
+                        .view()
                 } else {
-                    button::border("Select")
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("Select")
                         .width(Length::Fixed(180.0))
                         .on_press(
                             PolicyBuilderMessage::EditSigner(
@@ -398,6 +431,7 @@ fn view_signer_selector<'a>(
                             )
                             .into(),
                         )
+                        .view()
                 })
                 .spacing(10)
                 .align_items(Alignment::Center)
@@ -467,11 +501,20 @@ fn view_signer_selector<'a>(
                         .view(),
                 )
                 .push(if state.is_already_selected(&descriptor) {
-                    button::primary("Selected").width(Length::Fixed(180.0))
+                    Button::new()
+                        .text("Selected")
+                        .width(Length::Fixed(180.0))
+                        .view()
                 } else if state.pk_is_already_selected(*owner_public_key) {
-                    button::border("Select").width(Length::Fixed(180.0))
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("Select")
+                        .width(Length::Fixed(180.0))
+                        .view()
                 } else {
-                    button::border("Select")
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("Select")
                         .width(Length::Fixed(180.0))
                         .on_press(
                             PolicyBuilderMessage::EditSigner(
@@ -481,6 +524,7 @@ fn view_signer_selector<'a>(
                             )
                             .into(),
                         )
+                        .view()
                 })
                 .spacing(10)
                 .align_items(Alignment::Center)

@@ -12,7 +12,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE, TRASH};
 
 #[derive(Debug, Clone)]
@@ -85,12 +85,19 @@ impl State for SignersState {
 
         if self.loaded {
             if self.signers.is_empty() && self.shared_signers.is_empty() {
-                let add_signer_btn = button::primary_with_icon(PLUS, "Add signer")
+                let add_signer_btn = Button::new()
+                    .icon(PLUS)
+                    .text("Add signer")
                     .width(Length::Fixed(250.0))
-                    .on_press(Message::View(Stage::AddSigner));
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
+                    .on_press(Message::View(Stage::AddSigner))
+                    .view();
+                let reload_btn = Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .icon(RELOAD)
+                    .text("Reload")
                     .width(Length::Fixed(250.0))
-                    .on_press(SignersMessage::Reload.into());
+                    .on_press(SignersMessage::Reload.into())
+                    .view();
                 content = content
                     .push(Text::new("No signers").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
@@ -100,17 +107,25 @@ impl State for SignersState {
             } else {
                 center_y = false;
 
-                let add_signer_btn = button::border_only_icon(PLUS)
+                let add_signer_btn = Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .icon(PLUS)
                     .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::AddSigner));
-                let revoke_all_btn = button::danger_border_only_icon(TRASH)
+                    .on_press(Message::View(Stage::AddSigner))
+                    .view();
+                let revoke_all_btn = Button::new()
+                    .style(ButtonStyle::BorderedDanger)
+                    .icon(TRASH)
                     .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::RevokeAllSigners));
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-                if !self.loading {
-                    reload_btn = reload_btn.on_press(SignersMessage::Reload.into());
-                }
+                    .on_press(Message::View(Stage::RevokeAllSigners))
+                    .view();
+                let reload_btn = Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .icon(RELOAD)
+                    .width(Length::Fixed(40.0))
+                    .on_press(SignersMessage::Reload.into())
+                    .loading(self.loading)
+                    .view();
 
                 // My Signers
 
@@ -168,24 +183,32 @@ impl State for SignersState {
                                 .view(),
                         )
                         .push(
-                            button::border_only_icon(CLIPBOARD)
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .icon(CLIPBOARD)
                                 .on_press(Message::Clipboard(
                                     signer
                                         .descriptor_public_key()
                                         .map(|d| d.to_string())
                                         .unwrap_or_default(),
                                 ))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .push(
-                            button::border_only_icon(SHARE)
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .icon(SHARE)
                                 .width(Length::Fixed(40.0))
-                                .on_press(Message::View(Stage::ShareSigner(*signer_id))),
+                                .on_press(Message::View(Stage::ShareSigner(*signer_id)))
+                                .view(),
                         )
                         .push(
-                            button::primary_only_icon(FULLSCREEN)
+                            Button::new()
+                                .icon(FULLSCREEN)
                                 .width(Length::Fixed(40.0))
-                                .on_press(Message::View(Stage::Signer(*signer_id, signer.clone()))),
+                                .on_press(Message::View(Stage::Signer(*signer_id, signer.clone())))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)
@@ -254,14 +277,17 @@ impl State for SignersState {
                                     .view(),
                             )
                             .push(
-                                button::border_only_icon(CLIPBOARD)
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .icon(CLIPBOARD)
                                     .on_press(Message::Clipboard(
                                         shared_signer
                                             .descriptor_public_key()
                                             .map(|d| d.to_string())
                                             .unwrap_or_default(),
                                     ))
-                                    .width(Length::Fixed(40.0)),
+                                    .width(Length::Fixed(40.0))
+                                    .view(),
                             )
                             .spacing(10)
                             .align_items(Alignment::Center)

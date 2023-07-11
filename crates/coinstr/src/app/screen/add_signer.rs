@@ -6,7 +6,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::button;
+use crate::component::Button;
 
 #[derive(Debug, Clone)]
 pub enum AddSignerMessage {
@@ -66,24 +66,28 @@ impl State for AddSignerState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let mut add_coinstr_signer_btn = button::primary("Coinstr Signer").width(Length::Fill);
-
-        if self.loaded && !self.coinstr_signer_exists {
-            add_coinstr_signer_btn =
-                add_coinstr_signer_btn.on_press(AddSignerMessage::AddCoinstrSigner.into());
-        }
-
         let content = Column::new()
-            .push(add_coinstr_signer_btn)
             .push(
-                button::primary("Connect Signing Device")
-                    .on_press(Message::View(Stage::AddHWSigner))
-                    .width(Length::Fill),
+                Button::new()
+                    .text("Coinstr Signer")
+                    .on_press(AddSignerMessage::AddCoinstrSigner.into())
+                    .loading(!self.loaded || self.coinstr_signer_exists)
+                    .width(Length::Fill)
+                    .view(),
             )
             .push(
-                button::primary("Add AirGap Signer")
+                Button::new()
+                    .text("Connect Signing Device")
+                    .on_press(Message::View(Stage::AddHWSigner))
+                    .width(Length::Fill)
+                    .view(),
+            )
+            .push(
+                Button::new()
+                    .text("Add AirGap Signer")
                     .on_press(Message::View(Stage::AddAirGapSigner))
-                    .width(Length::Fill),
+                    .width(Length::Fill)
+                    .view(),
             )
             .align_items(Alignment::Center)
             .spacing(10)

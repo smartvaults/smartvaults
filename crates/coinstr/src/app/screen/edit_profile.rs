@@ -7,7 +7,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -144,10 +144,6 @@ impl State for EditProfileState {
                 Row::new()
             };
 
-            let save_contact_btn = button::primary("Save")
-                .on_press(EditProfileMessage::Save.into())
-                .width(Length::Fill);
-
             content = content
                 .push(Text::new("Edit profile").size(24).bold().view())
                 .push(name)
@@ -155,7 +151,14 @@ impl State for EditProfileState {
                 .push(nip05)
                 .push(error)
                 .push(Space::with_height(Length::Fixed(15.0)))
-                .push(save_contact_btn)
+                .push(
+                    Button::new()
+                        .text("Save")
+                        .on_press(EditProfileMessage::Save.into())
+                        .loading(self.loading)
+                        .width(Length::Fill)
+                        .view(),
+                )
                 .align_items(Alignment::Center)
                 .spacing(10)
                 .padding(20)

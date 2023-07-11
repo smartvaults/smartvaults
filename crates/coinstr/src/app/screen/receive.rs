@@ -14,7 +14,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone, Eq)]
@@ -201,9 +201,13 @@ impl State for ReceiveState {
                     .push(Text::new(address_splitted).extra_light().view())
                     .push(Space::with_height(Length::Fixed(10.0)))
                     .push(
-                        button::border_with_icon(CLIPBOARD, "Copy")
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(CLIPBOARD)
+                            .text("Copy")
                             .width(Length::Fill)
-                            .on_press(Message::Clipboard(address.to_string())),
+                            .on_press(Message::Clipboard(address.to_string()))
+                            .view(),
                     );
             }
 

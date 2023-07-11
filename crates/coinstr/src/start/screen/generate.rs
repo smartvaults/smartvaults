@@ -7,7 +7,7 @@ use iced::widget::{Checkbox, Column, Row};
 use iced::{Command, Element, Length};
 
 use super::view;
-use crate::component::{button, rule, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, Text, TextInput};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::DARK_RED;
 use crate::BASE_PATH;
@@ -114,15 +114,20 @@ impl State for GenerateState {
             Column::new()
         };
 
-        let generate_keychain_btn = button::primary("Generate")
+        let generate_keychain_btn = Button::new()
+            .text("Generate")
             .on_press(GenerateMessage::Generate.into())
             .width(Length::Fill);
 
-        let open_btn = button::border("Open keychain")
+        let open_btn = Button::new()
+            .text("Open keychain")
+            .style(ButtonStyle::Bordered)
             .width(Length::Fill)
             .on_press(Message::View(Stage::Open));
 
-        let restore_keychain_btn = button::border("Restore keychain")
+        let restore_keychain_btn = Button::new()
+            .text("Restore keychain")
+            .style(ButtonStyle::Bordered)
             .on_press(Message::View(Stage::Restore))
             .width(Length::Fill);
 
@@ -137,10 +142,10 @@ impl State for GenerateState {
             } else {
                 Row::new()
             })
-            .push(generate_keychain_btn)
+            .push(generate_keychain_btn.view())
             .push(rule::horizontal())
-            .push(open_btn)
-            .push(restore_keychain_btn);
+            .push(open_btn.view())
+            .push(restore_keychain_btn.view());
 
         view(content)
     }

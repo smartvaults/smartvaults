@@ -11,7 +11,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::PLUS;
 
@@ -161,9 +161,12 @@ impl State for AddPolicyState {
         public_keys = public_keys
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(
-                button::border("Select")
+                Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .text("Select")
                     .width(Length::Fill)
-                    .on_press(AddPolicyMessage::SelectPublicKeys(true).into()),
+                    .on_press(AddPolicyMessage::SelectPublicKeys(true).into())
+                    .view(),
             );
 
         let error = if let Some(error) = &self.error {
@@ -172,15 +175,20 @@ impl State for AddPolicyState {
             Row::new()
         };
 
-        let save_policy_btn = button::primary("Save policy")
+        let save_policy_btn = Button::new()
+            .text("Save policy")
             .on_press(AddPolicyMessage::SavePolicy.into())
             .width(Length::Fill);
 
-        let restore_policy_btn = button::border("Restore policy backup")
+        let restore_policy_btn = Button::new()
+            .style(ButtonStyle::Bordered)
+            .text("Restore policy backup")
             .on_press(Message::View(Stage::RestorePolicy))
             .width(Length::Fill);
 
-        let policy_builder_btn = button::border("Policy builder")
+        let policy_builder_btn = Button::new()
+            .style(ButtonStyle::Bordered)
+            .text("Policy builder")
             .on_press(Message::View(Stage::PolicyBuilder))
             .width(Length::Fill);
 
@@ -202,9 +210,9 @@ impl State for AddPolicyState {
                 .push(public_keys)
                 .push(error)
                 .push(Space::with_height(Length::Fixed(15.0)))
-                .push(save_policy_btn)
-                .push(restore_policy_btn)
-                .push(policy_builder_btn)
+                .push(save_policy_btn.view())
+                .push(restore_policy_btn.view())
+                .push(policy_builder_btn.view())
                 .align_items(Alignment::Center)
                 .spacing(10)
                 .padding(20)
@@ -221,13 +229,17 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
     let mut content = Column::new().spacing(10).padding(20);
 
     if state.contacts.is_empty() {
-        let add_contact_btn = button::primary_with_icon(PLUS, "Add contacts")
-            .on_press(Message::View(Stage::AddContact))
-            .width(Length::Fixed(250.0));
         content = content
             .push(Text::new("No contacts").view())
             .push(Space::with_height(Length::Fixed(15.0)))
-            .push(add_contact_btn)
+            .push(
+                Button::new()
+                    .icon(PLUS)
+                    .text("Add contacts")
+                    .on_press(Message::View(Stage::AddContact))
+                    .width(Length::Fixed(250.0))
+                    .view(),
+            )
             .align_items(Alignment::Center);
     } else {
         content = content
@@ -259,10 +271,13 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
 
         for (public_key, metadata) in state.contacts.iter() {
             let select_btn = if state.public_keys.contains(public_key) {
-                button::primary("Selected")
+                Button::new()
+                    .text("Selected")
                     .on_press(AddPolicyMessage::RemovePublicKey(*public_key).into())
             } else {
-                button::border("Select")
+                Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .text("Select")
                     .on_press(AddPolicyMessage::AddPublicKey(*public_key).into())
             };
 
@@ -290,7 +305,7 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
                         .width(Length::Fill)
                         .view(),
                 )
-                .push(select_btn.width(Length::Fixed(180.0)))
+                .push(select_btn.width(Length::Fixed(180.0)).view())
                 .spacing(10)
                 .align_items(Alignment::Center)
                 .width(Length::Fill);
@@ -300,9 +315,11 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
         content = content.push(Space::with_height(Length::Fixed(20.0))).push(
             Column::new()
                 .push(
-                    button::primary("Confirm")
+                    Button::new()
+                        .text("Confirm")
                         .width(Length::Fixed(180.0))
-                        .on_press(AddPolicyMessage::SelectPublicKeys(false).into()),
+                        .on_press(AddPolicyMessage::SelectPublicKeys(false).into())
+                        .view(),
                 )
                 .width(Length::Fill)
                 .align_items(Alignment::End),

@@ -18,7 +18,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, NumericInput, Text, TextInput};
+use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -314,14 +314,19 @@ impl State for SpendState {
                     Row::new()
                 };
 
-                let mut send_proposal_btn = button::primary("Send proposal").width(Length::Fill);
-                let mut back_btn = button::border("Back").width(Length::Fill);
-
-                if !self.loading {
-                    send_proposal_btn =
-                        send_proposal_btn.on_press(SpendMessage::SendProposal.into());
-                    back_btn = back_btn.on_press(SpendMessage::EditProposal.into());
-                }
+                let send_proposal_btn = Button::new()
+                    .text("Send proposal")
+                    .width(Length::Fill)
+                    .on_press(SpendMessage::SendProposal.into())
+                    .loading(self.loading)
+                    .view();
+                let back_btn = Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .text("Back")
+                    .width(Length::Fill)
+                    .on_press(SpendMessage::EditProposal.into())
+                    .loading(self.loading)
+                    .view();
 
                 content = content
                     .push(policy)
@@ -367,11 +372,13 @@ impl State for SpendState {
                     )
                     .spacing(5);
 
-                let mut send_all_btn = button::border("Max").width(Length::Fixed(50.0));
-
-                if self.policy.is_some() {
-                    send_all_btn = send_all_btn.on_press(SpendMessage::SendAllBtnPressed.into());
-                }
+                let send_all_btn = Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .text("Max")
+                    .width(Length::Fixed(50.0))
+                    .on_press(SpendMessage::SendAllBtnPressed.into())
+                    .loading(self.policy.is_none())
+                    .view();
 
                 let amount = if self.send_all {
                     TextInput::new("Amount (sat)", "Send all")
@@ -480,9 +487,11 @@ impl State for SpendState {
                     Row::new()
                 };
 
-                let continue_btn = button::primary("Continue")
+                let continue_btn = Button::new()
+                    .text("Continue")
                     .width(Length::Fill)
-                    .on_press(SpendMessage::Review.into());
+                    .on_press(SpendMessage::Review.into())
+                    .view();
 
                 content = content
                     .push(

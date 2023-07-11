@@ -9,7 +9,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -82,12 +82,6 @@ impl State for AddNostrConnectSessionState {
             Row::new()
         };
 
-        let mut connect_btn = button::primary("Connect").width(Length::Fill);
-
-        if !self.loading {
-            connect_btn = connect_btn.on_press(AddNostrConnectSessionMessage::Connect.into());
-        }
-
         let content = Column::new()
             .push(
                 Column::new()
@@ -99,7 +93,14 @@ impl State for AddNostrConnectSessionState {
             .push(uri)
             .push(error)
             .push(Space::with_height(Length::Fixed(15.0)))
-            .push(connect_btn)
+            .push(
+                Button::new()
+                    .text("Connect")
+                    .on_press(AddNostrConnectSessionMessage::Connect.into())
+                    .loading(self.loading)
+                    .width(Length::Fill)
+                    .view(),
+            )
             .align_items(Alignment::Center)
             .spacing(10)
             .padding(20)

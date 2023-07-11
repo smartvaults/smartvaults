@@ -8,7 +8,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -80,12 +80,6 @@ impl State for AddContactState {
             Row::new()
         };
 
-        let mut save_contact_btn = button::primary("Save contact").width(Length::Fill);
-
-        if !self.loading {
-            save_contact_btn = save_contact_btn.on_press(AddContactMessage::SaveContact.into());
-        }
-
         let content = Column::new()
             .push(
                 Column::new()
@@ -97,7 +91,14 @@ impl State for AddContactState {
             .push(public_key)
             .push(error)
             .push(Space::with_height(Length::Fixed(15.0)))
-            .push(save_contact_btn)
+            .push(
+                Button::new()
+                    .text("Save contact")
+                    .on_press(AddContactMessage::SaveContact.into())
+                    .loading(self.loading)
+                    .width(Length::Fill)
+                    .view(),
+            )
             .align_items(Alignment::Center)
             .spacing(10)
             .padding(20)

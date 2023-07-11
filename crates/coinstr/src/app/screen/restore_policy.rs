@@ -9,7 +9,7 @@ use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -176,20 +176,33 @@ impl State for RestorePolicyState {
             .push(Space::with_height(Length::Fixed(15.0)));
 
         if self.descriptor.is_empty() {
-            let select_policy_btn = button::border("Select policy backup")
-                .on_press(RestorePolicyMessage::SelectPolicyBackup.into())
-                .width(Length::Fill);
-            content = content.push(select_policy_btn);
+            content = content.push(
+                Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .text("Select policy backup")
+                    .on_press(RestorePolicyMessage::SelectPolicyBackup.into())
+                    .width(Length::Fill)
+                    .view(),
+            );
         } else {
-            let mut save_policy_btn = button::primary("Save policy").width(Length::Fill);
-            let mut clear_policy_btn = button::danger_border("Clear").width(Length::Fill);
-
-            if !self.loading {
-                save_policy_btn = save_policy_btn.on_press(RestorePolicyMessage::SavePolicy.into());
-                clear_policy_btn = clear_policy_btn.on_press(RestorePolicyMessage::Clear.into());
-            }
-
-            content = content.push(save_policy_btn).push(clear_policy_btn);
+            content = content
+                .push(
+                    Button::new()
+                        .text("Save policy")
+                        .width(Length::Fill)
+                        .on_press(RestorePolicyMessage::SavePolicy.into())
+                        .loading(self.loading)
+                        .view(),
+                )
+                .push(
+                    Button::new()
+                        .style(ButtonStyle::BorderedDanger)
+                        .text("Clear")
+                        .width(Length::Fill)
+                        .on_press(RestorePolicyMessage::Clear.into())
+                        .loading(self.loading)
+                        .view(),
+                );
         }
 
         content = content

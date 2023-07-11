@@ -6,7 +6,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, TextInput};
+use crate::component::{Button, ButtonStyle, TextInput};
 
 #[derive(Debug, Clone)]
 pub enum RevokeAllSignersMessage {
@@ -65,16 +65,18 @@ impl State for RevokeAllSignersState {
             .placeholder("To confirm, type 'CONFIRM'")
             .on_input(|s| RevokeAllSignersMessage::ConfirmChanged(s).into())
             .view();
-        let mut revoke_all_btn =
-            button::danger_border("Revoke all shared signers").width(Length::Fill);
-
-        if self.confirm == *"CONFIRM" && !self.loading {
-            revoke_all_btn = revoke_all_btn.on_press(RevokeAllSignersMessage::Revoke.into());
-        }
 
         let content = Column::new()
             .push(confirm)
-            .push(revoke_all_btn)
+            .push(
+                Button::new()
+                    .style(ButtonStyle::BorderedDanger)
+                    .text("Revoke all shared signers")
+                    .width(Length::Fill)
+                    .on_press(RevokeAllSignersMessage::Revoke.into())
+                    .loading(self.confirm != *"CONFIRM" || self.loading)
+                    .view(),
+            )
             .align_items(Alignment::Center)
             .spacing(10)
             .padding(20)

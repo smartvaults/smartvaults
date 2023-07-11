@@ -12,7 +12,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
 use crate::theme::icon::TRASH;
 
@@ -130,17 +130,23 @@ impl State for SignerState {
                 .push(Text::new(format!("Name: {}", self.signer.name())).view())
                 .push(Text::new(format!("Type: {}", self.signer.signer_type())).view())
                 .push(Text::new(format!("Fingerprint: {}", self.signer.fingerprint())).view())
-                .push(Text::new(format!("Descriptor: {}", self.signer.descriptor())).view());
-
-            let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
-
-            if !self.loading && self.signer.signer_type() != SignerType::Seed {
-                delete_btn = delete_btn.on_press(SignerMessage::Delete.into());
-            }
-
-            content = content
+                .push(Text::new(format!("Descriptor: {}", self.signer.descriptor())).view())
                 .push(Space::with_height(10.0))
-                .push(Row::new().push(delete_btn).spacing(10))
+                .push(
+                    Row::new()
+                        .push(
+                            Button::new()
+                                .style(ButtonStyle::Danger)
+                                .icon(TRASH)
+                                .text("Delete")
+                                .on_press(SignerMessage::Delete.into())
+                                .loading(
+                                    self.loading || self.signer.signer_type() == SignerType::Seed,
+                                )
+                                .view(),
+                        )
+                        .spacing(10),
+                )
                 .push(Space::with_height(20.0));
 
             if let Some(error) = &self.error {
@@ -181,11 +187,14 @@ impl State for SignerState {
                                 .view(),
                         )
                         .push(
-                            button::danger_border_only_icon(TRASH)
+                            Button::new()
+                                .style(ButtonStyle::BorderedDanger)
+                                .icon(TRASH)
                                 .on_press(
                                     SignerMessage::RevokeSharedSigner(*shared_signer_id).into(),
                                 )
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)

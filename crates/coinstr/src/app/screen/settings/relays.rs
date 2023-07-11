@@ -10,7 +10,7 @@ use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
-use crate::component::{button, rule, Circle, Text};
+use crate::component::{rule, Button, ButtonStyle, Circle, Text};
 use crate::theme::color::{BLACK, GREEN, GREY, RED, YELLOW};
 use crate::theme::icon::RELOAD;
 
@@ -93,12 +93,6 @@ impl State for RelaysState {
         let mut content = Column::new().spacing(10).padding(20);
 
         if self.loaded {
-            let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-            if !self.loading {
-                reload_btn = reload_btn.on_press(RelaysMessage::RefreshRelays.into());
-            }
-
             content = content
                 .push(
                     Row::new()
@@ -131,7 +125,15 @@ impl State for RelaysState {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(reload_btn)
+                        .push(
+                            Button::new()
+                                .icon(RELOAD)
+                                .style(ButtonStyle::Bordered)
+                                .on_press(RelaysMessage::RefreshRelays.into())
+                                .loading(self.loading)
+                                .width(Length::Fixed(40.0))
+                                .view(),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill),

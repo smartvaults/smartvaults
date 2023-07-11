@@ -10,7 +10,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::{Dashboard, PendingProposalsList};
 use crate::app::{Context, Message, State};
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
@@ -71,13 +71,18 @@ impl State for ProposalsState {
 
         if self.loaded {
             if self.proposals.is_empty() {
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(ProposalsMessage::Reload.into());
                 content = content
                     .push(Text::new("No proposals").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .width(Length::Fixed(250.0))
+                            .on_press(ProposalsMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;

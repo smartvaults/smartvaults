@@ -12,7 +12,7 @@ use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
@@ -89,29 +89,28 @@ impl State for PoliciesState {
 
         if self.loaded {
             if self.policies.is_empty() {
-                let add_policy_btn = button::primary_with_icon(PLUS, "Add policy")
-                    .width(Length::Fixed(250.0))
-                    .on_press(Message::View(Stage::AddPolicy));
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(PoliciesMessage::Reload.into());
                 content = content
                     .push(Text::new("No policies").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(add_policy_btn)
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .icon(PLUS)
+                            .text("Add policy")
+                            .width(Length::Fixed(250.0))
+                            .on_press(Message::View(Stage::AddPolicy))
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .width(Length::Fixed(250.0))
+                            .on_press(PoliciesMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-
-                let add_policy_btn = button::border_only_icon(PLUS)
-                    .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::AddPolicy));
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-                if !self.loading {
-                    reload_btn = reload_btn.on_press(PoliciesMessage::Reload.into());
-                }
 
                 content = content
                     .push(
@@ -138,8 +137,23 @@ impl State for PoliciesState {
                                     .width(Length::Fixed(125.0))
                                     .view(),
                             )
-                            .push(add_policy_btn)
-                            .push(reload_btn)
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .icon(PLUS)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(Message::View(Stage::AddPolicy))
+                                    .view(),
+                            )
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .icon(RELOAD)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(PoliciesMessage::Reload.into())
+                                    .loading(self.loading)
+                                    .view(),
+                            )
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill),
@@ -176,14 +190,19 @@ impl State for PoliciesState {
                         .push(Text::new(&policy.description).width(Length::Fill).view())
                         .push(Text::new(balance).width(Length::Fixed(125.0)).view())
                         .push(
-                            button::border_only_icon(SAVE)
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .icon(SAVE)
                                 .on_press(PoliciesMessage::SavePolicyBackup(*policy_id).into())
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .push(
-                            button::primary_only_icon(FULLSCREEN)
+                            Button::new()
+                                .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::Policy(*policy_id)))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)

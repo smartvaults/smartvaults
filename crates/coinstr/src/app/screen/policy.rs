@@ -16,7 +16,7 @@ use rfd::FileDialog;
 
 use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
 use crate::theme::icon::{CLIPBOARD, GLOBE, PATCH_CHECK, SAVE, TRASH};
 
@@ -217,27 +217,7 @@ impl State for PolicyState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        let mut center_y = true;
-        let mut center_x = true;
-
         if self.last_sync.is_some() {
-            center_y = false;
-            center_x = false;
-
-            let mut republish_shared_keys_btn =
-                button::border_only_icon(GLOBE).width(Length::Fixed(40.0));
-
-            if !self.loading {
-                republish_shared_keys_btn =
-                    republish_shared_keys_btn.on_press(PolicyMessage::RepublishSharedKeys.into());
-            }
-
-            let mut delete_btn = button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
-
-            if !self.loading {
-                delete_btn = delete_btn.on_press(PolicyMessage::Delete.into());
-            }
-
             content = content
                 .push(Space::with_height(Length::Fixed(20.0)))
                 .push(
@@ -277,24 +257,49 @@ impl State for PolicyState {
                                 .push(
                                     Row::new()
                                         .push(
-                                            button::border_only_icon(CLIPBOARD)
+                                            Button::new()
+                                                .style(ButtonStyle::Bordered)
+                                                .icon(CLIPBOARD)
                                                 .on_press(Message::Clipboard(
                                                     self.policy_id.to_string(),
                                                 ))
-                                                .width(Length::Fixed(40.0)),
+                                                .width(Length::Fixed(40.0))
+                                                .view(),
                                         )
                                         .push(
-                                            button::border_only_icon(PATCH_CHECK)
+                                            Button::new()
+                                                .style(ButtonStyle::Bordered)
+                                                .icon(PATCH_CHECK)
                                                 .on_press(PolicyMessage::NewProofOfReserve.into())
-                                                .width(Length::Fixed(40.0)),
+                                                .width(Length::Fixed(40.0))
+                                                .view(),
                                         )
                                         .push(
-                                            button::border_only_icon(SAVE)
+                                            Button::new()
+                                                .style(ButtonStyle::Bordered)
+                                                .icon(SAVE)
                                                 .on_press(PolicyMessage::SavePolicyBackup.into())
-                                                .width(Length::Fixed(40.0)),
+                                                .width(Length::Fixed(40.0))
+                                                .view(),
                                         )
-                                        .push(republish_shared_keys_btn)
-                                        .push(delete_btn)
+                                        .push(
+                                            Button::new()
+                                                .style(ButtonStyle::Bordered)
+                                                .icon(GLOBE)
+                                                .width(Length::Fixed(40.0))
+                                                .on_press(PolicyMessage::RepublishSharedKeys.into())
+                                                .loading(self.loading)
+                                                .view(),
+                                        )
+                                        .push(
+                                            Button::new()
+                                                .style(ButtonStyle::BorderedDanger)
+                                                .icon(TRASH)
+                                                .width(Length::Fixed(40.0))
+                                                .on_press(PolicyMessage::Delete.into())
+                                                .loading(self.loading)
+                                                .view(),
+                                        )
                                         .spacing(10),
                                 )
                                 .spacing(10)
@@ -347,11 +352,11 @@ impl State for PolicyState {
                         .policy_id(self.policy_id)
                         .view(),
                 );
-        } else {
-            content = content.push(Text::new("Loading...").view());
         }
 
-        Dashboard::new().view(ctx, content, center_x, center_y)
+        Dashboard::new()
+            .loaded(self.last_sync.is_some())
+            .view(ctx, content, false, false)
     }
 }
 

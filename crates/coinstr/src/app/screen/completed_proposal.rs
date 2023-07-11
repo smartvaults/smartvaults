@@ -13,7 +13,7 @@ use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::color::{GREEN, GREY, RED};
 use crate::theme::icon::{PATCH_CHECK, SAVE, TRASH};
 
@@ -231,24 +231,35 @@ impl State for CompletedProposalState {
                     .push(Text::new(format!("Message: {message}")).view())
                     .push(status);
 
-                let mut verify_proof_btn = button::border_with_icon(PATCH_CHECK, "Verify proof");
-                let mut export_btn = button::border_with_icon(SAVE, "Export");
-
-                if !self.loading {
-                    verify_proof_btn =
-                        verify_proof_btn.on_press(CompletedProposalMessage::VerifyProof.into());
-                    export_btn = export_btn.on_press(CompletedProposalMessage::ExportProof.into());
-                }
-
-                buttons = buttons.push(verify_proof_btn).push(export_btn);
+                buttons = buttons
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(PATCH_CHECK)
+                            .text("Verify proof")
+                            .on_press(CompletedProposalMessage::VerifyProof.into())
+                            .loading(self.loading)
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(SAVE)
+                            .text("Export")
+                            .on_press(CompletedProposalMessage::ExportProof.into())
+                            .loading(self.loading)
+                            .view(),
+                    );
             }
         };
 
-        let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
-
-        if !self.loading {
-            delete_btn = delete_btn.on_press(CompletedProposalMessage::Delete.into());
-        }
+        let delete_btn = Button::new()
+            .style(ButtonStyle::Danger)
+            .icon(TRASH)
+            .text("Delete")
+            .on_press(CompletedProposalMessage::Delete.into())
+            .loading(self.loading)
+            .view();
 
         content = content
             .push(Space::with_height(10.0))

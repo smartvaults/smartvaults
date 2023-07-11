@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+#![allow(clippy::new_without_default)]
+
 use std::path::PathBuf;
 use std::str::FromStr;
 

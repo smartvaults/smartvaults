@@ -7,7 +7,7 @@ use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
 
 use crate::app::Message;
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
 pub struct Balances {
@@ -65,10 +65,16 @@ impl Balances {
 
         let btn_size: f32 = self.size as f32 * 3.0 + 30.0;
 
-        let mut send_btn =
-            button::border_with_icon(ARROW_UP, "Send").width(Length::Fixed(btn_size));
-        let mut deposit_btn =
-            button::border_with_icon(ARROW_DOWN, "Receive").width(Length::Fixed(btn_size));
+        let mut send_btn = Button::new()
+            .icon(ARROW_UP)
+            .text("Send")
+            .style(ButtonStyle::Bordered)
+            .width(Length::Fixed(btn_size));
+        let mut deposit_btn = Button::new()
+            .icon(ARROW_DOWN)
+            .text("Receive")
+            .style(ButtonStyle::Bordered)
+            .width(Length::Fixed(btn_size));
 
         if let Some(on_send) = self.on_send {
             send_btn = send_btn.on_press(on_send);
@@ -87,7 +93,12 @@ impl Balances {
                     .width(Length::Fill)
                     .align_items(Alignment::Center),
             )
-            .push(Row::new().push(send_btn).push(deposit_btn).spacing(10))
+            .push(
+                Row::new()
+                    .push(send_btn.view())
+                    .push(deposit_btn.view())
+                    .spacing(10),
+            )
             .spacing(20)
             .width(Length::Fill)
             .align_items(Alignment::Center)

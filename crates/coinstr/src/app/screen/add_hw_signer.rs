@@ -10,7 +10,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::RELOAD;
 
@@ -142,10 +142,6 @@ impl State for AddHWSignerState {
                     Row::new()
                 };
 
-                let save_signer_btn = button::primary("Save signer")
-                    .on_press(AddHWSignerMessage::SaveSigner.into())
-                    .width(Length::Fill);
-
                 content = content
                     .push(
                         Column::new()
@@ -160,28 +156,34 @@ impl State for AddHWSignerState {
                     .push(fingerprint)
                     .push(error)
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(save_signer_btn)
+                    .push(
+                        Button::new()
+                            .text("Save signer")
+                            .on_press(AddHWSignerMessage::SaveSigner.into())
+                            .loading(self.loading)
+                            .width(Length::Fill)
+                            .view(),
+                    )
                     .align_items(Alignment::Center)
                     .spacing(10)
                     .padding(20)
                     .max_width(400);
             } else if self.devices.is_empty() {
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(AddHWSignerMessage::Reload.into());
                 content = content
                     .push(Text::new("No devices found").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .style(ButtonStyle::Bordered)
+                            .width(Length::Fixed(250.0))
+                            .on_press(AddHWSignerMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-                if !self.loading {
-                    reload_btn = reload_btn.on_press(AddHWSignerMessage::Reload.into());
-                }
 
                 content = content
                     .push(
@@ -202,7 +204,15 @@ impl State for AddHWSignerState {
                                     .view(),
                             )
                             .push(Space::with_width(Length::Fixed(40.0)))
-                            .push(reload_btn)
+                            .push(
+                                Button::new()
+                                    .icon(RELOAD)
+                                    .style(ButtonStyle::Bordered)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(AddHWSignerMessage::Reload.into())
+                                    .loading(self.loading)
+                                    .view(),
+                            )
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill),
@@ -227,9 +237,11 @@ impl State for AddHWSignerState {
                                 .view(),
                         )
                         .push(
-                            button::primary("Select")
+                            Button::new()
+                                .text("Select")
                                 .on_press(AddHWSignerMessage::SelectDevice(device.clone()).into())
-                                .width(Length::Fixed(90.0)),
+                                .width(Length::Fixed(90.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)

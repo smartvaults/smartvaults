@@ -8,7 +8,7 @@ use iced::{Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
@@ -69,9 +69,12 @@ impl State for ProfileState {
             content = content
                 .push(Text::new(util::cut_public_key(public_key)).view())
                 .push(
-                    button::border_only_icon(CLIPBOARD)
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .icon(CLIPBOARD)
                         .on_press(Message::Clipboard(public_key.to_string()))
-                        .width(Length::Fixed(40.0)),
+                        .width(Length::Fixed(40.0))
+                        .view(),
                 )
                 .push(
                     Text::new(format!(
@@ -94,7 +97,13 @@ impl State for ProfileState {
                     ))
                     .view(),
                 )
-                .push(button::border("Edit profile").on_press(Message::View(Stage::EditProfile)));
+                .push(
+                    Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .text("Edit profile")
+                        .on_press(Message::View(Stage::EditProfile))
+                        .view(),
+                );
         } else {
             content = content.push(Text::new("Loading...").view());
         }

@@ -7,7 +7,7 @@ use iced::{Alignment, Color, Length};
 
 use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
-use crate::component::{button, rule, Icon, Text};
+use crate::component::{rule, Button, ButtonStyle, Icon, Text};
 use crate::theme::color::RED;
 use crate::theme::icon::{BELL, BOX, EYE, PERSON_CIRCLE};
 
@@ -54,15 +54,27 @@ impl Navbar {
             )
             .push(rule::vertical())
             .push(
-                button::transparent_only_icon(BELL, color)
+                Button::new()
+                    .icon(BELL)
+                    .style(ButtonStyle::Transparent { text_color: color })
                     .on_press(Message::View(Stage::Notifications))
-                    .width(Length::Fixed(40.0)),
+                    .width(Length::Fixed(40.0))
+                    .view(),
             )
-            .push(button::transparent_only_icon(EYE, None).width(Length::Fixed(40.0)))
             .push(
-                button::transparent_only_icon(PERSON_CIRCLE, None)
+                Button::new()
+                    .icon(EYE)
+                    .style(ButtonStyle::Transparent { text_color: None })
+                    .width(Length::Fixed(40.0))
+                    .view(),
+            )
+            .push(
+                Button::new()
+                    .icon(PERSON_CIRCLE)
+                    .style(ButtonStyle::Transparent { text_color: None })
                     .on_press(Message::View(Stage::Profile))
-                    .width(Length::Fixed(40.0)),
+                    .width(Length::Fixed(40.0))
+                    .view(),
             )
             .spacing(10)
             .padding(10)

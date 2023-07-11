@@ -5,7 +5,7 @@ use iced::widget::{Button, Container, Row, Text};
 use iced::{Alignment, Length};
 
 use crate::app::{Context, Message};
-use crate::component::button::ButtonStyle;
+use crate::component::ButtonStyle;
 
 #[derive(Clone)]
 pub struct SidebarButton<'a> {

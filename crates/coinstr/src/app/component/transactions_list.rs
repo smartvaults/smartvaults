@@ -9,7 +9,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
 use crate::app::{Message, Stage};
-use crate::component::{button, rule, Icon, Text};
+use crate::component::{rule, Button, ButtonStyle, Icon, Text};
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
@@ -157,14 +157,19 @@ impl TransactionsList {
                                 .view(),
                             )
                             .push(
-                                button::border_only_icon(CLIPBOARD)
+                                Button::new()
+                                    .icon(CLIPBOARD)
+                                    .style(ButtonStyle::Bordered)
                                     .on_press(Message::Clipboard(tx.txid.to_string()))
-                                    .width(Length::Fixed(40.0)),
+                                    .width(Length::Fixed(40.0))
+                                    .view(),
                             )
                             .push(
-                                button::primary_only_icon(FULLSCREEN)
+                                Button::new()
+                                    .icon(FULLSCREEN)
                                     .on_press(Message::View(Stage::Transaction(tx.txid)))
-                                    .width(Length::Fixed(40.0)),
+                                    .width(Length::Fixed(40.0))
+                                    .view(),
                             )
                             .spacing(10)
                             .align_items(Alignment::Center)

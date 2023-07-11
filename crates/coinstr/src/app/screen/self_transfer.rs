@@ -15,7 +15,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, NumericInput, Text, TextInput};
+use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -293,15 +293,6 @@ impl State for SelfTransferState {
                     Row::new()
                 };
 
-                let mut send_proposal_btn = button::primary("Send proposal").width(Length::Fill);
-                let mut back_btn = button::border("Back").width(Length::Fill);
-
-                if !self.loading {
-                    send_proposal_btn =
-                        send_proposal_btn.on_press(SelfTransferMessage::SendProposal.into());
-                    back_btn = back_btn.on_press(SelfTransferMessage::EditProposal.into());
-                }
-
                 content = content
                     .push(from_policy)
                     .push(to_policy)
@@ -309,8 +300,23 @@ impl State for SelfTransferState {
                     .push(priority)
                     .push(error)
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(send_proposal_btn)
-                    .push(back_btn);
+                    .push(
+                        Button::new()
+                            .text("Send proposal")
+                            .width(Length::Fill)
+                            .on_press(SelfTransferMessage::SendProposal.into())
+                            .loading(self.loading)
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .text("Back")
+                            .width(Length::Fill)
+                            .on_press(SelfTransferMessage::EditProposal.into())
+                            .loading(self.loading)
+                            .view(),
+                    );
             } else {
                 let from_policy_pick_list = Column::new()
                     .push(Text::new("From policy").view())
@@ -346,12 +352,13 @@ impl State for SelfTransferState {
                     )
                     .spacing(5);
 
-                let mut send_all_btn = button::border("Max").width(Length::Fixed(50.0));
-
-                if self.from_policy.is_some() && self.to_policy.is_some() {
-                    send_all_btn =
-                        send_all_btn.on_press(SelfTransferMessage::SendAllBtnPressed.into());
-                }
+                let send_all_btn = Button::new()
+                    .style(ButtonStyle::Bordered)
+                    .text("Max")
+                    .width(Length::Fixed(50.0))
+                    .on_press(SelfTransferMessage::SendAllBtnPressed.into())
+                    .loading(self.loading || self.from_policy.is_none())
+                    .view();
 
                 let amount = if self.send_all {
                     TextInput::new("Amount (sat)", "Send all")
@@ -457,7 +464,8 @@ impl State for SelfTransferState {
                     Row::new()
                 };
 
-                let continue_btn = button::primary("Continue")
+                let continue_btn = Button::new()
+                    .text("Continue")
                     .width(Length::Fill)
                     .on_press(SelfTransferMessage::Review.into());
 
@@ -483,7 +491,7 @@ impl State for SelfTransferState {
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(error)
                     .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(continue_btn);
+                    .push(continue_btn.view());
             }
         }
 

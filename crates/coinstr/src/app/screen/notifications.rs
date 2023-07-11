@@ -8,7 +8,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::GREY;
 
 #[derive(Debug, Clone)]
@@ -112,12 +112,18 @@ impl State for NotificationsState {
                 .push(
                     Row::new()
                         .push(
-                            button::border("Mark all as seen")
-                                .on_press(NotificationsMessage::MarkAllAsSeen.into()),
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .text("Mark all as seen")
+                                .on_press(NotificationsMessage::MarkAllAsSeen.into())
+                                .view(),
                         )
                         .push(
-                            button::danger_border("Delete all")
-                                .on_press(NotificationsMessage::DeleteAll.into()),
+                            Button::new()
+                                .style(ButtonStyle::BorderedDanger)
+                                .text("Delete all")
+                                .on_press(NotificationsMessage::DeleteAll.into())
+                                .view(),
                         )
                         .spacing(10),
                 )

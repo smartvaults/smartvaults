@@ -16,7 +16,7 @@ pub mod add_session;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
 use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOPWATCH, TRASH};
 
@@ -140,29 +140,29 @@ impl State for ConnectState {
 
         if self.loaded {
             if self.sessions.is_empty() {
-                let add_session_btn = button::primary_with_icon(PLUS, "Add session")
-                    .width(Length::Fixed(250.0))
-                    .on_press(Message::View(Stage::AddNostrConnectSession));
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(ConnectMessage::Reload.into());
                 content = content
                     .push(Text::new("No sessions").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(add_session_btn)
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .icon(PLUS)
+                            .text("Add session")
+                            .width(Length::Fixed(250.0))
+                            .on_press(Message::View(Stage::AddNostrConnectSession))
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .style(ButtonStyle::Bordered)
+                            .width(Length::Fixed(250.0))
+                            .on_press(ConnectMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-
-                let add_session_btn = button::border_only_icon(PLUS)
-                    .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::AddNostrConnectSession));
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-                if !self.loading {
-                    reload_btn = reload_btn.on_press(ConnectMessage::Reload.into());
-                }
 
                 // Sessions
 
@@ -199,8 +199,23 @@ impl State for ConnectState {
                                     .view(),
                             )
                             .push(Space::with_width(Length::Fixed(40.0)))
-                            .push(add_session_btn)
-                            .push(reload_btn)
+                            .push(
+                                Button::new()
+                                    .icon(PLUS)
+                                    .width(Length::Fixed(40.0))
+                                    .style(ButtonStyle::Bordered)
+                                    .on_press(Message::View(Stage::AddNostrConnectSession))
+                                    .view(),
+                            )
+                            .push(
+                                Button::new()
+                                    .icon(RELOAD)
+                                    .on_press(ConnectMessage::Reload.into())
+                                    .loading(self.loading)
+                                    .style(ButtonStyle::Bordered)
+                                    .width(Length::Fixed(40.0))
+                                    .view(),
+                            )
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill),
@@ -208,14 +223,6 @@ impl State for ConnectState {
                     .push(rule::horizontal_bold());
 
                 for (uri, timestamp) in self.sessions.iter() {
-                    let mut disconnect_btn =
-                        button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
-
-                    if !self.loading {
-                        disconnect_btn = disconnect_btn
-                            .on_press(ConnectMessage::DisconnectSession(uri.public_key).into());
-                    }
-
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_public_key(uri.public_key))
@@ -237,9 +244,28 @@ impl State for ConnectState {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(button::border_only_icon(STOPWATCH).width(Length::Fixed(40.0)))
-                        .push(disconnect_btn)
-                        .push(button::primary_only_icon(FULLSCREEN).width(Length::Fixed(40.0)))
+                        .push(
+                            Button::new()
+                                .icon(STOPWATCH)
+                                .style(ButtonStyle::Bordered)
+                                .width(Length::Fixed(40.0))
+                                .view(),
+                        )
+                        .push(
+                            Button::new()
+                                .icon(TRASH)
+                                .on_press(ConnectMessage::DisconnectSession(uri.public_key).into())
+                                .loading(self.loading)
+                                .style(ButtonStyle::BorderedDanger)
+                                .width(Length::Fixed(40.0))
+                                .view(),
+                        )
+                        .push(
+                            Button::new()
+                                .icon(FULLSCREEN)
+                                .width(Length::Fixed(40.0))
+                                .view(),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
@@ -296,18 +322,6 @@ impl State for ConnectState {
 
                     for (req_id, request) in self.requests.iter() {
                         if let Ok(req) = request.message.to_request() {
-                            let mut approve_btn =
-                                button::border_only_icon(CHECK).width(Length::Fixed(120.0));
-                            let mut delete_btn =
-                                button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
-
-                            if !self.loading {
-                                approve_btn = approve_btn
-                                    .on_press(ConnectMessage::ApproveRequest(*req_id).into());
-                                delete_btn = delete_btn
-                                    .on_press(ConnectMessage::DeleteRequest(*req_id).into());
-                            }
-
                             let row = Row::new()
                                 .push(
                                     Text::new(util::cut_event_id(*req_id))
@@ -325,8 +339,24 @@ impl State for ConnectState {
                                         .width(Length::Fill)
                                         .view(),
                                 )
-                                .push(approve_btn)
-                                .push(delete_btn)
+                                .push(
+                                    Button::new()
+                                        .icon(CHECK)
+                                        .on_press(ConnectMessage::ApproveRequest(*req_id).into())
+                                        .loading(self.loading)
+                                        .style(ButtonStyle::Bordered)
+                                        .width(Length::Fixed(120.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Button::new()
+                                        .icon(TRASH)
+                                        .on_press(ConnectMessage::DeleteRequest(*req_id).into())
+                                        .loading(self.loading)
+                                        .style(ButtonStyle::BorderedDanger)
+                                        .width(Length::Fixed(40.0))
+                                        .view(),
+                                )
                                 .spacing(10)
                                 .align_items(Alignment::Center)
                                 .width(Length::Fill);

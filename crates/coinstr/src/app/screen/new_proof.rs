@@ -12,7 +12,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -168,12 +168,6 @@ impl State for NewProofState {
                 Row::new()
             };
 
-            let mut send_btn = button::primary("Send").width(Length::Fill);
-
-            if !self.loading {
-                send_btn = send_btn.on_press(NewProofMessage::SendProposal.into());
-            }
-
             Column::new()
                 .push(
                     Column::new()
@@ -192,7 +186,14 @@ impl State for NewProofState {
                 .push(Space::with_height(Length::Fixed(5.0)))
                 .push(error)
                 .push(Space::with_height(Length::Fixed(5.0)))
-                .push(send_btn)
+                .push(
+                    Button::new()
+                        .text("Send")
+                        .width(Length::Fill)
+                        .on_press(NewProofMessage::SendProposal.into())
+                        .loading(self.loading)
+                        .view(),
+                )
         } else {
             Column::new().push(Text::new("Loading...").view())
         };

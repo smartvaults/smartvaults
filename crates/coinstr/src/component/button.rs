@@ -1,132 +1,130 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::widget::{button, Button, Container, Row};
+use iced::widget::{self, button, Container, Row};
 use iced::{theme, Alignment, Background, Color, Length, Theme, Vector};
 
 use super::{Icon, Text};
 use crate::theme::color::TRANSPARENT;
 
-pub fn primary<S, T>(t: S) -> Button<'static, T>
-where
-    S: Into<String>,
-    T: Clone + 'static,
-{
-    Button::new(content(None, t)).style(ButtonStyle::Primary.into())
+pub struct Button<Message> {
+    text: String,
+    icon: Option<char>,
+    width: Option<Length>,
+    style: ButtonStyle,
+    on_press: Option<Message>,
+    loading: bool,
 }
 
-pub fn border<S, T>(t: S) -> Button<'static, T>
+impl<Message> Button<Message>
 where
-    S: Into<String>,
-    T: Clone + 'static,
+    Message: Clone + 'static,
 {
-    Button::new(content(None, t)).style(ButtonStyle::Bordered.into())
-}
+    pub fn new() -> Self {
+        Self {
+            text: String::new(),
+            icon: None,
+            width: None,
+            style: ButtonStyle::default(),
+            on_press: None,
+            loading: false,
+        }
+    }
 
-pub fn primary_with_icon<S, T>(icon: char, t: S) -> Button<'static, T>
-where
-    S: Into<String>,
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), t)).style(ButtonStyle::Primary.into())
-}
+    pub fn text<S>(self, text: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            text: text.into(),
+            ..self
+        }
+    }
 
-pub fn primary_only_icon<T>(icon: char) -> Button<'static, T>
-where
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), "")).style(ButtonStyle::Primary.into())
-}
+    pub fn icon(self, icon: char) -> Self {
+        Self {
+            icon: Some(icon),
+            ..self
+        }
+    }
 
-pub fn border_only_icon<T>(icon: char) -> Button<'static, T>
-where
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), "")).style(ButtonStyle::Bordered.into())
-}
+    pub fn width(self, length: Length) -> Self {
+        Self {
+            width: Some(length),
+            ..self
+        }
+    }
 
-pub fn border_with_icon<S, T>(icon: char, t: S) -> Button<'static, T>
-where
-    S: Into<String>,
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), t)).style(ButtonStyle::Bordered.into())
-}
+    pub fn style(self, style: ButtonStyle) -> Self {
+        Self { style, ..self }
+    }
 
-pub fn danger_with_icon<S, T>(icon: char, t: S) -> Button<'static, T>
-where
-    S: Into<String>,
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), t)).style(ButtonStyle::Danger.into())
-}
+    pub fn on_press(self, message: Message) -> Self {
+        Self {
+            on_press: Some(message),
+            ..self
+        }
+    }
 
-pub fn danger_border<S, T>(t: S) -> Button<'static, T>
-where
-    S: Into<String>,
-    T: Clone + 'static,
-{
-    Button::new(content(None, t)).style(ButtonStyle::BorderedDanger.into())
-}
+    pub fn loading(self, loading: bool) -> Self {
+        Self { loading, ..self }
+    }
 
-pub fn danger_border_only_icon<T>(icon: char) -> Button<'static, T>
-where
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), "")).style(ButtonStyle::BorderedDanger.into())
-}
+    pub fn view(self) -> widget::Button<'static, Message> {
+        let content = match self.icon {
+            Some(icon) => {
+                let mut icon = Icon::new(icon);
 
-pub fn transparent_only_icon<T>(icon: char, color: Option<Color>) -> Button<'static, T>
-where
-    T: Clone + 'static,
-{
-    Button::new(content(Some(icon), ""))
-        .style(ButtonStyle::Transparent { text_color: color }.into())
-}
+                if self.text.is_empty() {
+                    icon = icon.width(Length::Fill);
+                }
 
-fn content<S, T>(icon: Option<char>, t: S) -> Container<'static, T>
-where
-    S: Into<String>,
-    T: Clone + 'static,
-{
-    match icon {
-        Some(icon) => {
-            let text = t.into();
+                let mut row = Row::new()
+                    .push(icon.view())
+                    .spacing(10)
+                    .width(Length::Fill)
+                    .align_items(Alignment::Center);
 
-            let mut icon = Icon::new(icon);
+                if !self.text.is_empty() {
+                    row = row.push(Text::new(&self.text).view());
+                }
 
-            if text.is_empty() {
-                icon = icon.width(Length::Fill);
+                Container::new(row)
+                    .width(Length::Fill)
+                    .center_x()
+                    .padding(5)
             }
-
-            let mut row = Row::new()
-                .push(icon.view())
-                .spacing(10)
-                .width(Length::Fill)
-                .align_items(Alignment::Center);
-
-            if !text.is_empty() {
-                row = row.push(Text::new(text).view());
-            }
-
-            Container::new(row)
+            None => Container::new(Text::new(&self.text).view())
                 .width(Length::Fill)
                 .center_x()
-                .padding(5)
+                .padding(5),
+        };
+        let mut button = widget::Button::new(content);
+
+        if !self.loading {
+            if let Some(msg) = self.on_press.clone() {
+                button = button.on_press(msg);
+            }
         }
-        None => Container::new(Text::new(t).view())
-            .width(Length::Fill)
-            .center_x()
-            .padding(5),
+
+        if let Some(width) = self.width {
+            button = button.width(width);
+        }
+
+        button.style(self.style.into())
     }
 }
 
+#[derive(Default, Clone, Copy)]
 pub enum ButtonStyle {
+    #[default]
     Primary,
     Bordered,
     Danger,
     BorderedDanger,
-    Transparent { text_color: Option<Color> },
+    Transparent {
+        text_color: Option<Color>,
+    },
 }
 
 impl button::StyleSheet for ButtonStyle {

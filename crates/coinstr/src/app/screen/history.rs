@@ -10,7 +10,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::{CompletedProposalsList, Dashboard};
 use crate::app::{Context, Message, State};
-use crate::component::{button, Text};
+use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
@@ -72,13 +72,18 @@ impl State for HistoryState {
 
         if self.loaded {
             if self.proposals.is_empty() {
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(HistoryMessage::Reload.into());
                 content = content
                     .push(Text::new("No history").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .width(Length::Fixed(250.0))
+                            .on_press(HistoryMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;

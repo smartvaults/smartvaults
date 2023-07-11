@@ -11,7 +11,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
@@ -111,12 +111,6 @@ impl State for AddAirGapSignerState {
             Row::new()
         };
 
-        let mut save_signer_btn = button::primary("Save signer").width(Length::Fill);
-
-        if !self.loading {
-            save_signer_btn = save_signer_btn.on_press(AddAirGapSignerMessage::SaveSigner.into());
-        }
-
         let content = Column::new()
             .push(
                 Column::new()
@@ -134,7 +128,14 @@ impl State for AddAirGapSignerState {
             .push(descriptor)
             .push(error)
             .push(Space::with_height(Length::Fixed(15.0)))
-            .push(save_signer_btn)
+            .push(
+                Button::new()
+                    .text("Save signer")
+                    .on_press(AddAirGapSignerMessage::SaveSigner.into())
+                    .loading(self.loading)
+                    .width(Length::Fill)
+                    .view(),
+            )
             .align_items(Alignment::Center)
             .spacing(10)
             .padding(20)

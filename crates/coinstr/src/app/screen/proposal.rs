@@ -18,7 +18,7 @@ use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
@@ -378,17 +378,19 @@ impl State for ProposalState {
                         },
                     ) {
                         Some(_) => {
-                            let approve_btn = button::border("Approve");
-                            let finalize_btn = button::primary(finalize_btn_text);
+                            let approve_btn =
+                                Button::new().style(ButtonStyle::Bordered).text("Approve");
+                            let finalize_btn = Button::new().text(finalize_btn_text);
                             (approve_btn, finalize_btn)
                         }
                         None => {
-                            let mut approve_btn = button::primary("Approve");
-                            let finalize_btn = button::border(finalize_btn_text);
-
-                            if !self.loading {
-                                approve_btn = approve_btn.on_press(ProposalMessage::Approve.into());
-                            }
+                            let approve_btn = Button::new()
+                                .text("Approve")
+                                .on_press(ProposalMessage::Approve.into())
+                                .loading(self.loading);
+                            let finalize_btn = Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .text(finalize_btn_text);
 
                             (approve_btn, finalize_btn)
                         }
@@ -398,23 +400,33 @@ impl State for ProposalState {
                         finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
                     }
 
-                    let mut export_btn = button::border_with_icon(SAVE, "Export PSBT");
-                    let copy_psbt = button::border_with_icon(CLIPBOARD, "Copy PSBT")
-                        .on_press(Message::Clipboard(proposal.psbt().as_base64()));
-                    let mut delete_btn = button::danger_with_icon(TRASH, "Delete");
-
-                    if !self.loading {
-                        export_btn = export_btn.on_press(ProposalMessage::ExportPsbt.into());
-                        delete_btn =
-                            delete_btn.on_press(ProposalMessage::AskDeleteConfirmation.into());
-                    }
+                    let export_btn = Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .icon(SAVE)
+                        .text("Export PSBT")
+                        .on_press(ProposalMessage::ExportPsbt.into())
+                        .loading(self.loading)
+                        .view();
+                    let copy_psbt = Button::new()
+                        .style(ButtonStyle::Bordered)
+                        .icon(CLIPBOARD)
+                        .text("Copy PSBT")
+                        .on_press(Message::Clipboard(proposal.psbt().as_base64()))
+                        .view();
+                    let delete_btn = Button::new()
+                        .style(ButtonStyle::Danger)
+                        .icon(TRASH)
+                        .text("Delete")
+                        .on_press(ProposalMessage::AskDeleteConfirmation.into())
+                        .loading(self.loading)
+                        .view();
 
                     content = content
                         .push(Space::with_height(10.0))
                         .push(
                             Row::new()
-                                .push(approve_btn)
-                                .push(finalize_btn)
+                                .push(approve_btn.view())
+                                .push(finalize_btn.view())
                                 .push(export_btn)
                                 .push(copy_psbt)
                                 .push(delete_btn)
@@ -492,11 +504,14 @@ impl State for ProposalState {
 
                             if my_public_key == *public_key {
                                 row = row.push(
-                                    button::danger_border_only_icon(TRASH)
+                                    Button::new()
+                                        .style(ButtonStyle::BorderedDanger)
+                                        .icon(TRASH)
                                         .width(Length::Fixed(40.0))
                                         .on_press(
                                             ProposalMessage::RevokeApproval(*approval_id).into(),
-                                        ),
+                                        )
+                                        .view(),
                                 )
                             } else {
                                 row = row.push(
@@ -527,14 +542,20 @@ impl State for ProposalState {
                     .padding(5)
                     .width(Length::Fill)
                     .push(
-                        button::danger_border("Confirm")
+                        Button::new()
+                            .style(ButtonStyle::BorderedDanger)
+                            .text("Confirm")
                             .width(Length::Fill)
-                            .on_press(ProposalMessage::Delete.into()),
+                            .on_press(ProposalMessage::Delete.into())
+                            .view(),
                     )
                     .push(
-                        button::border("Close")
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .text("Close")
                             .width(Length::Fill)
-                            .on_press(ProposalMessage::CloseModal.into()),
+                            .on_press(ProposalMessage::CloseModal.into())
+                            .view(),
                     ),
             )
             .max_width(300.0)

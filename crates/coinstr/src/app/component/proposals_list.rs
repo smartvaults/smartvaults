@@ -10,7 +10,7 @@ use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
 
 use crate::app::{Message, Stage};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, Text};
 use crate::theme::icon::FULLSCREEN;
 
 pub struct PendingProposalsList {
@@ -123,9 +123,11 @@ impl PendingProposalsList {
                         )
                         .push(Text::new(description).width(Length::Fill).view())
                         .push(
-                            button::primary_only_icon(FULLSCREEN)
+                            Button::new()
+                                .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::Proposal(*proposal_id)))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)
@@ -153,9 +155,11 @@ impl PendingProposalsList {
                         .push(Text::new("-").width(Length::Fixed(125.0)).view())
                         .push(Text::new(message).width(Length::Fill).view())
                         .push(
-                            button::primary_only_icon(FULLSCREEN)
+                            Button::new()
+                                .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::Proposal(*proposal_id)))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)
@@ -257,13 +261,15 @@ impl CompletedProposalsList {
                         .push(Text::new("spending").width(Length::Fixed(125.0)).view())
                         .push(Text::new(description).width(Length::Fill).view())
                         .push(
-                            button::primary_only_icon(FULLSCREEN)
+                            Button::new()
+                                .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::CompletedProposal(
                                     *proposal_id,
                                     proposal.clone(),
                                     *policy_id,
                                 )))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)
@@ -287,13 +293,15 @@ impl CompletedProposalsList {
                         )
                         .push(Text::new(message).width(Length::Fill).view())
                         .push(
-                            button::primary_only_icon(FULLSCREEN)
+                            Button::new()
+                                .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::CompletedProposal(
                                     *proposal_id,
                                     proposal.clone(),
                                     *policy_id,
                                 )))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
                         .spacing(10)
                         .align_items(Alignment::Center)

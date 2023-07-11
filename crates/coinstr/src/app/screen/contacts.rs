@@ -11,7 +11,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::icon::{CLIPBOARD, PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
@@ -96,29 +96,29 @@ impl State for ContactsState {
 
         if self.loaded {
             if self.contacts.is_empty() {
-                let add_contact_btn = button::primary_with_icon(PLUS, "Add contacts")
-                    .on_press(Message::View(Stage::AddContact))
-                    .width(Length::Fixed(250.0));
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(ContactsMessage::Reload.into());
                 content = content
                     .push(Text::new("No contacts").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(add_contact_btn)
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .icon(PLUS)
+                            .text("Add contacts")
+                            .on_press(Message::View(Stage::AddContact))
+                            .width(Length::Fixed(250.0))
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .width(Length::Fixed(250.0))
+                            .on_press(ContactsMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-
-                let add_contact_btn = button::border_only_icon(PLUS)
-                    .width(Length::Fixed(40.0))
-                    .on_press(Message::View(Stage::AddContact));
-                let mut reload_btn = button::border_only_icon(RELOAD).width(Length::Fixed(40.0));
-
-                if !self.loading {
-                    reload_btn = reload_btn.on_press(ContactsMessage::Reload.into());
-                }
 
                 content = content
                     .push(
@@ -145,8 +145,23 @@ impl State for ContactsState {
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(add_contact_btn)
-                            .push(reload_btn)
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .icon(PLUS)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(Message::View(Stage::AddContact))
+                                    .view(),
+                            )
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .icon(RELOAD)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(ContactsMessage::Reload.into())
+                                    .loading(self.loading)
+                                    .view(),
+                            )
                             .spacing(10)
                             .align_items(Alignment::Center)
                             .width(Length::Fill),
@@ -154,14 +169,6 @@ impl State for ContactsState {
                     .push(rule::horizontal_bold());
 
                 for (public_key, metadata) in self.contacts.iter() {
-                    let mut remove_btn =
-                        button::danger_border_only_icon(TRASH).width(Length::Fixed(40.0));
-
-                    if !self.loading {
-                        remove_btn = remove_btn
-                            .on_press(ContactsMessage::RemovePublicKey(*public_key).into());
-                    }
-
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_public_key(*public_key))
@@ -185,11 +192,22 @@ impl State for ContactsState {
                         )
                         .push(Space::with_width(Length::Fixed(40.0)))
                         .push(
-                            button::border_only_icon(CLIPBOARD)
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .icon(CLIPBOARD)
                                 .on_press(Message::Clipboard(public_key.to_string()))
-                                .width(Length::Fixed(40.0)),
+                                .width(Length::Fixed(40.0))
+                                .view(),
                         )
-                        .push(remove_btn)
+                        .push(
+                            Button::new()
+                                .style(ButtonStyle::BorderedDanger)
+                                .icon(TRASH)
+                                .width(Length::Fixed(40.0))
+                                .on_press(ContactsMessage::RemovePublicKey(*public_key).into())
+                                .loading(self.loading)
+                                .view(),
+                        )
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);

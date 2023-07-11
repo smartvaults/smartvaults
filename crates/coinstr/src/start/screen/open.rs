@@ -6,7 +6,7 @@ use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
 use iced::{Alignment, Command, Element, Length};
 
 use super::view;
-use crate::component::{button, Text, TextInput};
+use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::constants::{APP_DESCRIPTION, APP_LOGO};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
@@ -109,16 +109,25 @@ impl State for OpenState {
             .password()
             .view();
 
-        let open_btn = button::primary("Open")
+        let open_btn = Button::new()
+            .text("Open")
             .width(Length::Fill)
-            .on_press(Message::Open(OpenMessage::OpenButtonPressed));
+            .on_press(Message::Open(OpenMessage::OpenButtonPressed))
+            .view();
 
-        let new_keychain_btn = button::border("Create keychain")
+        let new_keychain_btn = Button::new()
+            .text("Create keychain")
+            .style(ButtonStyle::Bordered)
             .on_press(Message::View(Stage::New))
-            .width(Length::Fill);
-        let restore_keychain_btn = button::border("Restore keychain")
+            .width(Length::Fill)
+            .view();
+
+        let restore_keychain_btn = Button::new()
+            .text("Restore keychain")
+            .style(ButtonStyle::Bordered)
             .on_press(Message::View(Stage::Restore))
-            .width(Length::Fill);
+            .width(Length::Fill)
+            .view();
 
         let content = column![
             row![column![

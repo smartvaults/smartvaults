@@ -11,7 +11,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{button, rule, Text};
+use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
 use crate::theme::icon::{PLUS, RELOAD};
 
@@ -133,17 +133,26 @@ impl State for ShareSignerState {
 
         if self.loaded {
             if self.contacts.is_empty() {
-                let add_contact_btn = button::primary_with_icon(PLUS, "Add contacts")
-                    .on_press(Message::View(Stage::AddContact))
-                    .width(Length::Fixed(250.0));
-                let reload_btn = button::border_with_icon(RELOAD, "Reload")
-                    .width(Length::Fixed(250.0))
-                    .on_press(ShareSignerMessage::Reload.into());
                 content = content
                     .push(Text::new("No contacts").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(add_contact_btn)
-                    .push(reload_btn)
+                    .push(
+                        Button::new()
+                            .icon(PLUS)
+                            .text("Add contacts")
+                            .on_press(Message::View(Stage::AddContact))
+                            .width(Length::Fixed(250.0))
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(RELOAD)
+                            .text("Reload")
+                            .width(Length::Fixed(250.0))
+                            .on_press(ShareSignerMessage::Reload.into())
+                            .view(),
+                    )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
@@ -185,12 +194,15 @@ impl State for ShareSignerState {
 
                 for (public_key, metadata) in self.contacts.iter() {
                     let select_btn = if self.already_shared_with.contains(public_key) {
-                        button::primary("Already shared")
+                        Button::new().text("Already shared")
                     } else if self.public_keys.contains(public_key) {
-                        button::primary("Selected")
+                        Button::new()
+                            .text("Selected")
                             .on_press(ShareSignerMessage::RemovePublicKey(*public_key).into())
                     } else {
-                        button::border("Select")
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .text("Select")
                             .on_press(ShareSignerMessage::AddPublicKey(*public_key).into())
                     };
 
@@ -210,7 +222,7 @@ impl State for ShareSignerState {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(select_btn.width(Length::Fixed(180.0)))
+                        .push(select_btn.width(Length::Fixed(180.0)).view())
                         .spacing(10)
                         .align_items(Alignment::Center)
                         .width(Length::Fill);
@@ -226,9 +238,11 @@ impl State for ShareSignerState {
                 content = content.push(Space::with_height(Length::Fixed(20.0))).push(
                     Column::new()
                         .push(
-                            button::primary("Share")
+                            Button::new()
+                                .text("Share")
                                 .width(Length::Fixed(180.0))
-                                .on_press(ShareSignerMessage::Share.into()),
+                                .on_press(ShareSignerMessage::Share.into())
+                                .view(),
                         )
                         .width(Length::Fill)
                         .align_items(Alignment::End),
