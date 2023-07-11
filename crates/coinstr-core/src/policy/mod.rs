@@ -5,8 +5,9 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, XOnlyPublicKey};
-use bdk::database::BatchDatabase;
+use bdk::bitcoin::{Address, Network, XOnlyPublicKey};
+use bdk::database::{BatchDatabase, MemoryDatabase};
+use bdk::descriptor::policy::SatisfiableItem;
 use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
@@ -104,6 +105,15 @@ impl Policy {
                 Err(policy_e) => Err(Error::DescOrPolicy(Box::new(desc_e), Box::new(policy_e))),
             },
         }
+    }
+
+    pub fn satisfiable_item(&self, network: Network) -> Result<SatisfiableItem, Error> {
+        let db = MemoryDatabase::new();
+        let wallet = Wallet::new(&self.descriptor.to_string(), None, network, db)?;
+        let wallet_policy = wallet
+            .policies(KeychainKind::External)?
+            .ok_or(Error::WalletSpendingPolicyNotFound)?;
+        Ok(wallet_policy.item)
     }
 
     pub fn spend<D, S>(
