@@ -3,14 +3,13 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_sdk::core::bdk::blockchain::ElectrumBlockchain;
-use coinstr_sdk::core::bdk::database::{BatchDatabase, MemoryDatabase};
+use coinstr_sdk::core::bdk::database::MemoryDatabase;
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
-use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::wallet::AddressIndex;
-use coinstr_sdk::core::bdk::{KeychainKind, SyncOptions, Wallet};
+use coinstr_sdk::core::bdk::{Balance, TransactionDetails, Wallet};
 use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
+use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
@@ -112,70 +111,60 @@ pub fn print_contacts(contacts: BTreeMap<XOnlyPublicKey, Metadata>) {
     table.printstd();
 }
 
-pub fn print_policy<D, S>(
+pub fn print_policy(
     policy: Policy,
     policy_id: EventId,
-    wallet: Wallet<D>,
-    endpoint: S,
-) -> Result<()>
-where
-    D: BatchDatabase,
-    S: Into<String>,
-{
+    item: SatisfiableItem,
+    balance: Option<Balance>,
+    address: Option<Address>,
+    txs: Vec<TransactionDetails>,
+) {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
     println!("- ID: {policy_id}");
     println!("- Name: {}", &policy.name);
     println!("- Description: {}", policy.description);
 
-    let spending_policy = wallet.policies(KeychainKind::External)?.unwrap();
-
     let mut tree: Tree<String> = Tree::new("- Descriptor".to_string());
-    tree.push(add_node(&spending_policy.item));
+    tree.push(add_node(&item));
     println!("{tree}");
 
-    let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint.into())?);
-    wallet.sync(&blockchain, SyncOptions::default())?;
-
-    let balance = wallet.get_balance()?;
     println!("{}", "Balances".fg::<BlazeOrange>().underline());
-    println!(
-        "- Immature            	: {} sat",
-        format::number(balance.immature)
-    );
-    println!(
-        "- Trusted pending     	: {} sat",
-        format::number(balance.trusted_pending)
-    );
-    println!(
-        "- Untrusted pending   	: {} sat",
-        format::number(balance.untrusted_pending)
-    );
-    println!(
-        "- Confirmed           	: {} sat",
-        format::number(balance.confirmed)
-    );
+    match balance {
+        Some(balance) => {
+            println!(
+                "- Immature            	: {} sat",
+                format::number(balance.immature)
+            );
+            println!(
+                "- Trusted pending     	: {} sat",
+                format::number(balance.trusted_pending)
+            );
+            println!(
+                "- Untrusted pending   	: {} sat",
+                format::number(balance.untrusted_pending)
+            );
+            println!(
+                "- Confirmed           	: {} sat",
+                format::number(balance.confirmed)
+            );
+        }
+        None => println!("Unavailable"),
+    }
 
     println!(
         "\n{}: {}\n",
         "Deposit address".fg::<BlazeOrange>().underline(),
-        wallet.get_address(AddressIndex::New)?
+        address
+            .map(|a| a.to_string())
+            .unwrap_or_else(|| String::from("Unavailable"))
     );
 
-    let mut txs = wallet.list_transactions(false)?;
-    txs.sort_by(|a, b| {
-        b.confirmation_time
-            .as_ref()
-            .map(|t| t.height)
-            .cmp(&a.confirmation_time.as_ref().map(|t| t.height))
-    });
     if !txs.is_empty() {
         println!("{}", "Latest transactions".fg::<BlazeOrange>().underline());
         for tx in txs.into_iter().take(10) {
             println!("{tx:?}")
         }
     }
-
-    Ok(())
 }
 
 fn display_key(key: &PkOrF) -> String {
