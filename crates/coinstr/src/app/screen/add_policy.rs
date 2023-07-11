@@ -102,13 +102,8 @@ impl State for AddPolicyState {
                         self.public_keys.iter().copied().collect();
                     return Command::perform(
                         async move {
-                            let custom_pubkeys = if public_keys.is_empty() {
-                                None
-                            } else {
-                                Some(public_keys)
-                            };
                             client
-                                .save_policy(name, description, descriptor, custom_pubkeys)
+                                .save_policy(name, description, descriptor, public_keys)
                                 .await
                         },
                         |res| match res {

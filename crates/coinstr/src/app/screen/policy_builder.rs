@@ -150,18 +150,13 @@ impl State for PolicyBuilderState {
                         self.policy.iter().flatten().map(|(pk, ..)| *pk).collect();
                     return Command::perform(
                         async move {
-                            let custom_pubkeys = if public_keys.is_empty() {
-                                None
-                            } else {
-                                Some(public_keys)
-                            };
                             let descriptor =
                                 coinstr_sdk::core::policy::builder::n_of_m_ext_multisig(
                                     threshold,
                                     descriptors,
                                 )?;
                             client
-                                .save_policy(name, description, descriptor, custom_pubkeys)
+                                .save_policy(name, description, descriptor, public_keys)
                                 .await?;
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },

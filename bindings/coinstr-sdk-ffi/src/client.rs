@@ -341,13 +341,13 @@ impl Coinstr {
         public_keys: Vec<String>,
     ) -> Result<String> {
         block_on(async move {
-            let mut custom_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
+            let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
             for pk in public_keys.into_iter() {
-                custom_pubkeys.push(XOnlyPublicKey::from_str(&pk)?);
+                nostr_pubkeys.push(XOnlyPublicKey::from_str(&pk)?);
             }
             Ok(self
                 .inner
-                .save_policy(name, description, descriptor, Some(custom_pubkeys))
+                .save_policy(name, description, descriptor, nostr_pubkeys)
                 .await?
                 .to_hex())
         })

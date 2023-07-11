@@ -95,7 +95,7 @@ impl State for RestorePolicyState {
                     return Command::perform(
                         async move {
                             client
-                                .save_policy(name, description, descriptor, Some(public_keys))
+                                .save_policy(name, description, descriptor, public_keys)
                                 .await
                         },
                         |res| match res {

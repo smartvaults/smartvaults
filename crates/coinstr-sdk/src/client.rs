@@ -23,7 +23,7 @@ use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
-use coinstr_core::util::{extract_public_keys, Serde};
+use coinstr_core::util::Serde;
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
 
 use async_utility::thread;
@@ -86,8 +86,6 @@ pub enum Error {
     Secp256k1(#[from] coinstr_core::bitcoin::secp256k1::Error),
     #[error(transparent)]
     EncryptionWithKeys(#[from] EncryptionWithKeysError),
-    #[error(transparent)]
-    Util(#[from] coinstr_core::util::Error),
     #[error(transparent)]
     NIP04(#[from] nostr_sdk::nips::nip04::Error),
     #[error(transparent)]
@@ -807,18 +805,13 @@ impl Coinstr {
         name: S,
         description: S,
         descriptor: S,
-        custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
+        nostr_pubkeys: Vec<XOnlyPublicKey>,
     ) -> Result<EventId, Error>
     where
         S: Into<String>,
     {
         let keys = self.client.keys();
         let descriptor = descriptor.into();
-
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = match custom_pubkeys {
-            Some(pubkeys) => pubkeys,
-            None => extract_public_keys(&descriptor)?,
-        };
 
         if nostr_pubkeys.len() < 2 {
             return Err(Error::NotEnoughPublicKeys);

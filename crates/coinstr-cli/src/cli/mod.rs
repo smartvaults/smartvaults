@@ -284,8 +284,8 @@ pub enum AddCommand {
         /// Policy descriptor
         #[arg(required = true)]
         descriptor: String,
-        /// Custom nostr pubkeys
-        custom_pubkeys: Option<Vec<XOnlyPublicKey>>,
+        /// Nostr pubkeys
+        nostr_pubkeys: Vec<XOnlyPublicKey>,
     },
     /// Add Coinstr Signer
     CoinstrSigner {
