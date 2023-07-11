@@ -20,8 +20,8 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    Amount, Balance, CompletedProposal, KeychainSeed, Metadata, Policy, Proposal, Relay, Signer,
-    TransactionDetails, Utxo,
+    Amount, Approval, Balance, CompletedProposal, KeychainSeed, Metadata, Policy, Proposal, Relay,
+    Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -293,7 +293,7 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn proposal_is_signed(&self, proposal_id: String) -> Result<bool> {
+    pub fn is_proposal_signed(&self, proposal_id: String) -> Result<bool> {
         let proposal_id = EventId::from_hex(proposal_id)?;
         let proposal = self.inner.get_proposal_by_id(proposal_id)?.1;
         let approvals = self
@@ -310,6 +310,19 @@ impl Coinstr {
             )
             .collect();
         Ok(proposal.finalize(approvals, self.inner.network()).is_ok())
+    }
+
+    pub fn get_approvals_by_proposal_id(
+        &self,
+        proposal_id: String,
+    ) -> Result<HashMap<String, Arc<Approval>>> {
+        let proposal_id = EventId::from_hex(proposal_id)?;
+        Ok(self
+            .inner
+            .get_approvals_by_proposal_id(proposal_id)?
+            .into_iter()
+            .map(|(id, res)| (id.to_hex(), Arc::new(res.into())))
+            .collect())
     }
 
     pub fn get_completed_proposals(&self) -> Result<HashMap<String, CompletedProposal>> {

@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 mod amount;
+mod approval;
 mod balance;
 mod client;
 mod error;
@@ -38,6 +39,7 @@ mod ffi {
 
     // Coinstr
     pub use crate::amount::Amount;
+    pub use crate::approval::Approval;
     pub use crate::balance::Balance;
     pub use crate::client::Coinstr;
     pub use crate::key::Keys;
