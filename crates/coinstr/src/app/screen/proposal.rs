@@ -13,6 +13,7 @@ use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
+use iced_aw::{Card, Modal};
 use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
@@ -36,14 +37,17 @@ pub enum ProposalMessage {
     CheckPsbts,
     ExportPsbt,
     RevokeApproval(EventId),
+    AskDeleteConfirmation,
     Delete,
     ErrorChanged(Option<String>),
+    CloseModal,
 }
 
 #[derive(Debug)]
 pub struct ProposalState {
     loading: bool,
     loaded: bool,
+    show_modal: bool,
     signed: bool,
     proposal_id: EventId,
     proposal: Option<Proposal>,
@@ -58,6 +62,7 @@ impl ProposalState {
         Self {
             loading: false,
             loaded: false,
+            show_modal: false,
             signed: false,
             proposal_id,
             proposal: None,
@@ -255,6 +260,7 @@ impl State for ProposalState {
                         },
                     );
                 }
+                ProposalMessage::AskDeleteConfirmation => self.show_modal = true,
                 ProposalMessage::Delete => {
                     self.loading = true;
                     let client = ctx.client.clone();
@@ -267,6 +273,7 @@ impl State for ProposalState {
                         },
                     );
                 }
+                ProposalMessage::CloseModal => self.show_modal = false,
             }
         }
 
@@ -404,7 +411,8 @@ impl State for ProposalState {
 
                     if !self.loading {
                         export_btn = export_btn.on_press(ProposalMessage::ExportPsbt.into());
-                        delete_btn = delete_btn.on_press(ProposalMessage::Delete.into());
+                        delete_btn =
+                            delete_btn.on_press(ProposalMessage::AskDeleteConfirmation.into());
                     }
 
                     content = content
@@ -512,7 +520,35 @@ impl State for ProposalState {
             content = content.push(Text::new("Loading...").view())
         };
 
-        Dashboard::new().view(ctx, content, center_x, center_y)
+        let dashboard = Dashboard::new().view(ctx, content, center_x, center_y);
+
+        Modal::new(self.show_modal, dashboard, || {
+            Card::new(
+                Text::new("Delete proposal").view(),
+                Text::new("Do you want really delete this proposal?").view(), //Text::new("Zombie ipsum reversus ab viral inferno, nam rick grimes malum cerebro. De carne lumbering animata corpora quaeritis. Summus brains sit​​, morbo vel maleficia? De apocalypsi gorger omero undead survivor dictum mauris. Hi mindless mortuis soulless creaturas, imo evil stalking monstra adventus resi dentevil vultus comedat cerebella viventium. Qui animated corpse, cricket bat max brucks terribilem incessu zomby. The voodoo sacerdos flesh eater, suscitat mortuos comedere carnem virus. Zonbi tattered for solum oculi eorum defunctis go lum cerebro. Nescio brains an Undead zombies. Sicut malus putrid voodoo horror. Nigh tofth eliv ingdead.")
+            )
+            .foot(
+                Row::new()
+                    .spacing(10)
+                    .padding(5)
+                    .width(Length::Fill)
+                    .push(
+                        button::danger_border("Confirm")
+                            .width(Length::Fill)
+                            .on_press(ProposalMessage::Delete.into()),
+                    )
+                    .push(
+                        button::border("Close")
+                            .width(Length::Fill)
+                            .on_press(ProposalMessage::CloseModal.into()),
+                    ),
+            )
+            .max_width(300.0)
+            .into()
+        })
+        .on_esc(ProposalMessage::CloseModal.into())
+        .backdrop(ProposalMessage::CloseModal.into())
+        .into()
     }
 }
 
