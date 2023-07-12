@@ -819,7 +819,7 @@ impl Coinstr {
 
         // Generate a shared key
         let shared_key = Keys::generate();
-        let policy = Policy::from_desc_or_policy(name, description, descriptor)?;
+        let policy = Policy::from_desc_or_policy(name, description, descriptor, self.network)?;
 
         // Compose the event
         let content: String = policy.encrypt_with_keys(&shared_key)?;

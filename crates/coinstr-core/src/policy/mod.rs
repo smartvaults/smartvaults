@@ -52,11 +52,22 @@ pub struct Policy {
 }
 
 impl Policy {
-    pub fn new<S>(name: S, description: S, descriptor: Descriptor<String>) -> Result<Self, Error>
+    pub fn new<S>(
+        name: S,
+        description: S,
+        descriptor: Descriptor<String>,
+        network: Network,
+    ) -> Result<Self, Error>
     where
         S: Into<String>,
     {
         if let DescriptorType::Tr = descriptor.desc_type() {
+            Wallet::new(
+                &descriptor.to_string(),
+                None,
+                network,
+                MemoryDatabase::new(),
+            )?;
             Ok(Self {
                 name: name.into(),
                 description: description.into(),
@@ -67,28 +78,39 @@ impl Policy {
         }
     }
 
-    pub fn from_descriptor<S>(name: S, description: S, descriptor: S) -> Result<Self, Error>
+    pub fn from_descriptor<S>(
+        name: S,
+        description: S,
+        descriptor: S,
+        network: Network,
+    ) -> Result<Self, Error>
     where
         S: Into<String>,
     {
         let descriptor = Descriptor::from_str(&descriptor.into())?;
-        Self::new(name, description, descriptor)
+        Self::new(name, description, descriptor, network)
     }
 
-    pub fn from_policy<S>(name: S, description: S, policy: S) -> Result<Self, Error>
+    pub fn from_policy<S>(
+        name: S,
+        description: S,
+        policy: S,
+        network: Network,
+    ) -> Result<Self, Error>
     where
         S: Into<String>,
     {
         let policy = Concrete::<String>::from_str(&policy.into())?;
         let unspendable_pk = XOnlyPublicKey::unspendable();
         let descriptor = policy.compile_tr(Some(unspendable_pk.to_string()))?;
-        Self::new(name, description, descriptor)
+        Self::new(name, description, descriptor, network)
     }
 
     pub fn from_desc_or_policy<N, D, P>(
         name: N,
         description: D,
         desc_or_policy: P,
+        network: Network,
     ) -> Result<Self, Error>
     where
         N: Into<String>,
@@ -98,9 +120,9 @@ impl Policy {
         let name = &name.into();
         let description = &description.into();
         let desc_or_policy = &desc_or_policy.into();
-        match Self::from_descriptor(name, description, desc_or_policy) {
+        match Self::from_descriptor(name, description, desc_or_policy, network) {
             Ok(policy) => Ok(policy),
-            Err(desc_e) => match Self::from_policy(name, description, desc_or_policy) {
+            Err(desc_e) => match Self::from_policy(name, description, desc_or_policy, network) {
                 Ok(policy) => Ok(policy),
                 Err(policy_e) => Err(Error::DescOrPolicy(Box::new(desc_e), Box::new(policy_e))),
             },
@@ -195,3 +217,34 @@ impl Policy {
 
 impl Serde for Policy {}
 impl Encryption for Policy {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const NETWORK: Network = Network::Testnet;
+
+    #[test]
+    fn test_policy() {
+        let policy = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
+        assert!(Policy::from_policy("", "", policy, NETWORK).is_ok());
+    }
+
+    #[test]
+    fn test_wrong_policy() {
+        let policy = "thresh(2,pk([7c997e72/86'/0'/784923']xpub6DGQCZUmD4kdGDj8ttgba5Jc6pUSkFWaMwB1jedmzer1BtKDdef18k3cWwC9k7HfJGci7Q9S5KTRD9bBn4JZm3xPcDvidkSXvZ6pg4now57/0/),pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/))";
+        assert!(Policy::from_policy("", "", policy, NETWORK).is_err());
+    }
+
+    #[test]
+    fn test_descriptor() {
+        let descriptor = "tr([9bf4354b/86'/1'/784923']tpubDCT8uwnkZj7woaY71Xr5hU7Wvjr7B1BXJEpwMzzDLd1H6HLnKTiaLPtt6ZfEizDMwdQ8PT8JCmKbB4ESVXTkCzv51oxhJhX5FLBvkeN9nJ3/0/*,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*))#rs0udsfg";
+        assert!(Policy::from_descriptor("", "", descriptor, NETWORK).is_ok())
+    }
+
+    #[test]
+    fn test_wrong_descriptor() {
+        let descriptor = "tr(939742dc67dd3c5b5c9201df54ee8a92b053b2613770c8c26f2156cfd9514a0b,multi_a(2,[7c997e72/86'/0'/784923']xpub6DGQCZUmD4kdGDj8ttgba5Jc6pUSkFWaMwB1jedmzer1BtKDdef18k3cWwC9k7HfJGci7Q9S5KTRD9bBn4JZm3xPcDvidkSXvZ6pg4now57/0/,[87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/,[e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/))#kdvl4ku3";
+        assert!(Policy::from_descriptor("", "", descriptor, NETWORK).is_err())
+    }
+}

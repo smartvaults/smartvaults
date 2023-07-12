@@ -56,7 +56,7 @@ mod test {
             seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
 
         let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b])?;
-        let policy: Policy = Policy::from_policy("Name", "Description", &policy)?;
+        let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
         let (wallet, ..) = get_funded_wallet(&descriptor);
@@ -94,7 +94,7 @@ mod test {
             seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
 
         let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b])?;
-        let policy: Policy = Policy::from_policy("Name", "Description", &policy)?;
+        let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
         let (wallet, ..) = get_funded_wallet(&descriptor);
@@ -126,7 +126,7 @@ mod test {
             seed_b.to_descriptor(Purpose::TR, Some(COINSTR_ACCOUNT_INDEX), false, NETWORK)?;
 
         let policy: String = policy::builder::n_of_m_ext_multisig(1, vec![desc_a, desc_b])?;
-        let policy: Policy = Policy::from_policy("Name", "Description", &policy)?;
+        let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
         let (wallet, ..) = get_funded_wallet(&descriptor);
