@@ -9,6 +9,7 @@ buildargs=(
     "-p coinstr-sdk --features hwi"
     "-p coinstr-cli"
     "-p coinstr"
+    "-p coinstr --features hwi"
     "-p coinstr-sdk-ffi"
 )
 

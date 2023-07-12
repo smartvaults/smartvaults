@@ -149,6 +149,7 @@ impl State for ProposalState {
                                         client.approve(proposal_id).await?;
                                     }
                                     SignerType::Hardware => {
+                                        #[cfg(feature = "hwi")]
                                         client.approve_with_hwi_signer(proposal_id, signer).await?;
                                     }
                                     SignerType::AirGap => {

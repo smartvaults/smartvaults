@@ -66,19 +66,13 @@ impl State for AddSignerState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let content = Column::new()
+        #[allow(unused_mut)]
+        let mut content = Column::new()
             .push(
                 Button::new()
                     .text("Coinstr Signer")
                     .on_press(AddSignerMessage::AddCoinstrSigner.into())
                     .loading(!self.loaded || self.coinstr_signer_exists)
-                    .width(Length::Fill)
-                    .view(),
-            )
-            .push(
-                Button::new()
-                    .text("Connect Signing Device")
-                    .on_press(Message::View(Stage::AddHWSigner))
                     .width(Length::Fill)
                     .view(),
             )
@@ -93,6 +87,17 @@ impl State for AddSignerState {
             .spacing(10)
             .padding(20)
             .max_width(400);
+
+        #[cfg(feature = "hwi")]
+        {
+            content = content.push(
+                Button::new()
+                    .text("Connect Signing Device")
+                    .on_press(Message::View(Stage::AddHWSigner))
+                    .width(Length::Fill)
+                    .view(),
+            );
+        }
 
         Dashboard::new()
             .loaded(self.loaded)

@@ -35,6 +35,7 @@ pub enum Stage {
     RevokeAllSigners,
     Signer(EventId, Signer),
     AddSigner,
+    #[cfg(feature = "hwi")]
     AddHWSigner,
     AddAirGapSigner,
     ShareSigner(EventId),
@@ -72,6 +73,7 @@ impl fmt::Display for Stage {
             Self::RevokeAllSigners => write!(f, "Revoke all"),
             Self::Signer(id, ..) => write!(f, "Signer #{}", util::cut_event_id(*id)),
             Self::AddSigner => write!(f, "Add signer"),
+            #[cfg(feature = "hwi")]
             Self::AddHWSigner => write!(f, "Add HW signer"),
             Self::AddAirGapSigner => write!(f, "Add AirGap signer"),
             Self::ShareSigner(id) => write!(f, "Share signer #{}", util::cut_event_id(*id)),

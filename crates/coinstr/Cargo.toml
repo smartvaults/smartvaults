@@ -9,10 +9,14 @@ license.workspace = true
 readme = "../README.md"
 keywords.workspace = true
 
+[features]
+default = []
+hwi = ["coinstr-sdk/hwi"]
+
 [dependencies]
 async-stream = "0.3"
 coinstr-common = { path = "../coinstr-common" }
-coinstr-sdk = { path = "../coinstr-sdk", features = ["hwi"] }
+coinstr-sdk = { path = "../coinstr-sdk" }
 iced = { version = "0.9", default-features = false, features = ["image", "glow", "qr_code", "svg", "tokio"] }
 iced_aw = { version = "0.5", default-features = false, features = ["card", "modal"] }
 iced_futures = "0.6"

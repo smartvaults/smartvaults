@@ -14,14 +14,15 @@ use crate::theme::Theme;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
+#[cfg(feature = "hwi")]
+use self::screen::AddHWSignerState;
 use self::screen::{
-    AddAirGapSignerState, AddContactState, AddHWSignerState, AddNostrConnectSessionState,
-    AddPolicyState, AddSignerState, CompletedProposalState, ConnectState, ContactsState,
-    DashboardState, EditProfileState, HistoryState, NewProofState, NotificationsState,
-    PoliciesState, PolicyBuilderState, PolicyState, ProfileState, ProposalState, ProposalsState,
-    ReceiveState, RelaysState, RestorePolicyState, RevokeAllSignersState, SelfTransferState,
-    SettingsState, ShareSignerState, SignerState, SignersState, SpendState, TransactionState,
-    TransactionsState,
+    AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
+    AddSignerState, CompletedProposalState, ConnectState, ContactsState, DashboardState,
+    EditProfileState, HistoryState, NewProofState, NotificationsState, PoliciesState,
+    PolicyBuilderState, PolicyState, ProfileState, ProposalState, ProposalsState, ReceiveState,
+    RelaysState, RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState,
+    ShareSignerState, SignerState, SignersState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -70,6 +71,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),
         Stage::Signer(signer_id, signer) => SignerState::new(*signer_id, signer.clone()).into(),
         Stage::AddSigner => AddSignerState::new().into(),
+        #[cfg(feature = "hwi")]
         Stage::AddHWSigner => AddHWSignerState::new().into(),
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),

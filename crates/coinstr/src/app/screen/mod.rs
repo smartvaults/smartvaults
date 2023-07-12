@@ -3,6 +3,7 @@
 
 mod add_airgap_signer;
 mod add_contact;
+#[cfg(feature = "hwi")]
 mod add_hw_signer;
 mod add_policy;
 mod add_signer;
@@ -34,6 +35,7 @@ mod transactions;
 
 pub use self::add_airgap_signer::{AddAirGapSignerMessage, AddAirGapSignerState};
 pub use self::add_contact::{AddContactMessage, AddContactState};
+#[cfg(feature = "hwi")]
 pub use self::add_hw_signer::{AddHWSignerMessage, AddHWSignerState};
 pub use self::add_policy::{AddPolicyMessage, AddPolicyState};
 pub use self::add_signer::{AddSignerMessage, AddSignerState};

@@ -1,12 +1,14 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+#[cfg(feature = "hwi")]
+use super::screen::AddHWSignerMessage;
 use super::screen::{
-    AddAirGapSignerMessage, AddContactMessage, AddHWSignerMessage, AddNostrConnectSessionMessage,
-    AddPolicyMessage, AddSignerMessage, CompletedProposalMessage, ConnectMessage, ContactsMessage,
-    DashboardMessage, EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage,
-    PoliciesMessage, PolicyBuilderMessage, PolicyMessage, ProfileMessage, ProposalMessage,
-    ProposalsMessage, ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
+    AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage, AddPolicyMessage,
+    AddSignerMessage, CompletedProposalMessage, ConnectMessage, ContactsMessage, DashboardMessage,
+    EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage,
+    PolicyBuilderMessage, PolicyMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
+    ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
     SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
     SpendMessage, TransactionMessage, TransactionsMessage,
 };
@@ -35,6 +37,7 @@ pub enum Message {
     RevokeAllSigners(RevokeAllSignersMessage),
     Signer(SignerMessage),
     AddSigner(AddSignerMessage),
+    #[cfg(feature = "hwi")]
     AddHWSigner(AddHWSignerMessage),
     AddAirGapSigner(AddAirGapSignerMessage),
     ShareSigner(ShareSignerMessage),
