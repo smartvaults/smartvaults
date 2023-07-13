@@ -448,7 +448,17 @@ impl Coinstr {
         let url = Url::parse(&url.into())?;
         self.db.insert_relay(&url, proxy)?;
         self.db.enable_relay(&url)?;
-        Ok(self.client.add_relay(url, proxy).await?)
+        self.client.add_relay(url.as_str(), proxy).await?;
+
+        let relay = self.client.relay(&url).await?;
+        let last_sync: Timestamp = match self.db.get_last_relay_sync(&url) {
+            Ok(ts) => ts,
+            Err(_) => Timestamp::from(0),
+        };
+        let filters = self.sync_filters(last_sync);
+        relay.subscribe(filters, None).await?;
+
+        Ok(())
     }
 
     /// Add multiple relays
