@@ -138,11 +138,8 @@ impl Coinstr {
         self.inner.default_relays()
     }
 
-    /// Add relays
-    /// Connect
-    /// Rebroadcast stored events
-    pub fn add_relays_and_connect(&self, relays: Vec<String>) -> Result<()> {
-        block_on(async move { Ok(self.inner.add_relays_and_connect(relays).await?) })
+    pub fn restore_relays(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.restore_relays().await?) })
     }
 
     pub fn remove_relay(&self, url: String) -> Result<()> {

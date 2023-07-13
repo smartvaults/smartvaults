@@ -130,13 +130,13 @@ impl Context {
             Network::Signet => "tcp://signet-electrumx.wakiyamap.dev:50001",
             Network::Regtest => "tcp://localhost:60401",
         };
-        let relays = coinstr.default_relays();
         coinstr.set_electrum_endpoint(endpoint);
         RUNTIME.block_on(async {
             coinstr
-                .add_relays_and_connect(relays)
+                .restore_relays()
                 .await
-                .expect("Impossible to build client");
+                .expect("Impossible to restore relays");
+            coinstr.connect().await;
         });
 
         Self {

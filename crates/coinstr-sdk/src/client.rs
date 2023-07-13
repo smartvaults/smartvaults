@@ -69,6 +69,8 @@ pub enum Error {
     #[error(transparent)]
     Electrum(#[from] bdk::electrum_client::Error),
     #[error(transparent)]
+    Url(#[from] nostr_sdk::url::ParseError),
+    #[error(transparent)]
     Client(#[from] nostr_sdk::client::Error),
     #[error(transparent)]
     Keys(#[from] nostr_sdk::key::Error),
@@ -443,7 +445,21 @@ impl Coinstr {
     where
         S: Into<String>,
     {
+        let url = Url::parse(&url.into())?;
+        self.db.insert_relay(&url, proxy)?;
+        self.db.enable_relay(&url)?;
         Ok(self.client.add_relay(url, proxy).await?)
+    }
+
+    /// Add multiple relays
+    pub async fn add_relays<S>(&self, relays: Vec<(S, Option<SocketAddr>)>) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        for (url, proxy) in relays.into_iter() {
+            self.add_relay(url, proxy).await?;
+        }
+        Ok(())
     }
 
     pub async fn connect(&self) {
@@ -479,18 +495,30 @@ impl Coinstr {
         Ok(())
     }
 
-    /// Add relays
-    /// Connect
-    /// Rebroadcast stored events
-    pub async fn add_relays_and_connect<S>(&self, relays: Vec<S>) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
-        let relays = relays.into_iter().map(|r| (r, None)).collect();
-        self.client.add_relays(relays).await?;
+    /// Restore relays
+    pub async fn restore_relays(&self) -> Result<(), Error> {
+        let relays = self.db.get_relays(true)?;
+        for (url, proxy) in relays.into_iter() {
+            self.client.add_relay(url, proxy).await?;
+        }
+
+        if self.client.relays().await.is_empty() {
+            let relays: Vec<(String, Option<SocketAddr>)> = self
+                .default_relays()
+                .into_iter()
+                .map(|r| (r, None))
+                .collect();
+            self.add_relays(relays).await?;
+        }
+
+        // Restore Nostr Connect Session relays
         self.load_nostr_connect_relays().await?;
-        self.client.connect().await;
-        self.rebroadcast_all_events().await?;
+
+        // TODO: rebroadcast only once per day
+        /* if let Err(e) = self.rebroadcast_all_events().await {
+            log::error!("Impossible to rebroadcast stored events: {e}");
+        } */
+
         Ok(())
     }
 
@@ -498,7 +526,29 @@ impl Coinstr {
     where
         S: Into<String>,
     {
+        let url = Url::parse(&url.into())?;
+        self.db.delete_relay(&url)?;
         Ok(self.client.remove_relay(url).await?)
+    }
+
+    pub async fn connect_relay<S>(&self, url: S) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        let url = Url::parse(&url.into())?;
+        self.db.enable_relay(&url)?;
+        self.client.connect_relay(url).await?;
+        Ok(())
+    }
+
+    pub async fn disconnect_relay<S>(&self, url: S) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        let url = Url::parse(&url.into())?;
+        self.db.disable_relay(&url)?;
+        self.client.disconnect_relay(url).await?;
+        Ok(())
     }
 
     pub async fn relays(&self) -> BTreeMap<Url, Relay> {
