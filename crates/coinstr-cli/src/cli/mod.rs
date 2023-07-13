@@ -3,6 +3,7 @@
 
 #![allow(clippy::large_enum_variant)]
 
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -10,7 +11,7 @@ use coinstr_sdk::core::bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_sdk::core::bips::bip32::Fingerprint;
 use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_sdk::nostr::prelude::NostrConnectURI;
-use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::nostr::{EventId, Url};
 
 pub mod batch;
 pub mod io;
@@ -267,6 +268,14 @@ pub enum ConnectCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum AddCommand {
+    /// Add relay
+    Relay {
+        /// Url
+        #[arg(required = true)]
+        url: Url,
+        /// Proxy
+        proxy: Option<SocketAddr>,
+    },
     /// Add contact
     Contact {
         /// Public key
@@ -377,6 +386,12 @@ pub enum ShareCommand {
 
 #[derive(Debug, Subcommand)]
 pub enum DeleteCommand {
+    /// Remove relay
+    Relay {
+        /// Url
+        #[arg(required = true)]
+        url: Url,
+    },
     /// Delete policy by id
     Policy {
         /// Policy id

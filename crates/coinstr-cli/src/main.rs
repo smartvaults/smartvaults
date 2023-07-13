@@ -107,8 +107,8 @@ async fn run() -> Result<()> {
         }
         CliCommand::Open { name } => {
             let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
-            let relays = coinstr.default_relays();
-            coinstr.add_relays_and_connect(relays).await?;
+            coinstr.restore_relays().await?;
+            coinstr.connect().await;
             coinstr.set_electrum_endpoint(endpoint);
             coinstr.sync();
 
@@ -151,8 +151,8 @@ async fn run() -> Result<()> {
         }
         CliCommand::Batch { name, path } => {
             let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
-            let relays = coinstr.default_relays();
-            coinstr.add_relays_and_connect(relays).await?;
+            coinstr.restore_relays().await?;
+            coinstr.connect().await;
             coinstr.set_electrum_endpoint(endpoint);
             coinstr.sync();
 
@@ -348,6 +348,11 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
         },
         Command::Add { command } => match command {
+            AddCommand::Relay { url, proxy } => {
+                coinstr.add_relay(url, proxy).await?;
+                coinstr.connect().await;
+                Ok(())
+            }
             AddCommand::Contact { public_key } => {
                 coinstr.add_contact(public_key).await?;
                 Ok(())
@@ -482,6 +487,10 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
         },
         Command::Delete { command } => match command {
+            DeleteCommand::Relay { url } => {
+                coinstr.remove_relay(url).await?;
+                Ok(())
+            }
             DeleteCommand::Policy { policy_id } => {
                 Ok(coinstr.delete_policy_by_id(policy_id).await?)
             }
