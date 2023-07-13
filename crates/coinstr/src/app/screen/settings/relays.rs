@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use coinstr_sdk::nostr::relay::RelayConnectionStats;
@@ -9,14 +10,15 @@ use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
 use crate::app::component::Dashboard;
-use crate::app::{Context, Message, State};
+use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Circle, Text};
 use crate::theme::color::{BLACK, GREEN, GREY, RED, YELLOW};
-use crate::theme::icon::RELOAD;
+use crate::theme::icon::{PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
 pub struct Relay {
     url: Url,
+    proxy: Option<SocketAddr>,
     status: RelayStatus,
     stats: RelayConnectionStats,
 }
@@ -25,6 +27,8 @@ pub struct Relay {
 pub enum RelaysMessage {
     LoadRelays(Vec<Relay>),
     RefreshRelays,
+    RemoveRelay(Url),
+    ErrorChanged(Option<String>),
 }
 
 #[derive(Debug, Default)]
@@ -32,6 +36,7 @@ pub struct RelaysState {
     loading: bool,
     loaded: bool,
     relays: Vec<Relay>,
+    error: Option<String>,
 }
 
 impl RelaysState {
@@ -60,6 +65,7 @@ impl State for RelaysState {
                 for (url, relay) in client.relays().await.into_iter() {
                     relays.push(Relay {
                         url,
+                        proxy: relay.proxy(),
                         status: relay.status().await,
                         stats: relay.stats(),
                     });
@@ -82,6 +88,21 @@ impl State for RelaysState {
                     self.loading = false;
                     self.loaded = true;
                 }
+                RelaysMessage::RemoveRelay(url) => {
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.remove_relay(url).await },
+                        |res| match res {
+                            Ok(_) => RelaysMessage::RefreshRelays.into(),
+                            Err(e) => RelaysMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
+                }
+                RelaysMessage::ErrorChanged(e) => {
+                    self.error = e;
+                    self.loading = false;
+                }
                 RelaysMessage::RefreshRelays => return self.load(ctx),
             }
         }
@@ -98,24 +119,31 @@ impl State for RelaysState {
                     Row::new()
                         .push(Text::new("Url").bold().bigger().width(Length::Fill).view())
                         .push(
-                            Text::new("Status")
+                            Text::new("Proxy")
                                 .bold()
                                 .bigger()
                                 .width(Length::Fill)
+                                .view(),
+                        )
+                        .push(
+                            Text::new("Status")
+                                .bold()
+                                .bigger()
+                                .width(Length::Fixed(100.0))
                                 .view(),
                         )
                         .push(
                             Text::new("Attemps")
                                 .bold()
                                 .bigger()
-                                .width(Length::Fill)
+                                .width(Length::Fixed(100.0))
                                 .view(),
                         )
                         .push(
                             Text::new("Success")
                                 .bold()
                                 .bigger()
-                                .width(Length::Fill)
+                                .width(Length::Fixed(100.0))
                                 .view(),
                         )
                         .push(
@@ -123,6 +151,15 @@ impl State for RelaysState {
                                 .bold()
                                 .bigger()
                                 .width(Length::Fill)
+                                .view(),
+                        )
+                        .push(
+                            Button::new()
+                                .icon(PLUS)
+                                .style(ButtonStyle::Bordered)
+                                .on_press(Message::View(Stage::AddRelay))
+                                .loading(self.loading)
+                                .width(Length::Fixed(40.0))
                                 .view(),
                         )
                         .push(
@@ -141,7 +178,10 @@ impl State for RelaysState {
                 .push(rule::horizontal_bold());
 
             for Relay {
-                url, status, stats, ..
+                url,
+                proxy,
+                status,
+                stats,
             } in self.relays.iter()
             {
                 let status = match status {
@@ -155,15 +195,24 @@ impl State for RelaysState {
 
                 let row = Row::new()
                     .push(Text::new(url.to_string()).width(Length::Fill).view())
-                    .push(Row::new().push(status).width(Length::Fill))
+                    .push(
+                        Text::new(
+                            proxy
+                                .map(|p| p.to_string())
+                                .unwrap_or_else(|| String::from("-")),
+                        )
+                        .width(Length::Fill)
+                        .view(),
+                    )
+                    .push(Row::new().push(status).width(Length::Fixed(100.0)))
                     .push(
                         Text::new(stats.attempts().to_string())
-                            .width(Length::Fill)
+                            .width(Length::Fixed(100.0))
                             .view(),
                     )
                     .push(
                         Text::new(stats.success().to_string())
-                            .width(Length::Fill)
+                            .width(Length::Fixed(100.0))
                             .view(),
                     )
                     .push(
@@ -172,6 +221,15 @@ impl State for RelaysState {
                             .view(),
                     )
                     .push(Space::with_width(Length::Fixed(40.0)))
+                    .push(
+                        Button::new()
+                            .icon(TRASH)
+                            .on_press(RelaysMessage::RemoveRelay(url.clone()).into())
+                            .loading(self.loading)
+                            .style(ButtonStyle::BorderedDanger)
+                            .width(Length::Fixed(40.0))
+                            .view(),
+                    )
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .width(Length::Fill);
