@@ -34,6 +34,8 @@ use rusqlite::config::DbConfig;
 use rusqlite::OpenFlags;
 use tokio::sync::broadcast::Sender;
 
+mod relays;
+
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
@@ -907,24 +909,6 @@ impl Store {
         };
 
         Ok(())
-    }
-
-    pub fn save_last_relay_sync(&self, relay_url: &Url, timestamp: Timestamp) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let last_sync: u64 = timestamp.as_u64();
-        let mut stmt = conn.prepare_cached("INSERT INTO relays (url, last_sync) VALUES (?, ?) ON CONFLICT(url) DO UPDATE SET last_sync = ?;")?;
-        stmt.execute((relay_url.to_string(), last_sync, last_sync))?;
-        Ok(())
-    }
-
-    pub fn get_last_relay_sync(&self, relay_url: &Url) -> Result<Timestamp, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("SELECT last_sync FROM relays WHERE url = ?")?;
-        let mut rows = stmt.query([relay_url.to_string()])?;
-        let row = rows.next()?.ok_or(Error::NotFound("relay".into()))?;
-        let last_sync: Option<u64> = row.get(0)?;
-        let last_sync: u64 = last_sync.unwrap_or_default();
-        Ok(Timestamp::from(last_sync))
     }
 
     pub fn save_event(&self, event: &Event) -> Result<(), Error> {
