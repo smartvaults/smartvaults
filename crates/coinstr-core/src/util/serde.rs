@@ -4,6 +4,7 @@
 use std::str::FromStr;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
+pub use keechain_core::util::serde::*;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use serde_json::Error;
