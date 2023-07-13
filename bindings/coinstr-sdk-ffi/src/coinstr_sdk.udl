@@ -264,6 +264,8 @@ interface Coinstr {
     [Throws=FFIError]
     sequence<TransactionDetails> get_all_txs();
     [Throws=FFIError]
+    TransactionDetails? get_tx(string txid);
+    [Throws=FFIError]
     string? get_last_unused_address(string policy_id);
 
     [Throws=FFIError]

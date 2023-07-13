@@ -90,6 +90,12 @@ impl From<coinstr_sdk::core::bitcoin::util::address::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::core::bitcoin::hashes::hex::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bitcoin::hashes::hex::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::core::util::dir::Error> for FFIError {
     fn from(e: coinstr_sdk::core::util::dir::Error) -> Self {
         Self::Generic { err: e.to_string() }

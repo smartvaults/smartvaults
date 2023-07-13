@@ -9,12 +9,10 @@ use coinstr_sdk::client;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
-use coinstr_sdk::core::bitcoin::Address;
-use coinstr_sdk::core::bitcoin::Network;
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
+use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::WordCount;
 use coinstr_sdk::db::model::GetApprovedProposalResult;
-use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
@@ -512,7 +510,10 @@ impl Coinstr {
             .collect())
     }
 
-    // TODO: add get_tx
+    pub fn get_tx(&self, txid: String) -> Result<Option<Arc<TransactionDetails>>> {
+        let txid = Txid::from_str(&txid)?;
+        Ok(self.inner.get_tx(txid).map(|(tx, ..)| Arc::new(tx.into())))
+    }
 
     pub fn get_last_unused_address(&self, policy_id: String) -> Result<Option<String>> {
         let policy_id = EventId::from_hex(policy_id)?;
