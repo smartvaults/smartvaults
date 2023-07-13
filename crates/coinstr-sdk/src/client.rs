@@ -38,9 +38,9 @@ use nostr_sdk::{
     Metadata, Options, Relay, RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp,
     Url,
 };
-use parking_lot::RwLock;
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
+use crate::config::Config;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
@@ -101,6 +101,8 @@ pub enum Error {
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
+    Config(#[from] crate::config::Error),
+    #[error(transparent)]
     Store(#[from] crate::db::Error),
     #[error("password not match")]
     PasswordNotMatch,
@@ -116,8 +118,6 @@ pub enum Error {
     UnexpectedProposal,
     #[error("approved proposal/s not found")]
     ApprovedProposalNotFound,
-    #[error("electrum endpoint not set")]
-    ElectrumEndpointNotSet,
     #[error("signer not found")]
     SignerNotFound,
     #[error("signer ID not found")]
@@ -165,7 +165,7 @@ pub struct Coinstr {
     network: Network,
     keechain: KeeChain,
     client: Client,
-    endpoint: Arc<RwLock<Option<String>>>,
+    config: Config,
     pub db: Store,
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Option<Message>>,
@@ -221,7 +221,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            endpoint: Arc::new(RwLock::new(None)),
+            config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
@@ -286,7 +286,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            endpoint: Arc::new(RwLock::new(None)),
+            config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
@@ -351,7 +351,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            endpoint: Arc::new(RwLock::new(None)),
+            config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
@@ -595,17 +595,20 @@ impl Coinstr {
         Ok(event_id)
     } */
 
-    pub fn set_electrum_endpoint<S>(&self, endpoint: S)
+    /// Get config
+    pub fn config(&self) -> Config {
+        self.config.clone()
+    }
+
+    pub fn set_electrum_endpoint<S>(&self, endpoint: S) -> Result<(), Error>
     where
         S: Into<String>,
     {
-        let mut e = self.endpoint.write();
-        *e = Some(endpoint.into());
+        Ok(self.config.set_electrum_endpoint(endpoint)?)
     }
 
     pub fn electrum_endpoint(&self) -> Result<String, Error> {
-        let endpoint = self.endpoint.read();
-        endpoint.clone().ok_or(Error::ElectrumEndpointNotSet)
+        Ok(self.config.electrum_endpoint()?)
     }
 
     pub fn block_height(&self) -> u32 {
@@ -1203,7 +1206,7 @@ impl Coinstr {
 
         // Broadcast
         if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
-            let endpoint = self.electrum_endpoint()?;
+            let endpoint = self.config.electrum_endpoint()?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             blockchain.broadcast(tx)?;
             self.db.schedule_for_sync(policy_id)?;
@@ -1292,7 +1295,7 @@ impl Coinstr {
             ..
         } = proposal
         {
-            let endpoint = self.electrum_endpoint()?;
+            let endpoint = self.config.electrum_endpoint()?;
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             let wallet = self.memory_wallet(descriptor.to_string())?;
             wallet.sync(&blockchain, SyncOptions::default())?;
@@ -1370,7 +1373,7 @@ impl Coinstr {
         thread::abortable(async move {
             let blockchain: ElectrumBlockchain;
             loop {
-                match this.electrum_endpoint() {
+                match this.config.electrum_endpoint() {
                     Ok(endpoint) => match ElectrumClient::new(&endpoint) {
                         Ok(client) => {
                             blockchain = ElectrumBlockchain::from(client);

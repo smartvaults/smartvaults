@@ -34,6 +34,13 @@ where
     Ok(path)
 }
 
+pub(crate) fn config_file_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
+where
+    P: AsRef<Path>,
+{
+    Ok(network_path(base_path, network)?.join("config.json"))
+}
+
 pub(crate) fn logs_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,

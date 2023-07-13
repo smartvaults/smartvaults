@@ -181,6 +181,7 @@ interface Coinstr {
     void remove_relay(string url);
     [Throws=FFIError]
     void shutdown();
+    [Throws=FFIError]
     void set_electrum_endpoint(string endpoint);
     [Throws=FFIError]
     string electrum_endpoint();

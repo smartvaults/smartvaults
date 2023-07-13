@@ -163,8 +163,8 @@ impl Coinstr {
     }
 
     /// Set the electrum endpoint
-    pub fn set_electrum_endpoint(&self, endpoint: String) {
-        self.inner.set_electrum_endpoint(endpoint)
+    pub fn set_electrum_endpoint(&self, endpoint: String) -> Result<()> {
+        Ok(self.inner.set_electrum_endpoint(endpoint)?)
     }
 
     /// Get the electrum endpoint

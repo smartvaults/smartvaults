@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use coinstr_sdk::core::bitcoin::{Network, Txid};
+use coinstr_sdk::core::bitcoin::Txid;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::CompletedProposal;
 use coinstr_sdk::core::signer::Signer;
@@ -125,14 +125,6 @@ pub struct Context {
 
 impl Context {
     pub fn new(stage: Stage, coinstr: Coinstr, theme: Theme) -> Self {
-        // TODO: let choose the relay, network and electrum endpoint
-        let endpoint: &str = match coinstr.network() {
-            Network::Bitcoin => "ssl://blockstream.info:700",
-            Network::Testnet => "ssl://blockstream.info:993",
-            Network::Signet => "tcp://signet-electrumx.wakiyamap.dev:50001",
-            Network::Regtest => "tcp://localhost:60401",
-        };
-        coinstr.set_electrum_endpoint(endpoint);
         RUNTIME.block_on(async {
             coinstr
                 .restore_relays()

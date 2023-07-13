@@ -42,12 +42,6 @@ async fn run() -> Result<()> {
     let network: Network = args.network.into();
     let base_path: PathBuf = coinstr_common::base_path()?;
 
-    let endpoint: &str = match network {
-        Network::Bitcoin => "ssl://blockstream.info:700",
-        Network::Testnet => "ssl://blockstream.info:993",
-        _ => panic!("Endpoints not availabe for this network"),
-    };
-
     logger::init(base_path.clone(), network)?;
 
     match args.command {
@@ -109,7 +103,6 @@ async fn run() -> Result<()> {
             let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
             coinstr.restore_relays().await?;
             coinstr.connect().await;
-            coinstr.set_electrum_endpoint(endpoint);
             coinstr.sync();
 
             let rl = &mut DefaultEditor::new()?;
@@ -153,7 +146,6 @@ async fn run() -> Result<()> {
             let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
             coinstr.restore_relays().await?;
             coinstr.connect().await;
-            coinstr.set_electrum_endpoint(endpoint);
             coinstr.sync();
 
             let file = File::open(path)?;
