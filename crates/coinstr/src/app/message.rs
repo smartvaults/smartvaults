@@ -5,10 +5,10 @@
 use super::screen::AddHWSignerMessage;
 use super::screen::{
     AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage, AddPolicyMessage,
-    AddSignerMessage, CompletedProposalMessage, ConnectMessage, ContactsMessage, DashboardMessage,
-    EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage,
-    PolicyBuilderMessage, PolicyMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
-    ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
+    AddRelayMessage, AddSignerMessage, CompletedProposalMessage, ConnectMessage, ContactsMessage,
+    DashboardMessage, EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage,
+    PoliciesMessage, PolicyBuilderMessage, PolicyMessage, ProfileMessage, ProposalMessage,
+    ProposalsMessage, ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
     SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
     SpendMessage, TransactionMessage, TransactionsMessage,
 };
@@ -48,6 +48,7 @@ pub enum Message {
     EditProfile(EditProfileMessage),
     Settings(SettingsMessage),
     Relays(RelaysMessage),
+    AddRelay(AddRelayMessage),
     Connect(ConnectMessage),
     AddNostrConnectSession(AddNostrConnectSessionMessage),
     Clipboard(String),

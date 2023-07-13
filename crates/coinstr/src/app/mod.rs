@@ -18,11 +18,12 @@ pub use self::message::Message;
 use self::screen::AddHWSignerState;
 use self::screen::{
     AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
-    AddSignerState, CompletedProposalState, ConnectState, ContactsState, DashboardState,
-    EditProfileState, HistoryState, NewProofState, NotificationsState, PoliciesState,
-    PolicyBuilderState, PolicyState, ProfileState, ProposalState, ProposalsState, ReceiveState,
-    RelaysState, RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState,
-    ShareSignerState, SignerState, SignersState, SpendState, TransactionState, TransactionsState,
+    AddRelayState, AddSignerState, CompletedProposalState, ConnectState, ContactsState,
+    DashboardState, EditProfileState, HistoryState, NewProofState, NotificationsState,
+    PoliciesState, PolicyBuilderState, PolicyState, ProfileState, ProposalState, ProposalsState,
+    ReceiveState, RelaysState, RestorePolicyState, RevokeAllSignersState, SelfTransferState,
+    SettingsState, ShareSignerState, SignerState, SignersState, SpendState, TransactionState,
+    TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -82,6 +83,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::EditProfile => EditProfileState::new().into(),
         Stage::Settings => SettingsState::new().into(),
         Stage::Relays => RelaysState::new().into(),
+        Stage::AddRelay => AddRelayState::new().into(),
         Stage::NostrConnect => ConnectState::new().into(),
         Stage::AddNostrConnectSession => AddNostrConnectSessionState::new().into(),
     }

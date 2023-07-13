@@ -9,6 +9,7 @@ use crate::app::{Context, Message, Stage, State};
 use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::Theme;
 
+pub mod add_relay;
 pub mod relays;
 
 #[derive(Debug, Clone)]
