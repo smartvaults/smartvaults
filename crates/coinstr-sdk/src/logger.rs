@@ -59,7 +59,8 @@ where
             ))
         })
         // Default filter
-        .level(LevelFilter::Debug);
+        .level(LevelFilter::Debug)
+        .level_for("bdk::blockchain::script_sync", LevelFilter::Info);
 
     if !cfg!(debug_assertions) {
         dispatcher = dispatcher
