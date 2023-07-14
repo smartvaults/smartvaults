@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bips::bip32::Bip32;
+use coinstr_sdk::core::bitcoin::Network;
 use iced::widget::{svg, Column, Container, Row, Rule, Space};
 use iced::Length;
 
@@ -10,7 +11,7 @@ mod button;
 use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
-use crate::constants::APP_LOGO;
+use crate::constants::{APP_LOGO_MAINNET, APP_LOGO_REGTEST, APP_LOGO_SIGNET, APP_LOGO_TESTNET};
 use crate::theme::color::DARK_RED;
 use crate::theme::icon::{
     CONTACTS, FINGERPRINT, HISTORY, HOME, KEY, LINK, LOCK, SEND_PENDING, SETTING, WALLET,
@@ -28,7 +29,12 @@ impl Sidebar {
 
     pub fn view<'a>(&self, ctx: &Context) -> Container<'a, Message> {
         // Logo
-        let handle = svg::Handle::from_memory(APP_LOGO);
+        let handle = svg::Handle::from_memory(match ctx.client.network() {
+            Network::Bitcoin => APP_LOGO_MAINNET,
+            Network::Testnet => APP_LOGO_TESTNET,
+            Network::Signet => APP_LOGO_SIGNET,
+            Network::Regtest => APP_LOGO_REGTEST,
+        });
         let logo = svg(handle)
             .width(Length::Fixed(80.0))
             .height(Length::Fixed(80.0));

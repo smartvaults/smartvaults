@@ -3,25 +3,15 @@
 
 #![allow(dead_code)]
 
-use std::fmt;
-
 use iced::theme::{Palette, Theme as NativeTheme};
 
 pub mod color;
 pub mod font;
 pub mod icon;
 
-use self::color::{BLACK, GREEN, NEUTRAL, ORANGE, RED, WHITE};
+use self::color::{BLACK, BLUE, GREEN, NEUTRAL, ORANGE, PURPLE, RED};
 
-const LIGHT: Palette = Palette {
-    background: WHITE,
-    text: BLACK,
-    primary: ORANGE,
-    success: GREEN,
-    danger: RED,
-};
-
-const DARK: Palette = Palette {
+const MAINNET: Palette = Palette {
     background: BLACK,
     text: NEUTRAL,
     primary: ORANGE,
@@ -29,18 +19,46 @@ const DARK: Palette = Palette {
     danger: RED,
 };
 
+const TESTNET: Palette = Palette {
+    background: BLACK,
+    text: NEUTRAL,
+    primary: GREEN,
+    success: GREEN,
+    danger: RED,
+};
+
+const SIGNET: Palette = Palette {
+    background: BLACK,
+    text: NEUTRAL,
+    primary: PURPLE,
+    success: GREEN,
+    danger: RED,
+};
+
+const REGTEST: Palette = Palette {
+    background: BLACK,
+    text: NEUTRAL,
+    primary: BLUE,
+    success: GREEN,
+    danger: RED,
+};
+
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Theme {
-    Light,
     #[default]
-    Dark,
+    Mainnet,
+    Testnet,
+    Signet,
+    Regtest,
 }
 
 impl Theme {
     pub fn palette(&self) -> Palette {
         match self {
-            Self::Light => LIGHT,
-            Self::Dark => DARK,
+            Self::Mainnet => MAINNET,
+            Self::Testnet => TESTNET,
+            Self::Signet => SIGNET,
+            Self::Regtest => REGTEST,
         }
     }
 }
@@ -48,14 +66,5 @@ impl Theme {
 impl From<Theme> for NativeTheme {
     fn from(theme: Theme) -> Self {
         Self::custom(theme.palette())
-    }
-}
-
-impl fmt::Display for Theme {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Light => write!(f, "Light"),
-            Self::Dark => write!(f, "Dark"),
-        }
     }
 }

@@ -15,3 +15,5 @@ pub const DARK_GREEN: Color = Color::from_rgba(0.0, 100.0 / 255.0, 0.0, 1.0);
 pub const RED: Color = Color::from_rgba(235.0 / 255.0, 87.0 / 255.0, 87.0 / 255.0, 1.0);
 pub const GREEN: Color = Color::from_rgba(39.0 / 255.0, 174.0 / 255.0, 96.0 / 255.0, 1.0);
 pub const YELLOW: Color = Color::from_rgba(1.0, 212.0 / 255.0, 0.0, 1.0);
+pub const PURPLE: Color = Color::from_rgba(187.0 / 255.0, 107.0 / 255.0, 217.0 / 255.0, 1.0);
+pub const BLUE: Color = Color::from_rgba(45.0 / 255.0, 156.0 / 255.0, 219.0 / 255.0, 1.0);

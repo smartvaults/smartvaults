@@ -10,7 +10,6 @@ use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::{util, Coinstr};
 
-use crate::theme::Theme;
 use crate::RUNTIME;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,12 +120,11 @@ impl Stage {
 pub struct Context {
     pub stage: Stage,
     pub client: Coinstr,
-    pub theme: Theme,
     pub breadcrumb: Vec<Stage>,
 }
 
 impl Context {
-    pub fn new(stage: Stage, coinstr: Coinstr, theme: Theme) -> Self {
+    pub fn new(stage: Stage, coinstr: Coinstr) -> Self {
         RUNTIME.block_on(async {
             coinstr
                 .restore_relays()
@@ -138,7 +136,6 @@ impl Context {
         Self {
             stage: stage.clone(),
             client: coinstr,
-            theme,
             breadcrumb: vec![stage],
         }
     }

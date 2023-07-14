@@ -48,8 +48,7 @@ pub struct Start {
 impl Start {
     pub fn new(network: Network) -> (Self, Command<Message>) {
         let stage = Stage::default();
-        // TODO: load theme from config
-        let ctx = Context::new(stage, network, Theme::default());
+        let ctx = Context::new(stage, network);
         let app = Self {
             state: new_state(&ctx),
             ctx,
@@ -62,7 +61,12 @@ impl Start {
     }
 
     pub fn theme(&self) -> Theme {
-        self.ctx.theme
+        match self.ctx.network {
+            Network::Bitcoin => Theme::Mainnet,
+            Network::Testnet => Theme::Testnet,
+            Network::Signet => Theme::Signet,
+            Network::Regtest => Theme::Regtest,
+        }
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -78,7 +82,7 @@ impl Start {
             }
             Message::Load => (self.state.load(&self.ctx), None),
             Message::OpenResult(coinstr) => {
-                let app = App::new(coinstr, self.ctx.theme);
+                let app = App::new(coinstr);
                 (
                     Command::none(),
                     Some(CoinstrApp {

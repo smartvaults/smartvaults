@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::Coinstr;
 use iced::{clipboard, Command, Element, Subscription};
 
@@ -96,9 +97,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(coinstr: Coinstr, theme: Theme) -> Self {
+    pub fn new(coinstr: Coinstr) -> Self {
         let stage = Stage::default();
-        let ctx = Context::new(stage, coinstr, theme);
+        let ctx = Context::new(stage, coinstr);
         let app = Self {
             state: new_state(&ctx),
             ctx,
@@ -114,7 +115,12 @@ impl App {
     }
 
     pub fn theme(&self) -> Theme {
-        self.ctx.theme
+        match self.ctx.client.network() {
+            Network::Bitcoin => Theme::Mainnet,
+            Network::Testnet => Theme::Testnet,
+            Network::Signet => Theme::Signet,
+            Network::Regtest => Theme::Regtest,
+        }
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

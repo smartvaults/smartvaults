@@ -1,13 +1,16 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::Coinstr;
 use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
 use iced::{Alignment, Command, Element, Length};
 
 use super::view;
 use crate::component::{Button, ButtonStyle, Text, TextInput};
-use crate::constants::{APP_DESCRIPTION, APP_LOGO};
+use crate::constants::{
+    APP_DESCRIPTION, APP_LOGO_MAINNET, APP_LOGO_REGTEST, APP_LOGO_SIGNET, APP_LOGO_TESTNET,
+};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
 use crate::BASE_PATH;
@@ -79,8 +82,13 @@ impl State for OpenState {
         Command::none()
     }
 
-    fn view(&self, _ctx: &Context) -> Element<Message> {
-        let handle = svg::Handle::from_memory(APP_LOGO);
+    fn view(&self, ctx: &Context) -> Element<Message> {
+        let handle = svg::Handle::from_memory(match ctx.network {
+            Network::Bitcoin => APP_LOGO_MAINNET,
+            Network::Testnet => APP_LOGO_TESTNET,
+            Network::Signet => APP_LOGO_SIGNET,
+            Network::Regtest => APP_LOGO_REGTEST,
+        });
         let svg = svg(handle)
             .width(Length::Fixed(100.0))
             .height(Length::Fixed(100.0));
