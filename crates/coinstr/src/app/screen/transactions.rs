@@ -93,7 +93,7 @@ impl State for TransactionsState {
             content = content
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(40.0)))
-                .push(TransactionsList::new(Some(self.transactions.clone())).view());
+                .push(TransactionsList::new(Some(self.transactions.clone())).view(ctx));
         }
 
         Dashboard::new()

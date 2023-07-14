@@ -129,7 +129,7 @@ impl State for DashboardState {
                 .push(
                     TransactionsList::new(self.transactions.clone())
                         .take(3)
-                        .view(),
+                        .view(ctx),
                 );
         }
 

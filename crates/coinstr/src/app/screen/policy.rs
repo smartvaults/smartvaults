@@ -350,7 +350,7 @@ impl State for PolicyState {
                     TransactionsList::new(self.transactions.clone())
                         .take(5)
                         .policy_id(self.policy_id)
-                        .view(),
+                        .view(ctx),
                 );
         }
 

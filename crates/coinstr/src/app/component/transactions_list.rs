@@ -8,10 +8,10 @@ use coinstr_sdk::util::format;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
-use crate::app::{Message, Stage};
+use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Button, ButtonStyle, Icon, Text};
 use crate::theme::color::{GREEN, RED, YELLOW};
-use crate::theme::icon::{CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
+use crate::theme::icon::{BROWSER, CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
 pub struct TransactionsList {
     list: Option<Transactions>,
@@ -63,7 +63,7 @@ impl TransactionsList {
         }
     }
 
-    pub fn view(self) -> Column<'static, Message> {
+    pub fn view(self, ctx: &Context) -> Column<'static, Message> {
         let mut transactions = Column::new()
             .push(
                 Row::new()
@@ -95,6 +95,7 @@ impl TransactionsList {
                             .width(Length::Fill)
                             .view(),
                     )
+                    .push(Space::with_width(40.0))
                     .push(Space::with_width(40.0))
                     .push(Space::with_width(40.0))
                     .spacing(10)
@@ -164,6 +165,21 @@ impl TransactionsList {
                                     .width(Length::Fixed(40.0))
                                     .view(),
                             )
+                            .push({
+                                let mut btn = Button::new()
+                                    .icon(BROWSER)
+                                    .style(ButtonStyle::Bordered)
+                                    .width(Length::Fixed(40.0));
+
+                                if let Ok(url) = ctx.client.config().block_explorer() {
+                                    btn = btn.on_press(Message::OpenInBrowser(format!(
+                                        "{url}/tx/{}",
+                                        tx.txid
+                                    )));
+                                }
+
+                                btn.view()
+                            })
                             .push(
                                 Button::new()
                                     .icon(FULLSCREEN)

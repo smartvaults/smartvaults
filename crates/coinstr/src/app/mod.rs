@@ -134,6 +134,12 @@ impl App {
             Message::Tick => self.state.update(&mut self.ctx, message),
             Message::Sync => self.state.load(&self.ctx),
             Message::Clipboard(data) => clipboard::write(data),
+            Message::OpenInBrowser(url) => {
+                if let Err(e) = webbrowser::open(&url) {
+                    log::error!("Impossible to open link on browser: {e}");
+                }
+                Command::none()
+            }
             _ => self.state.update(&mut self.ctx, message),
         }
     }

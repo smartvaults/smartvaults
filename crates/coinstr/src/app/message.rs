@@ -52,6 +52,7 @@ pub enum Message {
     Connect(ConnectMessage),
     AddNostrConnectSession(AddNostrConnectSessionMessage),
     Clipboard(String),
+    OpenInBrowser(String),
     Lock,
     Sync,
     Tick,
