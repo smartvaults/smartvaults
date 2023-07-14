@@ -26,6 +26,10 @@ pub enum Error {
     Json(#[from] nostr_sdk::serde_json::Error),
     #[error("electrum endpoint not set")]
     ElectrumEndpointNotSet,
+    #[error("proxy not set")]
+    ProxyNotSet,
+    #[error("block explorer not set")]
+    BlockExplorerNotSet,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -128,20 +132,41 @@ impl Config {
         Ok(())
     }
 
-    pub fn set_electrum_endpoint<S>(&self, endpoint: S) -> Result<(), Error>
+    pub fn set_electrum_endpoint<S>(&self, endpoint: Option<S>)
     where
         S: Into<String>,
     {
-        // Set endpoint
         let mut e = self.bitcoin.electrum_server.write();
-        *e = Some(endpoint.into());
-
-        // Save config file
-        self.save()
+        *e = endpoint.map(|e| e.into());
     }
 
     pub fn electrum_endpoint(&self) -> Result<String, Error> {
         let endpoint = self.bitcoin.electrum_server.read();
         endpoint.clone().ok_or(Error::ElectrumEndpointNotSet)
+    }
+
+    pub fn set_proxy(&self, proxy: Option<SocketAddr>) {
+        let mut e = self.bitcoin.proxy.write();
+        *e = proxy;
+    }
+
+    pub fn proxy(&self) -> Result<SocketAddr, Error> {
+        let proxy = self.bitcoin.proxy.read();
+        (*proxy).ok_or(Error::ProxyNotSet)
+    }
+
+    pub fn set_block_explorer(&self, url: Option<Url>) {
+        let mut e = self.bitcoin.block_explorer.write();
+        *e = url;
+    }
+
+    pub fn block_explorer(&self) -> Result<Url, Error> {
+        let block_explorer = self.bitcoin.block_explorer.read();
+        block_explorer.clone().ok_or(Error::BlockExplorerNotSet)
+    }
+
+    pub fn as_pretty_json(&self) -> Result<String, Error> {
+        let config_file: ConfigFile = self.into();
+        Ok(nostr_sdk::serde_json::to_string_pretty(&config_file)?)
     }
 }

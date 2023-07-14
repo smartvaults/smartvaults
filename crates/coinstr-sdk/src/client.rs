@@ -604,7 +604,11 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        Ok(self.config.set_electrum_endpoint(endpoint)?)
+        // Set electrum endpoint
+        self.config.set_electrum_endpoint(Some(endpoint));
+        // Save config file
+        self.config.save()?;
+        Ok(())
     }
 
     pub fn electrum_endpoint(&self) -> Result<String, Error> {
