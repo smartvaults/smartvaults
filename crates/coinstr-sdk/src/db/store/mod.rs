@@ -7,6 +7,7 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -14,8 +15,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 use bdk::bitcoin::{Address, Network, Txid};
-use bdk::blockchain::Blockchain;
+use bdk::blockchain::{ElectrumBlockchain, GetHeight};
 use bdk::database::SqliteDatabase;
+use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::AddressIndex;
 use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
@@ -845,17 +847,45 @@ impl Store {
         self.update_last_sync(policy_id, None)
     }
 
-    pub fn sync_with_timechain<B>(
+    pub fn sync_with_timechain<S>(
         &self,
-        blockchain: &B,
+        endpoint: S,
+        proxy: Option<SocketAddr>,
         sender: Option<&Sender<Option<Message>>>,
         force: bool,
     ) -> Result<(), Error>
     where
-        B: Blockchain,
+        S: Into<String>,
     {
+        let mut blockchain: Option<ElectrumBlockchain> = None;
+
+        fn initialize<S>(
+            endpoint: S,
+            proxy: Option<SocketAddr>,
+        ) -> Result<ElectrumBlockchain, Error>
+        where
+            S: Into<String>,
+        {
+            let endpoint = endpoint.into();
+            log::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+            let config = ElectrumConfig::builder().socks5(proxy)?.build();
+            Ok(ElectrumBlockchain::from(ElectrumClient::from_config(
+                &endpoint, config,
+            )?))
+        }
+
+        let endpoint: String = endpoint.into();
+
         if !self.block_height.is_synced() {
-            let block_height: u32 = blockchain.get_height()?;
+            if blockchain.is_none() {
+                blockchain = Some(initialize(&endpoint, proxy)?);
+            }
+
+            let block_height: u32 = blockchain
+                .as_ref()
+                .ok_or(Error::ElectrumClientNotInit)?
+                .get_height()?;
             self.block_height.set_block_height(block_height);
             self.block_height.just_synced();
         }
@@ -869,6 +899,12 @@ impl Store {
             let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
             if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
+
+                if blockchain.is_none() {
+                    blockchain = Some(initialize(&endpoint, proxy)?);
+                }
+
+                let blockchain = blockchain.as_ref().ok_or(Error::ElectrumClientNotInit)?;
                 let db: SqliteDatabase = self.get_wallet_db(policy_id)?;
                 let wallet = Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?;
                 wallet.sync(blockchain, SyncOptions::default())?;

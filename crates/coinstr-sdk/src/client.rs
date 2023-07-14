@@ -1375,35 +1375,21 @@ impl Coinstr {
     fn sync_with_timechain(&self) -> AbortHandle {
         let this = self.clone();
         thread::abortable(async move {
-            let blockchain: ElectrumBlockchain;
             loop {
                 match this.config.electrum_endpoint() {
-                    Ok(endpoint) => match ElectrumClient::new(&endpoint) {
-                        Ok(client) => {
-                            blockchain = ElectrumBlockchain::from(client);
-                            break;
-                        }
-                        Err(e) => {
-                            log::error!("Impossible to connect to electrum server: {e}");
-                            thread::sleep(Duration::from_secs(10)).await;
-                        }
+                    Ok(endpoint) => match this.db.sync_with_timechain(
+                        endpoint,
+                        this.config.proxy().ok(),
+                        Some(&this.sync_channel),
+                        false,
+                    ) {
+                        Ok(_) => this.first_sync.set_wallets(true),
+                        Err(e) => log::error!("Impossible to sync wallets: {e}"),
                     },
-                    Err(_) => {
-                        log::warn!("Waiting for an electrum endpoint");
-                        thread::sleep(Duration::from_secs(3)).await;
-                    }
-                }
-            }
-
-            loop {
-                match this
-                    .db
-                    .sync_with_timechain(&blockchain, Some(&this.sync_channel), false)
-                {
-                    Ok(_) => this.first_sync.set_wallets(true),
                     Err(e) => log::error!("Impossible to sync wallets: {e}"),
                 }
-                thread::sleep(Duration::from_secs(5)).await;
+
+                thread::sleep(Duration::from_secs(10)).await;
             }
         })
     }

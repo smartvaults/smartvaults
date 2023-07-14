@@ -51,6 +51,10 @@ pub enum Error {
     /// Policy error
     #[error(transparent)]
     Policy(#[from] policy::Error),
+    #[error(transparent)]
+    Electrum(#[from] bdk::electrum_client::Error),
+    #[error("electrum client not initialized")]
+    ElectrumClientNotInit,
     /// Not found
     #[error("impossible to open policy {0} db")]
     FailedToOpenPolicyDb(EventId),
