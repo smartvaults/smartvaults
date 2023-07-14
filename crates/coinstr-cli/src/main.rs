@@ -8,7 +8,8 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{AddCommand, ConnectCommand, SetCommand};
+use cli::{AddCommand, ConfigCommand, ConnectCommand, SetCommand};
+use coinstr_sdk::config::Config;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
@@ -188,6 +189,59 @@ async fn run() -> Result<()> {
             }
             Ok(())
         }
+        CliCommand::Config { command } => match command {
+            ConfigCommand::View => {
+                let config = Config::try_from_file(base_path, network)?;
+                println!("{}", config.as_pretty_json()?);
+                Ok(())
+            }
+            ConfigCommand::Set {
+                electrum_server,
+                proxy,
+                block_explorer,
+            } => {
+                let config = Config::try_from_file(base_path, network)?;
+
+                if let Some(endpoint) = electrum_server {
+                    config.set_electrum_endpoint(Some(endpoint));
+                }
+
+                if let Some(proxy) = proxy {
+                    config.set_proxy(Some(proxy));
+                }
+
+                if let Some(block_explorer) = block_explorer {
+                    config.set_block_explorer(Some(block_explorer));
+                }
+
+                config.save()?;
+
+                Ok(())
+            }
+            ConfigCommand::Unset {
+                electrum_server,
+                proxy,
+                block_explorer,
+            } => {
+                let config = Config::try_from_file(base_path, network)?;
+
+                if electrum_server {
+                    config.set_electrum_endpoint::<String>(None);
+                }
+
+                if proxy {
+                    config.set_proxy(None);
+                }
+
+                if block_explorer {
+                    config.set_block_explorer(None);
+                }
+
+                config.save()?;
+
+                Ok(())
+            }
+        },
         CliCommand::Setting { command } => match command {
             SettingCommand::Rename { name, new_name } => {
                 let mut coinstr = Coinstr::open(base_path, name, io::get_password, network)?;

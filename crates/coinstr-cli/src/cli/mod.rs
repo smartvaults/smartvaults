@@ -74,10 +74,48 @@ pub enum CliCommand {
     },
     /// List keychains
     List,
+    /// Config
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
     /// Setting
     Setting {
         #[command(subcommand)]
         command: SettingCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigCommand {
+    /// View config
+    View,
+    /// Set config
+    #[command(arg_required_else_help = true)]
+    Set {
+        /// Electrum server
+        #[clap(long)]
+        electrum_server: Option<String>,
+        /// Proxy
+        #[clap(long)]
+        proxy: Option<SocketAddr>,
+        /// Block explorer
+        #[clap(long)]
+        block_explorer: Option<Url>,
+    },
+
+    /// Unset
+    #[command(arg_required_else_help = true)]
+    Unset {
+        /// Electrum server
+        #[clap(long)]
+        electrum_server: bool,
+        /// Proxy
+        #[clap(long)]
+        proxy: bool,
+        /// Block explorer
+        #[clap(long)]
+        block_explorer: bool,
     },
 }
 
