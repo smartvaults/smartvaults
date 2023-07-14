@@ -59,6 +59,7 @@ pub use self::restore_policy::{RestorePolicyMessage, RestorePolicyState};
 pub use self::revoke_all_signers::{RevokeAllSignersMessage, RevokeAllSignersState};
 pub use self::self_transfer::{SelfTransferMessage, SelfTransferState};
 pub use self::settings::add_relay::{AddRelayMessage, AddRelayState};
+pub use self::settings::config::{ConfigMessage, ConfigState};
 pub use self::settings::relays::{RelaysMessage, RelaysState};
 pub use self::settings::{SettingsMessage, SettingsState};
 pub use self::share_signer::{ShareSignerMessage, ShareSignerState};

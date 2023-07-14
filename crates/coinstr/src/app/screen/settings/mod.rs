@@ -10,6 +10,7 @@ use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::Theme;
 
 pub mod add_relay;
+pub mod config;
 pub mod relays;
 
 #[derive(Debug, Clone)]
@@ -75,6 +76,12 @@ impl State for SettingsState {
             .push(choose_theme)
             .push(
                 Button::new()
+                    .text("Config")
+                    .on_press(Message::View(Stage::Config))
+                    .view(),
+            )
+            .push(
+                Button::new()
                     .text("Relays")
                     .on_press(Message::View(Stage::Relays))
                     .view(),
@@ -91,7 +98,8 @@ impl State for SettingsState {
                     .style(ButtonStyle::BorderedDanger)
                     .on_press(SettingsMessage::ClearCache.into())
                     .view(),
-            );
+            )
+            .spacing(10);
         Dashboard::new().view(ctx, content, true, true)
     }
 }
