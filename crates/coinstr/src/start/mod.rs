@@ -10,7 +10,7 @@ pub mod screen;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-use self::screen::{GenerateState, OpenState, RestoreState};
+use self::screen::{GenerateState, OpenState, RestoreState, SettingState};
 use crate::app::App;
 use crate::theme::Theme;
 use crate::CoinstrApp;
@@ -36,6 +36,7 @@ pub fn new_state(context: &Context) -> Box<dyn State> {
         Stage::Open => OpenState::new().into(),
         Stage::New => GenerateState::new().into(),
         Stage::Restore => RestoreState::new().into(),
+        Stage::Setting => SettingState::new().into(),
     }
 }
 

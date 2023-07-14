@@ -7,11 +7,15 @@ use iced::{Alignment, Element, Length};
 mod generate;
 mod open;
 mod restore;
+mod setting;
 
 pub use self::generate::{GenerateMessage, GenerateState};
 pub use self::open::{OpenMessage, OpenState};
 pub use self::restore::{RestoreMessage, RestoreState};
-use super::Message;
+pub use self::setting::{SettingMessage, SettingState};
+use super::{Message, Stage};
+use crate::component::{Button, ButtonStyle};
+use crate::theme::icon::SETTING;
 
 fn view(column: Column<Message>) -> Element<Message> {
     let content = Container::new(
@@ -26,6 +30,22 @@ fn view(column: Column<Message>) -> Element<Message> {
     .center_y();
 
     Column::new()
+        .push(
+            Row::new()
+                .push(Row::new().width(Length::Fill))
+                .push(
+                    Button::new()
+                        .icon(SETTING)
+                        .style(ButtonStyle::Transparent { text_color: None })
+                        .on_press(Message::View(Stage::Setting))
+                        .width(Length::Fixed(40.0))
+                        .view(),
+                )
+                .spacing(10)
+                .padding(10)
+                .height(Length::Fixed(60.0))
+                .align_items(Alignment::Center),
+        )
         .push(
             Row::new().push(
                 Container::new(Scrollable::new(content))

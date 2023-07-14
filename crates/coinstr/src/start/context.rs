@@ -10,6 +10,7 @@ pub enum Stage {
     Open,
     New,
     Restore,
+    Setting,
 }
 
 impl Default for Stage {
