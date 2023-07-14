@@ -133,13 +133,13 @@ impl State for OpenState {
             row![column![
                 row![svg],
                 row![Space::with_height(Length::Fixed(5.0))],
-                row![Text::new(APP_DESCRIPTION).size(22).color(GREY).view()]
+                row![Text::new(APP_DESCRIPTION).bigger().color(GREY).view()]
             ]
             .align_items(Alignment::Center)
             .spacing(15)],
-            row![Space::with_height(Length::Fixed(10.0))],
+            row![Space::with_height(Length::Fixed(5.0))],
             row![keychain_pick_list],
-            row![password].spacing(10),
+            row![password],
             if let Some(error) = &self.error {
                 row![Text::new(error).color(DARK_RED).view()]
             } else {
@@ -149,6 +149,7 @@ impl State for OpenState {
             row![Rule::horizontal(1)],
             row![new_keychain_btn],
             row![restore_keychain_btn],
+            row![Space::with_height(Length::Fixed(30.0))]
         ];
 
         view(content)

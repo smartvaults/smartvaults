@@ -41,9 +41,7 @@ fn view(column: Column<Message>) -> Element<Message> {
                         .width(Length::Fixed(40.0))
                         .view(),
                 )
-                .spacing(10)
                 .padding(10)
-                .height(Length::Fixed(60.0))
                 .align_items(Alignment::Center),
         )
         .push(
