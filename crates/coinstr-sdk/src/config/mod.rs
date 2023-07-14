@@ -24,6 +24,8 @@ pub enum Error {
     Dir(#[from] dir::Error),
     #[error(transparent)]
     Json(#[from] nostr_sdk::serde_json::Error),
+    #[error(transparent)]
+    Url(#[from] nostr_sdk::url::ParseError),
     #[error("electrum endpoint not set")]
     ElectrumEndpointNotSet,
     #[error("proxy not set")]
@@ -104,17 +106,27 @@ impl Config {
 
         log::warn!("Using default config");
 
-        let endpoint = match network {
-            Network::Bitcoin => "ssl://blockstream.info:700",
-            Network::Testnet => "ssl://blockstream.info:993",
-            Network::Signet => "tcp://signet-electrumx.wakiyamap.dev:50001",
-            Network::Regtest => "tcp://localhost:60401",
+        let (endpoint, block_explorer) = match network {
+            Network::Bitcoin => (
+                "ssl://blockstream.info:700",
+                Some(Url::parse("https://mempool.space")?),
+            ),
+            Network::Testnet => (
+                "ssl://blockstream.info:993",
+                Some(Url::parse("https://mempool.space/testnet")?),
+            ),
+            Network::Signet => (
+                "tcp://signet-electrumx.wakiyamap.dev:50001",
+                Some(Url::parse("https://mempool.space/signet")?),
+            ),
+            Network::Regtest => ("tcp://localhost:60401", None),
         };
 
         Ok(Self {
             config_file_path,
             bitcoin: Bitcoin {
                 electrum_server: Arc::new(RwLock::new(Some(endpoint.to_string()))),
+                block_explorer: Arc::new(RwLock::new(block_explorer)),
                 ..Default::default()
             },
         })
