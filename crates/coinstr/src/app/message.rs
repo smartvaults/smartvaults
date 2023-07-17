@@ -5,12 +5,13 @@
 use super::screen::AddHWSignerMessage;
 use super::screen::{
     AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage, AddPolicyMessage,
-    AddRelayMessage, AddSignerMessage, CompletedProposalMessage, ConfigMessage, ConnectMessage,
-    ContactsMessage, DashboardMessage, EditProfileMessage, HistoryMessage, NewProofMessage,
-    NotificationsMessage, PoliciesMessage, PolicyBuilderMessage, PolicyMessage, ProfileMessage,
-    ProposalMessage, ProposalsMessage, ReceiveMessage, RelaysMessage, RestorePolicyMessage,
-    RevokeAllSignersMessage, SelfTransferMessage, SettingsMessage, ShareSignerMessage,
-    SignerMessage, SignersMessage, SpendMessage, TransactionMessage, TransactionsMessage,
+    AddRelayMessage, AddSignerMessage, ChangePasswordMessage, CompletedProposalMessage,
+    ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage,
+    HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage, PolicyBuilderMessage,
+    PolicyMessage, ProfileMessage, ProposalMessage, ProposalsMessage, ReceiveMessage,
+    RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage, SelfTransferMessage,
+    SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
+    TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -50,6 +51,7 @@ pub enum Message {
     Config(ConfigMessage),
     Relays(RelaysMessage),
     AddRelay(AddRelayMessage),
+    ChangePassword(ChangePasswordMessage),
     Connect(ConnectMessage),
     AddNostrConnectSession(AddNostrConnectSessionMessage),
     Clipboard(String),

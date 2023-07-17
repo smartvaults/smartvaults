@@ -19,8 +19,8 @@ pub use self::message::Message;
 use self::screen::AddHWSignerState;
 use self::screen::{
     AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
-    AddRelayState, AddSignerState, CompletedProposalState, ConfigState, ConnectState,
-    ContactsState, DashboardState, EditProfileState, HistoryState, NewProofState,
+    AddRelayState, AddSignerState, ChangePasswordState, CompletedProposalState, ConfigState,
+    ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState, NewProofState,
     NotificationsState, PoliciesState, PolicyBuilderState, PolicyState, ProfileState,
     ProposalState, ProposalsState, ReceiveState, RelaysState, RestorePolicyState,
     RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState, SignerState,
@@ -86,6 +86,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Relays => RelaysState::new().into(),
         Stage::Config => ConfigState::new().into(),
         Stage::AddRelay => AddRelayState::new().into(),
+        Stage::ChangePassword => ChangePasswordState::new().into(),
         Stage::NostrConnect => ConnectState::new().into(),
         Stage::AddNostrConnectSession => AddNostrConnectSessionState::new().into(),
     }

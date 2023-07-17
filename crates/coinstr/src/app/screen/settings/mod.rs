@@ -9,6 +9,7 @@ use crate::app::{Context, Message, Stage, State};
 use crate::component::{Button, ButtonStyle};
 
 pub mod add_relay;
+pub mod change_password;
 pub mod config;
 pub mod relays;
 
@@ -57,6 +58,12 @@ impl State for SettingsState {
 
     fn view(&self, ctx: &Context) -> Element<Message> {
         let content = Column::new()
+            .push(
+                Button::new()
+                    .text("Change password")
+                    .on_press(Message::View(Stage::ChangePassword))
+                    .view(),
+            )
             .push(
                 Button::new()
                     .text("Config")
