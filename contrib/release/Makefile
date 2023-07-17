@@ -30,6 +30,8 @@ x86_64-apple-darwin: create_dir
 		rm -rf Coinstr.app ;\
 	fi
 
-x86_64-pc-windows-msvc: create_dir
-	rustup target add x86_64-pc-windows-msvc
-	cargo build -p coinstr --release --target x86_64-pc-windows-msvc
+x86_64-pc-windows-gnu: create_dir
+	rustup target add x86_64-pc-windows-gnu
+	cargo build -p coinstr --release --target x86_64-pc-windows-gnu
+	cp ../../target/x86_64-pc-windows-gnu/release/coinstr.exe $(RELEASE_DIR)/coinstr-$(VERSION)-x86_64-pc-windows-gnu.exe
+	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-x86_64-pc-windows-gnu.exe
