@@ -385,7 +385,7 @@ impl Coinstr {
     }
 
     /// Rename keychain file
-    pub fn rename<S>(&mut self, new_name: S) -> Result<(), Error>
+    pub fn rename<S>(&self, new_name: S) -> Result<(), Error>
     where
         S: Into<String>,
     {
@@ -393,7 +393,7 @@ impl Coinstr {
     }
 
     /// Change keychain password
-    pub fn change_password<NPSW>(&mut self, get_new_password: NPSW) -> Result<(), Error>
+    pub fn change_password<NPSW>(&self, get_new_password: NPSW) -> Result<(), Error>
     where
         NPSW: FnOnce() -> Result<String>,
     {

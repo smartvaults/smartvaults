@@ -244,11 +244,11 @@ async fn run() -> Result<()> {
         },
         CliCommand::Setting { command } => match command {
             SettingCommand::Rename { name, new_name } => {
-                let mut coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
+                let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
                 Ok(coinstr.rename(new_name)?)
             }
             SettingCommand::ChangePassword { name } => {
-                let mut coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
+                let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
                 Ok(coinstr.change_password(io::get_password_with_confirmation)?)
             }
         },
