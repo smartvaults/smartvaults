@@ -97,9 +97,14 @@ impl Coinstr {
         self.inner.check_password(password)
     }
 
-    // TODO: add `rename` method
+    pub fn rename(&self, new_name: String) -> Result<()> {
+        Ok(self.inner.rename(new_name)?)
+    }
 
-    // TODO: add `change_password` method
+    /// Change keychain password
+    pub fn change_password(&self, new_password: String) -> Result<()> {
+        Ok(self.inner.change_password(|| Ok(new_password))?)
+    }
 
     /// Permanent delete the keychain
     pub fn wipe(&self, password: String) -> Result<()> {

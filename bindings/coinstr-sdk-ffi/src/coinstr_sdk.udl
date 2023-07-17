@@ -161,6 +161,10 @@ interface Coinstr {
     void save();
     boolean check_password(string password);
     [Throws=FFIError]
+    void rename(string new_name);
+    [Throws=FFIError]
+    void change_password(string new_password);
+    [Throws=FFIError]
     void wipe(string password);
     [Throws=FFIError]
     void clear_cache();
