@@ -19,6 +19,7 @@ pub enum GenerateMessage {
     ConfirmPasswordChanged(String),
     UsePassphrase(bool),
     PassphraseChanged(String),
+    ErrorChanged(Option<String>),
     Generate,
 }
 
@@ -55,23 +56,32 @@ impl State for GenerateState {
                     self.passphrase = String::new();
                 }
                 GenerateMessage::PassphraseChanged(passphrase) => self.passphrase = passphrase,
+                GenerateMessage::ErrorChanged(e) => {
+                    self.error = e;
+                }
                 GenerateMessage::Generate => {
                     if self.password.eq(&self.confirm_password) {
-                        match Coinstr::generate(
-                            BASE_PATH.as_path(),
-                            self.name.clone(),
-                            || Ok(self.password.clone()),
-                            WordCount::W12, // TODO: let user choose the len.
-                            || Ok(Some(self.passphrase.clone())),
-                            ctx.network,
-                        ) {
-                            Ok(keechain) => {
-                                return Command::perform(async {}, move |_| {
-                                    Message::OpenResult(keechain)
-                                })
-                            }
-                            Err(e) => self.error = Some(e.to_string()),
-                        }
+                        let network = ctx.network;
+                        let name = self.name.clone();
+                        let password = self.password.clone();
+                        let passphrase = self.passphrase.clone();
+                        return Command::perform(
+                            async move {
+                                Coinstr::generate(
+                                    BASE_PATH.as_path(),
+                                    name,
+                                    || Ok(password),
+                                    WordCount::W12, // TODO: let user choose the len.
+                                    || Ok(Some(passphrase)),
+                                    network,
+                                )
+                                .await
+                            },
+                            move |res| match res {
+                                Ok(keechain) => Message::OpenResult(keechain),
+                                Err(e) => GenerateMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        );
                     } else {
                         self.error = Some("Passwords not match".to_string())
                     }

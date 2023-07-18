@@ -65,7 +65,6 @@ impl State for AddRelayState {
                             };
 
                             client.add_relay(url, proxy).await?;
-                            client.connect().await;
 
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },

@@ -177,10 +177,7 @@ interface Coinstr {
     [Throws=FFIError]
     void add_relay(string url);
     sequence<Relay> relays();
-    void connect();
     sequence<string> default_relays();
-    [Throws=FFIError]
-    void restore_relays();
     [Throws=FFIError]
     void remove_relay(string url);
     [Throws=FFIError]
@@ -275,6 +272,4 @@ interface Coinstr {
 
     [Throws=FFIError]
     void approve_nostr_connect_request(string event_id);
-
-    void sync();
 };

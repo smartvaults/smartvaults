@@ -10,8 +10,6 @@ use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::{util, Coinstr};
 
-use crate::RUNTIME;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
     Dashboard,
@@ -127,14 +125,6 @@ pub struct Context {
 
 impl Context {
     pub fn new(stage: Stage, coinstr: Coinstr) -> Self {
-        RUNTIME.block_on(async {
-            coinstr
-                .restore_relays()
-                .await
-                .expect("Impossible to restore relays");
-            coinstr.connect().await;
-        });
-
         Self {
             stage: stage.clone(),
             client: coinstr,

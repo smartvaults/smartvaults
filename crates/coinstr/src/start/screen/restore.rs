@@ -22,6 +22,7 @@ pub enum RestoreMessage {
     MnemonicChanged(String),
     UsePassphrase(bool),
     PassphraseChanged(String),
+    ErrorChanged(Option<String>),
     RestoreButtonPressed,
 }
 
@@ -59,23 +60,33 @@ impl State for RestoreState {
                     self.passphrase = String::new();
                 }
                 RestoreMessage::PassphraseChanged(passphrase) => self.passphrase = passphrase,
+                RestoreMessage::ErrorChanged(e) => {
+                    self.error = e;
+                }
                 RestoreMessage::RestoreButtonPressed => {
                     if self.password.eq(&self.confirm_password) {
-                        match Coinstr::restore(
-                            BASE_PATH.as_path(),
-                            self.name.clone(),
-                            || Ok(self.password.clone()),
-                            || Ok(Mnemonic::from_str(&self.mnemonic)?),
-                            || Ok(Some(self.passphrase.clone())),
-                            ctx.network,
-                        ) {
-                            Ok(keechain) => {
-                                return Command::perform(async {}, move |_| {
-                                    Message::OpenResult(keechain)
-                                })
-                            }
-                            Err(e) => self.error = Some(e.to_string()),
-                        }
+                        let network = ctx.network;
+                        let name = self.name.clone();
+                        let password = self.password.clone();
+                        let mnemonic = self.mnemonic.clone();
+                        let passphrase = self.passphrase.clone();
+                        return Command::perform(
+                            async move {
+                                Coinstr::restore(
+                                    BASE_PATH.as_path(),
+                                    name,
+                                    || Ok(password),
+                                    || Ok(Mnemonic::from_str(&mnemonic)?),
+                                    || Ok(Some(passphrase)),
+                                    network,
+                                )
+                                .await
+                            },
+                            move |res| match res {
+                                Ok(keechain) => Message::OpenResult(keechain),
+                                Err(e) => RestoreMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        );
                     } else {
                         self.error = Some("Passwords not match".to_string())
                     }

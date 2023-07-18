@@ -34,8 +34,10 @@ impl Coinstr {
         password: String,
         network: Network,
     ) -> Result<Self> {
-        Ok(Self {
-            inner: client::Coinstr::open(base_path, name, || Ok(password), network)?,
+        block_on(async move {
+            Ok(Self {
+                inner: client::Coinstr::open(base_path, name, || Ok(password), network).await?,
+            })
         })
     }
 
@@ -48,15 +50,18 @@ impl Coinstr {
         passphrase: Option<String>,
         network: Network,
     ) -> Result<Self> {
-        Ok(Self {
-            inner: client::Coinstr::generate(
-                base_path,
-                name,
-                || Ok(password),
-                word_count,
-                || Ok(passphrase),
-                network,
-            )?,
+        block_on(async move {
+            Ok(Self {
+                inner: client::Coinstr::generate(
+                    base_path,
+                    name,
+                    || Ok(password),
+                    word_count,
+                    || Ok(passphrase),
+                    network,
+                )
+                .await?,
+            })
         })
     }
 
@@ -69,16 +74,19 @@ impl Coinstr {
         passphrase: Option<String>,
         network: Network,
     ) -> Result<Self> {
-        let mnemonic = Mnemonic::from_str(&mnemonic)?;
-        Ok(Self {
-            inner: client::Coinstr::restore(
-                base_path,
-                name,
-                || Ok(password),
-                || Ok(mnemonic),
-                || Ok(passphrase),
-                network,
-            )?,
+        block_on(async move {
+            let mnemonic = Mnemonic::from_str(&mnemonic)?;
+            Ok(Self {
+                inner: client::Coinstr::restore(
+                    base_path,
+                    name,
+                    || Ok(password),
+                    || Ok(mnemonic),
+                    || Ok(passphrase),
+                    network,
+                )
+                .await?,
+            })
         })
     }
 
@@ -132,19 +140,8 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.add_relay(url, None).await?) })
     }
 
-    /// Connect relays
-    pub fn connect(&self) {
-        block_on(async move {
-            self.inner.connect().await;
-        })
-    }
-
     pub fn default_relays(&self) -> Vec<String> {
         self.inner.default_relays()
-    }
-
-    pub fn restore_relays(&self) -> Result<()> {
-        block_on(async move { Ok(self.inner.restore_relays().await?) })
     }
 
     pub fn remove_relay(&self, url: String) -> Result<()> {
@@ -465,10 +462,6 @@ impl Coinstr {
     // TODO: add get_all_signers
 
     // TODO: add get_signers
-
-    pub fn sync(&self) {
-        self.inner.sync();
-    }
 
     pub fn get_balance(&self, policy_id: String) -> Result<Option<Arc<Balance>>> {
         let policy_id = EventId::from_hex(policy_id)?;

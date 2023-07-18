@@ -20,6 +20,7 @@ pub enum OpenMessage {
     LoadKeychains,
     KeychainSelect(String),
     PasswordChanged(String),
+    ErrorChanged(Option<String>),
     OpenButtonPressed,
 }
 
@@ -57,21 +58,23 @@ impl State for OpenState {
                 }
                 OpenMessage::KeychainSelect(name) => self.name = Some(name),
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
+                OpenMessage::ErrorChanged(e) => {
+                    self.error = e;
+                }
                 OpenMessage::OpenButtonPressed => {
-                    if let Some(name) = &self.name {
-                        match Coinstr::open(
-                            BASE_PATH.as_path(),
-                            name,
-                            || Ok(self.password.clone()),
-                            ctx.network,
-                        ) {
-                            Ok(keechain) => {
-                                return Command::perform(async {}, move |_| {
-                                    Message::OpenResult(keechain)
-                                })
-                            }
-                            Err(e) => self.error = Some(e.to_string()),
-                        }
+                    if let Some(name) = self.name.clone() {
+                        let network = ctx.network;
+                        let password = self.password.clone();
+                        return Command::perform(
+                            async move {
+                                Coinstr::open(BASE_PATH.as_path(), name, || Ok(password), network)
+                                    .await
+                            },
+                            move |res| match res {
+                                Ok(keechain) => Message::OpenResult(keechain),
+                                Err(e) => OpenMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        );
                     } else {
                         self.error = Some(String::from("Please, select a keychain"));
                     }
@@ -167,5 +170,11 @@ impl State for OpenState {
 impl From<OpenState> for Box<dyn State> {
     fn from(s: OpenState) -> Box<dyn State> {
         Box::new(s)
+    }
+}
+
+impl From<OpenMessage> for Message {
+    fn from(msg: OpenMessage) -> Self {
+        Self::Open(msg)
     }
 }

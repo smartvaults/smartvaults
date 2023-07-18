@@ -26,7 +26,6 @@ where
     }
 
     fn stream(self: Box<Self>, _input: BoxStream<I>) -> BoxStream<Self::Output> {
-        self.client.sync();
         let mut receiver = self.client.sync_notifications();
         let stream = stream! {
             while let Ok(item) = receiver.recv().await {

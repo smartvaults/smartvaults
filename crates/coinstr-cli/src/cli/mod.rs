@@ -79,11 +79,6 @@ pub enum CliCommand {
         #[command(subcommand)]
         command: ConfigCommand,
     },
-    /// Setting
-    Setting {
-        #[command(subcommand)]
-        command: SettingCommand,
-    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -124,20 +119,12 @@ pub enum SettingCommand {
     /// Rename keychain
     #[command(arg_required_else_help = true)]
     Rename {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
         /// New keychain name
         #[arg(required = true)]
         new_name: String,
     },
     /// Change keychain password
-    #[command(arg_required_else_help = true)]
-    ChangePassword {
-        /// Keychain name
-        #[arg(required = true)]
-        name: String,
-    },
+    ChangePassword,
 }
 
 #[derive(Debug, Parser)]
@@ -231,6 +218,12 @@ pub enum Command {
     Delete {
         #[command(subcommand)]
         command: DeleteCommand,
+    },
+    /// Setting
+    #[command(arg_required_else_help = true)]
+    Setting {
+        #[command(subcommand)]
+        command: SettingCommand,
     },
     /// Rebroadcast all events to connected relays
     Rebroadcast,

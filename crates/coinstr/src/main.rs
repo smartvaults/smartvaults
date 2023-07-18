@@ -10,7 +10,6 @@ use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::logger;
 use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
-use tokio::runtime::Runtime;
 
 mod app;
 mod component;
@@ -22,7 +21,6 @@ use self::constants::APP_NAME;
 
 static BASE_PATH: Lazy<PathBuf> =
     Lazy::new(|| coinstr_common::base_path().expect("Impossible to get coinstr path"));
-static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().expect("Can't start Tokio runtime"));
 
 fn parse_network(args: Vec<String>) -> Network {
     for (i, arg) in args.iter().enumerate() {

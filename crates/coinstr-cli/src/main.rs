@@ -73,7 +73,8 @@ async fn run() -> Result<()> {
                     }
                 },
                 network,
-            )?;
+            )
+            .await?;
             let keychain: Keychain = coinstr.keychain();
 
             println!("\n!!! WRITE DOWN YOUR MNEMONIC !!!");
@@ -97,14 +98,12 @@ async fn run() -> Result<()> {
                     }
                 },
                 network,
-            )?;
+            )
+            .await?;
             Ok(())
         }
         CliCommand::Open { name } => {
-            let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
-            coinstr.restore_relays().await?;
-            coinstr.connect().await;
-            coinstr.sync();
+            let coinstr = Coinstr::open(base_path, name, io::get_password, network).await?;
 
             let rl = &mut DefaultEditor::new()?;
 
@@ -144,10 +143,7 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::Batch { name, path } => {
-            let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
-            coinstr.restore_relays().await?;
-            coinstr.connect().await;
-            coinstr.sync();
+            let coinstr = Coinstr::open(base_path, name, io::get_password, network).await?;
 
             let file = File::open(path)?;
             let reader = BufReader::new(file);
@@ -240,16 +236,6 @@ async fn run() -> Result<()> {
                 config.save()?;
 
                 Ok(())
-            }
-        },
-        CliCommand::Setting { command } => match command {
-            SettingCommand::Rename { name, new_name } => {
-                let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
-                Ok(coinstr.rename(new_name)?)
-            }
-            SettingCommand::ChangePassword { name } => {
-                let coinstr = Coinstr::open(base_path, name, io::get_password, network)?;
-                Ok(coinstr.change_password(io::get_password_with_confirmation)?)
             }
         },
     }
@@ -396,7 +382,6 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         Command::Add { command } => match command {
             AddCommand::Relay { url, proxy } => {
                 coinstr.add_relay(url, proxy).await?;
-                coinstr.connect().await;
                 Ok(())
             }
             AddCommand::Contact { public_key } => {
@@ -557,6 +542,12 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 Ok(coinstr.revoke_shared_signer(shared_signer_id).await?)
             }
             DeleteCommand::Cache => Ok(coinstr.clear_cache().await?),
+        },
+        Command::Setting { command } => match command {
+            SettingCommand::Rename { new_name } => Ok(coinstr.rename(new_name)?),
+            SettingCommand::ChangePassword => {
+                Ok(coinstr.change_password(io::get_password_with_confirmation)?)
+            }
         },
         Command::Exit => std::process::exit(0x01),
     }

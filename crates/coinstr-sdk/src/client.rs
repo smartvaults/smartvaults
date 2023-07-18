@@ -174,7 +174,7 @@ pub struct Coinstr {
 
 impl Coinstr {
     /// Open keychain
-    pub fn open<P, S, PSW>(
+    pub async fn open<P, S, PSW>(
         base_path: P,
         name: S,
         get_password: PSW,
@@ -217,7 +217,7 @@ impl Coinstr {
 
         let (sender, _) = broadcast::channel::<Option<Message>>(1024);
 
-        Ok(Self {
+        let this = Self {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
@@ -226,11 +226,15 @@ impl Coinstr {
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             first_sync: FirstSync::default(),
-        })
+        };
+
+        this.init().await?;
+
+        Ok(this)
     }
 
     /// Generate keychain
-    pub fn generate<P, S, PSW, PASSP>(
+    pub async fn generate<P, S, PSW, PASSP>(
         base_path: P,
         name: S,
         get_password: PSW,
@@ -282,7 +286,7 @@ impl Coinstr {
 
         let (sender, _) = broadcast::channel::<Option<Message>>(1024);
 
-        Ok(Self {
+        let this = Self {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
@@ -291,11 +295,15 @@ impl Coinstr {
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             first_sync: FirstSync::default(),
-        })
+        };
+
+        this.init().await?;
+
+        Ok(this)
     }
 
     /// Restore keychain
-    pub fn restore<P, S, PSW, M, PASSP>(
+    pub async fn restore<P, S, PSW, M, PASSP>(
         base_path: P,
         name: S,
         get_password: PSW,
@@ -347,7 +355,7 @@ impl Coinstr {
 
         let (sender, _) = broadcast::channel::<Option<Message>>(1024);
 
-        Ok(Self {
+        let this = Self {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
@@ -356,7 +364,11 @@ impl Coinstr {
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             first_sync: FirstSync::default(),
-        })
+        };
+
+        this.init().await?;
+
+        Ok(this)
     }
 
     pub fn list_keychains<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
@@ -364,6 +376,13 @@ impl Coinstr {
         P: AsRef<Path>,
     {
         Ok(util::dir::get_keychains_list(base_path, network)?)
+    }
+
+    async fn init(&self) -> Result<(), Error> {
+        self.restore_relays().await?;
+        self.client.connect().await;
+        self.sync();
+        Ok(())
     }
 
     /// Get keychain name
@@ -457,7 +476,7 @@ impl Coinstr {
         };
         let filters = self.sync_filters(last_sync);
         relay.subscribe(filters, None).await?;
-
+        relay.connect(false).await;
         Ok(())
     }
 
@@ -470,10 +489,6 @@ impl Coinstr {
             self.add_relay(url, proxy).await?;
         }
         Ok(())
-    }
-
-    pub async fn connect(&self) {
-        self.client.connect().await;
     }
 
     /// Get default relays for current [`Network`]
@@ -506,7 +521,7 @@ impl Coinstr {
     }
 
     /// Restore relays
-    pub async fn restore_relays(&self) -> Result<(), Error> {
+    async fn restore_relays(&self) -> Result<(), Error> {
         let relays = self.db.get_relays(true)?;
         for (url, proxy) in relays.into_iter() {
             self.client.add_relay(url, proxy).await?;
@@ -1488,7 +1503,7 @@ impl Coinstr {
         ]
     }
 
-    pub fn sync(&self) {
+    fn sync(&self) {
         if self.syncing.load(Ordering::SeqCst) {
             log::warn!("Syncing threads are already running");
         } else {
