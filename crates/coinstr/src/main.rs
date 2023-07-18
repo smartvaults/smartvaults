@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 #![allow(clippy::new_without_default)]
+#![windows_subsystem = "windows"]
 
 use std::path::PathBuf;
 use std::str::FromStr;
