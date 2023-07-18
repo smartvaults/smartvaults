@@ -1,6 +1,5 @@
 [Desktop Entry]
 Name=Coinstr
-Version=VERSION_PLACEHOLDER
 Comment=Using nostr to coordinate Bitcoin spending policy signatures and multi-custody
 Exec=coinstr %u
 Icon=coinstr

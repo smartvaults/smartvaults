@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>coinstr.desktop</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Coinstr</name>
+  <summary>Coinstr</summary>
+  <description>
+    Using nostr to coordinate Bitcoin spending policy signatures and multi-custody
+  </description>
+  <url type="homepage">https://github.com/coinstr/coinstr</url>
+  <project_group>Coinstr</project_group>
+  <provides>
+    <binary>coinstr</binary>
+  </provides>
+</component>

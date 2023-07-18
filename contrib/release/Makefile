@@ -4,7 +4,7 @@ MSI_PRODUCT_CODE=
 
 .PHONY: init
 
-all: deb msi
+all: appimage deb msi
 
 init:
 	cargo install cargo-deb
@@ -12,19 +12,30 @@ init:
 create_dir:
 	mkdir -p $(RELEASE_DIR)
 
-deb:
+deb: create_dir
 	rustup target add x86_64-unknown-linux-gnu
 	cp -r linux/ $(RELEASE_DIR)
-	sed -i s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/linux/coinstr.desktop
+	@# TODO: replace cargo deb with manually packaging
 	cd ../../crates/coinstr && cargo deb --target x86_64-unknown-linux-gnu
 	cp ../../target/x86_64-unknown-linux-gnu/debian/coinstr_$(VERSION)_*.deb $(RELEASE_DIR)/coinstr-$(VERSION)-linux-x86_64.deb
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-linux-x86_64.deb
 	rm -rf $(RELEASE_DIR)/linux
 
-msi: create_dir
+appimage: x86_64-unknown-linux-gnu
+	cp -r coinstr.AppDir/ $(RELEASE_DIR)
+	cp linux/coinstr.desktop $(RELEASE_DIR)/coinstr.AppDir/coinstr.desktop
+	cp linux/coinstr.png $(RELEASE_DIR)/coinstr.AppDir/coinstr.png
+	cp ../../target/x86_64-unknown-linux-gnu/release/coinstr $(RELEASE_DIR)/coinstr.AppDir/usr/bin/coinstr
+	chmod a+x $(RELEASE_DIR)/coinstr.AppDir/usr/bin/coinstr
+	chmod a+x $(RELEASE_DIR)/coinstr.AppDir/AppRun
+	chmod a+x $(RELEASE_DIR)/coinstr.AppDir/coinstr.desktop
+	cd $(RELEASE_DIR) && appimagetool coinstr.AppDir --sign
+	mv $(RELEASE_DIR)/Coinstr-x86_64.AppImage $(RELEASE_DIR)/Coinstr-$(VERSION)-x86_64.AppImage
+	cd $(RELEASE_DIR) && gpg --detach-sign --armor Coinstr-$(VERSION)-x86_64.AppImage
+	rm -rf $(RELEASE_DIR)/coinstr.AppDir
+
+msi: x86_64-pc-windows-gnu
 	$(eval MSI_PRODUCT_CODE := "$(shell cat /proc/sys/kernel/random/uuid)")
-	rustup target add x86_64-pc-windows-gnu
-	cargo build -p coinstr --release --target x86_64-pc-windows-gnu
 	cp -r windows/ $(RELEASE_DIR)
 	cp ../../target/x86_64-pc-windows-gnu/release/coinstr.exe $(RELEASE_DIR)/windows/coinstr.exe
 	cp /usr/lib/gcc/x86_64-w64-mingw32/10-win32/libstdc++-6.dll $(RELEASE_DIR)/windows/
@@ -42,9 +53,7 @@ dmg: create_dir
 x86_64-unknown-linux-gnu: create_dir
 	rustup target add x86_64-unknown-linux-gnu
 	cargo build -p coinstr --release --target x86_64-unknown-linux-gnu
-	cp ../../target/x86_64-unknown-linux-gnu/release/coinstr $(RELEASE_DIR)/coinstr-$(VERSION)-x86_64-unknown-linux-gnu
-	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-x86_64-unknown-linux-gnu
-
+	
 x86_64-apple-darwin: create_dir
 	rustup target add x86_64-apple-darwin
 	cargo build -p coinstr --release --target x86_64-apple-darwin
@@ -59,5 +68,3 @@ x86_64-apple-darwin: create_dir
 x86_64-pc-windows-gnu: create_dir
 	rustup target add x86_64-pc-windows-gnu
 	cargo build -p coinstr --release --target x86_64-pc-windows-gnu
-	cp ../../target/x86_64-pc-windows-gnu/release/coinstr.exe $(RELEASE_DIR)/coinstr-$(VERSION)-x86_64-pc-windows-gnu.exe
-	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-x86_64-pc-windows-gnu.exe
