@@ -18,7 +18,7 @@ pub trait Unspendable {
 
 impl Unspendable for XOnlyPublicKey {
     fn unspendable() -> Self {
-        let mut rng = OsRng::default();
+        let mut rng = OsRng;
         let (_, public_key) = SECP256K1.generate_keypair(&mut rng);
         let (public_key, _) = public_key.x_only_public_key();
         public_key
