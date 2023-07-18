@@ -3,10 +3,22 @@ VERSION=0.2.0
 
 .PHONY: init
 
-all: x86_64-unknown-linux-gnu x86_64-apple-darwin x86_64-pc-windows-gnu
+all: deb x86_64-unknown-linux-gnu x86_64-pc-windows-gnu
+
+init:
+	cargo install cargo-deb
 
 create_dir:
 	mkdir -p $(RELEASE_DIR)
+
+deb:
+	rustup target add x86_64-unknown-linux-gnu
+	cp -r linux/ $(RELEASE_DIR)
+	sed -i s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/linux/coinstr.desktop
+	cd ../../crates/coinstr && cargo deb --target x86_64-unknown-linux-gnu
+	cp ../../target/x86_64-unknown-linux-gnu/debian/coinstr_$(VERSION)_*.deb $(RELEASE_DIR)
+	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr_$(VERSION)_*.deb
+	rm -rf $(RELEASE_DIR)/linux
 
 x86_64-unknown-linux-gnu: create_dir
 	rustup target add x86_64-unknown-linux-gnu
