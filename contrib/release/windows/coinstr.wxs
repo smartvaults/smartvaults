@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <Product Codepage="1252" Manufacturer="Coinstr" Id="PRODUCT_CODE" Language="1033" Name="Coinstr" Version="VERSION_PLACEHOLDER" UpgradeCode="8426c43c-88d4-4972-b967-49d2fc43bc97">
+
+    <Package Id='ProgramFilesFolder' Keywords='Installer' Description="Coinstr VERSION_PLACEHOLDER Installer" Manufacturer='Coinstr' InstallerVersion='100' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
+
+    <Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
+    <Property Id='DiskPrompt' Value="Coinstr VERSION_PLACEHOLDER Installation [1]" />
+
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='ProgramFilesFolder' Name='PFiles'>
+        <Directory Id='Coinstr' Name='Coinstr'>
+          <Directory Id="INSTALLDIR" Name="bin">
+            <Component Id="MainExecutable" Guid="d2458a4c-26a0-43eb-a672-91d9371b1c14">
+              <Shortcut Id="desktopShortcut" Directory="DesktopFolder" Icon="coinstr.ico" IconIndex="0" WorkingDirectory="INSTALLDIR" Name="Coinstr" Advertise="yes" />
+              <File Id="CoinstrEXE" Name="coinstr.exe" Source="coinstr.exe" KeyPath="yes" DiskId="1" />
+            </Component>
+            <Component Id="libstdcDLL" Guid="751c2189-5fd0-4171-8568-75b631fc0379" >
+              <File Id="libstdcDLL" Source="libstdc++-6.dll" KeyPath="yes" DiskId="1"/>
+            </Component>
+            <Component Id="libgccDLL" Guid="38998612-4d91-4085-a0cc-dee4dc169f7f" >
+              <File Id="libgccDLL" Source="libgcc_s_seh-1.dll" KeyPath="yes" DiskId="1"/>
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+  
+    <Icon Id="coinstr.ico" SourceFile="coinstr.ico" />
+
+    <Feature Id="Complete" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="libstdcDLL" />
+      <ComponentRef Id="libgccDLL" />
+    </Feature>
+
+  </Product>
+</Wix>

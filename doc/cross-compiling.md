@@ -5,5 +5,5 @@
 ### Ubuntu & Debian
 
 ```bash
-sudo apt install mingw-w64
+sudo apt install mingw-w64 wixl
 ```
