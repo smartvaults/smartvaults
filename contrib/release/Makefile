@@ -47,8 +47,10 @@ msi: x86_64-pc-windows-gnu
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-windows-x86_64.msi
 	rm -rf $(RELEASE_DIR)/windows
 
-dmg: create_dir
-	echo "TODO"
+dmg: x86_64-apple-darwin
+	cd $(RELEASE_DIR) && hdiutil create coinstr-$(VERSION)-darwin-x86_64.dmg -srcfolder Coinstr.app -ov
+	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-darwin-x86_64.dmg
+	rm -rf $(RELEASE_DIR)/Coinstr.app
 
 x86_64-unknown-linux-gnu: create_dir
 	rustup target add x86_64-unknown-linux-gnu
@@ -61,9 +63,6 @@ x86_64-apple-darwin: create_dir
 	sed -i "" s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/Coinstr.app/Contents/Info.plist
 	mkdir -p $(RELEASE_DIR)/Coinstr.app/Contents/MacOS/
 	cp ../../target/x86_64-apple-darwin/release/coinstr $(RELEASE_DIR)/Coinstr.app/Contents/MacOS/
-	cd $(RELEASE_DIR) && zip -ry coinstr-$(VERSION)-x86_64-apple-darwin.zip Coinstr.app
-	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-x86_64-apple-darwin.zip
-	rm -rf $(RELEASE_DIR)/Coinstr.app
 
 x86_64-pc-windows-gnu: create_dir
 	rustup target add x86_64-pc-windows-gnu
