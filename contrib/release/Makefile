@@ -48,10 +48,8 @@ msi: x86_64-pc-windows-gnu
 	rm -rf $(RELEASE_DIR)/windows
 
 dmg: x86_64-apple-darwin aarch64-apple-darwin
-	ln -fs /Applications $(RELEASE_DIR)/macos/x86_64/Applications
-	ln -fs /Applications $(RELEASE_DIR)/macos/aarch64/Applications
-	cd $(RELEASE_DIR)/macos && hdiutil create coinstr-$(VERSION)-darwin-x86_64.dmg -srcfolder x86_64 -volname Coinstr -ov
-	cd $(RELEASE_DIR)/macos && hdiutil create coinstr-$(VERSION)-darwin-aarch64.dmg -srcfolder aarch64 -volname Coinstr -ov
+	cd $(RELEASE_DIR)/macos && create-dmg --volname "Coinstr" --window-size 550 350 --icon-size 100 --hide-extension "Coinstr.app" --icon "Coinstr.app" 150 150 --app-drop-link 400 150 "coinstr-$(VERSION)-darwin-x86_64.dmg" "x86_64/"
+	cd $(RELEASE_DIR)/macos && create-dmg --volname "Coinstr" --window-size 550 350 --icon-size 100 --hide-extension "Coinstr.app" --icon "Coinstr.app" 150 150 --app-drop-link 400 150 "coinstr-$(VERSION)-darwin-aarch64.dmg" "aarch64/"
 	mv $(RELEASE_DIR)/macos/coinstr-$(VERSION)-darwin-x86_64.dmg $(RELEASE_DIR)/coinstr-$(VERSION)-darwin-x86_64.dmg
 	mv $(RELEASE_DIR)/macos/coinstr-$(VERSION)-darwin-aarch64.dmg $(RELEASE_DIR)/coinstr-$(VERSION)-darwin-aarch64.dmg
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-darwin-x86_64.dmg
