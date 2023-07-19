@@ -163,6 +163,13 @@ dictionary NostrConnectSession {
     u64 timestamp;
 };
 
+interface NostrConnectRequest {
+    string app_public_key();
+    string message();
+    u64 timestamp();
+    boolean approved();
+};
+
 interface Config {
     [Throws=FFIError]
     void save();
@@ -300,6 +307,8 @@ interface Coinstr {
     void new_nostr_connect_session(NostrConnectURI uri);
     [Throws=FFIError]
     sequence<NostrConnectSession> get_nostr_connect_sessions();
+    [Throws=FFIError]
+    record<DOMString, NostrConnectRequest> get_nostr_connect_requests(boolean approved);
     [Throws=FFIError]
     void approve_nostr_connect_request(string event_id);
 };

@@ -20,8 +20,8 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 use crate::error::Result;
 use crate::{
     Amount, Approval, Balance, CompletedProposal, Config, KeychainSeed, Metadata,
-    NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay, Signer, TransactionDetails,
-    Utxo,
+    NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay, Signer,
+    TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -561,6 +561,18 @@ impl Coinstr {
                 uri: Arc::new(uri.into()),
                 timestamp: timestamp.as_u64(),
             })
+            .collect())
+    }
+
+    pub fn get_nostr_connect_requests(
+        &self,
+        approved: bool,
+    ) -> Result<HashMap<String, Arc<NostrConnectRequest>>> {
+        Ok(self
+            .inner
+            .get_nostr_connect_requests(approved)?
+            .into_iter()
+            .map(|(id, req)| (id.to_hex(), Arc::new(req.into())))
             .collect())
     }
 

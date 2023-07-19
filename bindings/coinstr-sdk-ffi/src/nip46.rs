@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use coinstr_sdk::db::model;
 use coinstr_sdk::nostr::nips::nip46;
 
 use crate::error::Result;
@@ -57,4 +58,32 @@ impl NostrConnectURI {
 pub struct NostrConnectSession {
     pub uri: Arc<NostrConnectURI>,
     pub timestamp: u64,
+}
+
+pub struct NostrConnectRequest {
+    inner: model::NostrConnectRequest,
+}
+
+impl From<model::NostrConnectRequest> for NostrConnectRequest {
+    fn from(inner: model::NostrConnectRequest) -> Self {
+        Self { inner }
+    }
+}
+
+impl NostrConnectRequest {
+    pub fn app_public_key(&self) -> String {
+        self.inner.app_public_key.to_string()
+    }
+
+    pub fn message(&self) -> String {
+        self.inner.message.as_json()
+    }
+
+    pub fn timestamp(&self) -> u64 {
+        self.inner.timestamp.as_u64()
+    }
+
+    pub fn approved(&self) -> bool {
+        self.inner.approved
+    }
 }
