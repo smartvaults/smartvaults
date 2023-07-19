@@ -158,6 +158,11 @@ interface NostrConnectURI {
     string? description();
 };
 
+dictionary NostrConnectSession {
+    NostrConnectURI uri;
+    u64 timestamp;
+};
+
 interface Config {
     [Throws=FFIError]
     void save();
@@ -290,10 +295,11 @@ interface Coinstr {
     void rebroadcast_all_events();
     [Throws=FFIError]
     void republish_shared_key_for_policy(string policy_id);
-
-    [Throws=FFIError]
-    void approve_nostr_connect_request(string event_id);
     
     [Throws=FFIError]
     void new_nostr_connect_session(NostrConnectURI uri);
+    [Throws=FFIError]
+    sequence<NostrConnectSession> get_nostr_connect_sessions();
+    [Throws=FFIError]
+    void approve_nostr_connect_request(string event_id);
 };

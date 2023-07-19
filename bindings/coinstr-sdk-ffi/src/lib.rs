@@ -47,7 +47,7 @@ mod ffi {
     pub use crate::config::Config;
     pub use crate::key::Keys;
     pub use crate::metadata::Metadata;
-    pub use crate::nip46::NostrConnectURI;
+    pub use crate::nip46::{NostrConnectSession, NostrConnectURI};
     pub use crate::policy::Policy;
     pub use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal};
     pub use crate::relay::Relay;

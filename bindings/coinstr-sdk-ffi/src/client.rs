@@ -19,8 +19,9 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    Amount, Approval, Balance, CompletedProposal, Config, KeychainSeed, Metadata, NostrConnectURI,
-    Policy, Proposal, Relay, Signer, TransactionDetails, Utxo,
+    Amount, Approval, Balance, CompletedProposal, Config, KeychainSeed, Metadata,
+    NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay, Signer, TransactionDetails,
+    Utxo,
 };
 
 pub struct Coinstr {
@@ -534,11 +535,6 @@ impl Coinstr {
         })
     }
 
-    pub fn approve_nostr_connect_request(&self, event_id: String) -> Result<()> {
-        let event_id = EventId::from_hex(event_id)?;
-        block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id).await?) })
-    }
-
     // TODO: add share_signer
 
     // TODO: add share_signer_to_multiple_public_keys
@@ -554,5 +550,22 @@ impl Coinstr {
                 .new_nostr_connect_session(uri.as_ref().deref().clone())
                 .await?)
         })
+    }
+
+    pub fn get_nostr_connect_sessions(&self) -> Result<Vec<NostrConnectSession>> {
+        Ok(self
+            .inner
+            .get_nostr_connect_sessions()?
+            .into_iter()
+            .map(|(uri, timestamp)| NostrConnectSession {
+                uri: Arc::new(uri.into()),
+                timestamp: timestamp.as_u64(),
+            })
+            .collect())
+    }
+
+    pub fn approve_nostr_connect_request(&self, event_id: String) -> Result<()> {
+        let event_id = EventId::from_hex(event_id)?;
+        block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id).await?) })
     }
 }

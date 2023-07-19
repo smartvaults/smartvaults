@@ -1,7 +1,9 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::{ops::Deref, str::FromStr};
+use std::ops::Deref;
+use std::str::FromStr;
+use std::sync::Arc;
 
 use coinstr_sdk::nostr::nips::nip46;
 
@@ -50,4 +52,9 @@ impl NostrConnectURI {
     pub fn description(&self) -> Option<String> {
         self.inner.metadata.description.clone()
     }
+}
+
+pub struct NostrConnectSession {
+    pub uri: Arc<NostrConnectURI>,
+    pub timestamp: u64,
 }
