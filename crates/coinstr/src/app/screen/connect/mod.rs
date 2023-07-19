@@ -21,12 +21,13 @@ use crate::theme::color::RED;
 use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOP, STOPWATCH, TRASH};
 
 type Sessions = Vec<(NostrConnectURI, Timestamp)>;
-type Requests = BTreeMap<EventId, NostrConnectRequest>;
+type PendingRequests = BTreeMap<EventId, NostrConnectRequest>;
+type ApprovedRequests = BTreeMap<EventId, NostrConnectRequest>;
 type Authorizations = BTreeMap<XOnlyPublicKey, Timestamp>;
 
 #[derive(Debug, Clone)]
 pub enum ConnectMessage {
-    Load((Sessions, Requests, Authorizations)),
+    Load((Sessions, PendingRequests, ApprovedRequests, Authorizations)),
     ApproveRequest(EventId),
     DeleteRequest(EventId),
     DisconnectSession(XOnlyPublicKey),
@@ -41,7 +42,8 @@ pub struct ConnectState {
     loading: bool,
     loaded: bool,
     sessions: Sessions,
-    requests: Requests,
+    pending_requests: PendingRequests,
+    approved_requests: ApprovedRequests,
     authorizations: Authorizations,
     error: Option<String>,
 }
@@ -63,9 +65,15 @@ impl State for ConnectState {
         Command::perform(
             async move {
                 let sessions = client.get_nostr_connect_sessions().unwrap();
-                let requests = client.get_nostr_connect_requests(false).unwrap();
+                let pending_requests = client.get_nostr_connect_requests(false).unwrap();
+                let approved_requests = client.get_nostr_connect_requests(true).unwrap();
                 let authorizations = client.get_nostr_connect_pre_authorizations();
-                (sessions, requests, authorizations)
+                (
+                    sessions,
+                    pending_requests,
+                    approved_requests,
+                    authorizations,
+                )
             },
             |c| ConnectMessage::Load(c).into(),
         )
@@ -78,9 +86,15 @@ impl State for ConnectState {
 
         if let Message::Connect(msg) = message {
             match msg {
-                ConnectMessage::Load((sessions, requests, authorizations)) => {
+                ConnectMessage::Load((
+                    sessions,
+                    pending_requests,
+                    approved_requests,
+                    authorizations,
+                )) => {
                     self.sessions = sessions;
-                    self.requests = requests;
+                    self.pending_requests = pending_requests;
+                    self.approved_requests = approved_requests;
                     self.authorizations = authorizations;
                     self.loading = false;
                     self.loaded = true;
@@ -328,9 +342,9 @@ impl State for ConnectState {
                     content = content.push(Text::new(e).color(RED).view());
                 }
 
-                // Requests
+                // Pending Requests
 
-                if !self.requests.is_empty() {
+                if !self.pending_requests.is_empty() {
                     content = content
                         .push(Space::with_height(Length::Fixed(40.0)))
                         .push(Text::new("Pending requests").bigger().bold().view())
@@ -372,7 +386,7 @@ impl State for ConnectState {
                         )
                         .push(rule::horizontal_bold());
 
-                    for (req_id, request) in self.requests.iter() {
+                    for (req_id, request) in self.pending_requests.iter() {
                         if let Ok(req) = request.message.to_request() {
                             let row = Row::new()
                                 .push(
@@ -407,6 +421,75 @@ impl State for ConnectState {
                                         .loading(self.loading)
                                         .style(ButtonStyle::BorderedDanger)
                                         .width(Length::Fixed(40.0))
+                                        .view(),
+                                )
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .width(Length::Fill);
+                            content = content.push(row).push(rule::horizontal());
+                        }
+                    }
+                }
+
+                // Approved Requests
+
+                if !self.approved_requests.is_empty() {
+                    content = content
+                        .push(Space::with_height(Length::Fixed(40.0)))
+                        .push(Text::new("Approved requests").bigger().bold().view())
+                        .push(
+                            Row::new()
+                                .push(
+                                    Text::new("ID")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fixed(115.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new("App Public Key")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fixed(175.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new("Method")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fill)
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new("Requested at")
+                                        .bold()
+                                        .bigger()
+                                        .width(Length::Fill)
+                                        .view(),
+                                )
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .width(Length::Fill),
+                        )
+                        .push(rule::horizontal_bold());
+
+                    for (req_id, request) in self.approved_requests.iter() {
+                        if let Ok(req) = request.message.to_request() {
+                            let row = Row::new()
+                                .push(
+                                    Text::new(util::cut_event_id(*req_id))
+                                        .width(Length::Fixed(115.0))
+                                        .view(),
+                                )
+                                .push(
+                                    Text::new(util::cut_public_key(request.app_public_key))
+                                        .width(Length::Fixed(175.0))
+                                        .view(),
+                                )
+                                .push(Text::new(req.method()).width(Length::Fill).view())
+                                .push(
+                                    Text::new(request.timestamp.to_human_datetime())
+                                        .width(Length::Fill)
                                         .view(),
                                 )
                                 .spacing(10)
