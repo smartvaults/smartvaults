@@ -258,6 +258,8 @@ interface Coinstr {
     boolean coinstr_signer_exists();
     [Throws=FFIError]
     string save_coinstr_signer();
+    [Throws=FFIError]
+    record<DOMString, Signer> get_signers();
 
     [Throws=FFIError]
     void rebroadcast_all_events();

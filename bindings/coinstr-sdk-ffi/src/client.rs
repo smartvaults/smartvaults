@@ -455,7 +455,14 @@ impl Coinstr {
 
     // TODO: add get_all_signers
 
-    // TODO: add get_signers
+    pub fn get_signers(&self) -> Result<HashMap<String, Arc<Signer>>> {
+        Ok(self
+            .inner
+            .get_signers()?
+            .into_iter()
+            .map(|(id, s)| (id.to_hex(), Arc::new(s.into())))
+            .collect())
+    }
 
     pub fn get_balance(&self, policy_id: String) -> Result<Option<Arc<Balance>>> {
         let policy_id = EventId::from_hex(policy_id)?;
