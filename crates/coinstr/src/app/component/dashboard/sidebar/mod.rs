@@ -1,9 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::Network;
-use iced::widget::{svg, Column, Container, Row, Rule, Space};
+use iced::widget::{svg, Column, Container, Space};
 use iced::Length;
 
 mod button;
@@ -12,10 +11,7 @@ use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::{APP_LOGO_MAINNET, APP_LOGO_REGTEST, APP_LOGO_SIGNET, APP_LOGO_TESTNET};
-use crate::theme::color::DARK_RED;
-use crate::theme::icon::{
-    CONTACTS, FINGERPRINT, HISTORY, HOME, KEY, LINK, LOCK, SEND_PENDING, SETTING, WALLET,
-};
+use crate::theme::icon::{CONTACTS, HISTORY, HOME, KEY, LINK, LOCK, SEND_PENDING, SETTING, WALLET};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -57,21 +53,6 @@ impl Sidebar {
         let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
             .view(ctx, Message::View(Stage::Settings));
 
-        // Identity
-        let fingerprint = match ctx.client.keychain().seed.fingerprint(ctx.client.network()) {
-            Ok(fingerprint) => Text::new(fingerprint.to_string()),
-            Err(_) => Text::new("error").color(DARK_RED),
-        };
-        let details = Column::new()
-            .push(
-                Row::new()
-                    .push(Icon::new(FINGERPRINT).view())
-                    .push(fingerprint.view())
-                    .spacing(10),
-            )
-            .spacing(10)
-            .padding([15, 0]);
-
         // Footer
         let lock_button =
             SidebarButton::new("Lock", Icon::new(LOCK).view()).view(ctx, Message::Lock);
@@ -88,7 +69,6 @@ impl Sidebar {
             Container::new(Column::new().push(logo).padding([30, 0]))
                 .width(Length::Fill)
                 .center_x(),
-            Container::new(details).width(Length::Fill).center_x(),
             sidebar_menu(vec![
                 home_button,
                 policies_button,
@@ -109,7 +89,6 @@ impl Sidebar {
 
 pub fn sidebar<'a, T: 'a>(
     logo: Container<'a, T>,
-    identity: Container<'a, T>,
     menu: Container<'a, T>,
     footer: Container<'a, T>,
 ) -> Container<'a, T> {
@@ -117,9 +96,6 @@ pub fn sidebar<'a, T: 'a>(
         Column::new()
             .padding(10)
             .push(logo)
-            .push(Rule::horizontal(1))
-            .push(identity)
-            .push(Rule::horizontal(1))
             .push(Space::with_height(Length::Fixed(15.0)))
             .push(menu.height(Length::Fill))
             .push(footer.height(Length::Shrink)),

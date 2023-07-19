@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::util::format;
 use iced::widget::Row;
 use iced::{Alignment, Color, Length};
@@ -8,8 +9,8 @@ use iced::{Alignment, Color, Length};
 use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Button, ButtonStyle, Icon, Text};
-use crate::theme::color::RED;
-use crate::theme::icon::{BELL, BOX, EYE, PERSON_CIRCLE};
+use crate::theme::color::{DARK_RED, RED};
+use crate::theme::icon::{BELL, BOX, EYE, FINGERPRINT, PERSON_CIRCLE};
 
 #[derive(Clone, Default)]
 pub struct Navbar;
@@ -34,6 +35,12 @@ impl Navbar {
             }
         };
 
+        // Identity
+        let fingerprint = match ctx.client.keychain().seed.fingerprint(ctx.client.network()) {
+            Ok(fingerprint) => Text::new(fingerprint.to_string()),
+            Err(_) => Text::new("error").color(DARK_RED),
+        };
+
         Row::new()
             .push(
                 Row::new()
@@ -50,6 +57,13 @@ impl Navbar {
                     .push(Icon::new(BOX).view())
                     .push(Text::new(format::number(ctx.client.block_height() as u64)).view())
                     .padding(10)
+                    .spacing(10),
+            )
+            .push(rule::vertical())
+            .push(
+                Row::new()
+                    .push(Icon::new(FINGERPRINT).view())
+                    .push(fingerprint.view())
                     .spacing(10),
             )
             .push(rule::vertical())
