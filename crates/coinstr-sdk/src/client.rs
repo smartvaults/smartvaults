@@ -2091,7 +2091,7 @@ impl Coinstr {
     pub fn get_nostr_connect_requests(
         &self,
         approved: bool,
-    ) -> Result<BTreeMap<EventId, NostrConnectRequest>, Error> {
+    ) -> Result<Vec<(EventId, NostrConnectRequest)>, Error> {
         Ok(self.db.get_nostr_connect_requests(approved)?)
     }
 

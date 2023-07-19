@@ -21,13 +21,12 @@ use crate::theme::color::RED;
 use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOP, STOPWATCH, TRASH};
 
 type Sessions = Vec<(NostrConnectURI, Timestamp)>;
-type PendingRequests = BTreeMap<EventId, NostrConnectRequest>;
-type ApprovedRequests = BTreeMap<EventId, NostrConnectRequest>;
+type Requests = Vec<(EventId, NostrConnectRequest)>;
 type Authorizations = BTreeMap<XOnlyPublicKey, Timestamp>;
 
 #[derive(Debug, Clone)]
 pub enum ConnectMessage {
-    Load((Sessions, PendingRequests, ApprovedRequests, Authorizations)),
+    Load((Sessions, Requests, Requests, Authorizations)),
     ApproveRequest(EventId),
     DeleteRequest(EventId),
     DisconnectSession(XOnlyPublicKey),
@@ -42,8 +41,8 @@ pub struct ConnectState {
     loading: bool,
     loaded: bool,
     sessions: Sessions,
-    pending_requests: PendingRequests,
-    approved_requests: ApprovedRequests,
+    pending_requests: Requests,
+    approved_requests: Requests,
     authorizations: Authorizations,
     error: Option<String>,
 }

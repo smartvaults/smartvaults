@@ -477,7 +477,7 @@ pub fn print_sessions(sessions: Vec<(NostrConnectURI, Timestamp)>) {
     table.printstd();
 }
 
-pub fn print_requests(requests: BTreeMap<EventId, NostrConnectRequest>) -> Result<()> {
+pub fn print_requests(requests: Vec<(EventId, NostrConnectRequest)>) -> Result<()> {
     let mut table = Table::new();
 
     table.set_titles(row![
