@@ -313,4 +313,6 @@ interface Coinstr {
     void approve_nostr_connect_request(string event_id);
     [Throws=FFIError]
     void auto_approve_nostr_connect_requests(string app_public_key, duration duration);
+    [Throws=FFIError]
+    void delete_nostr_connect_request(string event_id);
 };

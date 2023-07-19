@@ -592,4 +592,13 @@ impl Coinstr {
             .auto_approve_nostr_connect_requests(app_public_key, duration);
         Ok(())
     }
+
+    // TODO: add revoke_nostr_connect_auto_approve
+
+    // TODO: add get_nostr_connect_pre_authorizations
+
+    pub fn delete_nostr_connect_request(&self, event_id: String) -> Result<()> {
+        let event_id = EventId::from_hex(event_id)?;
+        Ok(self.inner.delete_nostr_connect_request(event_id)?)
+    }
 }
