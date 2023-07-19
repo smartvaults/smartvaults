@@ -1779,6 +1779,7 @@ impl Coinstr {
                         {
                             let uri = self.db.get_nostr_connect_session(event.pubkey)?;
                             let keys = self.client.keys();
+                            let req_message = msg.clone();
                             let msg = msg
                                 .generate_response(&keys)?
                                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
@@ -1788,6 +1789,13 @@ impl Coinstr {
                             self.client
                                 .send_event_to_with_custom_wait(uri.relay_url, nip46_event, None)
                                 .await?;
+                            self.db.save_nostr_connect_request(
+                                event.id,
+                                event.pubkey,
+                                req_message,
+                                event.created_at,
+                                true,
+                            )?;
                             log::info!(
                                 "Auto approved nostr connect request {} for app {}",
                                 event.id,
@@ -1799,6 +1807,7 @@ impl Coinstr {
                                 event.pubkey,
                                 msg,
                                 event.created_at,
+                                false,
                             )?;
                             // TODO: save/send notification
                         }

@@ -1560,11 +1560,12 @@ impl Store {
         app_public_key: XOnlyPublicKey,
         message: NIP46Message,
         timestamp: Timestamp,
+        approved: bool,
     ) -> Result<(), Error> {
         let conn = self.pool.get()?;
         conn.execute(
-            "INSERT OR IGNORE INTO nostr_connect_requests (event_id, app_public_key, message, timestamp) VALUES (?, ?, ?, ?);",
-            (event_id.to_hex(), app_public_key.to_string(), message.as_json(), timestamp.as_u64()),
+            "INSERT OR IGNORE INTO nostr_connect_requests (event_id, app_public_key, message, timestamp, approved) VALUES (?, ?, ?, ?, ?);",
+            (event_id.to_hex(), app_public_key.to_string(), message.as_json(), timestamp.as_u64(), approved),
         )?;
         Ok(())
     }
