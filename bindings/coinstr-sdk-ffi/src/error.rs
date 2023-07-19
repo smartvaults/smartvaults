@@ -54,6 +54,12 @@ impl From<coinstr_sdk::nostr::nips::nip19::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::nostr::nips::nip46::Error> for FFIError {
+    fn from(e: coinstr_sdk::nostr::nips::nip46::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::nostr::types::metadata::Error> for FFIError {
     fn from(e: coinstr_sdk::nostr::types::metadata::Error) -> Self {
         Self::Generic { err: e.to_string() }

@@ -148,6 +148,16 @@ interface Approval {
     u64 timestamp();
 };
 
+interface NostrConnectURI {
+    [Throws=FFIError, Name=from_string]
+    constructor(string uri);
+    string public_key();
+    string relay_url();
+    string name();
+    string? url();
+    string? description();
+};
+
 interface Config {
     [Throws=FFIError]
     void save();
@@ -262,11 +272,6 @@ interface Coinstr {
     record<DOMString, Signer> get_signers();
 
     [Throws=FFIError]
-    void rebroadcast_all_events();
-    [Throws=FFIError]
-    void republish_shared_key_for_policy(string policy_id);
-
-    [Throws=FFIError]
     Balance? get_balance(string policy_id);
     [Throws=FFIError]
     sequence<TransactionDetails> get_txs(string policy_id);
@@ -280,6 +285,11 @@ interface Coinstr {
     TransactionDetails? get_tx(string txid);
     [Throws=FFIError]
     string? get_last_unused_address(string policy_id);
+
+    [Throws=FFIError]
+    void rebroadcast_all_events();
+    [Throws=FFIError]
+    void republish_shared_key_for_policy(string policy_id);
 
     [Throws=FFIError]
     void approve_nostr_connect_request(string event_id);
