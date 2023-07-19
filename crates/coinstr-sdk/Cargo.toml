@@ -1,6 +1,6 @@
 [package]
 name = "coinstr-sdk"
-version = "0.2.0"
+version.workspace = true
 edition = "2021"
 description = "Coinstr SDK"
 homepage.workspace = true

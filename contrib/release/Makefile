@@ -1,5 +1,5 @@
 RELEASE_DIR=../../release
-VERSION=0.2.0
+VERSION=0.3.0
 MSI_PRODUCT_CODE=
 
 .PHONY: init
