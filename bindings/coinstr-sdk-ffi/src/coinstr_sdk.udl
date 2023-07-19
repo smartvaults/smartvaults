@@ -293,4 +293,7 @@ interface Coinstr {
 
     [Throws=FFIError]
     void approve_nostr_connect_request(string event_id);
+    
+    [Throws=FFIError]
+    void new_nostr_connect_session(NostrConnectURI uri);
 };
