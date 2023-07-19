@@ -47,10 +47,16 @@ msi: x86_64-pc-windows-gnu
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-windows-x86_64.msi
 	rm -rf $(RELEASE_DIR)/windows
 
-dmg: x86_64-apple-darwin
-	cd $(RELEASE_DIR) && hdiutil create coinstr-$(VERSION)-darwin-x86_64.dmg -srcfolder Coinstr.app -ov
+dmg: x86_64-apple-darwin aarch64-apple-darwin
+	ln -fs /Applications $(RELEASE_DIR)/macos/x86_64/Applications
+	ln -fs /Applications $(RELEASE_DIR)/macos/aarch64/Applications
+	cd $(RELEASE_DIR)/macos && hdiutil create coinstr-$(VERSION)-darwin-x86_64.dmg -srcfolder x86_64 -volname Coinstr -ov
+	cd $(RELEASE_DIR)/macos && hdiutil create coinstr-$(VERSION)-darwin-aarch64.dmg -srcfolder aarch64 -volname Coinstr -ov
+	mv $(RELEASE_DIR)/macos/coinstr-$(VERSION)-darwin-x86_64.dmg $(RELEASE_DIR)/coinstr-$(VERSION)-darwin-x86_64.dmg
+	mv $(RELEASE_DIR)/macos/coinstr-$(VERSION)-darwin-aarch64.dmg $(RELEASE_DIR)/coinstr-$(VERSION)-darwin-aarch64.dmg
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-darwin-x86_64.dmg
-	rm -rf $(RELEASE_DIR)/Coinstr.app
+	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-darwin-aarch64.dmg
+	rm -rf $(RELEASE_DIR)/macos
 
 x86_64-unknown-linux-gnu: create_dir
 	rustup target add x86_64-unknown-linux-gnu
@@ -59,10 +65,20 @@ x86_64-unknown-linux-gnu: create_dir
 x86_64-apple-darwin: create_dir
 	rustup target add x86_64-apple-darwin
 	cargo build -p coinstr --release --target x86_64-apple-darwin
-	cp -r macos/Coinstr.app $(RELEASE_DIR)
-	sed -i "" s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/Coinstr.app/Contents/Info.plist
-	mkdir -p $(RELEASE_DIR)/Coinstr.app/Contents/MacOS/
-	cp ../../target/x86_64-apple-darwin/release/coinstr $(RELEASE_DIR)/Coinstr.app/Contents/MacOS/
+	mkdir -p $(RELEASE_DIR)/macos/x86_64
+	cp -r macos/Coinstr.app $(RELEASE_DIR)/macos/x86_64
+	sed -i "" s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/macos/x86_64/Coinstr.app/Contents/Info.plist
+	mkdir -p $(RELEASE_DIR)/macos/x86_64/Coinstr.app/Contents/MacOS/
+	cp ../../target/x86_64-apple-darwin/release/coinstr $(RELEASE_DIR)/macos/x86_64/Coinstr.app/Contents/MacOS/
+
+aarch64-apple-darwin: create_dir
+	rustup target add aarch64-apple-darwin
+	cargo build -p coinstr --release --target aarch64-apple-darwin
+	mkdir -p $(RELEASE_DIR)/macos/aarch64
+	cp -r macos/Coinstr.app $(RELEASE_DIR)/macos/aarch64
+	sed -i "" s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/macos/aarch64/Coinstr.app/Contents/Info.plist
+	mkdir -p $(RELEASE_DIR)/macos/aarch64/Coinstr.app/Contents/MacOS/
+	cp ../../target/aarch64-apple-darwin/release/coinstr $(RELEASE_DIR)/macos/aarch64/Coinstr.app/Contents/MacOS/
 
 x86_64-pc-windows-gnu: create_dir
 	rustup target add x86_64-pc-windows-gnu
