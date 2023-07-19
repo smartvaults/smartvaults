@@ -7,7 +7,7 @@ help:
 	@echo "make                                 - Build binaries files"
 	@echo "make gui                             - Build only GUI binary files"
 	@echo "make cli                             - Build only CLI binary files"
-	@echo "make x86_64-unknown-linux-gnu        - Build target x86_64-unknown-linux-gnu"
+	@echo "make release         				- Build release packages"
 	@echo "make precommit                       - Execute precommit steps"
 	@echo "make clean                           - Clean"
 	@echo "make loc                             - Count lines of code in src folder"
@@ -21,10 +21,6 @@ cli:
 
 release:
 	cd contrib/release && make
-
-x86_64-unknown-linux-musl:
-	rustup target add x86_64-unknown-linux-musl
-	TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target x86_64-unknown-linux-musl
 
 dev-gui:
 	cargo fmt --all && STDOUT_LOG=true cargo run -p coinstr -- --testnet
