@@ -148,6 +148,18 @@ interface Approval {
     u64 timestamp();
 };
 
+interface Config {
+    [Throws=FFIError]
+    void save();
+    void set_electrum_endpoint(string endpoint);
+    [Throws=FFIError]
+    string electrum_endpoint();
+    [Throws=FFIError]
+    void set_block_explorer(string url);
+    [Throws=FFIError]
+    string block_explorer();
+};
+
 interface Coinstr {
     [Throws=FFIError, Name=open]
     constructor(string base_path, string name, string password, Network network);
@@ -182,10 +194,7 @@ interface Coinstr {
     void remove_relay(string url);
     [Throws=FFIError]
     void shutdown();
-    [Throws=FFIError]
-    void set_electrum_endpoint(string endpoint);
-    [Throws=FFIError]
-    string electrum_endpoint();
+    Config config();
     u32 block_height();
 
     [Throws=FFIError]

@@ -30,6 +30,18 @@ impl From<coinstr_sdk::client::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::config::Error> for FFIError {
+    fn from(e: coinstr_sdk::config::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
+impl From<coinstr_sdk::nostr::url::ParseError> for FFIError {
+    fn from(e: coinstr_sdk::nostr::url::ParseError) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::nostr::key::Error> for FFIError {
     fn from(e: coinstr_sdk::nostr::key::Error) -> Self {
         Self::Generic { err: e.to_string() }

@@ -5,6 +5,7 @@ mod amount;
 mod approval;
 mod balance;
 mod client;
+mod config;
 mod error;
 mod key;
 mod logger;
@@ -42,6 +43,7 @@ mod ffi {
     pub use crate::approval::Approval;
     pub use crate::balance::Balance;
     pub use crate::client::Coinstr;
+    pub use crate::config::Config;
     pub use crate::key::Keys;
     pub use crate::metadata::Metadata;
     pub use crate::policy::Policy;

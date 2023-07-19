@@ -18,8 +18,8 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    Amount, Approval, Balance, CompletedProposal, KeychainSeed, Metadata, Policy, Proposal, Relay,
-    Signer, TransactionDetails, Utxo,
+    Amount, Approval, Balance, CompletedProposal, Config, KeychainSeed, Metadata, Policy, Proposal,
+    Relay, Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -164,14 +164,8 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.clone().shutdown().await?) })
     }
 
-    /// Set the electrum endpoint
-    pub fn set_electrum_endpoint(&self, endpoint: String) -> Result<()> {
-        Ok(self.inner.set_electrum_endpoint(endpoint)?)
-    }
-
-    /// Get the electrum endpoint
-    pub fn electrum_endpoint(&self) -> Result<String> {
-        Ok(self.inner.electrum_endpoint()?)
+    pub fn config(&self) -> Arc<Config> {
+        Arc::new(self.inner.config().into())
     }
 
     pub fn block_height(&self) -> u32 {
