@@ -38,4 +38,5 @@ pub const SHARE: char = '\u{F52E}';
 pub const WALLET: char = '\u{F615}';
 pub const LINK: char = '\u{F470}';
 pub const STOPWATCH: char = '\u{F597}';
+pub const STOP: char = '\u{F82E}';
 pub const BROWSER: char = '\u{F7D6}';

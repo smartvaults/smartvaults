@@ -18,19 +18,20 @@ use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
-use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOPWATCH, TRASH};
+use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOP, STOPWATCH, TRASH};
+
+type Sessions = Vec<(NostrConnectURI, Timestamp)>;
+type Requests = BTreeMap<EventId, NostrConnectRequest>;
+type Authorizations = BTreeMap<XOnlyPublicKey, Timestamp>;
 
 #[derive(Debug, Clone)]
 pub enum ConnectMessage {
-    Load(
-        (
-            Vec<(NostrConnectURI, Timestamp)>,
-            BTreeMap<EventId, NostrConnectRequest>,
-        ),
-    ),
+    Load((Sessions, Requests, Authorizations)),
     ApproveRequest(EventId),
     DeleteRequest(EventId),
     DisconnectSession(XOnlyPublicKey),
+    AddAuthorization(XOnlyPublicKey),
+    RevokeAuthorization(XOnlyPublicKey),
     ErrorChanged(Option<String>),
     Reload,
 }
@@ -39,8 +40,9 @@ pub enum ConnectMessage {
 pub struct ConnectState {
     loading: bool,
     loaded: bool,
-    sessions: Vec<(NostrConnectURI, Timestamp)>,
-    requests: BTreeMap<EventId, NostrConnectRequest>,
+    sessions: Sessions,
+    requests: Requests,
+    authorizations: Authorizations,
     error: Option<String>,
 }
 
@@ -62,7 +64,8 @@ impl State for ConnectState {
             async move {
                 let sessions = client.get_nostr_connect_sessions().unwrap();
                 let requests = client.get_nostr_connect_requests(false).unwrap();
-                (sessions, requests)
+                let authorizations = client.get_nostr_connect_pre_authorizations();
+                (sessions, requests, authorizations)
             },
             |c| ConnectMessage::Load(c).into(),
         )
@@ -75,9 +78,10 @@ impl State for ConnectState {
 
         if let Message::Connect(msg) = message {
             match msg {
-                ConnectMessage::Load((sessions, requests)) => {
+                ConnectMessage::Load((sessions, requests, authorizations)) => {
                     self.sessions = sessions;
                     self.requests = requests;
+                    self.authorizations = authorizations;
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
@@ -120,6 +124,25 @@ impl State for ConnectState {
                             Ok(_) => ConnectMessage::Reload.into(),
                             Err(e) => ConnectMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
+                    )
+                }
+                ConnectMessage::AddAuthorization(public_key) => {
+                    let client = ctx.client.clone();
+                    Command::perform(
+                        async move {
+                            client.auto_approve_nostr_connect_requests(
+                                public_key,
+                                Duration::from_secs(60 * 60),
+                            )
+                        },
+                        |_| ConnectMessage::Reload.into(),
+                    )
+                }
+                ConnectMessage::RevokeAuthorization(public_key) => {
+                    let client = ctx.client.clone();
+                    Command::perform(
+                        async move { client.revoke_nostr_connect_auto_approve(public_key) },
+                        |_| ConnectMessage::Reload.into(),
                     )
                 }
                 ConnectMessage::ErrorChanged(e) => {
@@ -198,6 +221,13 @@ impl State for ConnectState {
                                     .width(Length::Fill)
                                     .view(),
                             )
+                            .push(
+                                Text::new("Pre-authorized until")
+                                    .bold()
+                                    .bigger()
+                                    .width(Length::Fill)
+                                    .view(),
+                            )
                             .push(Space::with_width(Length::Fixed(40.0)))
                             .push(
                                 Button::new()
@@ -245,11 +275,33 @@ impl State for ConnectState {
                                 .view(),
                         )
                         .push(
-                            Button::new()
-                                .icon(STOPWATCH)
-                                .style(ButtonStyle::Bordered)
-                                .width(Length::Fixed(40.0))
-                                .view(),
+                            Text::new(match self.authorizations.get(&uri.public_key) {
+                                Some(timestamp) => timestamp.to_human_datetime(),
+                                None => String::from("-"),
+                            })
+                            .width(Length::Fill)
+                            .view(),
+                        )
+                        .push(
+                            if self.authorizations.get(&uri.public_key).is_some() {
+                                Button::new()
+                                    .icon(STOP)
+                                    .style(ButtonStyle::BorderedDanger)
+                                    .loading(self.loading)
+                                    .on_press(
+                                        ConnectMessage::RevokeAuthorization(uri.public_key).into(),
+                                    )
+                            } else {
+                                Button::new()
+                                    .icon(STOPWATCH)
+                                    .style(ButtonStyle::Bordered)
+                                    .loading(self.loading)
+                                    .on_press(
+                                        ConnectMessage::AddAuthorization(uri.public_key).into(),
+                                    )
+                            }
+                            .width(Length::Fixed(40.0))
+                            .view(),
                         )
                         .push(
                             Button::new()
