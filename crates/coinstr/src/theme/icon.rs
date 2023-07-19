@@ -40,3 +40,4 @@ pub const LINK: char = '\u{F470}';
 pub const STOPWATCH: char = '\u{F597}';
 pub const STOP: char = '\u{F82E}';
 pub const BROWSER: char = '\u{F7D6}';
+pub const BROADCAST_PIN: char = '\u{F1D5}';
