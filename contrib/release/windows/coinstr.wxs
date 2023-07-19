@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
-  <Product Codepage="1252" Manufacturer="Coinstr" Id="PRODUCT_CODE" Language="1033" Name="Coinstr" Version="VERSION_PLACEHOLDER" UpgradeCode="8426c43c-88d4-4972-b967-49d2fc43bc97">
+  <Product Codepage="1252" Manufacturer="Coinstr" Id="*" Language="1033" Name="Coinstr" Version="VERSION_PLACEHOLDER" UpgradeCode="8426c43c-88d4-4972-b967-49d2fc43bc97">
 
-    <Package Id='ProgramFilesFolder' Keywords='Installer' Description="Coinstr VERSION_PLACEHOLDER Installer" Manufacturer='Coinstr' InstallerVersion='100' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
+    <Package Keywords='Installer' Description="Coinstr VERSION_PLACEHOLDER Installer" Manufacturer='Coinstr' InstallerVersion='200' InstallScope="perMachine" Languages='1033' Compressed='yes' SummaryCodepage='1252' />
+    <MajorUpgrade DowngradeErrorMessage="A later version of [ProductName] is already installed" />
 
     <Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
     <Property Id='DiskPrompt' Value="Coinstr VERSION_PLACEHOLDER Installation [1]" />

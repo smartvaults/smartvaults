@@ -1,6 +1,5 @@
 RELEASE_DIR=../../release
 VERSION=0.3.0
-MSI_PRODUCT_CODE=
 
 .PHONY: init
 
@@ -35,13 +34,11 @@ appimage: x86_64-unknown-linux-gnu
 	rm -rf $(RELEASE_DIR)/coinstr.AppDir
 
 msi: x86_64-pc-windows-gnu
-	$(eval MSI_PRODUCT_CODE := "$(shell cat /proc/sys/kernel/random/uuid)")
 	cp -r windows/ $(RELEASE_DIR)
 	cp ../../target/x86_64-pc-windows-gnu/release/coinstr.exe $(RELEASE_DIR)/windows/coinstr.exe
 	cp /usr/lib/gcc/x86_64-w64-mingw32/10-win32/libstdc++-6.dll $(RELEASE_DIR)/windows/
 	cp /usr/lib/gcc/x86_64-w64-mingw32/10-win32/libgcc_s_seh-1.dll $(RELEASE_DIR)/windows/
 	sed -i s/VERSION_PLACEHOLDER/$(VERSION)/g $(RELEASE_DIR)/windows/coinstr.wxs
-	sed -i s/PRODUCT_CODE/$(MSI_PRODUCT_CODE)/g $(RELEASE_DIR)/windows/coinstr.wxs
 	cd $(RELEASE_DIR)/windows && wixl -v coinstr.wxs
 	mv $(RELEASE_DIR)/windows/coinstr.msi $(RELEASE_DIR)/coinstr-$(VERSION)-windows-x86_64.msi
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor coinstr-$(VERSION)-windows-x86_64.msi
