@@ -24,7 +24,7 @@ pub struct Sidebar;
 
 impl Sidebar {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 
     pub fn view<'a>(&self, ctx: &Context) -> Container<'a, Message> {

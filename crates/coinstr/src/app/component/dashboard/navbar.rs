@@ -16,7 +16,7 @@ pub struct Navbar;
 
 impl Navbar {
     pub fn new() -> Self {
-        Self::default()
+        Self
     }
 
     pub fn view<'a>(&self, ctx: &Context) -> Row<'a, Message> {
