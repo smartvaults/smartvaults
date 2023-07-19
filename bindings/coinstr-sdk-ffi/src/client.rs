@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use coinstr_sdk::client;
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
@@ -579,5 +580,16 @@ impl Coinstr {
     pub fn approve_nostr_connect_request(&self, event_id: String) -> Result<()> {
         let event_id = EventId::from_hex(event_id)?;
         block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id).await?) })
+    }
+
+    pub fn auto_approve_nostr_connect_requests(
+        &self,
+        app_public_key: String,
+        duration: Duration,
+    ) -> Result<()> {
+        let app_public_key = XOnlyPublicKey::from_str(&app_public_key)?;
+        self.inner
+            .auto_approve_nostr_connect_requests(app_public_key, duration);
+        Ok(())
     }
 }

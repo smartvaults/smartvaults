@@ -311,4 +311,6 @@ interface Coinstr {
     record<DOMString, NostrConnectRequest> get_nostr_connect_requests(boolean approved);
     [Throws=FFIError]
     void approve_nostr_connect_request(string event_id);
+    [Throws=FFIError]
+    void auto_approve_nostr_connect_requests(string app_public_key, duration duration);
 };
