@@ -21,8 +21,8 @@ use self::screen::{
     AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
     AddRelayState, AddSignerState, ChangePasswordState, CompletedProposalState, ConfigState,
     ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState, NewProofState,
-    NotificationsState, PoliciesState, PolicyBuilderState, PolicyState, ProfileState,
-    ProposalState, ProposalsState, ReceiveState, RelaysState, RestorePolicyState,
+    NotificationsState, PoliciesState, PolicyBuilderState, PolicyState, PolicyTreeState,
+    ProfileState, ProposalState, ProposalsState, ReceiveState, RelaysState, RestorePolicyState,
     RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState, SignerState,
     SignersState, SpendState, TransactionState, TransactionsState,
 };
@@ -52,6 +52,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::PolicyBuilder => PolicyBuilderState::new().into(),
         Stage::RestorePolicy => RestorePolicyState::new().into(),
         Stage::Policy(policy_id) => PolicyState::new(*policy_id).into(),
+        Stage::PolicyTree(policy_id) => PolicyTreeState::new(*policy_id).into(),
         Stage::Spend(policy) => SpendState::new(policy.clone()).into(),
         Stage::Receive(policy) => ReceiveState::new(policy.clone()).into(),
         Stage::SelfTransfer => SelfTransferState::new().into(),

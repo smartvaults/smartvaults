@@ -8,10 +8,10 @@ use super::screen::{
     AddRelayMessage, AddSignerMessage, ChangePasswordMessage, CompletedProposalMessage,
     ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage,
     HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage, PolicyBuilderMessage,
-    PolicyMessage, ProfileMessage, ProposalMessage, ProposalsMessage, ReceiveMessage,
-    RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage, SelfTransferMessage,
-    SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
-    TransactionMessage, TransactionsMessage,
+    PolicyMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
+    ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
+    SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
+    SpendMessage, TransactionMessage, TransactionsMessage,
 };
 use super::Stage;
 
@@ -24,6 +24,7 @@ pub enum Message {
     PolicyBuilder(PolicyBuilderMessage),
     RestorePolicy(RestorePolicyMessage),
     Policy(PolicyMessage),
+    PolicyTree(PolicyTreeMessage),
     Spend(SpendMessage),
     Receive(ReceiveMessage),
     SelfTransfer(SelfTransferMessage),

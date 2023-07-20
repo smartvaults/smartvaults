@@ -18,12 +18,13 @@ pub mod add;
 pub mod builder;
 pub mod policies;
 pub mod restore;
+pub mod tree;
 
 use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
-use crate::theme::icon::{CLIPBOARD, GLOBE, PATCH_CHECK, SAVE, TRASH};
+use crate::theme::icon::{BINOCULARS, CLIPBOARD, GLOBE, PATCH_CHECK, SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum PolicyMessage {
@@ -285,6 +286,17 @@ impl State for PolicyState {
                                                 .icon(SAVE)
                                                 .on_press(PolicyMessage::SavePolicyBackup.into())
                                                 .width(Length::Fixed(40.0))
+                                                .view(),
+                                        )
+                                        .push(
+                                            Button::new()
+                                                .style(ButtonStyle::Bordered)
+                                                .icon(BINOCULARS)
+                                                .width(Length::Fixed(40.0))
+                                                .on_press(Message::View(Stage::PolicyTree(
+                                                    self.policy_id,
+                                                )))
+                                                .loading(self.loading)
                                                 .view(),
                                         )
                                         .push(

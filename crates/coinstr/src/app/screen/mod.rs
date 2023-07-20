@@ -47,6 +47,7 @@ pub use self::policy::add::{AddPolicyMessage, AddPolicyState};
 pub use self::policy::builder::{PolicyBuilderMessage, PolicyBuilderState};
 pub use self::policy::policies::{PoliciesMessage, PoliciesState};
 pub use self::policy::restore::{RestorePolicyMessage, RestorePolicyState};
+pub use self::policy::tree::{PolicyTreeMessage, PolicyTreeState};
 pub use self::policy::{PolicyMessage, PolicyState};
 pub use self::profile::{ProfileMessage, ProfileState};
 pub use self::proposal::{ProposalMessage, ProposalState};
