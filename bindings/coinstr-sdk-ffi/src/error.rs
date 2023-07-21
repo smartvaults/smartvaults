@@ -119,3 +119,9 @@ impl From<coinstr_sdk::core::util::dir::Error> for FFIError {
         Self::Generic { err: e.to_string() }
     }
 }
+
+impl From<nostr_ffi::NostrError> for FFIError {
+    fn from(e: nostr_ffi::NostrError) -> FFIError {
+        Self::Generic { err: e.to_string() }
+    }
+}
