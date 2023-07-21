@@ -1,10 +1,17 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use iced::widget::Column;
+use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
+use iced::widget::{Column, Row};
+use iced_aw::style::colors::{CYAN, MAGENTA};
+use iced_native::widget::Space;
+use iced_native::Length;
 
-use crate::{app::Message, component::Text};
+use crate::app::Message;
+use crate::component::Text;
+use crate::theme::color::GREEN;
+
+const LEFT_SPACE: f32 = 30.0;
 
 pub struct PolicyTree {
     item: SatisfiableItem,
@@ -16,11 +23,11 @@ impl PolicyTree {
     }
 
     pub fn view(self) -> Column<'static, Message> {
-        Column::new().push(Text::new(format!("{:#?}", self.item)).view())
+        add_node(&self.item, 1)
     }
 }
 
-/* fn display_key(key: &PkOrF) -> String {
+fn display_key(key: &PkOrF) -> String {
     match key {
         PkOrF::Pubkey(pk) => format!("<pk:{pk}>"),
         PkOrF::XOnlyPubkey(pk) => format!("<xonly-pk:{pk}>"),
@@ -28,79 +35,96 @@ impl PolicyTree {
     }
 }
 
-fn add_node(item: &SatisfiableItem) -> Tree<String> {
-    let mut si_tree: Tree<String> = Tree::new(format!(
-        "{}{}",
-        "id -> ",
-        item.id()
-    ));
+fn add_node(item: &SatisfiableItem, counter: usize) -> Column<'static, Message> {
+    let tree = Column::new()
+        .push(
+            Text::new(format!("id -> {}", item.id()))
+                .color(GREEN)
+                .bold()
+                .view(),
+        )
+        .push(Space::with_width(Length::Fixed(
+            LEFT_SPACE / 2.0 * counter as f32,
+        )));
+
+    let mut child = Row::new().push(Space::with_width(Length::Fixed(
+        LEFT_SPACE * counter as f32,
+    )));
 
     match &item {
         SatisfiableItem::EcdsaSignature(key) => {
-            si_tree.push(format!(
-                "🗝️ {} {}",
-                "ECDSA Sig of ",
-                display_key(key)
-            ));
+            child =
+                child.push(Text::new(format!("🗝️ {} {}", "ECDSA Sig of ", display_key(key))).view());
         }
         SatisfiableItem::SchnorrSignature(key) => {
-            si_tree.push(format!(
-                "🔑 {} {}",
-                "Schnorr Sig of ",
-                display_key(key)
-            ));
+            child = child
+                .push(Text::new(format!("🔑 {} {}", "Schnorr Sig of ", display_key(key))).view());
         }
         SatisfiableItem::Sha256Preimage { hash } => {
-            si_tree.push(format!("SHA256 Preimage of {hash}"));
+            child = child.push(Text::new(format!("SHA256 Preimage of {hash}")).view());
         }
         SatisfiableItem::Hash256Preimage { hash } => {
-            si_tree.push(format!("Double-SHA256 Preimage of {hash}"));
+            child = child.push(Text::new(format!("Double-SHA256 Preimage of {hash}")).view());
         }
         SatisfiableItem::Ripemd160Preimage { hash } => {
-            si_tree.push(format!("RIPEMD160 Preimage of {hash}"));
+            child = child.push(Text::new(format!("RIPEMD160 Preimage of {hash}")).view());
         }
         SatisfiableItem::Hash160Preimage { hash } => {
-            si_tree.push(format!("Double-RIPEMD160 Preimage of {hash}"));
+            child = child.push(Text::new(format!("Double-RIPEMD160 Preimage of {hash}")).view());
         }
         SatisfiableItem::AbsoluteTimelock { value } => {
-            si_tree.push(format!(
-                "⏰ {} {value}",
-                "Absolute Timelock of "
-            ));
+            child = child.push(Text::new(format!("⏰ {} {value}", "Absolute Timelock of ")).view());
         }
         SatisfiableItem::RelativeTimelock { value } => {
-            si_tree.push(format!(
-                "⏳ {} {value}",
-                "Relative Timelock of",
-            ));
+            child = child.push(Text::new(format!("⏳ {} {value}", "Relative Timelock of")).view());
         }
         SatisfiableItem::Multisig { keys, threshold } => {
             // si_tree.push(format!("🎚️ {} of {} MultiSig:", threshold, keys.len()));
-            let mut child_tree: Tree<String> = Tree::new(format!(
-                "🤝 {}{} of {}",
-                "MultiSig  :  ",
-                threshold,
-                keys.len()
-            ));
+            let mut child_tree = Column::new().push(
+                Text::new(format!("MultiSig: {} of {}", threshold, keys.len()))
+                    .color(CYAN)
+                    .view(),
+            );
 
-            keys.iter().for_each(|x| {
-                child_tree.push(format!("🔑 {}", display_key(x)));
-            });
-            si_tree.push(child_tree);
+            for x in keys.iter() {
+                child_tree = child_tree.push(
+                    Row::new()
+                        .push(Space::with_width(Length::Fixed(
+                            LEFT_SPACE * counter as f32,
+                        )))
+                        .push(
+                            Text::new(format!("Key: {}", display_key(x)))
+                                .color(MAGENTA)
+                                .view(),
+                        ),
+                );
+            }
+            child = child.push(child_tree);
         }
         SatisfiableItem::Thresh { items, threshold } => {
-            let mut child_tree: Tree<String> = Tree::new(format!(
-                "👑{}{} of {} ",
-                " Threshold Condition   : ",
-                threshold,
-                items.len()
-            ));
+            let mut child_tree = Column::new().push(
+                Text::new(format!(
+                    "Threshold Condition: {} of {}",
+                    threshold,
+                    items.len()
+                ))
+                .color(CYAN)
+                .view(),
+            );
 
-            items.iter().for_each(|x| {
-                child_tree.push(add_node(&x.item));
-            });
-            si_tree.push(child_tree);
+            for x in items.iter() {
+                child_tree = child_tree.push(
+                    Row::new()
+                        .push(Space::with_width(Length::Fixed(
+                            LEFT_SPACE * counter as f32,
+                        )))
+                        .push(add_node(&x.item, counter + 1)),
+                );
+            }
+
+            child = child.push(child_tree);
         }
     }
-    si_tree
-} */
+
+    tree.push(child)
+}

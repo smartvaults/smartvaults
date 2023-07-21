@@ -82,9 +82,11 @@ impl State for PolicyTreeState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
+        let mut center_x = true;
         let mut center_y = true;
 
         let content = if let Some(item) = self.item.clone() {
+            center_x = false;
             center_y = false;
             PolicyTree::new(item).view()
         } else {
@@ -93,7 +95,7 @@ impl State for PolicyTreeState {
 
         Dashboard::new()
             .loaded(self.loaded)
-            .view(ctx, content, true, center_y)
+            .view(ctx, content, center_x, center_y)
     }
 }
 
