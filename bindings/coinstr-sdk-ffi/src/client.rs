@@ -14,7 +14,7 @@ use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::WordCount;
-use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal};
+use coinstr_sdk::db::model::{GetApprovedProposalResult, GetPolicy, GetProposal};
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
@@ -273,7 +273,11 @@ impl Coinstr {
         let policies = self.inner.get_policies()?;
         Ok(policies
             .into_iter()
-            .map(|(policy_id, res)| (policy_id.to_hex(), Arc::new(res.policy.into())))
+            .map(
+                |GetPolicy {
+                     policy_id, policy, ..
+                 }| (policy_id.to_hex(), Arc::new(policy.into())),
+            )
             .collect())
     }
 

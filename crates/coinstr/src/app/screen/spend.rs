@@ -10,7 +10,7 @@ use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
-use coinstr_sdk::db::model::GetPolicyResult;
+use coinstr_sdk::db::model::GetPolicy;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Radio, Row, Space};
@@ -144,7 +144,9 @@ impl State for SpendState {
                     .unwrap()
                     .into_iter()
                     .map(
-                        |(policy_id, GetPolicyResult { policy, .. })| PolicyPicLisk {
+                        |GetPolicy {
+                             policy_id, policy, ..
+                         }| PolicyPicLisk {
                             policy_id,
                             name: policy.name,
                         },

@@ -47,8 +47,7 @@ use crate::constants::{
 };
 use crate::db::model::{
     GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicyResult, GetProposal, GetSharedSignerResult,
-    NostrConnectRequest,
+    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult, NostrConnectRequest,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -828,7 +827,7 @@ impl Coinstr {
         Ok(())
     }
 
-    pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
+    pub fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
         Ok(self.db.get_policies()?)
     }
 
@@ -1900,7 +1899,7 @@ impl Coinstr {
     }
 
     pub fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
-        let GetPolicyResult { policy, .. } = self.db.get_policy(policy_id)?;
+        let GetPolicy { policy, .. } = self.db.get_policy(policy_id)?;
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
         Ok(PolicyBackup::new(
             policy.name,

@@ -16,7 +16,7 @@ use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
-use coinstr_sdk::db::model::{GetPolicyResult, GetProposal, NostrConnectRequest};
+use coinstr_sdk::db::model::{GetPolicy, GetProposal, NostrConnectRequest};
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
@@ -285,12 +285,18 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
     si_tree
 }
 
-pub fn print_policies(policies: BTreeMap<EventId, GetPolicyResult>) {
+pub fn print_policies(policies: Vec<GetPolicy>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Name", "Description"]);
 
-    for (index, (policy_id, GetPolicyResult { policy, .. })) in policies.into_iter().enumerate() {
+    for (
+        index,
+        GetPolicy {
+            policy_id, policy, ..
+        },
+    ) in policies.into_iter().enumerate()
+    {
         table.add_row(row![index + 1, policy_id, policy.name, policy.description]);
     }
 

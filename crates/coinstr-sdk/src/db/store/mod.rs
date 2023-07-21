@@ -41,7 +41,7 @@ mod relays;
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicyResult, GetProposal, GetSharedSignerResult,
+    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult,
 };
 use super::Error;
 use crate::client::Message;
@@ -137,7 +137,10 @@ impl Store {
 
     pub fn load_wallets(&self) -> Result<(), Error> {
         let mut wallets = self.wallets.lock();
-        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()? {
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies()?
+        {
             let db: SqliteDatabase = self.get_wallet_db(policy_id)?;
             wallets.insert(
                 policy_id,
@@ -215,7 +218,7 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_policy(&self, policy_id: EventId) -> Result<GetPolicyResult, Error> {
+    pub fn get_policy(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
             conn.prepare_cached("SELECT policy, last_sync FROM policies WHERE policy_id = ?")?;
@@ -223,7 +226,8 @@ impl Store {
         let row = rows.next()?.ok_or(Error::NotFound("policy".into()))?;
         let policy: String = row.get(0)?;
         let last_sync: Option<u64> = row.get(1)?;
-        Ok(GetPolicyResult {
+        Ok(GetPolicy {
+            policy_id,
             policy: Policy::decrypt_with_keys(&self.keys, policy)?,
             last_sync: last_sync.map(Timestamp::from),
         })
@@ -250,22 +254,20 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_policies(&self) -> Result<BTreeMap<EventId, GetPolicyResult>, Error> {
+    pub fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("SELECT policy_id, policy, last_sync FROM policies")?;
         let mut rows = stmt.query([])?;
-        let mut policies = BTreeMap::new();
+        let mut policies = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let policy_id: String = row.get(0)?;
             let policy: String = row.get(1)?;
             let last_sync: Option<u64> = row.get(2)?;
-            policies.insert(
-                EventId::from_hex(policy_id)?,
-                GetPolicyResult {
-                    policy: Policy::decrypt_with_keys(&self.keys, policy)?,
-                    last_sync: last_sync.map(Timestamp::from),
-                },
-            );
+            policies.push(GetPolicy {
+                policy_id: EventId::from_hex(policy_id)?,
+                policy: Policy::decrypt_with_keys(&self.keys, policy)?,
+                last_sync: last_sync.map(Timestamp::from),
+            });
         }
         Ok(policies)
     }
@@ -274,7 +276,12 @@ impl Store {
         &self,
     ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
         let mut policies = BTreeMap::new();
-        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
+        for GetPolicy {
+            policy_id,
+            policy,
+            last_sync,
+        } in self.get_policies()?.into_iter()
+        {
             policies.insert(
                 policy_id,
                 GetDetailedPolicyResult {
@@ -389,7 +396,9 @@ impl Store {
         Option<Transactions>,
         Option<Timestamp>,
     )> {
-        let GetPolicyResult { policy, last_sync } = self.get_policy(policy_id).ok()?;
+        let GetPolicy {
+            policy, last_sync, ..
+        } = self.get_policy(policy_id).ok()?;
         let balance = self.get_balance(policy_id);
         let list = self.get_txs_with_descriptions(policy_id);
         Some((policy, balance, list, last_sync))
@@ -801,7 +810,10 @@ impl Store {
     pub fn get_total_balance(&self) -> Result<Balance, Error> {
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
-        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()?.into_iter() {
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies()?.into_iter()
+        {
             if !already_seen.contains(&policy.descriptor) {
                 let balance = self.get_balance(policy_id).unwrap_or_default();
                 total_balance = total_balance.add(balance);
@@ -815,7 +827,10 @@ impl Store {
         let descriptions = self.get_txs_descriptions()?;
         let mut transactions = Vec::new();
         let mut already_seen = Vec::new();
-        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies()?.into_iter() {
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies()?.into_iter()
+        {
             if !already_seen.contains(&policy.descriptor) {
                 for tx in self.get_txs(policy_id).unwrap_or_default().into_iter() {
                     let desc: Option<String> = descriptions.get(&tx.txid).cloned();
@@ -830,7 +845,10 @@ impl Store {
     pub fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
         let desc = self.get_description_by_txid(txid).ok()?;
         let mut already_seen = Vec::new();
-        for (policy_id, GetPolicyResult { policy, .. }) in self.get_policies().ok()?.into_iter() {
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies().ok()?.into_iter()
+        {
             if !already_seen.contains(&policy.descriptor) {
                 let txs = self.get_txs(policy_id)?;
                 for tx in txs.into_iter() {
@@ -896,7 +914,12 @@ impl Store {
             wallets.keys().copied().collect()
         };
 
-        for (policy_id, GetPolicyResult { policy, last_sync }) in self.get_policies()?.into_iter() {
+        for GetPolicy {
+            policy_id,
+            policy,
+            last_sync,
+        } in self.get_policies()?.into_iter()
+        {
             let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
             if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");

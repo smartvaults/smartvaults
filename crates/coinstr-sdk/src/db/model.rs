@@ -13,7 +13,8 @@ use nostr_sdk::{EventId, Timestamp};
 use crate::types::Notification;
 
 #[derive(Debug, Clone)]
-pub struct GetPolicyResult {
+pub struct GetPolicy {
+    pub policy_id: EventId,
     pub policy: Policy,
     pub last_sync: Option<Timestamp>,
 }

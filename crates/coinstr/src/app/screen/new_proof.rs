@@ -4,7 +4,7 @@
 use std::fmt;
 
 use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::db::model::GetPolicyResult;
+use coinstr_sdk::db::model::GetPolicy;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Container, PickList, Row, Space};
@@ -83,7 +83,9 @@ impl State for NewProofState {
                     .unwrap()
                     .into_iter()
                     .map(
-                        |(policy_id, GetPolicyResult { policy, .. })| PolicyPicLisk {
+                        |GetPolicy {
+                             policy_id, policy, ..
+                         }| PolicyPicLisk {
                             policy_id,
                             name: policy.name,
                         },
