@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use coinstr_sdk::nostr::relay::RelayConnectionStats;
 use coinstr_sdk::nostr::{RelayStatus, Url};
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
 
@@ -147,6 +148,20 @@ impl State for RelaysState {
                                 .view(),
                         )
                         .push(
+                            Text::new("Sent (bytes)")
+                                .bold()
+                                .bigger()
+                                .width(Length::Fixed(100.0))
+                                .view(),
+                        )
+                        .push(
+                            Text::new("Received (bytes)")
+                                .bold()
+                                .bigger()
+                                .width(Length::Fixed(100.0))
+                                .view(),
+                        )
+                        .push(
                             Text::new("Connected at")
                                 .bold()
                                 .bigger()
@@ -212,6 +227,16 @@ impl State for RelaysState {
                     )
                     .push(
                         Text::new(stats.success().to_string())
+                            .width(Length::Fixed(100.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new(util::format::big_number(stats.bytes_sent() as u64))
+                            .width(Length::Fixed(100.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new(util::format::big_number(stats.bytes_received() as u64))
                             .width(Length::Fixed(100.0))
                             .view(),
                     )
