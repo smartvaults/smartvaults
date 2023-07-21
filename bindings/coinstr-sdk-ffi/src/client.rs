@@ -14,7 +14,7 @@ use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::WordCount;
-use coinstr_sdk::db::model::GetApprovedProposalResult;
+use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal};
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
@@ -218,7 +218,7 @@ impl Coinstr {
 
     pub fn get_proposal_by_id(&self, proposal_id: String) -> Result<Proposal> {
         let proposal_id = EventId::from_hex(proposal_id)?;
-        Ok(self.inner.get_proposal_by_id(proposal_id)?.1.into())
+        Ok(self.inner.get_proposal_by_id(proposal_id)?.proposal.into())
     }
 
     pub fn get_completed_proposal_by_id(
@@ -283,13 +283,25 @@ impl Coinstr {
         let proposals = self.inner.get_proposals()?;
         Ok(proposals
             .into_iter()
-            .map(|(proposal_id, (_, proposal))| (proposal_id.to_hex(), proposal.into()))
+            .map(|p| (p.proposal_id.to_hex(), p.proposal.into()))
+            .collect())
+    }
+
+    pub fn get_proposals_by_policy_id(
+        &self,
+        policy_id: String,
+    ) -> Result<HashMap<String, Proposal>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        let proposals = self.inner.get_proposals_by_policy_id(policy_id)?;
+        Ok(proposals
+            .into_iter()
+            .map(|p| (p.proposal_id.to_hex(), p.proposal.into()))
             .collect())
     }
 
     pub fn is_proposal_signed(&self, proposal_id: String) -> Result<bool> {
         let proposal_id = EventId::from_hex(proposal_id)?;
-        let proposal = self.inner.get_proposal_by_id(proposal_id)?.1;
+        let GetProposal { proposal, .. } = self.inner.get_proposal_by_id(proposal_id)?;
         let approvals = self
             .inner
             .get_approvals_by_proposal_id(proposal_id)?
