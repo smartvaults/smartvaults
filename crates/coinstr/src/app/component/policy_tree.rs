@@ -54,11 +54,11 @@ fn add_node(item: &SatisfiableItem, counter: usize) -> Column<'static, Message> 
     match &item {
         SatisfiableItem::EcdsaSignature(key) => {
             child =
-                child.push(Text::new(format!("🗝️ {} {}", "ECDSA Sig of ", display_key(key))).view());
+                child.push(Text::new(format!("{} {}", "ECDSA Sig of ", display_key(key))).view());
         }
         SatisfiableItem::SchnorrSignature(key) => {
-            child = child
-                .push(Text::new(format!("🔑 {} {}", "Schnorr Sig of ", display_key(key))).view());
+            child =
+                child.push(Text::new(format!("{} {}", "Schnorr Sig of ", display_key(key))).view());
         }
         SatisfiableItem::Sha256Preimage { hash } => {
             child = child.push(Text::new(format!("SHA256 Preimage of {hash}")).view());
@@ -73,13 +73,12 @@ fn add_node(item: &SatisfiableItem, counter: usize) -> Column<'static, Message> 
             child = child.push(Text::new(format!("Double-RIPEMD160 Preimage of {hash}")).view());
         }
         SatisfiableItem::AbsoluteTimelock { value } => {
-            child = child.push(Text::new(format!("⏰ {} {value}", "Absolute Timelock of ")).view());
+            child = child.push(Text::new(format!("{} {value}", "Absolute Timelock of ")).view());
         }
         SatisfiableItem::RelativeTimelock { value } => {
-            child = child.push(Text::new(format!("⏳ {} {value}", "Relative Timelock of")).view());
+            child = child.push(Text::new(format!("{} {value}", "Relative Timelock of")).view());
         }
         SatisfiableItem::Multisig { keys, threshold } => {
-            // si_tree.push(format!("🎚️ {} of {} MultiSig:", threshold, keys.len()));
             let mut child_tree = Column::new().push(
                 Text::new(format!("MultiSig: {} of {}", threshold, keys.len()))
                     .color(CYAN)
