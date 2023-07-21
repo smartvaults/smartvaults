@@ -1,10 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
-use coinstr_sdk::core::proposal::Proposal;
-use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::db::model::GetProposal;
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -15,7 +12,7 @@ use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
 pub enum ProposalsMessage {
-    LoadProposals(BTreeMap<EventId, (EventId, Proposal)>),
+    LoadProposals(Vec<GetProposal>),
     Reload,
 }
 
@@ -23,7 +20,7 @@ pub enum ProposalsMessage {
 pub struct ProposalsState {
     loading: bool,
     loaded: bool,
-    proposals: BTreeMap<EventId, (EventId, Proposal)>,
+    proposals: Vec<GetProposal>,
 }
 
 impl ProposalsState {

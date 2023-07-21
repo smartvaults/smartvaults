@@ -16,7 +16,7 @@ use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
-use coinstr_sdk::db::model::{GetPolicyResult, NostrConnectRequest};
+use coinstr_sdk::db::model::{GetPolicyResult, GetProposal, NostrConnectRequest};
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
@@ -297,7 +297,12 @@ pub fn print_policies(policies: BTreeMap<EventId, GetPolicyResult>) {
     table.printstd();
 }
 
-pub fn print_proposal(proposal_id: EventId, proposal: Proposal, policy_id: EventId) {
+pub fn print_proposal(proposal: GetProposal) {
+    let GetProposal {
+        proposal_id,
+        policy_id,
+        proposal,
+    } = proposal;
     println!();
     println!("- Proposal id: {proposal_id}");
     println!("- Policy id: {policy_id}");
@@ -321,7 +326,7 @@ pub fn print_proposal(proposal_id: EventId, proposal: Proposal, policy_id: Event
     println!();
 }
 
-pub fn print_proposals(proposals: BTreeMap<EventId, (EventId, Proposal)>) {
+pub fn print_proposals(proposals: Vec<GetProposal>) {
     let mut table = Table::new();
 
     table.set_titles(row![
@@ -334,7 +339,15 @@ pub fn print_proposals(proposals: BTreeMap<EventId, (EventId, Proposal)>) {
         "Amount"
     ]);
 
-    for (index, (proposal_id, (policy_id, proposal))) in proposals.into_iter().enumerate() {
+    for (
+        index,
+        GetProposal {
+            proposal_id,
+            policy_id,
+            proposal,
+        },
+    ) in proposals.into_iter().enumerate()
+    {
         match proposal {
             Proposal::Spending {
                 to_address,

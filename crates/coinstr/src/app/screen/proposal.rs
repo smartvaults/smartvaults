@@ -7,7 +7,7 @@ use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Psbt;
 use coinstr_sdk::core::CompletedProposal;
-use coinstr_sdk::db::model::GetApprovedProposalResult;
+use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal};
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
@@ -91,7 +91,11 @@ impl State for ProposalState {
             async move {
                 if client.db.proposal_exists(proposal_id).ok()? {
                     client.mark_notification_as_seen_by_id(proposal_id).ok()?;
-                    let (policy_id, proposal) = client.get_proposal_by_id(proposal_id).ok()?;
+                    let GetProposal {
+                        policy_id,
+                        proposal,
+                        ..
+                    } = client.get_proposal_by_id(proposal_id).ok()?;
                     let signer = client
                         .search_signer_by_descriptor(proposal.descriptor())
                         .ok();

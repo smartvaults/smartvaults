@@ -1,12 +1,10 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::signer::Signer;
-use coinstr_sdk::core::Proposal;
+use coinstr_sdk::db::model::GetProposal;
 use coinstr_sdk::db::store::Transactions;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util;
@@ -35,7 +33,7 @@ pub enum PolicyMessage {
     Delete,
     LoadPolicy(
         Policy,
-        BTreeMap<EventId, (EventId, Proposal)>,
+        Vec<GetProposal>,
         Option<Signer>,
         Option<Balance>,
         Option<Transactions>,
@@ -52,7 +50,7 @@ pub struct PolicyState {
     loaded: bool,
     policy_id: EventId,
     policy: Option<Policy>,
-    proposals: BTreeMap<EventId, (EventId, Proposal)>,
+    proposals: Vec<GetProposal>,
     signer: Option<Signer>,
     balance: Option<Balance>,
     transactions: Option<Transactions>,
@@ -67,7 +65,7 @@ impl PolicyState {
             loaded: false,
             policy_id,
             policy: None,
-            proposals: BTreeMap::new(),
+            proposals: Vec::new(),
             signer: None,
             balance: None,
             transactions: None,

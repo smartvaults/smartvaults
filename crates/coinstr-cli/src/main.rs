@@ -466,8 +466,8 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 Ok(())
             }
             GetCommand::Proposal { proposal_id } => {
-                let (policy_id, proposal) = coinstr.get_proposal_by_id(proposal_id)?;
-                util::print_proposal(proposal_id, proposal, policy_id);
+                let proposal = coinstr.get_proposal_by_id(proposal_id)?;
+                util::print_proposal(proposal);
                 Ok(())
             }
             GetCommand::Signers => {

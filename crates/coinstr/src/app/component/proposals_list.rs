@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::db::model::GetProposal;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row};
@@ -14,13 +15,13 @@ use crate::component::{rule, Button, Text};
 use crate::theme::icon::FULLSCREEN;
 
 pub struct PendingProposalsList {
-    map: BTreeMap<EventId, (EventId, Proposal)>,
+    map: Vec<GetProposal>,
     take: Option<usize>,
     hide_policy_id: bool,
 }
 
 impl PendingProposalsList {
-    pub fn new(map: BTreeMap<EventId, (EventId, Proposal)>) -> Self {
+    pub fn new(map: Vec<GetProposal>) -> Self {
         Self {
             map,
             take: None,
@@ -94,7 +95,12 @@ impl PendingProposalsList {
         if self.map.is_empty() {
             proposals = proposals.push(Text::new("No proposals").extra_light().view());
         } else {
-            for (proposal_id, (policy_id, proposal)) in self.map.iter() {
+            for GetProposal {
+                proposal_id,
+                policy_id,
+                proposal,
+            } in self.map.iter()
+            {
                 let row = match proposal {
                     Proposal::Spending {
                         amount,

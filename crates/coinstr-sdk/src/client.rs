@@ -47,7 +47,8 @@ use crate::constants::{
 };
 use crate::db::model::{
     GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult, NostrConnectRequest,
+    GetNotificationsResult, GetPolicyResult, GetProposal, GetSharedSignerResult,
+    NostrConnectRequest,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -685,7 +686,7 @@ impl Coinstr {
         Ok(self.db.get_policy(policy_id)?.policy)
     }
 
-    pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
+    pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
         Ok(self.db.get_proposal(proposal_id)?)
     }
 
@@ -837,14 +838,14 @@ impl Coinstr {
         Ok(self.db.get_detailed_policies()?)
     }
 
-    pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+    pub fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
         Ok(self.db.get_proposals()?)
     }
 
     pub fn get_proposals_by_policy_id(
         &self,
         policy_id: EventId,
-    ) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+    ) -> Result<Vec<GetProposal>, Error> {
         Ok(self.db.get_proposals_by_policy_id(policy_id)?)
     }
 
@@ -1046,7 +1047,11 @@ impl Coinstr {
         proposal_id: EventId,
     ) -> Result<(EventId, ApprovedProposal), Error> {
         // Get proposal and policy
-        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
+        let GetProposal {
+            policy_id,
+            proposal,
+            ..
+        } = self.get_proposal_by_id(proposal_id)?;
         let policy: Policy = self.get_policy_by_id(policy_id)?;
 
         // Sign PSBT
@@ -1103,7 +1108,11 @@ impl Coinstr {
         let keys = self.client.keys();
 
         // Get proposal and policy
-        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
+        let GetProposal {
+            policy_id,
+            proposal,
+            ..
+        } = self.get_proposal_by_id(proposal_id)?;
 
         let approved_proposal = proposal.approve_with_signed_psbt(signed_psbt)?;
 
@@ -1150,7 +1159,11 @@ impl Coinstr {
         let keys = self.client.keys();
 
         // Get proposal and policy
-        let (policy_id, proposal) = self.get_proposal_by_id(proposal_id)?;
+        let GetProposal {
+            policy_id,
+            proposal,
+            ..
+        } = self.get_proposal_by_id(proposal_id)?;
 
         let approved_proposal = proposal.approve_with_hwi_signer(signer, self.network)?;
 

@@ -64,3 +64,10 @@ pub struct NostrConnectRequest {
     pub timestamp: Timestamp,
     pub approved: bool,
 }
+
+#[derive(Debug, Clone)]
+pub struct GetProposal {
+    pub proposal_id: EventId,
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+}

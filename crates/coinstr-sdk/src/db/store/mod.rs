@@ -41,7 +41,7 @@ mod relays;
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicyResult, GetSharedSignerResult,
+    GetNotificationsResult, GetPolicyResult, GetProposal, GetSharedSignerResult,
 };
 use super::Error;
 use crate::client::Message;
@@ -427,23 +427,21 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_proposals(&self) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+    pub fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
             conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
         let mut rows = stmt.query([])?;
-        let mut proposals = BTreeMap::new();
+        let mut proposals = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let proposal_id: String = row.get(0)?;
             let policy_id: String = row.get(1)?;
             let proposal: String = row.get(2)?;
-            proposals.insert(
-                EventId::from_hex(proposal_id)?,
-                (
-                    EventId::from_hex(policy_id)?,
-                    Proposal::decrypt_with_keys(&self.keys, proposal)?,
-                ),
-            );
+            proposals.push(GetProposal {
+                proposal_id: EventId::from_hex(proposal_id)?,
+                policy_id: EventId::from_hex(policy_id)?,
+                proposal: Proposal::decrypt_with_keys(&self.keys, proposal)?,
+            });
         }
         Ok(proposals)
     }
@@ -464,27 +462,25 @@ impl Store {
     pub fn get_proposals_by_policy_id(
         &self,
         policy_id: EventId,
-    ) -> Result<BTreeMap<EventId, (EventId, Proposal)>, Error> {
+    ) -> Result<Vec<GetProposal>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn
             .prepare_cached("SELECT proposal_id, proposal FROM proposals WHERE policy_id = ?;")?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut proposals = BTreeMap::new();
+        let mut proposals = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let proposal_id: String = row.get(0)?;
             let proposal: String = row.get(1)?;
-            proposals.insert(
-                EventId::from_hex(proposal_id)?,
-                (
-                    policy_id,
-                    Proposal::decrypt_with_keys(&self.keys, proposal)?,
-                ),
-            );
+            proposals.push(GetProposal {
+                proposal_id: EventId::from_hex(proposal_id)?,
+                policy_id,
+                proposal: Proposal::decrypt_with_keys(&self.keys, proposal)?,
+            });
         }
         Ok(proposals)
     }
 
-    pub fn get_proposal(&self, proposal_id: EventId) -> Result<(EventId, Proposal), Error> {
+    pub fn get_proposal(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached(
             "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
@@ -493,10 +489,11 @@ impl Store {
         let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
         let policy_id: String = row.get(0)?;
         let proposal: String = row.get(1)?;
-        Ok((
-            EventId::from_hex(policy_id)?,
-            Proposal::decrypt_with_keys(&self.keys, proposal)?,
-        ))
+        Ok(GetProposal {
+            proposal_id,
+            policy_id: EventId::from_hex(policy_id)?,
+            proposal: Proposal::decrypt_with_keys(&self.keys, proposal)?,
+        })
     }
 
     pub fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
@@ -567,7 +564,11 @@ impl Store {
         &self,
         proposal_id: EventId,
     ) -> Result<GetApprovedProposals, Error> {
-        let (policy_id, proposal) = self.get_proposal(proposal_id)?;
+        let GetProposal {
+            policy_id,
+            proposal,
+            ..
+        } = self.get_proposal(proposal_id)?;
         let approved_proposals = self.get_approvals_by_proposal_id(proposal_id)?;
         Ok(GetApprovedProposals {
             policy_id,
@@ -595,7 +596,7 @@ impl Store {
         let row = rows.next()?.ok_or(Error::NotFound("approval".into()))?;
         let proposal_id: String = row.get(0)?;
         let proposal_id = EventId::from_hex(proposal_id)?;
-        let (policy_id, ..) = self.get_proposal(proposal_id)?;
+        let GetProposal { policy_id, .. } = self.get_proposal(proposal_id)?;
         Ok(policy_id)
     }
 

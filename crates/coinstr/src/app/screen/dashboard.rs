@@ -1,12 +1,9 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
 use coinstr_sdk::core::bdk::Balance;
-use coinstr_sdk::core::proposal::Proposal;
+use coinstr_sdk::db::model::GetProposal;
 use coinstr_sdk::db::store::Transactions;
-use coinstr_sdk::nostr::EventId;
 use iced::widget::{Column, Space};
 use iced::{Command, Element, Length};
 
@@ -18,11 +15,7 @@ use crate::component::Text;
 pub enum DashboardMessage {
     Send,
     Deposit,
-    Load(
-        Option<Balance>,
-        BTreeMap<EventId, (EventId, Proposal)>,
-        Option<Transactions>,
-    ),
+    Load(Option<Balance>, Vec<GetProposal>, Option<Transactions>),
     Reload,
 }
 
@@ -31,7 +24,7 @@ pub struct DashboardState {
     loading: bool,
     loaded: bool,
     balance: Option<Balance>,
-    proposals: BTreeMap<EventId, (EventId, Proposal)>,
+    proposals: Vec<GetProposal>,
     transactions: Option<Transactions>,
 }
 
@@ -41,7 +34,7 @@ impl DashboardState {
             loading: false,
             loaded: false,
             balance: None,
-            proposals: BTreeMap::new(),
+            proposals: Vec::new(),
             transactions: None,
         }
     }
