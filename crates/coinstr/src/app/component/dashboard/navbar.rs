@@ -64,6 +64,7 @@ impl Navbar {
                 Row::new()
                     .push(Icon::new(FINGERPRINT).view())
                     .push(fingerprint.view())
+                    .padding(10)
                     .spacing(10),
             )
             .push(rule::vertical())
