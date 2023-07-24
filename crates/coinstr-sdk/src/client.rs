@@ -141,6 +141,7 @@ pub enum Error {
 pub enum Message {
     Notification(Notification),
     WalletSyncCompleted(EventId),
+    BlockHeightUpdated,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1395,8 +1396,7 @@ impl Coinstr {
                     Ok(endpoint) => match this.db.sync_with_timechain(
                         endpoint,
                         this.config.proxy().ok(),
-                        Some(&this.sync_channel),
-                        false,
+                        &this.sync_channel,
                     ) {
                         Ok(_) => this.first_sync.set_wallets(true),
                         Err(e) => log::error!("Impossible to sync wallets: {e}"),

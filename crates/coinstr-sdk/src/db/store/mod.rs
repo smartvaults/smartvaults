@@ -867,8 +867,7 @@ impl Store {
         &self,
         endpoint: S,
         proxy: Option<SocketAddr>,
-        sender: Option<&Sender<Option<Message>>>,
-        force: bool,
+        sender: &Sender<Option<Message>>,
     ) -> Result<(), Error>
     where
         S: Into<String>,
@@ -904,6 +903,8 @@ impl Store {
                 .get_height()?;
             self.block_height.set_block_height(block_height);
             self.block_height.just_synced();
+
+            let _ = sender.send(Some(Message::BlockHeightUpdated));
         }
 
         let loaded_wallet_ids: Vec<EventId> = {
@@ -918,7 +919,7 @@ impl Store {
         } in self.get_policies()?.into_iter()
         {
             let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
-            if force || last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                 log::info!("Syncing policy {policy_id}");
 
                 if blockchain.is_none() {
@@ -939,9 +940,8 @@ impl Store {
                     }
                 }
 
-                if let Some(sender) = sender {
-                    let _ = sender.send(Some(Message::WalletSyncCompleted(policy_id)));
-                }
+                let _ = sender.send(Some(Message::WalletSyncCompleted(policy_id)));
+
                 log::info!("Policy {policy_id} synced");
             }
         }
