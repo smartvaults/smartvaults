@@ -89,13 +89,13 @@ where
             text_input = text_input.on_input(Event::InputChanged);
         }
 
-        let text = Text::new(&self.name).size(20);
+        let mut content = Column::new();
 
-        Column::new()
-            .push(text)
-            .push(Row::new().push(text_input))
-            .spacing(5)
-            .into()
+        if !self.name.is_empty() {
+            content = content.push(Text::new(&self.name).size(20));
+        }
+
+        content.push(Row::new().push(text_input)).spacing(5).into()
     }
 }
 
