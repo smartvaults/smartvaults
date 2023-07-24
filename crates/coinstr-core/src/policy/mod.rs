@@ -156,26 +156,15 @@ impl Policy {
         D: BatchDatabase,
         S: Into<String>,
     {
-        let path: BTreeMap<String, Vec<usize>> = match policy_path {
-            Some(path) => path,
-            None => {
-                // Get policies and specify which ones to use
-                let wallet_policy = wallet
-                    .policies(KeychainKind::External)?
-                    .ok_or(Error::WalletSpendingPolicyNotFound)?;
-                let mut path = BTreeMap::new();
-                path.insert(wallet_policy.id, vec![1]);
-                path
-            }
-        };
-
         // Build the PSBT
         let (psbt, details) = {
             let mut builder = wallet.build_tx();
-            builder
-                .policy_path(path, KeychainKind::External)
-                .fee_rate(fee_rate)
-                .enable_rbf();
+
+            if let Some(path) = policy_path {
+                builder.policy_path(path, KeychainKind::External);
+            }
+
+            builder.fee_rate(fee_rate).enable_rbf();
             match amount {
                 Amount::Max => builder.drain_wallet().drain_to(address.script_pubkey()),
                 Amount::Custom(amount) => builder.add_recipient(address.script_pubkey(), amount),
