@@ -14,7 +14,9 @@ use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::WordCount;
-use coinstr_sdk::db::model::{GetApprovedProposalResult, GetPolicy, GetProposal};
+use coinstr_sdk::db::model::{
+    GetApprovedProposalResult, GetCompletedProposal, GetPolicy, GetProposal,
+};
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
@@ -229,7 +231,7 @@ impl Coinstr {
         Ok(self
             .inner
             .get_completed_proposal_by_id(completed_proposal_id)?
-            .1
+            .proposal
             .into())
     }
 
@@ -339,7 +341,13 @@ impl Coinstr {
         let completed_proposals = self.inner.get_completed_proposals()?;
         Ok(completed_proposals
             .into_iter()
-            .map(|(proposal_id, (_, proposal))| (proposal_id.to_hex(), proposal.into()))
+            .map(
+                |GetCompletedProposal {
+                     completed_proposal_id,
+                     proposal,
+                     ..
+                 }| (completed_proposal_id.to_hex(), proposal.into()),
+            )
             .collect())
     }
 
