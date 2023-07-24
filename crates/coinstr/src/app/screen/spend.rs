@@ -68,8 +68,9 @@ pub enum SpendMessage {
     PolicyLoaded(
         Option<Balance>,
         Option<SatisfiableItem>,
-        Option<BTreeMap<String, Vec<String>>>,
+        Option<Vec<(String, Vec<String>)>>,
     ),
+    ToggleCondition(String, usize),
     ErrorChanged(Option<String>),
     SetInternalStage(InternalStage),
     SendProposal,
@@ -88,7 +89,7 @@ pub struct SpendState {
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     balance: Option<Balance>,
     satisfiable_item: Option<SatisfiableItem>,
-    selectable_conditions: Option<BTreeMap<String, Vec<String>>>,
+    selectable_conditions: Option<Vec<(String, Vec<String>)>>,
     stage: InternalStage,
     loading: bool,
     loaded: bool,
@@ -234,6 +235,29 @@ impl State for SpendState {
                     self.satisfiable_item = item;
                     self.selectable_conditions = conditions;
                 }
+                SpendMessage::ToggleCondition(id, index) => match self.policy_path.as_mut() {
+                    Some(policy_path) => match policy_path.get_mut(&id) {
+                        Some(v) => {
+                            if v.contains(&index) {
+                                *v = v
+                                    .iter()
+                                    .filter(|i| **i != index)
+                                    .copied()
+                                    .collect::<Vec<usize>>();
+                            } else {
+                                v.push(index);
+                            }
+                        }
+                        None => {
+                            policy_path.insert(id, vec![index]);
+                        }
+                    },
+                    None => {
+                        let mut path = BTreeMap::new();
+                        path.insert(id, vec![index]);
+                        self.policy_path = Some(path);
+                    }
+                },
                 SpendMessage::AddressChanged(value) => self.to_address = value,
                 SpendMessage::AmountChanged(value) => self.amount = value,
                 SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
@@ -553,6 +577,55 @@ impl SpendState {
             ),
         };
 
+        let checkboxes = match self.selectable_conditions.clone() {
+            Some(conditions) => {
+                let policy_path = self.policy_path.clone().unwrap_or_default();
+                let mut checkboxes = Column::new()
+                    .spacing(5)
+                    .padding(20)
+                    .align_items(Alignment::Center);
+
+                if !conditions.is_empty() {
+                    checkboxes = checkboxes
+                        .push(Text::new("Select conditions").view())
+                        .push(Space::with_height(Length::Fixed(5.0)));
+
+                    for (id, list) in conditions.into_iter() {
+                        let pp_list = policy_path.get(&id);
+                        for (index, sub_id) in list.into_iter().enumerate() {
+                            let selected: bool = match pp_list {
+                                Some(pp_list) => pp_list.contains(&index),
+                                None => false,
+                            };
+                            checkboxes = checkboxes.push(
+                                Button::new()
+                                    .text(sub_id)
+                                    .style(if selected {
+                                        ButtonStyle::Primary
+                                    } else {
+                                        ButtonStyle::Bordered
+                                    })
+                                    .on_press(
+                                        SpendMessage::ToggleCondition(id.clone(), index).into(),
+                                    )
+                                    .width(Length::Fixed(250.0))
+                                    .view(),
+                            );
+                        }
+                    }
+                } else {
+                    checkboxes = checkboxes.push(Text::new("No conditions to select").view());
+                }
+
+                checkboxes
+            }
+            None => Column::new().push(
+                Text::new("Impossible to load selectable conditions")
+                    .color(RED)
+                    .view(),
+            ),
+        };
+
         let next = Button::new()
             .text("Next")
             .width(Length::Fill)
@@ -574,6 +647,7 @@ impl SpendState {
             .padding(20)
             .push(tree)
             .push(Space::with_height(Length::Fixed(40.0)))
+            .push(checkboxes)
             .push(next)
             .push(back_btn)
     }
