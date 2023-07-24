@@ -25,6 +25,7 @@ use crate::theme::color::DARK_RED;
 pub struct PolicyPicLisk {
     pub policy_id: EventId,
     pub name: String,
+    pub descriptor: String,
 }
 
 impl PartialEq for PolicyPicLisk {
@@ -39,6 +40,14 @@ impl fmt::Display for PolicyPicLisk {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub enum InternalStage {
+    #[default]
+    Default,
+    SelectPolicyPath,
+    Review,
+}
+
 #[derive(Debug, Clone)]
 pub enum SpendMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
@@ -51,8 +60,7 @@ pub enum SpendMessage {
     FeeRateChanged(FeeRate),
     BalanceChanged(Option<Balance>),
     ErrorChanged(Option<String>),
-    Review,
-    EditProposal,
+    SetInternalStage(InternalStage),
     SendProposal,
 }
 
@@ -65,8 +73,9 @@ pub struct SpendState {
     send_all: bool,
     description: String,
     fee_rate: FeeRate,
+    policy_path_indexes: Option<Vec<usize>>,
     balance: Option<Balance>,
-    reviewing: bool,
+    stage: InternalStage,
     loading: bool,
     loaded: bool,
     error: Option<String>,
@@ -78,6 +87,7 @@ impl SpendState {
             policy: policy.map(|(policy_id, policy)| PolicyPicLisk {
                 policy_id,
                 name: policy.name,
+                descriptor: policy.descriptor.to_string(),
             }),
             policies: Vec::new(),
             to_address: String::new(),
@@ -85,8 +95,9 @@ impl SpendState {
             send_all: false,
             description: String::new(),
             fee_rate: FeeRate::default(),
+            policy_path_indexes: None,
             balance: None,
-            reviewing: false,
+            stage: InternalStage::default(),
             loading: false,
             loaded: false,
             error: None,
@@ -105,6 +116,7 @@ impl SpendState {
         let client = ctx.client.clone();
         let description = self.description.clone();
         let target_blocks = self.fee_rate.target_blocks();
+        let policy_path_indexes = self.policy_path_indexes.clone();
 
         Command::perform(
             async move {
@@ -113,7 +125,14 @@ impl SpendState {
                 let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
                 let GetProposal { proposal_id, .. } = client
-                    .spend(policy_id, to_address, amount, description, fee_rate, None)
+                    .spend(
+                        policy_id,
+                        to_address,
+                        amount,
+                        description,
+                        fee_rate,
+                        policy_path_indexes,
+                    )
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
             },
@@ -149,6 +168,7 @@ impl State for SpendState {
                          }| PolicyPicLisk {
                             policy_id,
                             name: policy.name,
+                            descriptor: policy.descriptor.to_string(),
                         },
                     )
                     .collect()
@@ -195,27 +215,30 @@ impl State for SpendState {
                     self.loading = false;
                     self.error = error;
                 }
-                SpendMessage::Review => match &self.policy {
-                    Some(_) => match Address::from_str(&self.to_address) {
-                        Ok(_) => {
-                            if self.send_all {
-                                self.error = None;
-                                self.reviewing = true;
-                            } else {
-                                match self.amount {
-                                    Some(_) => {
-                                        self.error = None;
-                                        self.reviewing = true;
-                                    }
-                                    None => self.error = Some(String::from("Invalid amount")),
-                                };
+                SpendMessage::SetInternalStage(stage) => match stage {
+                    InternalStage::Default => self.stage = InternalStage::Default,
+                    InternalStage::SelectPolicyPath => todo!(),
+                    InternalStage::Review => match &self.policy {
+                        Some(_) => match Address::from_str(&self.to_address) {
+                            Ok(_) => {
+                                if self.send_all {
+                                    self.error = None;
+                                    self.stage = InternalStage::Review;
+                                } else {
+                                    match self.amount {
+                                        Some(_) => {
+                                            self.error = None;
+                                            self.stage = InternalStage::Review;
+                                        }
+                                        None => self.error = Some(String::from("Invalid amount")),
+                                    };
+                                }
                             }
-                        }
-                        Err(e) => self.error = Some(e.to_string()),
+                            Err(e) => self.error = Some(e.to_string()),
+                        },
+                        None => self.error = Some(String::from("You must select a policy")),
                     },
-                    None => self.error = Some(String::from("You must select a policy")),
                 },
-                SpendMessage::EditProposal => self.reviewing = false,
                 SpendMessage::SendProposal => match &self.policy {
                     Some(policy) => {
                         let policy_id = policy.policy_id;
@@ -252,274 +275,11 @@ impl State for SpendState {
         let mut content = Column::new();
 
         if self.loaded {
-            if self.reviewing {
-                let policy = Column::new()
-                    .push(Row::new().push(Text::new("Policy").bold().view()))
-                    .push(Row::new().push(if let Some(policy) = &self.policy {
-                        Text::new(policy.to_string()).view()
-                    } else {
-                        Text::new("Policy not selected").color(DARK_RED).view()
-                    }))
-                    .spacing(5)
-                    .width(Length::Fill);
-
-                let address = Column::new()
-                    .push(Row::new().push(Text::new("Address").bold().view()))
-                    .push(Row::new().push(Text::new(&self.to_address).view()))
-                    .spacing(5)
-                    .width(Length::Fill);
-
-                let amount = Column::new()
-                    .push(Row::new().push(Text::new("Amount").bold().view()))
-                    .push(
-                        Row::new().push(
-                            Text::new(if self.send_all {
-                                String::from("Send all")
-                            } else {
-                                self.amount.unwrap_or_default().to_string()
-                            })
-                            .view(),
-                        ),
-                    )
-                    .spacing(5)
-                    .width(Length::Fill);
-
-                let description = if !self.description.is_empty() {
-                    Column::new()
-                        .push(Row::new().push(Text::new("Description").bold().view()))
-                        .push(Row::new().push(Text::new(&self.description).view()))
-                        .spacing(5)
-                        .width(Length::Fill)
-                } else {
-                    Column::new()
-                };
-
-                let priority = Column::new()
-                    .push(Row::new().push(Text::new("Priority").bold().view()))
-                    .push(
-                        Row::new().push(
-                            Text::new(match self.fee_rate {
-                                FeeRate::High => "High (10 - 20 minutes)".to_string(),
-                                FeeRate::Medium => "Medium (20 - 60 minutes)".to_string(),
-                                FeeRate::Low => "Low (1 - 2 hours)".to_string(),
-                                FeeRate::Custom(target) => format!("Custom ({target} blocks)"),
-                            })
-                            .view(),
-                        ),
-                    )
-                    .spacing(5)
-                    .width(Length::Fill);
-
-                let error = if let Some(error) = &self.error {
-                    Row::new().push(Text::new(error).color(DARK_RED).view())
-                } else {
-                    Row::new()
-                };
-
-                let send_proposal_btn = Button::new()
-                    .text("Send proposal")
-                    .width(Length::Fill)
-                    .on_press(SpendMessage::SendProposal.into())
-                    .loading(self.loading)
-                    .view();
-                let back_btn = Button::new()
-                    .style(ButtonStyle::Bordered)
-                    .text("Back")
-                    .width(Length::Fill)
-                    .on_press(SpendMessage::EditProposal.into())
-                    .loading(self.loading)
-                    .view();
-
-                content = content
-                    .push(policy)
-                    .push(address)
-                    .push(amount)
-                    .push(description)
-                    .push(priority)
-                    .push(error)
-                    .push(Space::with_height(Length::Fixed(15.0)))
-                    .push(send_proposal_btn)
-                    .push(back_btn)
-            } else {
-                let policy_pick_list = Column::new()
-                    .push(Text::new("Policy").view())
-                    .push(
-                        PickList::new(self.policies.clone(), self.policy.clone(), |policy| {
-                            SpendMessage::PolicySelectd(policy).into()
-                        })
-                        .width(Length::Fill)
-                        .text_size(20)
-                        .padding(10)
-                        .placeholder(if self.policies.is_empty() {
-                            "No policy availabe"
-                        } else {
-                            "Select a policy"
-                        }),
-                    )
-                    .spacing(5);
-
-                let address = Column::new()
-                    .push(
-                        TextInput::new("Address", &self.to_address)
-                            .on_input(|s| SpendMessage::AddressChanged(s).into())
-                            .placeholder("Address")
-                            .view(),
-                    )
-                    .push(
-                        Text::new("Transfer to other policy")
-                            .extra_light()
-                            .smaller()
-                            .on_press(Message::View(Stage::SelfTransfer))
-                            .view(),
-                    )
-                    .spacing(5);
-
-                let send_all_btn = Button::new()
-                    .style(ButtonStyle::Bordered)
-                    .text("Max")
-                    .width(Length::Fixed(50.0))
-                    .on_press(SpendMessage::SendAllBtnPressed.into())
-                    .loading(self.policy.is_none())
-                    .view();
-
-                let amount = if self.send_all {
-                    TextInput::new("Amount (sat)", "Send all")
-                        .button(send_all_btn)
-                        .view()
-                } else {
-                    Column::new().push(
-                        Row::new()
-                            .push(
-                                Column::new()
-                                    .push(
-                                        NumericInput::new("Amount (sat)", self.amount)
-                                            .on_input(|s| SpendMessage::AmountChanged(s).into())
-                                            .placeholder("Amount"),
-                                    )
-                                    .width(Length::Fill),
-                            )
-                            .push(send_all_btn)
-                            .align_items(Alignment::End)
-                            .spacing(5),
-                    )
-                };
-
-                let your_balance = if self.policy.is_some() {
-                    Text::new(match &self.balance {
-                        Some(balance) => {
-                            format!("Balance: {} sat", format::number(balance.get_spendable()))
-                        }
-                        None => String::from("Loading..."),
-                    })
-                    .extra_light()
-                    .smaller()
-                    .width(Length::Fill)
-                    .view()
-                } else {
-                    Text::new("").view()
-                };
-
-                let description = TextInput::new("Description", &self.description)
-                    .on_input(|s| SpendMessage::DescriptionChanged(s).into())
-                    .placeholder("Description")
-                    .view();
-
-                let fee_high_priority = Row::new()
-                    .push(Radio::new(
-                        "",
-                        FeeRate::High,
-                        Some(self.fee_rate),
-                        |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("High").view())
-                            .push(Text::new("10 - 20 minues").extra_light().size(18).view())
-                            .spacing(5),
-                    )
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-
-                let fee_medium_priority = Row::new()
-                    .push(Radio::new(
-                        "",
-                        FeeRate::Medium,
-                        Some(self.fee_rate),
-                        |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("Medium").view())
-                            .push(Text::new("20 - 60 minues").extra_light().size(18).view())
-                            .spacing(5),
-                    )
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-
-                let fee_low_priority = Row::new()
-                    .push(Radio::new(
-                        "",
-                        FeeRate::Low,
-                        Some(self.fee_rate),
-                        |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("Low").view())
-                            .push(Text::new("1 - 2 hours").extra_light().size(18).view())
-                            .spacing(5),
-                    )
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-
-                let fee_selector = Column::new()
-                    .push(Text::new("Priority & arrival time").view())
-                    .push(
-                        Column::new()
-                            .push(fee_high_priority)
-                            .push(fee_medium_priority)
-                            .push(fee_low_priority)
-                            .spacing(10),
-                    )
-                    .spacing(5);
-
-                let error = if let Some(error) = &self.error {
-                    Row::new().push(Text::new(error).color(DARK_RED).view())
-                } else {
-                    Row::new()
-                };
-
-                let continue_btn = Button::new()
-                    .text("Continue")
-                    .width(Length::Fill)
-                    .on_press(SpendMessage::Review.into())
-                    .view();
-
-                content = content
-                    .push(
-                        Column::new()
-                            .push(Text::new("Send").size(24).bold().view())
-                            .push(
-                                Text::new("Create a new spending proposal")
-                                    .extra_light()
-                                    .view(),
-                            )
-                            .spacing(10)
-                            .width(Length::Fill),
-                    )
-                    .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(policy_pick_list)
-                    .push(address)
-                    .push(amount)
-                    .push(your_balance)
-                    .push(description)
-                    .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(fee_selector)
-                    .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(error)
-                    .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(continue_btn);
-            }
+            content = match self.stage {
+                InternalStage::Default => self.view_default(),
+                InternalStage::SelectPolicyPath => todo!(),
+                InternalStage::Review => self.view_review(),
+            };
         }
 
         let content = Container::new(
@@ -535,6 +295,297 @@ impl State for SpendState {
         Dashboard::new()
             .loaded(self.loaded)
             .view(ctx, content, true, true)
+    }
+}
+
+impl SpendState {
+    fn view_default<'a>(&self) -> Column<'a, Message> {
+        let policy_pick_list = Column::new()
+            .push(Text::new("Policy").view())
+            .push(
+                PickList::new(self.policies.clone(), self.policy.clone(), |policy| {
+                    SpendMessage::PolicySelectd(policy).into()
+                })
+                .width(Length::Fill)
+                .text_size(20)
+                .padding(10)
+                .placeholder(if self.policies.is_empty() {
+                    "No policy availabe"
+                } else {
+                    "Select a policy"
+                }),
+            )
+            .spacing(5);
+
+        let address = Column::new()
+            .push(
+                TextInput::new("Address", &self.to_address)
+                    .on_input(|s| SpendMessage::AddressChanged(s).into())
+                    .placeholder("Address")
+                    .view(),
+            )
+            .push(
+                Text::new("Transfer to other policy")
+                    .extra_light()
+                    .smaller()
+                    .on_press(Message::View(Stage::SelfTransfer))
+                    .view(),
+            )
+            .spacing(5);
+
+        let send_all_btn = Button::new()
+            .style(ButtonStyle::Bordered)
+            .text("Max")
+            .width(Length::Fixed(50.0))
+            .on_press(SpendMessage::SendAllBtnPressed.into())
+            .loading(self.policy.is_none())
+            .view();
+
+        let amount = if self.send_all {
+            TextInput::new("Amount (sat)", "Send all")
+                .button(send_all_btn)
+                .view()
+        } else {
+            Column::new().push(
+                Row::new()
+                    .push(
+                        Column::new()
+                            .push(
+                                NumericInput::new("Amount (sat)", self.amount)
+                                    .on_input(|s| SpendMessage::AmountChanged(s).into())
+                                    .placeholder("Amount"),
+                            )
+                            .width(Length::Fill),
+                    )
+                    .push(send_all_btn)
+                    .align_items(Alignment::End)
+                    .spacing(5),
+            )
+        };
+
+        let your_balance = if self.policy.is_some() {
+            Text::new(match &self.balance {
+                Some(balance) => {
+                    format!("Balance: {} sat", format::number(balance.get_spendable()))
+                }
+                None => String::from("Loading..."),
+            })
+            .extra_light()
+            .smaller()
+            .width(Length::Fill)
+            .view()
+        } else {
+            Text::new("").view()
+        };
+
+        let description = TextInput::new("Description", &self.description)
+            .on_input(|s| SpendMessage::DescriptionChanged(s).into())
+            .placeholder("Description")
+            .view();
+
+        let fee_high_priority = Row::new()
+            .push(Radio::new(
+                "",
+                FeeRate::High,
+                Some(self.fee_rate),
+                |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+            ))
+            .push(
+                Column::new()
+                    .push(Text::new("High").view())
+                    .push(Text::new("10 - 20 minues").extra_light().size(18).view())
+                    .spacing(5),
+            )
+            .align_items(Alignment::Center)
+            .width(Length::Fill);
+
+        let fee_medium_priority = Row::new()
+            .push(Radio::new(
+                "",
+                FeeRate::Medium,
+                Some(self.fee_rate),
+                |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+            ))
+            .push(
+                Column::new()
+                    .push(Text::new("Medium").view())
+                    .push(Text::new("20 - 60 minues").extra_light().size(18).view())
+                    .spacing(5),
+            )
+            .align_items(Alignment::Center)
+            .width(Length::Fill);
+
+        let fee_low_priority = Row::new()
+            .push(Radio::new(
+                "",
+                FeeRate::Low,
+                Some(self.fee_rate),
+                |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+            ))
+            .push(
+                Column::new()
+                    .push(Text::new("Low").view())
+                    .push(Text::new("1 - 2 hours").extra_light().size(18).view())
+                    .spacing(5),
+            )
+            .align_items(Alignment::Center)
+            .width(Length::Fill);
+
+        let fee_selector = Column::new()
+            .push(Text::new("Priority & arrival time").view())
+            .push(
+                Column::new()
+                    .push(fee_high_priority)
+                    .push(fee_medium_priority)
+                    .push(fee_low_priority)
+                    .spacing(10),
+            )
+            .spacing(5);
+
+        let error = if let Some(error) = &self.error {
+            Row::new().push(Text::new(error).color(DARK_RED).view())
+        } else {
+            Row::new()
+        };
+
+        let (next_stage, ready): (InternalStage, bool) = {
+            match &self.policy {
+                Some(policy) => {
+                    if policy.descriptor.contains("after") || policy.descriptor.contains("older") {
+                        (InternalStage::SelectPolicyPath, true)
+                    } else {
+                        (InternalStage::Review, true)
+                    }
+                }
+                None => (InternalStage::default(), false),
+            }
+        };
+
+        let continue_btn = Button::new()
+            .text("Continue")
+            .width(Length::Fill)
+            .loading(!ready)
+            .on_press(SpendMessage::SetInternalStage(next_stage).into())
+            .view();
+
+        Column::new()
+            .spacing(10)
+            .padding(20)
+            .push(
+                Column::new()
+                    .push(Text::new("Send").size(24).bold().view())
+                    .push(
+                        Text::new("Create a new spending proposal")
+                            .extra_light()
+                            .view(),
+                    )
+                    .spacing(10)
+                    .width(Length::Fill),
+            )
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(policy_pick_list)
+            .push(address)
+            .push(amount)
+            .push(your_balance)
+            .push(description)
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(fee_selector)
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(error)
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(continue_btn)
+    }
+
+    fn view_review<'a>(&self) -> Column<'a, Message> {
+        let policy = Column::new()
+            .push(Row::new().push(Text::new("Policy").bold().view()))
+            .push(Row::new().push(if let Some(policy) = &self.policy {
+                Text::new(policy.to_string()).view()
+            } else {
+                Text::new("Policy not selected").color(DARK_RED).view()
+            }))
+            .spacing(5)
+            .width(Length::Fill);
+
+        let address = Column::new()
+            .push(Row::new().push(Text::new("Address").bold().view()))
+            .push(Row::new().push(Text::new(&self.to_address).view()))
+            .spacing(5)
+            .width(Length::Fill);
+
+        let amount = Column::new()
+            .push(Row::new().push(Text::new("Amount").bold().view()))
+            .push(
+                Row::new().push(
+                    Text::new(if self.send_all {
+                        String::from("Send all")
+                    } else {
+                        self.amount.unwrap_or_default().to_string()
+                    })
+                    .view(),
+                ),
+            )
+            .spacing(5)
+            .width(Length::Fill);
+
+        let description = if !self.description.is_empty() {
+            Column::new()
+                .push(Row::new().push(Text::new("Description").bold().view()))
+                .push(Row::new().push(Text::new(&self.description).view()))
+                .spacing(5)
+                .width(Length::Fill)
+        } else {
+            Column::new()
+        };
+
+        let priority = Column::new()
+            .push(Row::new().push(Text::new("Priority").bold().view()))
+            .push(
+                Row::new().push(
+                    Text::new(match self.fee_rate {
+                        FeeRate::High => "High (10 - 20 minutes)".to_string(),
+                        FeeRate::Medium => "Medium (20 - 60 minutes)".to_string(),
+                        FeeRate::Low => "Low (1 - 2 hours)".to_string(),
+                        FeeRate::Custom(target) => format!("Custom ({target} blocks)"),
+                    })
+                    .view(),
+                ),
+            )
+            .spacing(5)
+            .width(Length::Fill);
+
+        let error = if let Some(error) = &self.error {
+            Row::new().push(Text::new(error).color(DARK_RED).view())
+        } else {
+            Row::new()
+        };
+
+        let send_proposal_btn = Button::new()
+            .text("Send proposal")
+            .width(Length::Fill)
+            .on_press(SpendMessage::SendProposal.into())
+            .loading(self.loading)
+            .view();
+        let back_btn = Button::new()
+            .style(ButtonStyle::Bordered)
+            .text("Back")
+            .width(Length::Fill)
+            .on_press(SpendMessage::SetInternalStage(InternalStage::Default).into())
+            .loading(self.loading)
+            .view();
+
+        Column::new()
+            .spacing(10)
+            .padding(20)
+            .push(policy)
+            .push(address)
+            .push(amount)
+            .push(description)
+            .push(priority)
+            .push(error)
+            .push(Space::with_height(Length::Fixed(15.0)))
+            .push(send_proposal_btn)
+            .push(back_btn)
     }
 }
 
