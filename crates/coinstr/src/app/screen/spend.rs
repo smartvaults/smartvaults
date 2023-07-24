@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -75,7 +76,7 @@ pub struct SpendState {
     description: String,
     fee_rate: FeeRate,
     custom_target_blocks: Option<u64>,
-    policy_path_indexes: Option<Vec<usize>>,
+    policy_path: Option<BTreeMap<String, Vec<usize>>>,
     balance: Option<Balance>,
     stage: InternalStage,
     loading: bool,
@@ -98,7 +99,7 @@ impl SpendState {
             description: String::new(),
             fee_rate: FeeRate::default(),
             custom_target_blocks: None,
-            policy_path_indexes: None,
+            policy_path: None,
             balance: None,
             stage: InternalStage::default(),
             loading: false,
@@ -119,7 +120,7 @@ impl SpendState {
         let client = ctx.client.clone();
         let description = self.description.clone();
         let target_blocks = self.fee_rate.target_blocks();
-        let policy_path_indexes = self.policy_path_indexes.clone();
+        let policy_path = self.policy_path.clone();
 
         Command::perform(
             async move {
@@ -134,7 +135,7 @@ impl SpendState {
                         amount,
                         description,
                         fee_rate,
-                        policy_path_indexes,
+                        policy_path,
                     )
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
@@ -224,29 +225,25 @@ impl State for SpendState {
                     self.loading = false;
                     self.error = error;
                 }
-                SpendMessage::SetInternalStage(stage) => match stage {
-                    InternalStage::Default => self.stage = InternalStage::Default,
-                    InternalStage::SelectPolicyPath => todo!(),
-                    InternalStage::Review => match &self.policy {
-                        Some(_) => match Address::from_str(&self.to_address) {
-                            Ok(_) => {
-                                if self.send_all {
-                                    self.error = None;
-                                    self.stage = InternalStage::Review;
-                                } else {
-                                    match self.amount {
-                                        Some(_) => {
-                                            self.error = None;
-                                            self.stage = InternalStage::Review;
-                                        }
-                                        None => self.error = Some(String::from("Invalid amount")),
-                                    };
-                                }
+                SpendMessage::SetInternalStage(stage) => match &self.policy {
+                    Some(_) => match Address::from_str(&self.to_address) {
+                        Ok(_) => {
+                            if self.send_all {
+                                self.error = None;
+                                self.stage = stage;
+                            } else {
+                                match self.amount {
+                                    Some(_) => {
+                                        self.error = None;
+                                        self.stage = stage;
+                                    }
+                                    None => self.error = Some(String::from("Invalid amount")),
+                                };
                             }
-                            Err(e) => self.error = Some(e.to_string()),
-                        },
-                        None => self.error = Some(String::from("You must select a policy")),
+                        }
+                        Err(e) => self.error = Some(e.to_string()),
                     },
+                    None => self.error = Some(String::from("You must select a policy")),
                 },
                 SpendMessage::SendProposal => match &self.policy {
                     Some(policy) => {
@@ -286,7 +283,7 @@ impl State for SpendState {
         if self.loaded {
             content = match self.stage {
                 InternalStage::Default => self.view_default(),
-                InternalStage::SelectPolicyPath => todo!(),
+                InternalStage::SelectPolicyPath => self.view_policy_tree(),
                 InternalStage::Review => self.view_review(),
             };
         }
@@ -521,6 +518,28 @@ impl SpendState {
             .push(continue_btn)
     }
 
+    fn view_policy_tree<'a>(&self) -> Column<'a, Message> {
+        let next = Button::new()
+            .text("Next")
+            .width(Length::Fill)
+            .on_press(SpendMessage::SetInternalStage(InternalStage::Review).into())
+            .loading(self.loading)
+            .view();
+        let back_btn = Button::new()
+            .style(ButtonStyle::Bordered)
+            .text("Back")
+            .width(Length::Fill)
+            .on_press(SpendMessage::SetInternalStage(InternalStage::Default).into())
+            .loading(self.loading)
+            .view();
+
+        Column::new()
+            .spacing(10)
+            .padding(20)
+            .push(next)
+            .push(back_btn)
+    }
+
     fn view_review<'a>(&self) -> Column<'a, Message> {
         let policy = Column::new()
             .push(Row::new().push(Text::new("Policy").bold().view()))
@@ -585,6 +604,19 @@ impl SpendState {
             Row::new()
         };
 
+        let prev_stage: InternalStage = {
+            match &self.policy {
+                Some(policy) => {
+                    if policy.descriptor.contains("after") || policy.descriptor.contains("older") {
+                        InternalStage::SelectPolicyPath
+                    } else {
+                        InternalStage::Default
+                    }
+                }
+                None => InternalStage::default(),
+            }
+        };
+
         let send_proposal_btn = Button::new()
             .text("Send proposal")
             .width(Length::Fill)
@@ -595,7 +627,7 @@ impl SpendState {
             .style(ButtonStyle::Bordered)
             .text("Back")
             .width(Length::Fill)
-            .on_press(SpendMessage::SetInternalStage(InternalStage::Default).into())
+            .on_press(SpendMessage::SetInternalStage(prev_stage).into())
             .loading(self.loading)
             .view();
 
