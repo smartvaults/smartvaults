@@ -73,6 +73,9 @@ impl State for NotificationsState {
                                 Notification::NewApproval { proposal_id, .. } => {
                                     Message::View(Stage::Proposal(proposal_id))
                                 }
+                                Notification::NewCompletedProposal(id) => {
+                                    Message::View(Stage::CompletedProposal(id))
+                                }
                                 Notification::NewSharedSigner { .. } => {
                                     Message::View(Stage::Signers)
                                 }

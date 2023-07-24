@@ -18,6 +18,7 @@ pub enum Notification {
         proposal_id: EventId,
         public_key: XOnlyPublicKey,
     },
+    NewCompletedProposal(EventId),
     NewSharedSigner {
         shared_signer_id: EventId,
         owner_public_key: XOnlyPublicKey,
@@ -45,6 +46,9 @@ impl fmt::Display for Notification {
                     util::cut_public_key(*public_key),
                     util::cut_event_id(*proposal_id)
                 )
+            }
+            Self::NewCompletedProposal(id) => {
+                write!(f, "New finalized proposal: #{}", util::cut_event_id(*id))
             }
             Self::NewSharedSigner {
                 shared_signer_id,

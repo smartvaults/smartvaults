@@ -1696,6 +1696,9 @@ impl Coinstr {
                             *policy_id,
                             completed_proposal,
                         )?;
+                        let notification = Notification::NewCompletedProposal(event.id);
+                        self.db.save_notification(event.id, notification)?;
+                        return Ok(Some(Message::Notification(notification)));
                     } else {
                         self.db.save_pending_event(&event)?;
                     }
