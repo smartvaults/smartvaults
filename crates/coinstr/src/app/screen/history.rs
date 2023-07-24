@@ -1,10 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
-use coinstr_sdk::core::proposal::CompletedProposal;
-use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::db::model::GetCompletedProposal;
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 
@@ -15,7 +12,7 @@ use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
 pub enum HistoryMessage {
-    LoadCompletedProposals(BTreeMap<EventId, (EventId, CompletedProposal)>),
+    LoadCompletedProposals(Vec<GetCompletedProposal>),
     Reload,
 }
 
@@ -23,7 +20,7 @@ pub enum HistoryMessage {
 pub struct HistoryState {
     loading: bool,
     loaded: bool,
-    proposals: BTreeMap<EventId, (EventId, CompletedProposal)>,
+    proposals: Vec<GetCompletedProposal>,
 }
 
 impl HistoryState {

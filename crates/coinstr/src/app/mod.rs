@@ -62,13 +62,8 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Transaction(txid) => TransactionState::new(*txid).into(),
         Stage::Transactions(policy_id) => TransactionsState::new(*policy_id).into(),
         Stage::History => HistoryState::new().into(),
-        Stage::CompletedProposal(completed_proposal_id, completed_proposal, policy_id) => {
-            CompletedProposalState::new(
-                *completed_proposal_id,
-                completed_proposal.clone(),
-                *policy_id,
-            )
-            .into()
+        Stage::CompletedProposal(completed_proposal_id) => {
+            CompletedProposalState::new(*completed_proposal_id).into()
         }
         Stage::Signers => SignersState::new().into(),
         Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),

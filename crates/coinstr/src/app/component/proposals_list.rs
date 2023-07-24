@@ -1,11 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
-use coinstr_sdk::db::model::GetProposal;
-use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::db::model::{GetCompletedProposal, GetProposal};
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
@@ -190,12 +187,12 @@ impl PendingProposalsList {
 }
 
 pub struct CompletedProposalsList {
-    map: BTreeMap<EventId, (EventId, CompletedProposal)>,
+    map: Vec<GetCompletedProposal>,
     take: Option<usize>,
 }
 
 impl CompletedProposalsList {
-    pub fn new(map: BTreeMap<EventId, (EventId, CompletedProposal)>) -> Self {
+    pub fn new(map: Vec<GetCompletedProposal>) -> Self {
         Self { map, take: None }
     }
 
@@ -250,11 +247,16 @@ impl CompletedProposalsList {
         if self.map.is_empty() {
             proposals = proposals.push(Text::new("No proposals").extra_light().view());
         } else {
-            for (proposal_id, (policy_id, proposal)) in self.map.iter() {
+            for GetCompletedProposal {
+                policy_id,
+                completed_proposal_id,
+                proposal,
+            } in self.map.iter()
+            {
                 let row = match proposal {
                     CompletedProposal::Spending { description, .. } => Row::new()
                         .push(
-                            Text::new(util::cut_event_id(*proposal_id))
+                            Text::new(util::cut_event_id(*completed_proposal_id))
                                 .width(Length::Fixed(115.0))
                                 .view(),
                         )
@@ -270,9 +272,7 @@ impl CompletedProposalsList {
                             Button::new()
                                 .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::CompletedProposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                    *policy_id,
+                                    *completed_proposal_id,
                                 )))
                                 .width(Length::Fixed(40.0))
                                 .view(),
@@ -282,7 +282,7 @@ impl CompletedProposalsList {
                         .width(Length::Fill),
                     CompletedProposal::ProofOfReserve { message, .. } => Row::new()
                         .push(
-                            Text::new(util::cut_event_id(*proposal_id))
+                            Text::new(util::cut_event_id(*completed_proposal_id))
                                 .width(Length::Fixed(115.0))
                                 .view(),
                         )
@@ -302,9 +302,7 @@ impl CompletedProposalsList {
                             Button::new()
                                 .icon(FULLSCREEN)
                                 .on_press(Message::View(Stage::CompletedProposal(
-                                    *proposal_id,
-                                    proposal.clone(),
-                                    *policy_id,
+                                    *completed_proposal_id,
                                 )))
                                 .width(Length::Fixed(40.0))
                                 .view(),

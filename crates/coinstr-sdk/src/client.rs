@@ -14,11 +14,11 @@ use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
-use bdk::database::{MemoryDatabase, SqliteDatabase};
+use bdk::database::SqliteDatabase;
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
-use bdk::{Balance, FeeRate, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
+use bdk::{Balance, FeeRate, LocalUtxo, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
@@ -46,8 +46,9 @@ use crate::constants::{
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
-    GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
-    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult, NostrConnectRequest,
+    GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
+    GetDetailedPolicyResult, GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult,
+    NostrConnectRequest,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -692,7 +693,7 @@ impl Coinstr {
     pub fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: EventId,
-    ) -> Result<(EventId, CompletedProposal), Error> {
+    ) -> Result<GetCompletedProposal, Error> {
         Ok(self.db.get_completed_proposal(completed_proposal_id)?)
     }
 
@@ -855,9 +856,7 @@ impl Coinstr {
         Ok(self.db.get_approvals_by_proposal_id(proposal_id)?)
     }
 
-    pub fn get_completed_proposals(
-        &self,
-    ) -> Result<BTreeMap<EventId, (EventId, CompletedProposal)>, Error> {
+    pub fn get_completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
         Ok(self.db.completed_proposals()?)
     }
 
@@ -872,14 +871,6 @@ impl Coinstr {
         let db: SqliteDatabase = self.db.get_wallet_db(policy_id)?;
         let wallet = Wallet::new(&descriptor.into(), None, self.network, db)?;
         Ok(wallet)
-    }
-
-    fn memory_wallet<S>(&self, descriptor: S) -> Result<Wallet<MemoryDatabase>, Error>
-    where
-        S: Into<String>,
-    {
-        let db = MemoryDatabase::new();
-        Ok(Wallet::new(&descriptor.into(), None, self.network, db)?)
     }
 
     pub async fn save_policy<S>(
@@ -1318,7 +1309,12 @@ impl Coinstr {
         Ok((proposal_id, proposal, policy_id))
     }
 
-    pub fn verify_proof(&self, proposal: CompletedProposal) -> Result<u64, Error> {
+    pub fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
+        let GetCompletedProposal {
+            proposal,
+            policy_id,
+            ..
+        } = self.get_completed_proposal_by_id(completed_proposal_id)?;
         if let CompletedProposal::ProofOfReserve {
             message,
             descriptor,
@@ -1326,19 +1322,11 @@ impl Coinstr {
             ..
         } = proposal
         {
-            let endpoint = self.config.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            let wallet = self.memory_wallet(descriptor.to_string())?;
-            wallet.sync(&blockchain, SyncOptions::default())?;
+            let wallet = self.wallet(policy_id, descriptor.to_string())?;
             Ok(wallet.verify_proof(&psbt, message, None)?)
         } else {
             Err(Error::UnexpectedProposal)
         }
-    }
-
-    pub fn verify_proof_by_id(&self, proposal_id: EventId) -> Result<u64, Error> {
-        let (_policy_id, proposal) = self.get_completed_proposal_by_id(proposal_id)?;
-        self.verify_proof(proposal)
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {

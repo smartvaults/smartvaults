@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::Write;
 
 use coinstr_sdk::core::proposal::CompletedProposal;
+use coinstr_sdk::db::model::GetCompletedProposal;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -27,6 +28,7 @@ pub enum ProofStatus {
 
 #[derive(Debug, Clone)]
 pub enum CompletedProposalMessage {
+    Load(CompletedProposal, EventId),
     Delete,
     VerifyProof,
     UpdateProofStatus(ProofStatus),
@@ -40,24 +42,20 @@ pub struct CompletedProposalState {
     loaded: bool,
     loading: bool,
     completed_proposal_id: EventId,
-    completed_proposal: CompletedProposal,
-    policy_id: EventId,
+    completed_proposal: Option<CompletedProposal>,
+    policy_id: Option<EventId>,
     proof_status: ProofStatus,
     error: Option<String>,
 }
 
 impl CompletedProposalState {
-    pub fn new(
-        completed_proposal_id: EventId,
-        completed_proposal: CompletedProposal,
-        policy_id: EventId,
-    ) -> Self {
+    pub fn new(completed_proposal_id: EventId) -> Self {
         Self {
             loaded: false,
             loading: false,
             completed_proposal_id,
-            completed_proposal,
-            policy_id,
+            completed_proposal: None,
+            policy_id: None,
             proof_status: ProofStatus::default(),
             error: None,
         }
@@ -72,9 +70,43 @@ impl State for CompletedProposalState {
         )
     }
 
-    fn load(&mut self, _ctx: &Context) -> Command<Message> {
-        self.loaded = true;
-        Command::none()
+    fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
+        let client = ctx.client.clone();
+        let completed_proposal_id = self.completed_proposal_id;
+        self.loading = true;
+        Command::perform(
+            async move {
+                if client
+                    .db
+                    .completed_proposal_exists(completed_proposal_id)
+                    .ok()?
+                {
+                    client
+                        .mark_notification_as_seen_by_id(completed_proposal_id)
+                        .ok()?;
+                    let GetCompletedProposal {
+                        policy_id,
+                        proposal,
+                        ..
+                    } = client
+                        .get_completed_proposal_by_id(completed_proposal_id)
+                        .ok()?;
+                    Some((proposal, policy_id))
+                } else {
+                    None
+                }
+            },
+            |res| match res {
+                Some((proposal, policy_id)) => {
+                    CompletedProposalMessage::Load(proposal, policy_id).into()
+                }
+                None => Message::View(Stage::Dashboard),
+            },
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -84,6 +116,12 @@ impl State for CompletedProposalState {
 
         if let Message::CompletedProposal(msg) = message {
             match msg {
+                CompletedProposalMessage::Load(proposal, policy_id) => {
+                    self.policy_id = Some(policy_id);
+                    self.completed_proposal = Some(proposal);
+                    self.loading = false;
+                    self.loaded = true;
+                }
                 CompletedProposalMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;
@@ -91,9 +129,9 @@ impl State for CompletedProposalState {
                 CompletedProposalMessage::VerifyProof => {
                     self.loading = true;
                     let client = ctx.client.clone();
-                    let completed_proposal = self.completed_proposal.clone();
+                    let completed_proposal_id = self.completed_proposal_id;
                     return Command::perform(
-                        async move { client.verify_proof(completed_proposal) },
+                        async move { client.verify_proof_by_id(completed_proposal_id) },
                         |res| match res {
                             Ok(spendable) => CompletedProposalMessage::UpdateProofStatus(
                                 ProofStatus::Valid(spendable),
@@ -111,34 +149,38 @@ impl State for CompletedProposalState {
                     self.proof_status = status;
                 }
                 CompletedProposalMessage::ExportProof => {
-                    let path = FileDialog::new()
-                        .set_title("Export Proof of Reserve")
-                        .set_file_name(&format!(
-                            "proof-{}.json",
-                            util::cut_event_id(self.completed_proposal_id)
-                        ))
-                        .save_file();
+                    if let Some(completed_proposal) = self.completed_proposal.clone() {
+                        let path = FileDialog::new()
+                            .set_title("Export Proof of Reserve")
+                            .set_file_name(&format!(
+                                "proof-{}.json",
+                                util::cut_event_id(self.completed_proposal_id)
+                            ))
+                            .save_file();
 
-                    if let Some(path) = path {
-                        match self.completed_proposal.export_proof() {
-                            Some(proof) => {
-                                self.loading = true;
-                                return Command::perform(
-                                    async move {
-                                        let mut file = File::create(path)?;
-                                        file.write_all(proof.as_bytes())
-                                    },
-                                    |res| match res {
-                                        Ok(_) => CompletedProposalMessage::Exported.into(),
-                                        Err(e) => CompletedProposalMessage::ErrorChanged(Some(
-                                            e.to_string(),
-                                        ))
-                                        .into(),
-                                    },
-                                );
+                        if let Some(path) = path {
+                            match completed_proposal.export_proof() {
+                                Some(proof) => {
+                                    self.loading = true;
+                                    return Command::perform(
+                                        async move {
+                                            let mut file = File::create(path)?;
+                                            file.write_all(proof.as_bytes())
+                                        },
+                                        |res| match res {
+                                            Ok(_) => CompletedProposalMessage::Exported.into(),
+                                            Err(e) => CompletedProposalMessage::ErrorChanged(Some(
+                                                e.to_string(),
+                                            ))
+                                            .into(),
+                                        },
+                                    );
+                                }
+                                None => self.error = Some("Not a proof of reserve".to_string()),
                             }
-                            None => self.error = Some("Not a proof of reserve".to_string()),
                         }
+                    } else {
+                        self.error = Some(String::from("Proposal not loaded"));
                     }
                 }
                 CompletedProposalMessage::Exported => {
@@ -169,104 +211,112 @@ impl State for CompletedProposalState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let mut content = Column::new()
-            .spacing(10)
-            .padding(20)
-            .push(
-                Text::new(format!(
-                    "Finalized proposal #{}",
-                    util::cut_event_id(self.completed_proposal_id)
-                ))
-                .size(40)
-                .bold()
-                .view(),
-            )
-            .push(Space::with_height(Length::Fixed(40.0)))
-            .push(
-                Text::new(format!("Policy ID: {}", util::cut_event_id(self.policy_id)))
-                    .on_press(Message::View(Stage::Policy(self.policy_id)))
-                    .view(),
-            );
+        let mut content = Column::new().spacing(10).padding(20);
 
-        let mut buttons = Row::new().spacing(10);
-
-        match &self.completed_proposal {
-            CompletedProposal::Spending {
-                tx, description, ..
-            } => {
-                let txid = tx.txid();
-                content = content
-                    .push(Text::new("Type: spending").view())
-                    .push(
-                        Text::new(format!("Txid: {txid}"))
-                            .on_press(Message::View(Stage::Transaction(txid)))
-                            .view(),
-                    )
-                    .push(Text::new(format!("Description: {description}")).view());
-            }
-            CompletedProposal::ProofOfReserve { message, .. } => {
-                let mut status = Row::new().push(Text::new("Status: ").view());
-
-                match self.proof_status {
-                    ProofStatus::Unknown => {
-                        status = status.push(Text::new("unknown").color(GREY).view())
-                    }
-                    ProofStatus::Valid(spendable) => {
-                        status = status.push(
+        if self.loaded {
+            if let Some(completed_proposal) = &self.completed_proposal {
+                if let Some(policy_id) = self.policy_id {
+                    content = content
+                        .push(
                             Text::new(format!(
-                                "valid - spendable {} sat",
-                                util::format::number(spendable)
+                                "Finalized proposal #{}",
+                                util::cut_event_id(self.completed_proposal_id)
                             ))
-                            .color(GREEN)
+                            .size(40)
+                            .bold()
                             .view(),
                         )
-                    }
-                    ProofStatus::Invalid => {
-                        status = status.push(Text::new("invalid").color(RED).view())
-                    }
-                };
+                        .push(Space::with_height(Length::Fixed(40.0)))
+                        .push(
+                            Text::new(format!("Policy ID: {}", util::cut_event_id(policy_id)))
+                                .on_press(Message::View(Stage::Policy(policy_id)))
+                                .view(),
+                        );
 
-                content = content
-                    .push(Text::new("Type: proof-of-reserve").view())
-                    .push(Text::new(format!("Message: {message}")).view())
-                    .push(status);
+                    let mut buttons = Row::new().spacing(10);
 
-                buttons = buttons
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::Bordered)
-                            .icon(PATCH_CHECK)
-                            .text("Verify proof")
-                            .on_press(CompletedProposalMessage::VerifyProof.into())
-                            .loading(self.loading)
-                            .view(),
-                    )
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::Bordered)
-                            .icon(SAVE)
-                            .text("Export")
-                            .on_press(CompletedProposalMessage::ExportProof.into())
-                            .loading(self.loading)
-                            .view(),
-                    );
+                    match completed_proposal {
+                        CompletedProposal::Spending {
+                            tx, description, ..
+                        } => {
+                            let txid = tx.txid();
+                            content = content
+                                .push(Text::new("Type: spending").view())
+                                .push(
+                                    Text::new(format!("Txid: {txid}"))
+                                        .on_press(Message::View(Stage::Transaction(txid)))
+                                        .view(),
+                                )
+                                .push(Text::new(format!("Description: {description}")).view());
+                        }
+                        CompletedProposal::ProofOfReserve { message, .. } => {
+                            let mut status = Row::new().push(Text::new("Status: ").view());
+
+                            match self.proof_status {
+                                ProofStatus::Unknown => {
+                                    status = status.push(Text::new("unknown").color(GREY).view())
+                                }
+                                ProofStatus::Valid(spendable) => {
+                                    status = status.push(
+                                        Text::new(format!(
+                                            "valid - spendable {} sat",
+                                            util::format::number(spendable)
+                                        ))
+                                        .color(GREEN)
+                                        .view(),
+                                    )
+                                }
+                                ProofStatus::Invalid => {
+                                    status = status.push(Text::new("invalid").color(RED).view())
+                                }
+                            };
+
+                            content = content
+                                .push(Text::new("Type: proof-of-reserve").view())
+                                .push(Text::new(format!("Message: {message}")).view())
+                                .push(status);
+
+                            buttons = buttons
+                                .push(
+                                    Button::new()
+                                        .style(ButtonStyle::Bordered)
+                                        .icon(PATCH_CHECK)
+                                        .text("Verify proof")
+                                        .on_press(CompletedProposalMessage::VerifyProof.into())
+                                        .loading(self.loading)
+                                        .view(),
+                                )
+                                .push(
+                                    Button::new()
+                                        .style(ButtonStyle::Bordered)
+                                        .icon(SAVE)
+                                        .text("Export")
+                                        .on_press(CompletedProposalMessage::ExportProof.into())
+                                        .loading(self.loading)
+                                        .view(),
+                                );
+                        }
+                    };
+
+                    let delete_btn = Button::new()
+                        .style(ButtonStyle::Danger)
+                        .icon(TRASH)
+                        .text("Delete")
+                        .on_press(CompletedProposalMessage::Delete.into())
+                        .loading(self.loading)
+                        .view();
+
+                    content = content
+                        .push(Space::with_height(10.0))
+                        .push(buttons.push(delete_btn))
+                        .push(Space::with_height(20.0));
+                }
             }
-        };
+        }
 
-        let delete_btn = Button::new()
-            .style(ButtonStyle::Danger)
-            .icon(TRASH)
-            .text("Delete")
-            .on_press(CompletedProposalMessage::Delete.into())
-            .loading(self.loading)
-            .view();
-
-        content = content
-            .push(Space::with_height(10.0))
-            .push(buttons.push(delete_btn))
-            .push(Space::with_height(20.0));
-
-        Dashboard::new().view(ctx, content, false, false)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, false, false)
     }
 }
 

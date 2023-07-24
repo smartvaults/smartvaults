@@ -16,7 +16,7 @@ use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
-use coinstr_sdk::db::model::{GetPolicy, GetProposal, NostrConnectRequest};
+use coinstr_sdk::db::model::{GetCompletedProposal, GetPolicy, GetProposal, NostrConnectRequest};
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
@@ -388,19 +388,27 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
     table.printstd();
 }
 
-pub fn print_completed_proposals(proposals: BTreeMap<EventId, (EventId, CompletedProposal)>) {
+pub fn print_completed_proposals(proposals: Vec<GetCompletedProposal>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Policy ID", "Type", "Txid", "Description"]);
 
-    for (index, (proposal_id, (policy_id, proposal))) in proposals.into_iter().enumerate() {
+    for (
+        index,
+        GetCompletedProposal {
+            policy_id,
+            completed_proposal_id,
+            proposal,
+        },
+    ) in proposals.into_iter().enumerate()
+    {
         match proposal {
             CompletedProposal::Spending {
                 tx, description, ..
             } => {
                 table.add_row(row![
                     index + 1,
-                    proposal_id,
+                    completed_proposal_id,
                     util::cut_event_id(policy_id),
                     "spending",
                     tx.txid(),
@@ -410,7 +418,7 @@ pub fn print_completed_proposals(proposals: BTreeMap<EventId, (EventId, Complete
             CompletedProposal::ProofOfReserve { message, .. } => {
                 table.add_row(row![
                     index + 1,
-                    proposal_id,
+                    completed_proposal_id,
                     util::cut_event_id(policy_id),
                     "proof-of-reserve",
                     "-",

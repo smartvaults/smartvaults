@@ -40,7 +40,7 @@ mod relays;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
-    GetApprovedProposalResult, GetApprovedProposals, GetDetailedPolicyResult,
+    GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicyResult,
     GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult,
 };
 use super::Error;
@@ -665,26 +665,22 @@ impl Store {
         Ok(())
     }
 
-    pub fn completed_proposals(
-        &self,
-    ) -> Result<BTreeMap<EventId, (EventId, CompletedProposal)>, Error> {
+    pub fn completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare(
             "SELECT completed_proposal_id, policy_id, completed_proposal FROM completed_proposals;",
         )?;
         let mut rows = stmt.query([])?;
-        let mut proposals = BTreeMap::new();
+        let mut proposals = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let proposal_id: String = row.get(0)?;
             let policy_id: String = row.get(1)?;
             let proposal: String = row.get(2)?;
-            proposals.insert(
-                EventId::from_hex(proposal_id)?,
-                (
-                    EventId::from_hex(policy_id)?,
-                    CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
-                ),
-            );
+            proposals.push(GetCompletedProposal {
+                policy_id: EventId::from_hex(policy_id)?,
+                completed_proposal_id: EventId::from_hex(proposal_id)?,
+                proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
+            });
         }
         Ok(proposals)
     }
@@ -692,7 +688,7 @@ impl Store {
     pub fn get_completed_proposal(
         &self,
         completed_proposal_id: EventId,
-    ) -> Result<(EventId, CompletedProposal), Error> {
+    ) -> Result<GetCompletedProposal, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
         let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
@@ -701,10 +697,11 @@ impl Store {
             .ok_or(Error::NotFound("completed proposal".into()))?;
         let policy_id: String = row.get(0)?;
         let proposal: String = row.get(1)?;
-        Ok((
-            EventId::from_hex(policy_id)?,
-            CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
-        ))
+        Ok(GetCompletedProposal {
+            policy_id: EventId::from_hex(policy_id)?,
+            completed_proposal_id,
+            proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
+        })
     }
 
     fn get_completed_proposal_ids_by_policy_id(
@@ -737,7 +734,7 @@ impl Store {
     }
 
     fn get_description_by_txid(&self, txid: Txid) -> Result<Option<String>, Error> {
-        for (_, (_, proposal)) in self.completed_proposals()?.into_iter() {
+        for GetCompletedProposal { proposal, .. } in self.completed_proposals()?.into_iter() {
             if let CompletedProposal::Spending {
                 tx, description, ..
             } = proposal
@@ -752,7 +749,7 @@ impl Store {
 
     pub fn get_txs_descriptions(&self) -> Result<HashMap<Txid, String>, Error> {
         let mut map = HashMap::new();
-        for (_, (_, proposal)) in self.completed_proposals()?.into_iter() {
+        for GetCompletedProposal { proposal, .. } in self.completed_proposals()?.into_iter() {
             if let CompletedProposal::Spending {
                 tx, description, ..
             } = proposal

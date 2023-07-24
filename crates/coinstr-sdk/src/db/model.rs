@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use bdk::bitcoin::XOnlyPublicKey;
 use bdk::Balance;
 use coinstr_core::signer::{SharedSigner, Signer};
-use coinstr_core::{ApprovedProposal, Policy, Proposal};
+use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::nips::nip46::Message;
 use nostr_sdk::{EventId, Timestamp};
 
@@ -71,4 +71,11 @@ pub struct GetProposal {
     pub proposal_id: EventId,
     pub policy_id: EventId,
     pub proposal: Proposal,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetCompletedProposal {
+    pub policy_id: EventId,
+    pub completed_proposal_id: EventId,
+    pub proposal: CompletedProposal,
 }

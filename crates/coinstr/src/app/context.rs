@@ -5,7 +5,6 @@ use std::fmt;
 
 use coinstr_sdk::core::bitcoin::Txid;
 use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::core::proposal::CompletedProposal;
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::{util, Coinstr};
@@ -28,7 +27,7 @@ pub enum Stage {
     Transaction(Txid),
     Transactions(Option<EventId>),
     History,
-    CompletedProposal(EventId, CompletedProposal, EventId),
+    CompletedProposal(EventId),
     Signers,
     RevokeAllSigners,
     Signer(EventId, Signer),
