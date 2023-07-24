@@ -944,7 +944,7 @@ impl Coinstr {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
-        policy_path_indexes: Option<Vec<usize>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error>
     where
         S: Into<String>,
@@ -958,14 +958,7 @@ impl Coinstr {
         // Build spending proposal
         let wallet: Wallet<SqliteDatabase> =
             self.wallet(policy_id, &policy.descriptor.to_string())?;
-        let proposal = policy.spend(
-            wallet,
-            address,
-            amount,
-            description,
-            fee_rate,
-            policy_path_indexes,
-        )?;
+        let proposal = policy.spend(wallet, address, amount, description, fee_rate, policy_path)?;
 
         if let Proposal::Spending {
             amount,
@@ -1020,7 +1013,7 @@ impl Coinstr {
         to_policy_id: EventId,
         amount: Amount,
         fee_rate: FeeRate,
-        policy_path_indexes: Option<Vec<usize>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error> {
         let address = self
             .get_last_unused_address(to_policy_id)
@@ -1036,7 +1029,7 @@ impl Coinstr {
             amount,
             description,
             fee_rate,
-            policy_path_indexes,
+            policy_path,
         )
         .await
     }

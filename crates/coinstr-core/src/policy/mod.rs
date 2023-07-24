@@ -150,23 +150,22 @@ impl Policy {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
-        policy_path_indexes: Option<Vec<usize>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<Proposal, Error>
     where
         D: BatchDatabase,
         S: Into<String>,
     {
-        // Get policies and specify which ones to use
-        let wallet_policy = wallet
-            .policies(KeychainKind::External)?
-            .ok_or(Error::WalletSpendingPolicyNotFound)?;
-        let mut path = BTreeMap::new();
-        match policy_path_indexes {
-            Some(indexes) => {
-                path.insert(wallet_policy.id, indexes);
-            }
+        let path: BTreeMap<String, Vec<usize>> = match policy_path {
+            Some(path) => path,
             None => {
+                // Get policies and specify which ones to use
+                let wallet_policy = wallet
+                    .policies(KeychainKind::External)?
+                    .ok_or(Error::WalletSpendingPolicyNotFound)?;
+                let mut path = BTreeMap::new();
                 path.insert(wallet_policy.id, vec![1]);
+                path
             }
         };
 
