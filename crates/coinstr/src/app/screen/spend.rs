@@ -58,6 +58,7 @@ pub enum SpendMessage {
     SendAllBtnPressed,
     DescriptionChanged(String),
     FeeRateChanged(FeeRate),
+    CustomTargetBlockChanged(Option<u64>),
     BalanceChanged(Option<Balance>),
     ErrorChanged(Option<String>),
     SetInternalStage(InternalStage),
@@ -73,6 +74,7 @@ pub struct SpendState {
     send_all: bool,
     description: String,
     fee_rate: FeeRate,
+    custom_target_blocks: Option<u64>,
     policy_path_indexes: Option<Vec<usize>>,
     balance: Option<Balance>,
     stage: InternalStage,
@@ -95,6 +97,7 @@ impl SpendState {
             send_all: false,
             description: String::new(),
             fee_rate: FeeRate::default(),
+            custom_target_blocks: None,
             policy_path_indexes: None,
             balance: None,
             stage: InternalStage::default(),
@@ -211,6 +214,12 @@ impl State for SpendState {
                 SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
                 SpendMessage::DescriptionChanged(value) => self.description = value,
                 SpendMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
+                SpendMessage::CustomTargetBlockChanged(blocks) => {
+                    self.custom_target_blocks = blocks;
+                    if let Some(blocks) = blocks {
+                        self.fee_rate = FeeRate::Custom(blocks as usize);
+                    }
+                }
                 SpendMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;
@@ -431,6 +440,21 @@ impl SpendState {
             .align_items(Alignment::Center)
             .width(Length::Fill);
 
+        let custom_priority = Row::new()
+            .push(Radio::new(
+                "",
+                FeeRate::Custom(self.custom_target_blocks.unwrap_or_default() as usize),
+                Some(self.fee_rate),
+                |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
+            ))
+            .push(
+                NumericInput::new("", self.custom_target_blocks)
+                    .placeholder("Target blocks")
+                    .on_input(|b| SpendMessage::CustomTargetBlockChanged(b).into()),
+            )
+            .align_items(Alignment::Center)
+            .width(Length::Fill);
+
         let fee_selector = Column::new()
             .push(Text::new("Priority & arrival time").view())
             .push(
@@ -438,6 +462,7 @@ impl SpendState {
                     .push(fee_high_priority)
                     .push(fee_medium_priority)
                     .push(fee_low_priority)
+                    .push(custom_priority)
                     .spacing(10),
             )
             .spacing(5);
