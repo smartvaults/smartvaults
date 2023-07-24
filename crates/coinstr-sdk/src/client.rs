@@ -43,7 +43,7 @@ use tokio::sync::broadcast::{self, Receiver, Sender};
 use crate::config::Config;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
     GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
@@ -639,7 +639,7 @@ impl Coinstr {
     pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {
         let keys = self.keys();
         let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
         self.db.set_metadata(keys.public_key(), metadata)?;
         Ok(())
     }
@@ -662,7 +662,7 @@ impl Coinstr {
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
             let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
-            self.send_event(event, Some(Duration::from_secs(5))).await?;
+            self.send_event(event, Some(SEND_TIMEOUT)).await?;
             self.db.save_contact(public_key)?;
         }
 
@@ -678,7 +678,7 @@ impl Coinstr {
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
         let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
         self.db.delete_contact(public_key)?;
         Ok(())
     }
@@ -720,7 +720,7 @@ impl Coinstr {
             .for_each(|id| tags.push(Tag::Event(id, None, None)));
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         self.db.delete_policy(policy_id)?;
 
@@ -760,7 +760,7 @@ impl Coinstr {
         } */
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         self.db.delete_proposal(proposal_id)?;
 
@@ -801,7 +801,7 @@ impl Coinstr {
         tags.push(Tag::Event(completed_proposal_id, None, None));
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         self.db.delete_completed_proposal(completed_proposal_id)?;
 
@@ -822,7 +822,7 @@ impl Coinstr {
         }
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         self.db.delete_signer(signer_id)?;
 
@@ -926,8 +926,7 @@ impl Coinstr {
         }
 
         // Publish the event
-        self.send_event(policy_event, Some(Duration::from_secs(5)))
-            .await?;
+        self.send_event(policy_event, Some(SEND_TIMEOUT)).await?;
 
         // Cache policy
         self.db.save_shared_key(policy_id, shared_key)?;
@@ -976,7 +975,7 @@ impl Coinstr {
             let content: String = proposal.encrypt_with_keys(&shared_keys)?;
             // Publish proposal with `shared_key` so every owner can delete it
             let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-            let proposal_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+            let proposal_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
             // Send DM msg
             let sender = self.client.keys().public_key();
@@ -1090,7 +1089,7 @@ impl Coinstr {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1140,7 +1139,7 @@ impl Coinstr {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1191,7 +1190,7 @@ impl Coinstr {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1218,7 +1217,7 @@ impl Coinstr {
         tags.push(Tag::Event(approval_id, None, None));
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&self.keys())?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         self.db.delete_approval(approval_id)?;
 
@@ -1260,7 +1259,7 @@ impl Coinstr {
             EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id).await {
@@ -1304,7 +1303,7 @@ impl Coinstr {
         let content = proposal.encrypt_with_keys(&shared_keys)?;
         // Publish proposal with `shared_key` so every owner can delete it
         let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-        let proposal_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+        let proposal_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Send DM msg
         let sender = self.client.keys().public_key();
@@ -1357,7 +1356,7 @@ impl Coinstr {
         let event = EventBuilder::new(SIGNERS_KIND, content, &[]).to_event(&keys)?;
 
         // Publish the event
-        let signer_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+        let signer_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Save signer in db
         self.db.save_signer(signer_id, signer)?;
@@ -1942,7 +1941,7 @@ impl Coinstr {
             ];
             let event: Event =
                 EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-            let event_id = self.send_event(event, Some(Duration::from_secs(5))).await?;
+            let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
             self.db
                 .save_my_shared_signer(signer_id, event_id, public_key)?;
             Ok(event_id)
@@ -1996,7 +1995,7 @@ impl Coinstr {
                 Tag::Event(shared_signer_id, None, None),
             ];
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-            self.send_event(event, Some(Duration::from_secs(5))).await?;
+            self.send_event(event, Some(SEND_TIMEOUT)).await?;
             self.db.delete_shared_signer(shared_signer_id)?;
         }
         Ok(())
@@ -2012,7 +2011,7 @@ impl Coinstr {
             Tag::Event(shared_signer_id, None, None),
         ];
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-        self.send_event(event, Some(Duration::from_secs(5))).await?;
+        self.send_event(event, Some(SEND_TIMEOUT)).await?;
         self.db.delete_shared_signer(shared_signer_id)?;
         Ok(())
     }
