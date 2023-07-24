@@ -386,9 +386,16 @@ impl Coinstr {
 
             let policy_id = EventId::from_hex(policy_id)?;
             let to_address = Address::from_str(&to_address)?;
-            let (proposal_id, ..) = self
+            let GetProposal { proposal_id, .. } = self
                 .inner
-                .spend(policy_id, to_address, amount.inner(), description, fee_rate)
+                .spend(
+                    policy_id,
+                    to_address,
+                    amount.inner(),
+                    description,
+                    fee_rate,
+                    None,
+                )
                 .await?;
             Ok(proposal_id.to_hex())
         })
@@ -408,9 +415,9 @@ impl Coinstr {
 
             let from_policy_id = EventId::from_hex(from_policy_id)?;
             let to_policy_id = EventId::from_hex(to_policy_id)?;
-            let (proposal_id, ..) = self
+            let GetProposal { proposal_id, .. } = self
                 .inner
-                .self_transfer(from_policy_id, to_policy_id, amount.inner(), fee_rate)
+                .self_transfer(from_policy_id, to_policy_id, amount.inner(), fee_rate, None)
                 .await?;
             Ok(proposal_id.to_hex())
         })

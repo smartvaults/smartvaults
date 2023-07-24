@@ -944,7 +944,8 @@ impl Coinstr {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
-    ) -> Result<(EventId, Proposal), Error>
+        policy_path_indexes: Option<Vec<usize>>,
+    ) -> Result<GetProposal, Error>
     where
         S: Into<String>,
     {
@@ -957,7 +958,14 @@ impl Coinstr {
         // Build spending proposal
         let wallet: Wallet<SqliteDatabase> =
             self.wallet(policy_id, &policy.descriptor.to_string())?;
-        let proposal = policy.spend(wallet, address, amount, description, fee_rate)?;
+        let proposal = policy.spend(
+            wallet,
+            address,
+            amount,
+            description,
+            fee_rate,
+            policy_path_indexes,
+        )?;
 
         if let Proposal::Spending {
             amount,
@@ -995,7 +1003,11 @@ impl Coinstr {
             self.db
                 .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
-            Ok((proposal_id, proposal))
+            Ok(GetProposal {
+                proposal_id,
+                policy_id,
+                proposal,
+            })
         } else {
             Err(Error::UnexpectedProposal)
         }
@@ -1008,7 +1020,8 @@ impl Coinstr {
         to_policy_id: EventId,
         amount: Amount,
         fee_rate: FeeRate,
-    ) -> Result<(EventId, Proposal), Error> {
+        policy_path_indexes: Option<Vec<usize>>,
+    ) -> Result<GetProposal, Error> {
         let address = self
             .get_last_unused_address(to_policy_id)
             .ok_or(Error::PolicyNotFound)?;
@@ -1017,8 +1030,15 @@ impl Coinstr {
             util::cut_event_id(from_policy_id),
             util::cut_event_id(to_policy_id)
         );
-        self.spend(from_policy_id, address, amount, description, fee_rate)
-            .await
+        self.spend(
+            from_policy_id,
+            address,
+            amount,
+            description,
+            fee_rate,
+            policy_path_indexes,
+        )
+        .await
     }
 
     fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>

@@ -7,7 +7,7 @@ use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::{Amount, FeeRate};
-use coinstr_sdk::db::model::GetPolicy;
+use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Radio, Row, Space};
@@ -90,8 +90,8 @@ impl SelfTransferState {
                 let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
                 let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
-                let (proposal_id, ..) = client
-                    .self_transfer(from_policy_id, to_policy_id, amount, fee_rate)
+                let GetProposal { proposal_id, .. } = client
+                    .self_transfer(from_policy_id, to_policy_id, amount, fee_rate, None)
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
             },

@@ -16,6 +16,7 @@ use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::{Amount, CompletedProposal, Keychain, Result};
+use coinstr_sdk::db::model::GetProposal;
 use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util::format;
 use coinstr_sdk::{logger, Coinstr};
@@ -258,13 +259,14 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
-            let (proposal_id, _proposal) = coinstr
+            let GetProposal { proposal_id, .. } = coinstr
                 .spend(
                     policy_id,
                     to_address,
                     Amount::Custom(amount),
                     description,
                     fee_rate,
+                    None,
                 )
                 .await?;
             println!("Spending proposal {proposal_id} sent");
@@ -280,8 +282,15 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
             let fee_rate = blockchain.estimate_fee(target_blocks)?;
 
-            let (proposal_id, _proposal) = coinstr
-                .spend(policy_id, to_address, Amount::Max, description, fee_rate)
+            let GetProposal { proposal_id, .. } = coinstr
+                .spend(
+                    policy_id,
+                    to_address,
+                    Amount::Max,
+                    description,
+                    fee_rate,
+                    None,
+                )
                 .await?;
             println!("Spending proposal {proposal_id} sent");
             Ok(())

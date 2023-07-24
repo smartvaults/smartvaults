@@ -8,6 +8,7 @@ use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, XOnlyPublicKey};
 use bdk::database::{BatchDatabase, MemoryDatabase};
 use bdk::descriptor::policy::SatisfiableItem;
+use bdk::descriptor::Policy as SpendingPolicy;
 use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
@@ -129,13 +130,17 @@ impl Policy {
         }
     }
 
-    pub fn satisfiable_item(&self, network: Network) -> Result<SatisfiableItem, Error> {
+    pub fn spending_policy(&self, network: Network) -> Result<SpendingPolicy, Error> {
         let db = MemoryDatabase::new();
         let wallet = Wallet::new(&self.descriptor.to_string(), None, network, db)?;
-        let wallet_policy = wallet
+        wallet
             .policies(KeychainKind::External)?
-            .ok_or(Error::WalletSpendingPolicyNotFound)?;
-        Ok(wallet_policy.item)
+            .ok_or(Error::WalletSpendingPolicyNotFound)
+    }
+
+    pub fn satisfiable_item(&self, network: Network) -> Result<SatisfiableItem, Error> {
+        let policy = self.spending_policy(network)?;
+        Ok(policy.item)
     }
 
     pub fn spend<D, S>(
@@ -145,6 +150,7 @@ impl Policy {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
+        policy_path_indexes: Option<Vec<usize>>,
     ) -> Result<Proposal, Error>
     where
         D: BatchDatabase,
@@ -155,7 +161,14 @@ impl Policy {
             .policies(KeychainKind::External)?
             .ok_or(Error::WalletSpendingPolicyNotFound)?;
         let mut path = BTreeMap::new();
-        path.insert(wallet_policy.id, vec![1]);
+        match policy_path_indexes {
+            Some(indexes) => {
+                path.insert(wallet_policy.id, indexes);
+            }
+            None => {
+                path.insert(wallet_policy.id, vec![1]);
+            }
+        };
 
         // Build the PSBT
         let (psbt, details) = {
