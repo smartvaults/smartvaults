@@ -143,6 +143,32 @@ impl Policy {
         Ok(policy.item)
     }
 
+    pub fn selectable_conditions(
+        &self,
+        network: Network,
+    ) -> Result<BTreeMap<String, Vec<String>>, Error> {
+        fn selectable_conditions(
+            item: &SatisfiableItem,
+            prev_id: String,
+            result: &mut BTreeMap<String, Vec<String>>,
+        ) {
+            if let SatisfiableItem::Thresh { items, threshold } = item {
+                if *threshold < items.len() {
+                    result.insert(prev_id, items.iter().map(|i| i.id.clone()).collect());
+                }
+
+                for x in items.iter() {
+                    selectable_conditions(&x.item, x.id.clone(), result);
+                }
+            }
+        }
+
+        let item = self.satisfiable_item(network)?;
+        let mut result = BTreeMap::new();
+        selectable_conditions(&item, item.id(), &mut result);
+        Ok(result)
+    }
+
     pub fn spend<D, S>(
         &self,
         wallet: Wallet<D>,
@@ -253,5 +279,22 @@ mod test {
     fn test_descriptor_with_wrong_network() {
         let descriptor = "tr([9bf4354b/86'/1'/784923']tpubDCT8uwnkZj7woaY71Xr5hU7Wvjr7B1BXJEpwMzzDLd1H6HLnKTiaLPtt6ZfEizDMwdQ8PT8JCmKbB4ESVXTkCzv51oxhJhX5FLBvkeN9nJ3/0/*,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*))#rs0udsfg";
         assert!(Policy::from_descriptor("", "", descriptor, Network::Bitcoin).is_err())
+    }
+
+    #[test]
+    fn selectable_conditions() {
+        let desc: &str = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
+        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+        let conditions = policy.selectable_conditions(Network::Testnet).unwrap();
+        let mut c = BTreeMap::new();
+        c.insert(
+            String::from("fx0z8u06"),
+            vec![String::from("0e36xhlc"), String::from("m4n7s285")],
+        );
+        c.insert(
+            String::from("y46gds64"),
+            vec![String::from("lcjxl004"), String::from("8sld2cgj")],
+        );
+        assert_eq!(conditions, c)
     }
 }
