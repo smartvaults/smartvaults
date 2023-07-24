@@ -552,6 +552,7 @@ impl State for ProposalState {
                             .text("Confirm")
                             .width(Length::Fill)
                             .on_press(ProposalMessage::Delete.into())
+                            .loading(self.loading)
                             .view(),
                     )
                     .push(

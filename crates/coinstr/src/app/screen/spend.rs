@@ -6,6 +6,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
+use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
 use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::bitcoin::Address;
@@ -17,16 +18,15 @@ use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Radio, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::Dashboard;
+use crate::app::component::{Dashboard, PolicyTree};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
-use crate::theme::color::DARK_RED;
+use crate::theme::color::{DARK_RED, RED};
 
 #[derive(Debug, Clone, Eq)]
 pub struct PolicyPicLisk {
     pub policy_id: EventId,
-    pub name: String,
-    pub descriptor: String,
+    pub policy: Policy,
 }
 
 impl PartialEq for PolicyPicLisk {
@@ -37,7 +37,12 @@ impl PartialEq for PolicyPicLisk {
 
 impl fmt::Display for PolicyPicLisk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} - #{}", self.name, util::cut_event_id(self.policy_id))
+        write!(
+            f,
+            "{} - #{}",
+            self.policy.name,
+            util::cut_event_id(self.policy_id)
+        )
     }
 }
 
@@ -53,14 +58,18 @@ pub enum InternalStage {
 pub enum SpendMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
     PolicySelectd(PolicyPicLisk),
-    LoadBalance(EventId),
+    LoadPolicy(EventId),
     AddressChanged(String),
     AmountChanged(Option<u64>),
     SendAllBtnPressed,
     DescriptionChanged(String),
     FeeRateChanged(FeeRate),
     CustomTargetBlockChanged(Option<u64>),
-    BalanceChanged(Option<Balance>),
+    PolicyLoaded(
+        Option<Balance>,
+        Option<SatisfiableItem>,
+        Option<BTreeMap<String, Vec<String>>>,
+    ),
     ErrorChanged(Option<String>),
     SetInternalStage(InternalStage),
     SendProposal,
@@ -78,6 +87,8 @@ pub struct SpendState {
     custom_target_blocks: Option<u64>,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     balance: Option<Balance>,
+    satisfiable_item: Option<SatisfiableItem>,
+    selectable_conditions: Option<BTreeMap<String, Vec<String>>>,
     stage: InternalStage,
     loading: bool,
     loaded: bool,
@@ -87,11 +98,7 @@ pub struct SpendState {
 impl SpendState {
     pub fn new(policy: Option<(EventId, Policy)>) -> Self {
         Self {
-            policy: policy.map(|(policy_id, policy)| PolicyPicLisk {
-                policy_id,
-                name: policy.name,
-                descriptor: policy.descriptor.to_string(),
-            }),
+            policy: policy.map(|(policy_id, policy)| PolicyPicLisk { policy_id, policy }),
             policies: Vec::new(),
             to_address: String::new(),
             amount: None,
@@ -101,6 +108,8 @@ impl SpendState {
             custom_target_blocks: None,
             policy_path: None,
             balance: None,
+            satisfiable_item: None,
+            selectable_conditions: None,
             stage: InternalStage::default(),
             loading: false,
             loaded: false,
@@ -169,11 +178,7 @@ impl State for SpendState {
                     .map(
                         |GetPolicy {
                              policy_id, policy, ..
-                         }| PolicyPicLisk {
-                            policy_id,
-                            name: policy.name,
-                            descriptor: policy.descriptor.to_string(),
-                        },
+                         }| PolicyPicLisk { policy_id, policy },
                     )
                     .collect()
             },
@@ -191,7 +196,7 @@ impl State for SpendState {
                     if let Some(policy) = self.policy.as_ref() {
                         let policy_id = policy.policy_id;
                         return Command::perform(async {}, move |_| {
-                            SpendMessage::LoadBalance(policy_id).into()
+                            SpendMessage::LoadPolicy(policy_id).into()
                         });
                     }
                 }
@@ -199,17 +204,36 @@ impl State for SpendState {
                     let policy_id = policy.policy_id;
                     self.policy = Some(policy);
                     return Command::perform(async {}, move |_| {
-                        SpendMessage::LoadBalance(policy_id).into()
+                        SpendMessage::LoadPolicy(policy_id).into()
                     });
                 }
-                SpendMessage::LoadBalance(policy_id) => {
+                SpendMessage::LoadPolicy(policy_id) => {
                     let client = ctx.client.clone();
+                    let policy = self.policy.clone();
                     return Command::perform(
-                        async move { client.get_balance(policy_id) },
-                        |balance| SpendMessage::BalanceChanged(balance).into(),
+                        async move {
+                            let balance = client.get_balance(policy_id);
+                            let policy = policy?.policy;
+                            let item = policy.satisfiable_item(client.network()).ok();
+                            let conditions = policy.selectable_conditions(client.network()).ok();
+                            Some((balance, item, conditions))
+                        },
+                        |res| match res {
+                            Some((balance, item, conditions)) => {
+                                SpendMessage::PolicyLoaded(balance, item, conditions).into()
+                            }
+                            None => SpendMessage::ErrorChanged(Some(String::from(
+                                "Impossible to load policy",
+                            )))
+                            .into(),
+                        },
                     );
                 }
-                SpendMessage::BalanceChanged(balance) => self.balance = balance,
+                SpendMessage::PolicyLoaded(balance, item, conditions) => {
+                    self.balance = balance;
+                    self.satisfiable_item = item;
+                    self.selectable_conditions = conditions;
+                }
                 SpendMessage::AddressChanged(value) => self.to_address = value,
                 SpendMessage::AmountChanged(value) => self.amount = value,
                 SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
@@ -292,8 +316,7 @@ impl State for SpendState {
             content
                 .align_items(Alignment::Center)
                 .spacing(10)
-                .padding(20)
-                .max_width(400),
+                .padding(20),
         )
         .width(Length::Fill)
         .center_x();
@@ -473,7 +496,8 @@ impl SpendState {
         let (next_stage, ready): (InternalStage, bool) = {
             match &self.policy {
                 Some(policy) => {
-                    if policy.descriptor.contains("after") || policy.descriptor.contains("older") {
+                    let descriptor = policy.policy.descriptor.to_string();
+                    if descriptor.contains("after") || descriptor.contains("older") {
                         (InternalStage::SelectPolicyPath, true)
                     } else {
                         (InternalStage::Review, true)
@@ -516,26 +540,40 @@ impl SpendState {
             .push(error)
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(continue_btn)
+            .max_width(400)
     }
 
     fn view_policy_tree<'a>(&self) -> Column<'a, Message> {
+        let tree = match self.satisfiable_item.clone() {
+            Some(item) => PolicyTree::new(item).view(),
+            None => Column::new().push(
+                Text::new("Impossible to load policy tree")
+                    .color(RED)
+                    .view(),
+            ),
+        };
+
         let next = Button::new()
             .text("Next")
             .width(Length::Fill)
             .on_press(SpendMessage::SetInternalStage(InternalStage::Review).into())
             .loading(self.loading)
+            .width(Length::Fixed(400.0))
             .view();
         let back_btn = Button::new()
             .style(ButtonStyle::Bordered)
             .text("Back")
             .width(Length::Fill)
             .on_press(SpendMessage::SetInternalStage(InternalStage::Default).into())
+            .width(Length::Fixed(400.0))
             .loading(self.loading)
             .view();
 
         Column::new()
             .spacing(10)
             .padding(20)
+            .push(tree)
+            .push(Space::with_height(Length::Fixed(40.0)))
             .push(next)
             .push(back_btn)
     }
@@ -607,7 +645,8 @@ impl SpendState {
         let prev_stage: InternalStage = {
             match &self.policy {
                 Some(policy) => {
-                    if policy.descriptor.contains("after") || policy.descriptor.contains("older") {
+                    let descriptor = policy.policy.descriptor.to_string();
+                    if descriptor.contains("after") || descriptor.contains("older") {
                         InternalStage::SelectPolicyPath
                     } else {
                         InternalStage::Default
@@ -643,6 +682,7 @@ impl SpendState {
             .push(Space::with_height(Length::Fixed(15.0)))
             .push(send_proposal_btn)
             .push(back_btn)
+            .max_width(400)
     }
 }
 
