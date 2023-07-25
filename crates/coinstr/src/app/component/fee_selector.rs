@@ -9,18 +9,30 @@ use iced::{
 use iced_lazy::Component;
 use iced_native::Alignment;
 
-use crate::app::Message;
 use crate::component::{NumericInput, Text};
+use crate::{
+    app::Message,
+    component::{Button, ButtonStyle},
+};
+
+#[derive(Debug, Clone, Copy, Default)]
+pub enum InternalStage {
+    #[default]
+    TargetBlocks,
+    FeeRate,
+}
 
 #[derive(Debug, Clone)]
 pub enum Event {
     FeeRateChanged(FeeRate),
     CustomTargetBlockChanged(Option<u64>),
+    SetInternalStage(InternalStage),
 }
 
 pub struct FeeSelector {
     fee_rate: FeeRate,
     custom_target_blocks: Option<u64>,
+    stage: InternalStage,
     on_change: Box<dyn Fn(FeeRate) -> Message>,
 }
 
@@ -33,6 +45,7 @@ impl FeeSelector {
             } else {
                 None
             },
+            stage: InternalStage::default(),
             on_change: Box::new(on_change),
         }
     }
@@ -49,10 +62,55 @@ impl Component<Message, Renderer> for FeeSelector {
                 Some(target) => Some((self.on_change)(FeeRate::Custom(target as usize))),
                 None => Some((self.on_change)(FeeRate::default())),
             },
+            Event::SetInternalStage(stage) => {
+                self.stage = stage;
+                None
+            }
         }
     }
 
     fn view(&self, _state: &Self::State) -> Element<Event, Renderer> {
+        Column::new()
+            .push(Text::new("Priority & arrival time").view())
+            .push(
+                Row::new()
+                    .push(
+                        Button::new()
+                            .style(if let InternalStage::TargetBlocks = self.stage {
+                                ButtonStyle::Primary
+                            } else {
+                                ButtonStyle::Bordered
+                            })
+                            .text("Target blocks")
+                            .width(Length::Fill)
+                            .on_press(Event::SetInternalStage(InternalStage::TargetBlocks))
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .style(if let InternalStage::FeeRate = self.stage {
+                                ButtonStyle::Primary
+                            } else {
+                                ButtonStyle::Bordered
+                            })
+                            .text("Fee rate")
+                            .width(Length::Fill)
+                            //.on_press(Event::SetInternalStage(InternalStage::FeeRate))
+                            .view(),
+                    )
+                    .spacing(5),
+            )
+            .push(match self.stage {
+                InternalStage::TargetBlocks => self.view_target_blocks(),
+                InternalStage::FeeRate => self.view_fee_rate(),
+            })
+            .spacing(10)
+            .into()
+    }
+}
+
+impl FeeSelector {
+    fn view_target_blocks<'a>(&self) -> Column<'a, Event> {
         let fee_high_priority = Row::new()
             .push(Radio::new(
                 "",
@@ -117,17 +175,20 @@ impl Component<Message, Renderer> for FeeSelector {
             .width(Length::Fill);
 
         Column::new()
-            .push(Text::new("Priority & arrival time").view())
+            .push(fee_high_priority)
+            .push(fee_medium_priority)
+            .push(fee_low_priority)
+            .push(custom_priority)
+            .spacing(10)
+    }
+
+    fn view_fee_rate<'a>(&self) -> Column<'a, Event> {
+        Column::new()
             .push(
-                Column::new()
-                    .push(fee_high_priority)
-                    .push(fee_medium_priority)
-                    .push(fee_low_priority)
-                    .push(custom_priority)
-                    .spacing(10),
+                NumericInput::new("Fee rate (sat/vByte)", self.custom_target_blocks)
+                    .placeholder("sat/vByte"),
             )
-            .spacing(5)
-            .into()
+            .spacing(10)
     }
 }
 
