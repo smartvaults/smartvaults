@@ -20,7 +20,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::{Dashboard, FeeSelector, PolicyTree};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::{DARK_RED, RED};
 
 #[derive(Debug, Clone, Eq)]
@@ -428,7 +428,8 @@ impl SpendState {
             .view();
 
         let fee_selector =
-            FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into());
+            FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
+                .max_width(400.0);
 
         let error = if let Some(error) = &self.error {
             Row::new().push(Text::new(error).color(DARK_RED).view())
@@ -452,10 +453,19 @@ impl SpendState {
 
         let continue_btn = Button::new()
             .text("Continue")
-            .width(Length::Fill)
+            .width(Length::Fixed(400.0))
             .loading(!ready)
             .on_press(SpendMessage::SetInternalStage(next_stage).into())
             .view();
+
+        let details = Column::new()
+            .push(policy_pick_list)
+            .push(address)
+            .push(amount)
+            .push(your_balance)
+            .push(description)
+            .spacing(10)
+            .max_width(400);
 
         Column::new()
             .spacing(10)
@@ -472,18 +482,19 @@ impl SpendState {
                     .width(Length::Fill),
             )
             .push(Space::with_height(Length::Fixed(5.0)))
-            .push(policy_pick_list)
-            .push(address)
-            .push(amount)
-            .push(your_balance)
-            .push(description)
-            .push(Space::with_height(Length::Fixed(5.0)))
-            .push(fee_selector)
+            .push(
+                Row::new()
+                    .push(details)
+                    .push(rule::vertical())
+                    .push(fee_selector)
+                    .spacing(25)
+                    .height(Length::Fixed(335.0)),
+            )
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(error)
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(continue_btn)
-            .max_width(400)
+            .max_width(810.0)
     }
 
     fn view_policy_tree<'a>(&self) -> Column<'a, Message> {
