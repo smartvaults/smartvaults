@@ -13,7 +13,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::{Dashboard, FeeSelector};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -302,7 +302,8 @@ impl State for SelfTransferState {
                             .on_press(SelfTransferMessage::EditProposal.into())
                             .loading(self.loading)
                             .view(),
-                    );
+                    )
+                    .max_width(400.0);
             } else {
                 let from_policy_pick_list = Column::new()
                     .push(Text::new("From policy").view())
@@ -385,10 +386,6 @@ impl State for SelfTransferState {
                     Text::new("").view()
                 };
 
-                let fee_selector = FeeSelector::new(self.fee_rate, |f| {
-                    SelfTransferMessage::FeeRateChanged(f).into()
-                });
-
                 let error = if let Some(error) = &self.error {
                     Row::new().push(Text::new(error).color(DARK_RED).view())
                 } else {
@@ -397,8 +394,17 @@ impl State for SelfTransferState {
 
                 let continue_btn = Button::new()
                     .text("Continue")
-                    .width(Length::Fill)
-                    .on_press(SelfTransferMessage::Review.into());
+                    .width(Length::Fixed(400.0))
+                    .on_press(SelfTransferMessage::Review.into())
+                    .view();
+
+                let details = Column::new()
+                    .push(from_policy_pick_list)
+                    .push(to_policy_pick_list)
+                    .push(amount)
+                    .push(your_balance)
+                    .spacing(10)
+                    .max_width(400);
 
                 content = content
                     .push(
@@ -413,16 +419,24 @@ impl State for SelfTransferState {
                             .width(Length::Fill),
                     )
                     .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(from_policy_pick_list)
-                    .push(to_policy_pick_list)
-                    .push(amount)
-                    .push(your_balance)
-                    .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(fee_selector)
+                    .push(
+                        Row::new()
+                            .push(details)
+                            .push(rule::vertical())
+                            .push(
+                                FeeSelector::new(self.fee_rate, |f| {
+                                    SelfTransferMessage::FeeRateChanged(f).into()
+                                })
+                                .max_width(400.0),
+                            )
+                            .spacing(25)
+                            .height(Length::Fixed(335.0)),
+                    )
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(error)
                     .push(Space::with_height(Length::Fixed(5.0)))
-                    .push(continue_btn.view());
+                    .push(continue_btn)
+                    .max_width(810.0);
             }
         }
 
@@ -430,8 +444,7 @@ impl State for SelfTransferState {
             content
                 .align_items(Alignment::Center)
                 .spacing(10)
-                .padding(20)
-                .max_width(400),
+                .padding(20),
         )
         .width(Length::Fill)
         .center_x();

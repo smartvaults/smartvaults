@@ -421,10 +421,6 @@ impl SpendState {
             .placeholder("Description")
             .view();
 
-        let fee_selector =
-            FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
-                .max_width(400.0);
-
         let error = if let Some(error) = &self.error {
             Row::new().push(Text::new(error).color(DARK_RED).view())
         } else {
@@ -480,7 +476,10 @@ impl SpendState {
                 Row::new()
                     .push(details)
                     .push(rule::vertical())
-                    .push(fee_selector)
+                    .push(
+                        FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
+                            .max_width(400.0),
+                    )
                     .spacing(25)
                     .height(Length::Fixed(335.0)),
             )
