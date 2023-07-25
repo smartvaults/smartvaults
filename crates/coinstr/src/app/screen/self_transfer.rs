@@ -10,10 +10,10 @@ use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util::{self, format};
-use iced::widget::{Column, Container, PickList, Radio, Row, Space};
+use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::Dashboard;
+use crate::app::component::{Dashboard, FeeSelector};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
@@ -401,64 +401,9 @@ impl State for SelfTransferState {
                     Text::new("").view()
                 };
 
-                let fee_high_priority = Row::new()
-                    .push(Radio::new(
-                        "",
-                        FeeRate::High,
-                        Some(self.fee_rate),
-                        |fee_rate| SelfTransferMessage::FeeRateChanged(fee_rate).into(),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("High").view())
-                            .push(Text::new("10 - 20 minues").extra_light().size(18).view())
-                            .spacing(5),
-                    )
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-
-                let fee_medium_priority = Row::new()
-                    .push(Radio::new(
-                        "",
-                        FeeRate::Medium,
-                        Some(self.fee_rate),
-                        |fee_rate| SelfTransferMessage::FeeRateChanged(fee_rate).into(),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("Medium").view())
-                            .push(Text::new("20 - 60 minues").extra_light().size(18).view())
-                            .spacing(5),
-                    )
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-
-                let fee_low_priority = Row::new()
-                    .push(Radio::new(
-                        "",
-                        FeeRate::Low,
-                        Some(self.fee_rate),
-                        |fee_rate| SelfTransferMessage::FeeRateChanged(fee_rate).into(),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("Low").view())
-                            .push(Text::new("1 - 2 hours").extra_light().size(18).view())
-                            .spacing(5),
-                    )
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-
-                let fee_selector = Column::new()
-                    .push(Text::new("Priority & arrival time").view())
-                    .push(
-                        Column::new()
-                            .push(fee_high_priority)
-                            .push(fee_medium_priority)
-                            .push(fee_low_priority)
-                            .spacing(10),
-                    )
-                    .spacing(5);
+                let fee_selector = FeeSelector::new(self.fee_rate, |f| {
+                    SelfTransferMessage::FeeRateChanged(f).into()
+                });
 
                 let error = if let Some(error) = &self.error {
                     Row::new().push(Text::new(error).color(DARK_RED).view())
