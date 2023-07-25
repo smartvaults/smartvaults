@@ -3,6 +3,7 @@ name = "coinstr-core"
 version.workspace = true
 edition = "2021"
 description = "Coinstr's Core library."
+authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
 license.workspace = true
