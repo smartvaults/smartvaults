@@ -1,15 +1,28 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::widget::{self, text_input, Column, Row, Text};
-use iced::Element;
+use std::ops::Add;
+use std::str::FromStr;
+
+use iced::widget::{text_input, Column, Row, Text};
+use iced::{Element, Renderer};
 use iced_lazy::{self, Component};
 
-pub struct NumericInput<Message> {
+pub trait Number: Add + ToString + FromStr {}
+
+impl Number for u8 {}
+impl Number for u64 {}
+impl Number for usize {}
+impl Number for f32 {}
+
+pub struct NumericInput<T, Message>
+where
+    T: Number,
+{
     name: String,
-    value: Option<u64>,
+    value: Option<T>,
     placeholder: String,
-    on_input: Option<Box<dyn Fn(Option<u64>) -> Message>>,
+    on_input: Option<Box<dyn Fn(Option<T>) -> Message>>,
 }
 
 #[derive(Debug, Clone)]
@@ -17,8 +30,11 @@ pub enum Event {
     InputChanged(String),
 }
 
-impl<Message> NumericInput<Message> {
-    pub fn new<S>(name: S, value: Option<u64>) -> Self
+impl<T, Message> NumericInput<T, Message>
+where
+    T: Number,
+{
+    pub fn new<S>(name: S, value: Option<T>) -> Self
     where
         S: Into<String>,
     {
@@ -40,7 +56,7 @@ impl<Message> NumericInput<Message> {
         }
     }
 
-    pub fn on_input(self, on_input: impl Fn(Option<u64>) -> Message + 'static) -> Self {
+    pub fn on_input(self, on_input: impl Fn(Option<T>) -> Message + 'static) -> Self {
         Self {
             on_input: Some(Box::new(on_input)),
             ..self
@@ -48,11 +64,9 @@ impl<Message> NumericInput<Message> {
     }
 }
 
-impl<Message, Renderer> Component<Message, Renderer> for NumericInput<Message>
+impl<T, Message> Component<Message, Renderer> for NumericInput<T, Message>
 where
-    Renderer: iced_native::text::Renderer + 'static,
-    Renderer::Theme:
-        widget::button::StyleSheet + widget::text_input::StyleSheet + widget::text::StyleSheet,
+    T: Number,
 {
     type State = ();
     type Event = Event;
@@ -78,7 +92,7 @@ where
             &self.placeholder,
             self.value
                 .as_ref()
-                .map(u64::to_string)
+                .map(T::to_string)
                 .as_deref()
                 .unwrap_or(""),
         )
@@ -99,14 +113,12 @@ where
     }
 }
 
-impl<'a, Message, Renderer> From<NumericInput<Message>> for Element<'a, Message, Renderer>
+impl<'a, T, Message> From<NumericInput<T, Message>> for Element<'a, Message, Renderer>
 where
+    T: Number + 'a,
     Message: 'a,
-    Renderer: 'static + iced_native::text::Renderer,
-    Renderer::Theme:
-        widget::button::StyleSheet + widget::text_input::StyleSheet + widget::text::StyleSheet,
 {
-    fn from(numeric_input: NumericInput<Message>) -> Self {
+    fn from(numeric_input: NumericInput<T, Message>) -> Self {
         iced_lazy::component(numeric_input)
     }
 }
