@@ -33,6 +33,7 @@ pub struct FeeSelector {
     fee_rate: FeeRate,
     custom_target_blocks: Option<u64>,
     stage: InternalStage,
+    max_width: Option<f32>,
     on_change: Box<dyn Fn(FeeRate) -> Message>,
 }
 
@@ -46,7 +47,15 @@ impl FeeSelector {
                 None
             },
             stage: InternalStage::default(),
+            max_width: None,
             on_change: Box::new(on_change),
+        }
+    }
+
+    pub fn max_width(self, width: f32) -> Self {
+        Self {
+            max_width: Some(width),
+            ..self
         }
     }
 }
@@ -70,7 +79,7 @@ impl Component<Message, Renderer> for FeeSelector {
     }
 
     fn view(&self, _state: &Self::State) -> Element<Event, Renderer> {
-        Column::new()
+        let mut content = Column::new()
             .push(Text::new("Priority & arrival time").view())
             .push(
                 Row::new()
@@ -104,8 +113,13 @@ impl Component<Message, Renderer> for FeeSelector {
                 InternalStage::TargetBlocks => self.view_target_blocks(),
                 InternalStage::FeeRate => self.view_fee_rate(),
             })
-            .spacing(10)
-            .into()
+            .spacing(10);
+
+        if let Some(max_width) = self.max_width {
+            content = content.max_width(max_width);
+        }
+
+        content.into()
     }
 }
 
