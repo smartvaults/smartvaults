@@ -9,12 +9,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use coinstr_sdk::client;
-use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
-use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
-use coinstr_sdk::core::types::WordCount;
+use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{
     GetApprovedProposalResult, GetCompletedProposal, GetPolicy, GetProposal,
 };
@@ -378,13 +376,9 @@ impl Coinstr {
         to_address: String,
         amount: Arc<Amount>,
         description: String,
-        target_blocks: u16,
+        target_blocks: u8,
     ) -> Result<String> {
         block_on(async move {
-            let endpoint: String = self.inner.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            let fee_rate = blockchain.estimate_fee(target_blocks as usize)?;
-
             let policy_id = EventId::from_hex(policy_id)?;
             let to_address = Address::from_str(&to_address)?;
             let GetProposal { proposal_id, .. } = self
@@ -394,7 +388,7 @@ impl Coinstr {
                     to_address,
                     amount.inner(),
                     description,
-                    fee_rate,
+                    FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
                 )
                 .await?;
@@ -407,18 +401,20 @@ impl Coinstr {
         from_policy_id: String,
         to_policy_id: String,
         amount: Arc<Amount>,
-        target_blocks: u16,
+        target_blocks: u8,
     ) -> Result<String> {
         block_on(async move {
-            let endpoint: String = self.inner.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            let fee_rate = blockchain.estimate_fee(target_blocks as usize)?;
-
             let from_policy_id = EventId::from_hex(from_policy_id)?;
             let to_policy_id = EventId::from_hex(to_policy_id)?;
             let GetProposal { proposal_id, .. } = self
                 .inner
-                .self_transfer(from_policy_id, to_policy_id, amount.inner(), fee_rate, None)
+                .self_transfer(
+                    from_policy_id,
+                    to_policy_id,
+                    amount.inner(),
+                    FeeRate::Priority(Priority::Custom(target_blocks)),
+                    None,
+                )
                 .await?;
             Ok(proposal_id.to_hex())
         })

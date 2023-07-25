@@ -5,9 +5,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
-use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::policy::Policy;
@@ -126,15 +124,11 @@ impl SpendState {
 
         let client = ctx.client.clone();
         let description = self.description.clone();
-        let target_blocks = self.fee_rate.target_blocks();
+        let fee_rate = self.fee_rate;
         let policy_path = self.policy_path.clone();
 
         Command::perform(
             async move {
-                let endpoint: String = client.electrum_endpoint()?;
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-                let fee_rate = blockchain.estimate_fee(target_blocks)?;
-
                 let GetProposal { proposal_id, .. } = client
                     .spend(
                         policy_id,
@@ -626,17 +620,7 @@ impl SpendState {
 
         let priority = Column::new()
             .push(Row::new().push(Text::new("Priority").bold().view()))
-            .push(
-                Row::new().push(
-                    Text::new(match self.fee_rate {
-                        FeeRate::High => "High (10 - 20 minutes)".to_string(),
-                        FeeRate::Medium => "Medium (20 - 60 minutes)".to_string(),
-                        FeeRate::Low => "Low (1 - 2 hours)".to_string(),
-                        FeeRate::Custom(target) => format!("Custom ({target} blocks)"),
-                    })
-                    .view(),
-                ),
-            )
+            .push(Row::new().push(Text::new(self.fee_rate.to_string()).view()))
             .spacing(5)
             .width(Length::Fill);
 

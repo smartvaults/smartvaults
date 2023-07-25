@@ -3,8 +3,6 @@
 
 use std::fmt;
 
-use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
-use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::db::model::{GetPolicy, GetProposal};
@@ -82,14 +80,10 @@ impl SelfTransferState {
         self.loading = true;
 
         let client = ctx.client.clone();
-        let target_blocks = self.fee_rate.target_blocks();
+        let fee_rate = self.fee_rate;
 
         Command::perform(
             async move {
-                let endpoint: String = client.electrum_endpoint()?;
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-                let fee_rate = blockchain.estimate_fee(target_blocks)?;
-
                 let GetProposal { proposal_id, .. } = client
                     .self_transfer(from_policy_id, to_policy_id, amount, fee_rate, None)
                     .await?;
@@ -275,17 +269,7 @@ impl State for SelfTransferState {
 
                 let priority = Column::new()
                     .push(Row::new().push(Text::new("Priority").bold().view()))
-                    .push(
-                        Row::new().push(
-                            Text::new(match self.fee_rate {
-                                FeeRate::High => "High (10 - 20 minutes)".to_string(),
-                                FeeRate::Medium => "Medium (20 - 60 minutes)".to_string(),
-                                FeeRate::Low => "Low (1 - 2 hours)".to_string(),
-                                FeeRate::Custom(target) => format!("Custom ({target} blocks)"),
-                            })
-                            .view(),
-                        ),
-                    )
+                    .push(Row::new().push(Text::new(self.fee_rate.to_string()).view()))
                     .spacing(5)
                     .width(Length::Fill);
 

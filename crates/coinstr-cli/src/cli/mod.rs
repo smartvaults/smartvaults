@@ -148,7 +148,7 @@ pub enum Command {
         description: String,
         /// Taget blocks
         #[clap(short, long, default_value_t = 6)]
-        target_blocks: usize,
+        target_blocks: u8,
     },
     /// Create a spending proposal (send all funds)
     SpendAll {
@@ -163,7 +163,7 @@ pub enum Command {
         description: String,
         /// Taget blocks
         #[clap(short, long, default_value_t = 6)]
-        target_blocks: usize,
+        target_blocks: u8,
     },
     /// Approve a spending proposal
     Approve {

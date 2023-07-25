@@ -264,9 +264,9 @@ interface Coinstr {
     [Throws=FFIError]
     string save_policy(string name, string description, string descriptor, sequence<string> public_keys);
     [Throws=FFIError]
-    string spend(string policy_id, string to_address, Amount amount, string description, u16 target_blocks);
+    string spend(string policy_id, string to_address, Amount amount, string description, u8 target_blocks);
     [Throws=FFIError]
-    string self_transfer(string from_policy_id, string to_policy_id, Amount amount, u16 target_blocks);   
+    string self_transfer(string from_policy_id, string to_policy_id, Amount amount, u8 target_blocks);   
     [Throws=FFIError]
     string approve(string proposal_id);
     [Throws=FFIError]

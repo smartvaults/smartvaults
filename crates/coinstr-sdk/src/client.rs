@@ -18,13 +18,13 @@ use bdk::database::SqliteDatabase;
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
-use bdk::{Balance, FeeRate, LocalUtxo, TransactionDetails, Wallet};
+use bdk::{Balance, LocalUtxo, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::Serde;
-use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, Policy, Proposal};
+use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, Proposal};
 
 use async_utility::thread;
 use futures_util::stream::AbortHandle;
@@ -133,6 +133,8 @@ pub enum Error {
     NostrConnectRequestAlreadyApproved,
     #[error("impossible to generate nostr connect response")]
     CantGenerateNostrConnectResponse,
+    #[error("invalid fee rate")]
+    InvalidFeeRate,
     #[error("{0}")]
     Generic(String),
 }
@@ -953,6 +955,20 @@ impl Coinstr {
         let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         let description: &str = &description.into();
+
+        // Check and calculate fee rate
+        if !fee_rate.is_valid() {
+            return Err(Error::InvalidFeeRate);
+        }
+
+        let fee_rate = match fee_rate {
+            FeeRate::Priority(priority) => {
+                let endpoint: String = self.electrum_endpoint()?;
+                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
+                blockchain.estimate_fee(priority.target_blocks() as usize)?
+            }
+            FeeRate::Rate(rate) => bdk::FeeRate::from_sat_per_vb(rate),
+        };
 
         // Build spending proposal
         let wallet: Wallet<SqliteDatabase> =

@@ -10,12 +10,11 @@ use std::time::Duration;
 use clap::Parser;
 use cli::{AddCommand, ConfigCommand, ConnectCommand, SetCommand};
 use coinstr_sdk::config::Config;
-use coinstr_sdk::core::bdk::blockchain::{Blockchain, ElectrumBlockchain};
-use coinstr_sdk::core::bdk::electrum_client::Client as ElectrumClient;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::signer::{Signer, SignerType};
-use coinstr_sdk::core::{Amount, CompletedProposal, Keychain, Result};
+use coinstr_sdk::core::types::Priority;
+use coinstr_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
 use coinstr_sdk::db::model::GetProposal;
 use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util::format;
@@ -255,17 +254,13 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             description,
             target_blocks,
         } => {
-            let endpoint: String = coinstr.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            let fee_rate = blockchain.estimate_fee(target_blocks)?;
-
             let GetProposal { proposal_id, .. } = coinstr
                 .spend(
                     policy_id,
                     to_address,
                     Amount::Custom(amount),
                     description,
-                    fee_rate,
+                    FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
                 )
                 .await?;
@@ -278,17 +273,13 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             description,
             target_blocks,
         } => {
-            let endpoint: String = coinstr.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            let fee_rate = blockchain.estimate_fee(target_blocks)?;
-
             let GetProposal { proposal_id, .. } = coinstr
                 .spend(
                     policy_id,
                     to_address,
                     Amount::Max,
                     description,
-                    fee_rate,
+                    FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
                 )
                 .await?;

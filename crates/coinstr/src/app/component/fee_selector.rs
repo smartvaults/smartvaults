@@ -1,19 +1,13 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::FeeRate;
-use iced::{
-    widget::{Column, Radio, Row},
-    Element, Length, Renderer,
-};
+use coinstr_sdk::core::{FeeRate, Priority};
+use iced::widget::{Column, Radio, Row};
+use iced::{Alignment, Element, Length, Renderer};
 use iced_lazy::Component;
-use iced_native::Alignment;
 
-use crate::component::{NumericInput, Text};
-use crate::{
-    app::Message,
-    component::{Button, ButtonStyle},
-};
+use crate::app::Message;
+use crate::component::{Button, ButtonStyle, NumericInput, Text};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum InternalStage {
@@ -25,13 +19,15 @@ pub enum InternalStage {
 #[derive(Debug, Clone)]
 pub enum Event {
     FeeRateChanged(FeeRate),
-    CustomTargetBlockChanged(Option<u64>),
+    CustomTargetBlockChanged(Option<u8>),
+    CustomRateChanged(Option<f32>),
     SetInternalStage(InternalStage),
 }
 
 pub struct FeeSelector {
     fee_rate: FeeRate,
-    custom_target_blocks: Option<u64>,
+    custom_target_blocks: Option<u8>,
+    custom_rate: Option<f32>,
     stage: InternalStage,
     max_width: Option<f32>,
     on_change: Box<dyn Fn(FeeRate) -> Message>,
@@ -41,12 +37,20 @@ impl FeeSelector {
     pub fn new(fee_rate: FeeRate, on_change: impl Fn(FeeRate) -> Message + 'static) -> Self {
         Self {
             fee_rate,
-            custom_target_blocks: if let FeeRate::Custom(target) = fee_rate {
-                Some(target as u64)
+            custom_target_blocks: if let FeeRate::Priority(Priority::Custom(target)) = fee_rate {
+                Some(target)
             } else {
                 None
             },
-            stage: InternalStage::default(),
+            custom_rate: if let FeeRate::Rate(rate) = fee_rate {
+                Some(rate)
+            } else {
+                None
+            },
+            stage: match fee_rate {
+                FeeRate::Priority(..) => InternalStage::TargetBlocks,
+                FeeRate::Rate(..) => InternalStage::FeeRate,
+            },
             max_width: None,
             on_change: Box::new(on_change),
         }
@@ -68,7 +72,13 @@ impl Component<Message, Renderer> for FeeSelector {
         match event {
             Event::FeeRateChanged(fee_rate) => Some((self.on_change)(fee_rate)),
             Event::CustomTargetBlockChanged(target) => match target {
-                Some(target) => Some((self.on_change)(FeeRate::Custom(target as usize))),
+                Some(target) => Some((self.on_change)(FeeRate::Priority(Priority::Custom(
+                    target,
+                )))),
+                None => Some((self.on_change)(FeeRate::default())),
+            },
+            Event::CustomRateChanged(rate) => match rate {
+                Some(rate) => Some((self.on_change)(FeeRate::Rate(rate))),
                 None => Some((self.on_change)(FeeRate::default())),
             },
             Event::SetInternalStage(stage) => {
@@ -104,7 +114,7 @@ impl Component<Message, Renderer> for FeeSelector {
                             })
                             .text("Fee rate")
                             .width(Length::Fill)
-                            //.on_press(Event::SetInternalStage(InternalStage::FeeRate))
+                            .on_press(Event::SetInternalStage(InternalStage::FeeRate))
                             .view(),
                     )
                     .spacing(5),
@@ -128,7 +138,7 @@ impl FeeSelector {
         let fee_high_priority = Row::new()
             .push(Radio::new(
                 "",
-                FeeRate::High,
+                FeeRate::Priority(Priority::High),
                 Some(self.fee_rate),
                 Event::FeeRateChanged,
             ))
@@ -144,7 +154,7 @@ impl FeeSelector {
         let fee_medium_priority = Row::new()
             .push(Radio::new(
                 "",
-                FeeRate::Medium,
+                FeeRate::Priority(Priority::Medium),
                 Some(self.fee_rate),
                 Event::FeeRateChanged,
             ))
@@ -160,7 +170,7 @@ impl FeeSelector {
         let fee_low_priority = Row::new()
             .push(Radio::new(
                 "",
-                FeeRate::Low,
+                FeeRate::Priority(Priority::Low),
                 Some(self.fee_rate),
                 Event::FeeRateChanged,
             ))
@@ -176,7 +186,9 @@ impl FeeSelector {
         let custom_priority = Row::new()
             .push(Radio::new(
                 "",
-                FeeRate::Custom(self.custom_target_blocks.unwrap_or_default() as usize),
+                FeeRate::Priority(Priority::Custom(
+                    self.custom_target_blocks.unwrap_or_default(),
+                )),
                 Some(self.fee_rate),
                 Event::FeeRateChanged,
             ))
@@ -199,8 +211,9 @@ impl FeeSelector {
     fn view_fee_rate<'a>(&self) -> Column<'a, Event> {
         Column::new()
             .push(
-                NumericInput::new("Fee rate (sat/vByte)", self.custom_target_blocks)
-                    .placeholder("sat/vByte"),
+                NumericInput::new("Fee rate (sat/vByte)", self.custom_rate)
+                    .placeholder("sat/vByte")
+                    .on_input(Event::CustomRateChanged),
             )
             .spacing(10)
     }
