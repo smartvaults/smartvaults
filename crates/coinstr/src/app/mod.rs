@@ -144,6 +144,10 @@ impl App {
                 }
                 Command::none()
             }
+            Message::ToggleHideBalances => {
+                self.ctx.toggle_hide_balances();
+                Command::none()
+            }
             _ => self.state.update(&mut self.ctx, message),
         }
     }

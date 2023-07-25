@@ -13,6 +13,7 @@ use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 pub struct Balances {
     balance: Option<Balance>,
     size: u16,
+    hide: bool,
     on_send: Option<Message>,
     on_deposit: Option<Message>,
 }
@@ -22,6 +23,7 @@ impl Balances {
         Self {
             balance,
             size: 40,
+            hide: false,
             on_send: None,
             on_deposit: None,
         }
@@ -29,6 +31,10 @@ impl Balances {
 
     pub fn bigger(self) -> Self {
         Self { size: 50, ..self }
+    }
+
+    pub fn hide(self, hide: bool) -> Self {
+        Self { hide, ..self }
     }
 
     pub fn on_send(self, message: Message) -> Self {
@@ -46,21 +52,25 @@ impl Balances {
     }
 
     pub fn view(self) -> Column<'static, Message> {
-        let (balance, pending) = match self.balance {
-            Some(balance) => {
-                let pending_balance =
-                    balance.untrusted_pending + balance.trusted_pending + balance.immature;
+        let (balance, pending) = if self.hide {
+            (Text::new("***** sat"), Text::new(""))
+        } else {
+            match self.balance {
+                Some(balance) => {
+                    let pending_balance =
+                        balance.untrusted_pending + balance.trusted_pending + balance.immature;
 
-                (
-                    Text::new(format!("{} sat", format::number(balance.confirmed))),
-                    if pending_balance > 0 {
-                        Text::new(format!("Pending: +{} sat", format::number(pending_balance)))
-                    } else {
-                        Text::new("")
-                    },
-                )
+                    (
+                        Text::new(format!("{} sat", format::number(balance.confirmed))),
+                        if pending_balance > 0 {
+                            Text::new(format!("Pending: +{} sat", format::number(pending_balance)))
+                        } else {
+                            Text::new("")
+                        },
+                    )
+                }
+                None => (Text::new("Unavailable"), Text::new("")),
             }
-            None => (Text::new("Unavailable"), Text::new("")),
         };
 
         let btn_size: f32 = self.size as f32 * 3.0 + 30.0;

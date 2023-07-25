@@ -57,6 +57,7 @@ pub enum Message {
     AddNostrConnectSession(AddNostrConnectSessionMessage),
     Clipboard(String),
     OpenInBrowser(String),
+    ToggleHideBalances,
     Lock,
     Sync,
     Tick,

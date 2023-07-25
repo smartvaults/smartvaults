@@ -10,7 +10,7 @@ use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Button, ButtonStyle, Icon, Text};
 use crate::theme::color::{DARK_RED, RED};
-use crate::theme::icon::{BELL, BOX, EYE, FINGERPRINT, PERSON_CIRCLE};
+use crate::theme::icon::{BELL, BOX, EYE, EYE_SLASH, FINGERPRINT, PERSON_CIRCLE};
 
 #[derive(Clone, Default)]
 pub struct Navbar;
@@ -78,7 +78,8 @@ impl Navbar {
             )
             .push(
                 Button::new()
-                    .icon(EYE)
+                    .icon(if ctx.hide_balances { EYE_SLASH } else { EYE })
+                    .on_press(Message::ToggleHideBalances)
                     .style(ButtonStyle::Transparent { text_color: None })
                     .width(Length::Fixed(40.0))
                     .view(),

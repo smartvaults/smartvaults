@@ -104,6 +104,7 @@ impl State for DashboardState {
                 .push(
                     Balances::new(self.balance.clone())
                         .bigger()
+                        .hide(ctx.hide_balances)
                         .on_send(DashboardMessage::Send.into())
                         .on_deposit(DashboardMessage::Deposit.into())
                         .view(),

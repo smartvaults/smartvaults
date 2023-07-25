@@ -330,6 +330,7 @@ impl State for PolicyState {
                         .push(Space::with_width(Length::Fixed(10.0)))
                         .push(
                             Balances::new(self.balance.clone())
+                                .hide(ctx.hide_balances)
                                 .on_send(PolicyMessage::Send.into())
                                 .on_deposit(PolicyMessage::Deposit.into())
                                 .view(),

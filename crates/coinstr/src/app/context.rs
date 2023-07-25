@@ -121,6 +121,7 @@ impl Stage {
 pub struct Context {
     pub stage: Stage,
     pub client: Coinstr,
+    pub hide_balances: bool,
     pub breadcrumb: Vec<Stage>,
 }
 
@@ -129,6 +130,7 @@ impl Context {
         Self {
             stage: stage.clone(),
             client: coinstr,
+            hide_balances: false,
             breadcrumb: vec![stage],
         }
     }
@@ -141,6 +143,10 @@ impl Context {
         }
         self.breadcrumb.push(stage.clone());
         self.stage = stage;
+    }
+
+    pub fn toggle_hide_balances(&mut self) {
+        self.hide_balances = !self.hide_balances;
     }
 
     pub fn reset_breadcrumb(&mut self) {
