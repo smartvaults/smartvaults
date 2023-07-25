@@ -44,7 +44,7 @@ mod ffi {
     pub use crate::amount::Amount;
     pub use crate::approval::Approval;
     pub use crate::balance::Balance;
-    pub use crate::client::Coinstr;
+    pub use crate::client::{Coinstr, SyncHandler};
     pub use crate::config::Config;
     pub use crate::key::Keys;
     pub use crate::metadata::Metadata;

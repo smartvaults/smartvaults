@@ -317,4 +317,11 @@ interface Coinstr {
     void auto_approve_nostr_connect_requests(string app_public_key, duration duration);
     [Throws=FFIError]
     void delete_nostr_connect_request(string event_id);
+
+    [Self=ByArc]
+    void handle_sync(SyncHandler handler);
+};
+
+callback interface SyncHandler {
+    void handle();
 };

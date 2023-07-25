@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -632,4 +633,15 @@ impl Coinstr {
         let event_id = EventId::from_hex(event_id)?;
         Ok(self.inner.delete_nostr_connect_request(event_id)?)
     }
+
+    pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) {
+        let mut receiver = self.inner.sync_notifications();
+        while block_on(receiver.recv()).is_ok() {
+            handler.handle();
+        }
+    }
+}
+
+pub trait SyncHandler: Send + Sync + Debug {
+    fn handle(&self);
 }
