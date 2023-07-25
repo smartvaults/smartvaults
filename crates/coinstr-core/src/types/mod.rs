@@ -49,6 +49,10 @@ pub enum FeeRate {
 }
 
 impl FeeRate {
+    pub fn min_relay_fee() -> Self {
+        Self::Rate(1.0)
+    }
+
     /// Check if fee is valid
     pub fn is_valid(&self) -> bool {
         if let Self::Rate(rate) = self {

@@ -79,11 +79,14 @@ impl Component<Message, Renderer> for FeeSelector {
             },
             Event::CustomRateChanged(rate) => match rate {
                 Some(rate) => Some((self.on_change)(FeeRate::Rate(rate))),
-                None => Some((self.on_change)(FeeRate::default())),
+                None => Some((self.on_change)(FeeRate::min_relay_fee())),
             },
             Event::SetInternalStage(stage) => {
                 self.stage = stage;
-                None
+                match stage {
+                    InternalStage::TargetBlocks => Some((self.on_change)(FeeRate::default())),
+                    InternalStage::FeeRate => Some((self.on_change)(FeeRate::min_relay_fee())),
+                }
             }
         }
     }
