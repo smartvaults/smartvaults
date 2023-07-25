@@ -57,9 +57,10 @@ impl Sidebar {
         let lock_button =
             SidebarButton::new("Lock", Icon::new(LOCK).view()).view(ctx, Message::Lock);
         let version = Text::new(format!(
-            "{} v{}",
+            "{} v{} ({})",
             env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
+            env!("CARGO_PKG_VERSION"),
+            env!("GIT_HASH").chars().take(8).collect::<String>(),
         ))
         .size(16)
         .view();
