@@ -64,7 +64,6 @@ pub enum SpendMessage {
     SendAllBtnPressed,
     DescriptionChanged(String),
     FeeRateChanged(FeeRate),
-    CustomTargetBlockChanged(Option<u64>),
     PolicyLoaded(
         Option<Balance>,
         Option<SatisfiableItem>,
@@ -85,7 +84,6 @@ pub struct SpendState {
     send_all: bool,
     description: String,
     fee_rate: FeeRate,
-    custom_target_blocks: Option<u64>,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     balance: Option<Balance>,
     satisfiable_item: Option<SatisfiableItem>,
@@ -106,7 +104,6 @@ impl SpendState {
             send_all: false,
             description: String::new(),
             fee_rate: FeeRate::default(),
-            custom_target_blocks: None,
             policy_path: None,
             balance: None,
             satisfiable_item: None,
@@ -263,12 +260,6 @@ impl State for SpendState {
                 SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
                 SpendMessage::DescriptionChanged(value) => self.description = value,
                 SpendMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
-                SpendMessage::CustomTargetBlockChanged(blocks) => {
-                    self.custom_target_blocks = blocks;
-                    if let Some(blocks) = blocks {
-                        self.fee_rate = FeeRate::Custom(blocks as usize);
-                    }
-                }
                 SpendMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;

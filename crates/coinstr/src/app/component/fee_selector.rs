@@ -10,15 +10,17 @@ use iced_lazy::Component;
 use iced_native::Alignment;
 
 use crate::app::Message;
-use crate::component::Text;
+use crate::component::{NumericInput, Text};
 
 #[derive(Debug, Clone)]
 pub enum Event {
     FeeRateChanged(FeeRate),
+    CustomTargetBlockChanged(Option<u64>),
 }
 
 pub struct FeeSelector {
     fee_rate: FeeRate,
+    custom_target_blocks: Option<u64>,
     on_change: Box<dyn Fn(FeeRate) -> Message>,
 }
 
@@ -26,6 +28,11 @@ impl FeeSelector {
     pub fn new(fee_rate: FeeRate, on_change: impl Fn(FeeRate) -> Message + 'static) -> Self {
         Self {
             fee_rate,
+            custom_target_blocks: if let FeeRate::Custom(target) = fee_rate {
+                Some(target as u64)
+            } else {
+                None
+            },
             on_change: Box::new(on_change),
         }
     }
@@ -38,6 +45,10 @@ impl Component<Message, Renderer> for FeeSelector {
     fn update(&mut self, _state: &mut Self::State, event: Event) -> Option<Message> {
         match event {
             Event::FeeRateChanged(fee_rate) => Some((self.on_change)(fee_rate)),
+            Event::CustomTargetBlockChanged(target) => match target {
+                Some(target) => Some((self.on_change)(FeeRate::Custom(target as usize))),
+                None => Some((self.on_change)(FeeRate::default())),
+            },
         }
     }
 
@@ -90,20 +101,20 @@ impl Component<Message, Renderer> for FeeSelector {
             .align_items(Alignment::Center)
             .width(Length::Fill);
 
-        /* let custom_priority = Row::new()
-        .push(Radio::new(
-            "",
-            FeeRate::Custom(self.custom_target_blocks.unwrap_or_default() as usize),
-            Some(self.fee_rate),
-            |fee_rate| SpendMessage::FeeRateChanged(fee_rate).into(),
-        ))
-        .push(
-            NumericInput::new("", self.custom_target_blocks)
-                .placeholder("Target blocks")
-                .on_input(|b| SpendMessage::CustomTargetBlockChanged(b).into()),
-        )
-        .align_items(Alignment::Center)
-        .width(Length::Fill); */
+        let custom_priority = Row::new()
+            .push(Radio::new(
+                "",
+                FeeRate::Custom(self.custom_target_blocks.unwrap_or_default() as usize),
+                Some(self.fee_rate),
+                Event::FeeRateChanged,
+            ))
+            .push(
+                NumericInput::new("", self.custom_target_blocks)
+                    .placeholder("Target blocks")
+                    .on_input(Event::CustomTargetBlockChanged),
+            )
+            .align_items(Alignment::Center)
+            .width(Length::Fill);
 
         Column::new()
             .push(Text::new("Priority & arrival time").view())
@@ -112,7 +123,7 @@ impl Component<Message, Renderer> for FeeSelector {
                     .push(fee_high_priority)
                     .push(fee_medium_priority)
                     .push(fee_low_priority)
-                    //.push(custom_priority)
+                    .push(custom_priority)
                     .spacing(10),
             )
             .spacing(5)
