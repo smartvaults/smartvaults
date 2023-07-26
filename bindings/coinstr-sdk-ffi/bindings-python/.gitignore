@@ -1,0 +1,16 @@
+.tox/
+dist/
+coinstr_sdk.egg-info/
+__pycache__/
+libcoinstr_ffi.dylib
+.idea/
+.DS_Store
+
+*.swp
+
+src/coinstr-sdk/coinstr_sdk.py
+src/coinstr-sdk/*.so
+*.whl
+build/
+
+testing-setup-py-simple-example.py

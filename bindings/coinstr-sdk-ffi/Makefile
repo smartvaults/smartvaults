@@ -73,3 +73,13 @@ bindings-swift: ios-universal
 	cp ../../target/ios-universal-sim/release/libcoinstr_sdk_ffi.a bindings-swift/coinstr_sdkFFI.xcframework/ios-arm64_x86_64-simulator/coinstr_sdkFFI.framework/coinstr_sdkFFI
 	rm bindings-swift/Sources/CoinstrSDK/coinstr_sdkFFI.h
 	rm bindings-swift/Sources/CoinstrSDK/coinstr_sdkFFI.modulemap
+
+python-dev:
+	rm -rf bindings-python/dist
+	pip install -r bindings-python/requirements.txt
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr_sdk.udl --language python --no-format -o bindings-python/src/coinstr-sdk/
+	cargo build --release
+	cp ../../target/release/libcoinstr_sdk_ffi.so bindings-python/src/coinstr-sdk/ | true
+	cp ../../target/release/libcoinstr_sdk_ffi.dylib bindings-python/src/coinstr-sdk/ | true
+	cd bindings-python && python setup.py --verbose bdist_wheel
+	pip install ./bindings-python/dist/coinstr_sdk-*.whl --force-reinstall

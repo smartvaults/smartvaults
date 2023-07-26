@@ -5,3 +5,6 @@ cdylib_name = "coinstr_sdk_ffi"
 [bindings.swift]
 ffi_module_filename = "coinstr_sdkFFI"
 cdylib_name = "coinstr_sdk_ffi"
+
+[bindings.python]
+cdylib_name = "coinstr_sdk_ffi"
