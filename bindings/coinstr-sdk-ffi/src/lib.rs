@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+mod abortable;
 mod amount;
 mod approval;
 mod balance;
@@ -41,6 +42,7 @@ mod ffi {
     pub use crate::logger::{init_logger, LogLevel};
 
     // Coinstr
+    pub use crate::abortable::AbortHandle;
     pub use crate::amount::Amount;
     pub use crate::approval::Approval;
     pub use crate::balance::Balance;

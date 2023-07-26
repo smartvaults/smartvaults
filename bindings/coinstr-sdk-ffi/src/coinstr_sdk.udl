@@ -20,6 +20,11 @@ enum LogLevel {
     "Trace",
 };
 
+interface AbortHandle {
+    void abort();
+    boolean is_aborted();
+};
+
 interface Timestamp {
     [Name=now]
     constructor();
@@ -340,7 +345,7 @@ interface Coinstr {
     void delete_nostr_connect_request(string event_id);
 
     [Self=ByArc]
-    void handle_sync(SyncHandler handler);
+    AbortHandle handle_sync(SyncHandler handler);
 };
 
 callback interface SyncHandler {

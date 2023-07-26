@@ -16,9 +16,11 @@ name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
 [dependencies]
+async-utility = "0.1"
 coinstr-sdk = { path = "../../crates/coinstr-sdk", features = ["blocking"] }
 log = "0.4"
 nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "8261bff952bcb7f58926422dd8e03e04cc80d1a5" }
+tokio = { version = "1", features = ["full"] }
 uniffi = { version = "0.24", features = ["cli"] }
 uniffi_bindgen = "0.24"
 uniffi_macros = "0.24"

@@ -21,9 +21,9 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    Amount, Approval, Balance, CompletedProposal, Config, GetPolicy, GetProposal, KeychainSeed,
-    Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Relay, Signer,
-    TransactionDetails, Utxo,
+    AbortHandle, Amount, Approval, Balance, CompletedProposal, Config, GetPolicy, GetProposal,
+    KeychainSeed, Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy,
+    Relay, Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -614,11 +614,20 @@ impl Coinstr {
         Ok(self.inner.delete_nostr_connect_request(event_id)?)
     }
 
-    pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) {
-        let mut receiver = self.inner.sync_notifications();
-        while block_on(receiver.recv()).is_ok() {
-            handler.handle();
-        }
+    pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
+        let handle = async_utility::thread::abortable(async move {
+            let mut receiver = self.inner.sync_notifications();
+            let handler = Arc::new(handler);
+            while receiver.recv().await.is_ok() {
+                let h = handler.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    h.handle();
+                })
+                .await;
+            }
+        });
+
+        Arc::new(handle.into())
     }
 }
 
