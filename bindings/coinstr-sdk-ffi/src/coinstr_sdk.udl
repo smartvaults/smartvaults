@@ -131,6 +131,12 @@ interface Proposal {
   ProofOfReserve(string descriptor, string message, string psbt);
 };
 
+interface GetProposal {
+    string proposal_id();
+    string policy_id();
+    Proposal proposal();
+};
+
 [Enum]
 interface ApprovedProposal {
   Spending(string psbt);
@@ -233,7 +239,7 @@ interface Coinstr {
     [Throws=FFIError]
     Policy get_policy_by_id(string policy_id);  
     [Throws=FFIError]
-    Proposal get_proposal_by_id(string proposal_id);  
+    GetProposal get_proposal_by_id(string proposal_id);  
     [Throws=FFIError]
     CompletedProposal get_completed_proposal_by_id(string completed_proposal_id);
     [Throws=FFIError]
@@ -264,9 +270,9 @@ interface Coinstr {
     [Throws=FFIError]
     string save_policy(string name, string description, string descriptor, sequence<string> public_keys);
     [Throws=FFIError]
-    string spend(string policy_id, string to_address, Amount amount, string description, u8 target_blocks);
+    GetProposal spend(string policy_id, string to_address, Amount amount, string description, u8 target_blocks);
     [Throws=FFIError]
-    string self_transfer(string from_policy_id, string to_policy_id, Amount amount, u8 target_blocks);   
+    GetProposal self_transfer(string from_policy_id, string to_policy_id, Amount amount, u8 target_blocks);   
     [Throws=FFIError]
     string approve(string proposal_id);
     [Throws=FFIError]

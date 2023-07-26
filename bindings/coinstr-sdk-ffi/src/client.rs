@@ -14,7 +14,7 @@ use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{
-    GetApprovedProposalResult, GetCompletedProposal, GetPolicy, GetProposal,
+    GetApprovedProposalResult, GetCompletedProposal, GetPolicy, GetProposal as GetProposalSdk
 };
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
@@ -23,7 +23,7 @@ use crate::error::Result;
 use crate::{
     Amount, Approval, Balance, CompletedProposal, Config, KeychainSeed, Metadata,
     NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay, Signer,
-    TransactionDetails, Utxo,
+    TransactionDetails, Utxo, GetProposal
 };
 
 pub struct Coinstr {
@@ -217,9 +217,9 @@ impl Coinstr {
         Ok(Arc::new(self.inner.get_policy_by_id(policy_id)?.into()))
     }
 
-    pub fn get_proposal_by_id(&self, proposal_id: String) -> Result<Proposal> {
+    pub fn get_proposal_by_id(&self, proposal_id: String) -> Result<Arc<GetProposal>> {
         let proposal_id = EventId::from_hex(proposal_id)?;
-        Ok(self.inner.get_proposal_by_id(proposal_id)?.proposal.into())
+        Ok(Arc::new(self.inner.get_proposal_by_id(proposal_id)?.into()))
     }
 
     pub fn get_completed_proposal_by_id(
@@ -306,7 +306,7 @@ impl Coinstr {
 
     pub fn is_proposal_signed(&self, proposal_id: String) -> Result<bool> {
         let proposal_id = EventId::from_hex(proposal_id)?;
-        let GetProposal { proposal, .. } = self.inner.get_proposal_by_id(proposal_id)?;
+        let GetProposalSdk { proposal, .. } = self.inner.get_proposal_by_id(proposal_id)?;
         let approvals = self
             .inner
             .get_approvals_by_proposal_id(proposal_id)?
@@ -377,11 +377,11 @@ impl Coinstr {
         amount: Arc<Amount>,
         description: String,
         target_blocks: u8,
-    ) -> Result<String> {
+    ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let policy_id = EventId::from_hex(policy_id)?;
             let to_address = Address::from_str(&to_address)?;
-            let GetProposal { proposal_id, .. } = self
+            let proposal = self
                 .inner
                 .spend(
                     policy_id,
@@ -392,7 +392,7 @@ impl Coinstr {
                     None,
                 )
                 .await?;
-            Ok(proposal_id.to_hex())
+            Ok(Arc::new(proposal.into()))
         })
     }
 
@@ -402,11 +402,11 @@ impl Coinstr {
         to_policy_id: String,
         amount: Arc<Amount>,
         target_blocks: u8,
-    ) -> Result<String> {
+    ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let from_policy_id = EventId::from_hex(from_policy_id)?;
             let to_policy_id = EventId::from_hex(to_policy_id)?;
-            let GetProposal { proposal_id, .. } = self
+            let proposal = self
                 .inner
                 .self_transfer(
                     from_policy_id,
@@ -416,7 +416,7 @@ impl Coinstr {
                     None,
                 )
                 .await?;
-            Ok(proposal_id.to_hex())
+            Ok(Arc::new(proposal.into()))
         })
     }
 

@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::proposal;
+use coinstr_sdk::db::model;
 
 mod approved;
 mod completed;
@@ -51,5 +52,30 @@ impl From<proposal::Proposal> for Proposal {
                 psbt: psbt.to_string(),
             },
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GetProposal {
+    inner: model::GetProposal
+}
+
+impl From<model::GetProposal> for GetProposal {
+    fn from(inner: model::GetProposal) -> Self {
+        Self { inner }
+    }
+}
+
+impl GetProposal {
+    pub fn proposal_id(&self) -> String {
+        self.inner.proposal_id.to_string()
+    }
+
+    pub fn policy_id(&self) -> String {
+        self.inner.policy_id.to_string()
+    }
+
+    pub fn proposal(&self) -> Proposal {
+        self.inner.proposal.clone().into()
     }
 }
