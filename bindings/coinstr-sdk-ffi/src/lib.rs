@@ -52,7 +52,9 @@ mod ffi {
     pub use crate::metadata::Metadata;
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
     pub use crate::policy::{GetPolicy, Policy};
-    pub use crate::proposal::{ApprovedProposal, CompletedProposal, GetProposal, Proposal};
+    pub use crate::proposal::{
+        ApprovedProposal, CompletedProposal, GetCompletedProposal, GetProposal, Proposal,
+    };
     pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;
     pub use crate::signer::Signer;

@@ -8,7 +8,7 @@ mod approved;
 mod completed;
 
 pub use self::approved::ApprovedProposal;
-pub use self::completed::CompletedProposal;
+pub use self::completed::{CompletedProposal, GetCompletedProposal};
 
 #[derive(Clone)]
 pub enum Proposal {

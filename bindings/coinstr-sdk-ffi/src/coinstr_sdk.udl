@@ -169,6 +169,12 @@ interface CompletedProposal {
   ProofOfReserve(string descriptor, string message, string psbt);
 };
 
+interface GetCompletedProposal {
+    string completed_proposal_id();
+    string policy_id();
+    CompletedProposal completed_proposal();
+};
+
 interface Approval {
     string public_key();
     u64 timestamp();
@@ -257,11 +263,11 @@ interface Coinstr {
     void remove_contact(string public_key);
 
     [Throws=FFIError]
-    Policy get_policy_by_id(string policy_id);  
+    GetPolicy get_policy_by_id(string policy_id);  
     [Throws=FFIError]
     GetProposal get_proposal_by_id(string proposal_id);  
     [Throws=FFIError]
-    CompletedProposal get_completed_proposal_by_id(string completed_proposal_id);
+    GetCompletedProposal get_completed_proposal_by_id(string completed_proposal_id);
     [Throws=FFIError]
     Signer get_signer_by_id(string signer_id); 
 
@@ -285,7 +291,7 @@ interface Coinstr {
     [Throws=FFIError]
     record<DOMString, Approval> get_approvals_by_proposal_id(string proposal_id);
     [Throws=FFIError]
-    record<DOMString, CompletedProposal> get_completed_proposals();
+    sequence<GetCompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]
     string save_policy(string name, string description, string descriptor, sequence<string> public_keys);

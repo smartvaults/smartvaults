@@ -13,17 +13,15 @@ use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
-use coinstr_sdk::db::model::{
-    GetApprovedProposalResult, GetCompletedProposal, GetProposal as GetProposalSdk,
-};
+use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal as GetProposalSdk};
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    AbortHandle, Amount, Approval, Balance, CompletedProposal, Config, GetPolicy, GetProposal,
-    KeychainSeed, Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy,
-    Relay, Signer, TransactionDetails, Utxo,
+    AbortHandle, Amount, Approval, Balance, CompletedProposal, Config, GetCompletedProposal,
+    GetPolicy, GetProposal, KeychainSeed, Metadata, NostrConnectRequest, NostrConnectSession,
+    NostrConnectURI, Relay, Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -212,7 +210,7 @@ impl Coinstr {
         })
     }
 
-    pub fn get_policy_by_id(&self, policy_id: String) -> Result<Arc<Policy>> {
+    pub fn get_policy_by_id(&self, policy_id: String) -> Result<Arc<GetPolicy>> {
         let policy_id = EventId::from_hex(policy_id)?;
         Ok(Arc::new(self.inner.get_policy_by_id(policy_id)?.into()))
     }
@@ -225,13 +223,13 @@ impl Coinstr {
     pub fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: String,
-    ) -> Result<CompletedProposal> {
+    ) -> Result<Arc<GetCompletedProposal>> {
         let completed_proposal_id = EventId::from_hex(completed_proposal_id)?;
-        Ok(self
-            .inner
-            .get_completed_proposal_by_id(completed_proposal_id)?
-            .proposal
-            .into())
+        Ok(Arc::new(
+            self.inner
+                .get_completed_proposal_by_id(completed_proposal_id)?
+                .into(),
+        ))
     }
 
     pub fn get_signer_by_id(&self, signer_id: String) -> Result<Arc<Signer>> {
@@ -320,17 +318,11 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn get_completed_proposals(&self) -> Result<HashMap<String, CompletedProposal>> {
+    pub fn get_completed_proposals(&self) -> Result<Vec<Arc<GetCompletedProposal>>> {
         let completed_proposals = self.inner.get_completed_proposals()?;
         Ok(completed_proposals
             .into_iter()
-            .map(
-                |GetCompletedProposal {
-                     completed_proposal_id,
-                     proposal,
-                     ..
-                 }| (completed_proposal_id.to_hex(), proposal.into()),
-            )
+            .map(|p| Arc::new(p.into()))
             .collect())
     }
 

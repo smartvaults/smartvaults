@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::proposal;
+use coinstr_sdk::db::model;
 
 #[derive(Clone)]
 pub enum CompletedProposal {
@@ -33,5 +34,30 @@ impl From<proposal::CompletedProposal> for CompletedProposal {
                 psbt: psbt.to_string(),
             },
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GetCompletedProposal {
+    inner: model::GetCompletedProposal,
+}
+
+impl From<model::GetCompletedProposal> for GetCompletedProposal {
+    fn from(inner: model::GetCompletedProposal) -> Self {
+        Self { inner }
+    }
+}
+
+impl GetCompletedProposal {
+    pub fn completed_proposal_id(&self) -> String {
+        self.inner.completed_proposal_id.to_string()
+    }
+
+    pub fn policy_id(&self) -> String {
+        self.inner.policy_id.to_string()
+    }
+
+    pub fn completed_proposal(&self) -> CompletedProposal {
+        self.inner.proposal.clone().into()
     }
 }
