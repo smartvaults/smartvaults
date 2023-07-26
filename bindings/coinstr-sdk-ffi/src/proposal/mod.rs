@@ -57,7 +57,7 @@ impl From<proposal::Proposal> for Proposal {
 
 #[derive(Debug, Clone)]
 pub struct GetProposal {
-    inner: model::GetProposal
+    inner: model::GetProposal,
 }
 
 impl From<model::GetProposal> for GetProposal {

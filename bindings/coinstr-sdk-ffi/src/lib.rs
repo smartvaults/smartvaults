@@ -34,7 +34,7 @@ mod ffi {
     pub use coinstr_sdk::core::signer::SignerType;
     pub use coinstr_sdk::core::types::WordCount;
     pub use coinstr_sdk::nostr::RelayStatus;
-    pub use nostr_ffi::NostrConnectURI;
+    pub use nostr_ffi::{NostrConnectURI, Timestamp};
 
     // Namespace
     pub use crate::get_keychains_list;
@@ -49,8 +49,8 @@ mod ffi {
     pub use crate::key::Keys;
     pub use crate::metadata::Metadata;
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
-    pub use crate::policy::Policy;
-    pub use crate::proposal::{ApprovedProposal, CompletedProposal, Proposal, GetProposal};
+    pub use crate::policy::{GetPolicy, Policy};
+    pub use crate::proposal::{ApprovedProposal, CompletedProposal, GetProposal, Proposal};
     pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;
     pub use crate::signer::Signer;

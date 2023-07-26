@@ -14,16 +14,16 @@ use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{
-    GetApprovedProposalResult, GetCompletedProposal, GetPolicy, GetProposal as GetProposalSdk
+    GetApprovedProposalResult, GetCompletedProposal, GetProposal as GetProposalSdk,
 };
 use coinstr_sdk::nostr::prelude::FromPkStr;
 use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    Amount, Approval, Balance, CompletedProposal, Config, KeychainSeed, Metadata,
-    NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay, Signer,
-    TransactionDetails, Utxo, GetProposal
+    Amount, Approval, Balance, CompletedProposal, Config, GetPolicy, GetProposal, KeychainSeed,
+    Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay,
+    Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -270,16 +270,9 @@ impl Coinstr {
         })
     }
 
-    pub fn get_policies(&self) -> Result<HashMap<String, Arc<Policy>>> {
+    pub fn get_policies(&self) -> Result<Vec<Arc<GetPolicy>>> {
         let policies = self.inner.get_policies()?;
-        Ok(policies
-            .into_iter()
-            .map(
-                |GetPolicy {
-                     policy_id, policy, ..
-                 }| (policy_id.to_hex(), Arc::new(policy.into())),
-            )
-            .collect())
+        Ok(policies.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
     // TODO: add `get_detailed_policies` method

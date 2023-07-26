@@ -20,6 +20,15 @@ enum LogLevel {
     "Trace",
 };
 
+interface Timestamp {
+    [Name=now]
+    constructor();
+    [Name=from_secs]
+    constructor(u64 secs);
+    u64 as_secs();
+    string to_human_datetime();
+};
+
 enum RelayStatus {
     "Initialized",
     "Connected",
@@ -102,6 +111,12 @@ interface Policy {
     string name();
     string description();
     string descriptor();
+};
+
+interface GetPolicy {
+    string policy_id();
+    Policy policy();
+    Timestamp? last_sync();
 };
 
 enum SignerType {
@@ -255,7 +270,7 @@ interface Coinstr {
     void delete_signer_by_id(string signer_id); 
 
     [Throws=FFIError]
-    record<DOMString, Policy> get_policies();
+    sequence<GetPolicy> get_policies();
     [Throws=FFIError]
     record<DOMString, Proposal> get_proposals();
     [Throws=FFIError]
