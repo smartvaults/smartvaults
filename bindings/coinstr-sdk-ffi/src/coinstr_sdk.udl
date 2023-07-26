@@ -272,9 +272,9 @@ interface Coinstr {
     [Throws=FFIError]
     sequence<GetPolicy> get_policies();
     [Throws=FFIError]
-    record<DOMString, Proposal> get_proposals();
+    sequence<GetProposal> get_proposals();
     [Throws=FFIError]
-    record<DOMString, Proposal> get_proposals_by_policy_id(string policy_id);
+    sequence<GetProposal> get_proposals_by_policy_id(string policy_id);
     [Throws=FFIError]
     boolean is_proposal_signed(string proposal_id);
     [Throws=FFIError]

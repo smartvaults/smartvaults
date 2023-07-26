@@ -22,8 +22,8 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 use crate::error::Result;
 use crate::{
     Amount, Approval, Balance, CompletedProposal, Config, GetPolicy, GetProposal, KeychainSeed,
-    Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Proposal, Relay,
-    Signer, TransactionDetails, Utxo,
+    Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, Policy, Relay, Signer,
+    TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -277,24 +277,15 @@ impl Coinstr {
 
     // TODO: add `get_detailed_policies` method
 
-    pub fn get_proposals(&self) -> Result<HashMap<String, Proposal>> {
+    pub fn get_proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
         let proposals = self.inner.get_proposals()?;
-        Ok(proposals
-            .into_iter()
-            .map(|p| (p.proposal_id.to_hex(), p.proposal.into()))
-            .collect())
+        Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
-    pub fn get_proposals_by_policy_id(
-        &self,
-        policy_id: String,
-    ) -> Result<HashMap<String, Proposal>> {
+    pub fn get_proposals_by_policy_id(&self, policy_id: String) -> Result<Vec<Arc<GetProposal>>> {
         let policy_id = EventId::from_hex(policy_id)?;
         let proposals = self.inner.get_proposals_by_policy_id(policy_id)?;
-        Ok(proposals
-            .into_iter()
-            .map(|p| (p.proposal_id.to_hex(), p.proposal.into()))
-            .collect())
+        Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
     pub fn is_proposal_signed(&self, proposal_id: String) -> Result<bool> {
