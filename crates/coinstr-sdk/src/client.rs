@@ -685,8 +685,8 @@ impl Coinstr {
         Ok(())
     }
 
-    pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<Policy, Error> {
-        Ok(self.db.get_policy(policy_id)?.policy)
+    pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
+        Ok(self.db.get_policy(policy_id)?)
     }
 
     pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
@@ -951,7 +951,7 @@ impl Coinstr {
         S: Into<String>,
     {
         // Get policy and shared keys
-        let policy: Policy = self.get_policy_by_id(policy_id)?;
+        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
         let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         let description: &str = &description.into();
@@ -1071,7 +1071,7 @@ impl Coinstr {
             proposal,
             ..
         } = self.get_proposal_by_id(proposal_id)?;
-        let policy: Policy = self.get_policy_by_id(policy_id)?;
+        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
 
         // Sign PSBT
         // Custom signer
@@ -1301,7 +1301,7 @@ impl Coinstr {
         let message: &str = &message.into();
 
         // Get policy and shared keys
-        let policy: Policy = self.get_policy_by_id(policy_id)?;
+        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
         let shared_keys = self.db.get_shared_key(policy_id)?;
 
         // Build proposal

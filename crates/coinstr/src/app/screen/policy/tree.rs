@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
+use coinstr_sdk::db::model::GetPolicy;
 use coinstr_sdk::nostr::EventId;
 use iced::widget::Column;
 use iced::{Command, Element};
@@ -49,7 +50,7 @@ impl State for PolicyTreeState {
         let policy_id = self.policy_id;
         Command::perform(
             async move {
-                let policy = client.get_policy_by_id(policy_id)?;
+                let GetPolicy { policy, .. } = client.get_policy_by_id(policy_id)?;
                 let item = policy.satisfiable_item(client.network())?;
                 Ok::<SatisfiableItem, Box<dyn std::error::Error>>(item)
             },

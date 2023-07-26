@@ -15,7 +15,7 @@ use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Priority;
 use coinstr_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
-use coinstr_sdk::db::model::GetProposal;
+use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::Metadata;
 use coinstr_sdk::util::format;
 use coinstr_sdk::{logger, Coinstr};
@@ -440,7 +440,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             GetCommand::Policy { policy_id, export } => {
                 // Get policy
-                let policy = coinstr.get_policy_by_id(policy_id)?;
+                let GetPolicy { policy, .. } = coinstr.get_policy_by_id(policy_id)?;
 
                 // Print result
                 if export {
