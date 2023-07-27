@@ -1,0 +1,144 @@
+// Copyright (c) 2022-2023 Coinstr
+// Distributed under the MIT software license
+
+use std::collections::HashSet;
+
+use coinstr_sdk::core::bdk::LocalUtxo;
+use coinstr_sdk::core::bitcoin::OutPoint;
+use coinstr_sdk::util::format;
+use iced::widget::{Column, Row};
+use iced::{Alignment, Element, Length, Renderer};
+use iced_lazy::Component;
+use iced_native::widget::Space;
+
+use crate::app::Message;
+use crate::component::{rule, Button, ButtonStyle, Text};
+
+#[derive(Debug, Clone)]
+pub enum Event {
+    ToggleUtxo(OutPoint),
+}
+
+pub struct UtxoSelector {
+    utxos: Vec<LocalUtxo>,
+    selected_utxos: HashSet<OutPoint>,
+    on_select: Box<dyn Fn(HashSet<OutPoint>) -> Message>,
+}
+
+impl UtxoSelector {
+    pub fn new(
+        utxos: Vec<LocalUtxo>,
+        selected_utxos: HashSet<OutPoint>,
+        on_select: impl Fn(HashSet<OutPoint>) -> Message + 'static,
+    ) -> Self {
+        Self {
+            utxos,
+            selected_utxos,
+            on_select: Box::new(on_select),
+        }
+    }
+}
+
+impl Component<Message, Renderer> for UtxoSelector {
+    type State = ();
+    type Event = Event;
+
+    fn update(&mut self, _state: &mut Self::State, event: Event) -> Option<Message> {
+        match event {
+            Event::ToggleUtxo(utxo) => {
+                if self.selected_utxos.contains(&utxo) {
+                    self.selected_utxos.remove(&utxo);
+                } else {
+                    self.selected_utxos.insert(utxo);
+                }
+
+                Some((self.on_select)(self.selected_utxos.clone()))
+            }
+        }
+    }
+
+    fn view(&self, _state: &Self::State) -> Element<Event, Renderer> {
+        let mut content = Column::new()
+            .spacing(10)
+            .push(
+                Row::new()
+                    .push(
+                        Text::new("UTXO")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fixed(180.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new("Value")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(
+                        Text::new("Label")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(Space::with_width(Length::Fixed(130.0)))
+                    .spacing(20)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill),
+            )
+            .push(rule::horizontal_bold());
+
+        for LocalUtxo {
+            outpoint, txout, ..
+        } in self.utxos.iter()
+        {
+            let selected: bool = self.selected_utxos.contains(outpoint);
+            let txid: String = outpoint.txid.to_string();
+            content = content
+                .push(
+                    Row::new()
+                        .push(
+                            Text::new(format!(
+                                "{}..{}:{}",
+                                &txid[..8],
+                                &txid[txid.len() - 8..],
+                                outpoint.vout,
+                            ))
+                            .width(Length::Fixed(180.0))
+                            .view(),
+                        )
+                        .push(
+                            Text::new(format!("{} sat", format::number(txout.value)))
+                                .width(Length::Fill)
+                                .view(),
+                        )
+                        .push(Text::new("-").width(Length::Fill).view())
+                        .push(
+                            Button::new()
+                                .text(if selected { "Selected" } else { "Select" })
+                                .style(if selected {
+                                    ButtonStyle::Primary
+                                } else {
+                                    ButtonStyle::Bordered
+                                })
+                                .on_press(Event::ToggleUtxo(*outpoint))
+                                .width(Length::Fixed(130.0))
+                                .view(),
+                        )
+                        .spacing(20)
+                        .align_items(Alignment::Center),
+                )
+                .push(rule::horizontal());
+        }
+
+        content.into()
+    }
+}
+
+impl<'a> From<UtxoSelector> for Element<'a, Message, Renderer> {
+    fn from(numeric_input: UtxoSelector) -> Self {
+        iced_lazy::component(numeric_input)
+    }
+}

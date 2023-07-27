@@ -1,13 +1,13 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use coinstr_sdk::core::bdk::Balance;
-use coinstr_sdk::core::bitcoin::Address;
+use coinstr_sdk::core::bdk::{Balance, LocalUtxo};
+use coinstr_sdk::core::bitcoin::{Address, OutPoint};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::db::model::{GetPolicy, GetProposal};
@@ -16,7 +16,7 @@ use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::{Dashboard, FeeSelector, PolicyTree};
+use crate::app::component::{Dashboard, FeeSelector, PolicyTree, UtxoSelector};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::{DARK_RED, RED};
@@ -64,9 +64,11 @@ pub enum SpendMessage {
     FeeRateChanged(FeeRate),
     PolicyLoaded(
         Option<Balance>,
+        Vec<LocalUtxo>,
         Option<SatisfiableItem>,
         Option<Vec<(String, Vec<String>)>>,
     ),
+    SelectedUtxosChanged(HashSet<OutPoint>),
     ToggleCondition(String, usize),
     ErrorChanged(Option<String>),
     SetInternalStage(InternalStage),
@@ -82,6 +84,8 @@ pub struct SpendState {
     send_all: bool,
     description: String,
     fee_rate: FeeRate,
+    utxos: Vec<LocalUtxo>,
+    selected_utxos: HashSet<OutPoint>,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     balance: Option<Balance>,
     satisfiable_item: Option<SatisfiableItem>,
@@ -102,6 +106,8 @@ impl SpendState {
             send_all: false,
             description: String::new(),
             fee_rate: FeeRate::default(),
+            utxos: Vec::new(),
+            selected_utxos: HashSet::new(),
             policy_path: None,
             balance: None,
             satisfiable_item: None,
@@ -125,6 +131,7 @@ impl SpendState {
         let client = ctx.client.clone();
         let description = self.description.clone();
         let fee_rate = self.fee_rate;
+        let selected_utxos: Vec<OutPoint> = self.selected_utxos.iter().cloned().collect();
         let policy_path = self.policy_path.clone();
 
         Command::perform(
@@ -136,7 +143,11 @@ impl SpendState {
                         amount,
                         description,
                         fee_rate,
-                        None,
+                        if selected_utxos.is_empty() {
+                            None
+                        } else {
+                            Some(selected_utxos)
+                        },
                         policy_path,
                     )
                     .await?;
@@ -206,14 +217,15 @@ impl State for SpendState {
                     return Command::perform(
                         async move {
                             let balance = client.get_balance(policy_id);
+                            let utxos = client.get_utxos(policy_id).unwrap_or_default();
                             let policy = policy?.policy;
                             let item = policy.satisfiable_item(client.network()).ok();
                             let conditions = policy.selectable_conditions(client.network()).ok();
-                            Some((balance, item, conditions))
+                            Some((balance, utxos, item, conditions))
                         },
                         |res| match res {
-                            Some((balance, item, conditions)) => {
-                                SpendMessage::PolicyLoaded(balance, item, conditions).into()
+                            Some((balance, utxos, item, conditions)) => {
+                                SpendMessage::PolicyLoaded(balance, utxos, item, conditions).into()
                             }
                             None => SpendMessage::ErrorChanged(Some(String::from(
                                 "Impossible to load policy",
@@ -222,11 +234,13 @@ impl State for SpendState {
                         },
                     );
                 }
-                SpendMessage::PolicyLoaded(balance, item, conditions) => {
+                SpendMessage::PolicyLoaded(balance, utxos, item, conditions) => {
                     self.balance = balance;
+                    self.utxos = utxos;
                     self.satisfiable_item = item;
                     self.selectable_conditions = conditions;
                 }
+                SpendMessage::SelectedUtxosChanged(s) => self.selected_utxos = s,
                 SpendMessage::ToggleCondition(id, index) => match self.policy_path.as_mut() {
                     Some(policy_path) => match policy_path.get_mut(&id) {
                         Some(v) => {
@@ -484,6 +498,17 @@ impl SpendState {
                     .spacing(25)
                     .height(Length::Fixed(335.0)),
             )
+            .push(if self.utxos.is_empty() {
+                Column::new()
+            } else {
+                Column::new()
+                    .push(Space::with_height(Length::Fixed(20.0)))
+                    .push(UtxoSelector::new(
+                        self.utxos.clone(),
+                        self.selected_utxos.clone(),
+                        |s| SpendMessage::SelectedUtxosChanged(s).into(),
+                    ))
+            })
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(error)
             .push(Space::with_height(Length::Fixed(5.0)))
