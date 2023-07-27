@@ -108,6 +108,7 @@ interface TransactionDetails {
   i64 total();
   string txid();
   BlockTime? confirmation_time();
+  Transaction? transaction();
 };
 
 interface BlockTime {
