@@ -266,27 +266,41 @@ impl State for TransactionState {
                     Row::new()
                         .push(
                             Column::new()
-                                .push(Text::new("Date/Time").bigger().extra_light().view())
-                                .push(Text::new(confirmed_at_time).size(25).view())
+                                .push(Text::new("Fee").bigger().extra_light().view())
+                                .push(
+                                    Text::new(match tx.fee {
+                                        Some(fee) => format!("{} sat", format::number(fee)),
+                                        None => String::from("-"),
+                                    })
+                                    .color(RED)
+                                    .size(25)
+                                    .view(),
+                                )
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
                         .push(
                             Column::new()
-                                .push(Text::new("Description").bigger().extra_light().view())
-                                .push(
-                                    Text::new(
-                                        description
-                                            .as_ref()
-                                            .map(|s| s.as_str())
-                                            .unwrap_or_default(),
-                                    )
-                                    .size(25)
-                                    .view(),
-                                )
+                                .push(Text::new("Date/Time").bigger().extra_light().view())
+                                .push(Text::new(confirmed_at_time).size(25).view())
                                 .spacing(10)
                                 .width(Length::FillPortion(2)),
                         ),
+                )
+                .push(
+                    Row::new().push(
+                        Column::new()
+                            .push(Text::new("Description").bigger().extra_light().view())
+                            .push(
+                                Text::new(
+                                    description.as_ref().map(|s| s.as_str()).unwrap_or_default(),
+                                )
+                                .size(25)
+                                .view(),
+                            )
+                            .spacing(10)
+                            .width(Length::Fill),
+                    ),
                 )
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
