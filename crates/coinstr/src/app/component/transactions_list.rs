@@ -134,11 +134,13 @@ impl TransactionsList {
                         let row = Row::new()
                             .push(status.width(Length::Fixed(70.0)).view())
                             .push(
-                                Text::new(
+                                Text::new(if ctx.hide_balances {
+                                    String::from("*****")
+                                } else {
                                     tx.confirmation_time
                                         .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
-                                        .unwrap_or_default(),
-                                )
+                                        .unwrap_or_default()
+                                })
                                 .width(Length::Fill)
                                 .view(),
                             )
@@ -149,9 +151,16 @@ impl TransactionsList {
                             )
                             .push(
                                 Text::new(format!(
-                                    "{}{} sat",
-                                    if positive { "+" } else { "-" },
-                                    format::number(total)
+                                    "{} sat",
+                                    if ctx.hide_balances {
+                                        String::from("*****")
+                                    } else {
+                                        format!(
+                                            "{}{}",
+                                            if positive { "+" } else { "-" },
+                                            format::number(total)
+                                        )
+                                    }
                                 ))
                                 .color(if positive { GREEN } else { RED })
                                 .width(Length::Fill)
