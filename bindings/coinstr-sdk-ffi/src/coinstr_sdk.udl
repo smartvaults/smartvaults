@@ -82,6 +82,7 @@ interface TransactionDetails {
   u64? fee();
   u64 received();
   u64 sent();
+  i64 total();
   string txid();
   BlockTime? confirmation_time();
 };

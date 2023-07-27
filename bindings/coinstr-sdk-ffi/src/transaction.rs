@@ -48,6 +48,12 @@ impl TransactionDetails {
         self.inner.sent
     }
 
+    pub fn total(&self) -> i64 {
+        let received = self.inner.received as i64;
+        let sent = self.inner.sent as i64;
+        received.saturating_sub(sent)
+    }
+
     pub fn fee(&self) -> Option<u64> {
         self.inner.fee
     }
