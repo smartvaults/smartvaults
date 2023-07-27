@@ -67,6 +67,29 @@ interface OutPoint {
     u32 vout();
 };
 
+interface TxIn {
+  OutPoint previous_output();
+};
+
+interface TxOut {
+  u64 value();
+  [Throws=FFIError]
+  string address(Network network);
+};
+
+interface Transaction {
+  string txid();
+  u64 weight();
+  u64 size();
+  u64 vsize();
+  boolean is_explicitly_rbf();
+  boolean is_lock_time_enabled();
+  i32 version();
+  u32 lock_time();
+  sequence<TxIn> inputs();
+  sequence<TxOut> outputs();
+};
+
 interface Utxo {
     OutPoint outpoint();
     u64 value();

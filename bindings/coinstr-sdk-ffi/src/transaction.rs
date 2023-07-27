@@ -3,8 +3,55 @@
 
 use std::sync::Arc;
 
-use coinstr_sdk::core::bdk;
+use coinstr_sdk::core::bdk::{self, LocalUtxo};
+use coinstr_sdk::core::bitcoin::{self, Address, Network};
 use nostr_ffi::Timestamp;
+
+use crate::error::Result;
+
+pub struct OutPoint {
+    inner: bdk::bitcoin::OutPoint,
+}
+
+impl From<bdk::bitcoin::OutPoint> for OutPoint {
+    fn from(inner: bdk::bitcoin::OutPoint) -> Self {
+        Self { inner }
+    }
+}
+
+impl OutPoint {
+    pub fn txid(&self) -> String {
+        self.inner.txid.to_string()
+    }
+
+    pub fn vout(&self) -> u32 {
+        self.inner.vout
+    }
+}
+
+pub struct Utxo {
+    inner: LocalUtxo,
+}
+
+impl From<LocalUtxo> for Utxo {
+    fn from(inner: LocalUtxo) -> Self {
+        Self { inner }
+    }
+}
+
+impl Utxo {
+    pub fn outpoint(&self) -> Arc<OutPoint> {
+        Arc::new(self.inner.outpoint.into())
+    }
+
+    pub fn value(&self) -> u64 {
+        self.inner.txout.value
+    }
+
+    pub fn is_spent(&self) -> bool {
+        self.inner.is_spent
+    }
+}
 
 pub struct BlockTime {
     inner: bdk::BlockTime,
@@ -23,6 +70,104 @@ impl BlockTime {
 
     pub fn timestamp(&self) -> Arc<Timestamp> {
         Arc::new(Timestamp::from_secs(self.inner.timestamp))
+    }
+}
+
+pub struct TxIn {
+    inner: bitcoin::TxIn,
+}
+
+impl From<bitcoin::TxIn> for TxIn {
+    fn from(inner: bitcoin::TxIn) -> Self {
+        Self { inner }
+    }
+}
+
+impl TxIn {
+    pub fn previous_output(&self) -> Arc<OutPoint> {
+        Arc::new(self.inner.previous_output.into())
+    }
+}
+
+pub struct TxOut {
+    inner: bitcoin::TxOut,
+}
+
+impl From<bitcoin::TxOut> for TxOut {
+    fn from(inner: bitcoin::TxOut) -> Self {
+        Self { inner }
+    }
+}
+
+impl TxOut {
+    pub fn value(&self) -> u64 {
+        self.inner.value
+    }
+
+    pub fn address(&self, network: Network) -> Result<String> {
+        Ok(Address::from_script(&self.inner.script_pubkey, network)?.to_string())
+    }
+}
+
+pub struct Transaction {
+    inner: bitcoin::Transaction,
+}
+
+impl From<bitcoin::Transaction> for Transaction {
+    fn from(inner: bitcoin::Transaction) -> Self {
+        Self { inner }
+    }
+}
+
+impl Transaction {
+    pub fn txid(&self) -> String {
+        self.inner.txid().to_string()
+    }
+
+    pub fn weight(&self) -> u64 {
+        self.inner.weight() as u64
+    }
+
+    pub fn size(&self) -> u64 {
+        self.inner.size() as u64
+    }
+
+    pub fn vsize(&self) -> u64 {
+        self.inner.vsize() as u64
+    }
+
+    pub fn is_explicitly_rbf(&self) -> bool {
+        self.inner.is_explicitly_rbf()
+    }
+
+    pub fn is_lock_time_enabled(&self) -> bool {
+        self.inner.is_lock_time_enabled()
+    }
+
+    pub fn version(&self) -> i32 {
+        self.inner.version
+    }
+
+    pub fn lock_time(&self) -> u32 {
+        self.inner.lock_time.to_u32()
+    }
+
+    pub fn inputs(&self) -> Vec<Arc<TxIn>> {
+        self.inner
+            .input
+            .clone()
+            .into_iter()
+            .map(|i| Arc::new(i.into()))
+            .collect()
+    }
+
+    pub fn outputs(&self) -> Vec<Arc<TxOut>> {
+        self.inner
+            .output
+            .clone()
+            .into_iter()
+            .map(|i| Arc::new(i.into()))
+            .collect()
     }
 }
 
@@ -64,5 +209,9 @@ impl TransactionDetails {
             .confirmation_time
             .clone()
             .map(|b| Arc::new(b.into()))
+    }
+
+    pub fn transaction(&self) -> Option<Arc<Transaction>> {
+        self.inner.transaction.clone().map(|tx| Arc::new(tx.into()))
     }
 }

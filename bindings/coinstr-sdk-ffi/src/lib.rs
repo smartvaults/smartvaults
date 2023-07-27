@@ -18,7 +18,6 @@ mod relay;
 mod seed;
 mod signer;
 mod transaction;
-mod utxo;
 
 use self::error::Result;
 
@@ -58,8 +57,9 @@ mod ffi {
     pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;
     pub use crate::signer::Signer;
-    pub use crate::transaction::{BlockTime, TransactionDetails};
-    pub use crate::utxo::{OutPoint, Utxo};
+    pub use crate::transaction::{
+        BlockTime, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
+    };
 
     // UDL
     uniffi_macros::include_scaffolding!("coinstr_sdk");
