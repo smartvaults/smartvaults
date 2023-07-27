@@ -45,11 +45,23 @@ impl fmt::Display for PolicyPicLisk {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub enum InternalStage {
+pub enum InternalStageBuild {
     #[default]
-    Default,
+    Details,
+    Utxos,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum InternalStage {
+    Build(InternalStageBuild),
     SelectPolicyPath,
     Review,
+}
+
+impl Default for InternalStage {
+    fn default() -> Self {
+        Self::Build(InternalStageBuild::Details)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -273,25 +285,28 @@ impl State for SpendState {
                     self.loading = false;
                     self.error = error;
                 }
-                SpendMessage::SetInternalStage(stage) => match &self.policy {
-                    Some(_) => match Address::from_str(&self.to_address) {
-                        Ok(_) => {
-                            if self.send_all {
-                                self.error = None;
-                                self.stage = stage;
-                            } else {
-                                match self.amount {
-                                    Some(_) => {
-                                        self.error = None;
-                                        self.stage = stage;
-                                    }
-                                    None => self.error = Some(String::from("Invalid amount")),
-                                };
+                SpendMessage::SetInternalStage(stage) => match stage {
+                    InternalStage::Build(_) => self.stage = stage,
+                    _ => match &self.policy {
+                        Some(_) => match Address::from_str(&self.to_address) {
+                            Ok(_) => {
+                                if self.send_all {
+                                    self.error = None;
+                                    self.stage = stage;
+                                } else {
+                                    match self.amount {
+                                        Some(_) => {
+                                            self.error = None;
+                                            self.stage = stage;
+                                        }
+                                        None => self.error = Some(String::from("Invalid amount")),
+                                    };
+                                }
                             }
-                        }
-                        Err(e) => self.error = Some(e.to_string()),
+                            Err(e) => self.error = Some(e.to_string()),
+                        },
+                        None => self.error = Some(String::from("You must select a policy")),
                     },
-                    None => self.error = Some(String::from("You must select a policy")),
                 },
                 SpendMessage::SendProposal => match &self.policy {
                     Some(policy) => {
@@ -330,7 +345,7 @@ impl State for SpendState {
 
         if self.loaded {
             content = match self.stage {
-                InternalStage::Default => self.view_default(),
+                InternalStage::Build(stage) => self.view_build_tx(stage),
                 InternalStage::SelectPolicyPath => self.view_policy_tree(),
                 InternalStage::Review => self.view_review(),
             };
@@ -352,7 +367,101 @@ impl State for SpendState {
 }
 
 impl SpendState {
-    fn view_default<'a>(&self) -> Column<'a, Message> {
+    fn view_build_tx<'a>(&self, stage: InternalStageBuild) -> Column<'a, Message> {
+        let error = if let Some(error) = &self.error {
+            Row::new().push(Text::new(error).color(DARK_RED).view())
+        } else {
+            Row::new()
+        };
+
+        let (next_stage, ready): (InternalStage, bool) = {
+            match &self.policy {
+                Some(policy) => {
+                    let descriptor = policy.policy.descriptor.to_string();
+                    if descriptor.contains("after") || descriptor.contains("older") {
+                        (InternalStage::SelectPolicyPath, true)
+                    } else {
+                        (InternalStage::Review, true)
+                    }
+                }
+                None => (InternalStage::default(), false),
+            }
+        };
+
+        let continue_btn = Button::new()
+            .text("Continue")
+            .width(Length::Fixed(400.0))
+            .loading(!ready || self.to_address.is_empty() || self.amount.is_none())
+            .on_press(SpendMessage::SetInternalStage(next_stage).into())
+            .view();
+
+        Column::new()
+            .spacing(10)
+            .padding(20)
+            .push(
+                Column::new()
+                    .push(Text::new("Send").size(24).bold().view())
+                    .push(
+                        Text::new("Create a new spending proposal")
+                            .extra_light()
+                            .view(),
+                    )
+                    .spacing(10)
+                    .width(Length::Fill),
+            )
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(
+                Row::new()
+                    .push(
+                        Button::new()
+                            .style(if let InternalStageBuild::Details = stage {
+                                ButtonStyle::Primary
+                            } else {
+                                ButtonStyle::Bordered
+                            })
+                            .text("Details")
+                            .width(Length::Fill)
+                            .on_press(
+                                SpendMessage::SetInternalStage(InternalStage::Build(
+                                    InternalStageBuild::Details,
+                                ))
+                                .into(),
+                            )
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .style(if let InternalStageBuild::Utxos = stage {
+                                ButtonStyle::Primary
+                            } else {
+                                ButtonStyle::Bordered
+                            })
+                            .text("UTXOs")
+                            .width(Length::Fill)
+                            .loading(self.loading || self.policy.is_none())
+                            .on_press(
+                                SpendMessage::SetInternalStage(InternalStage::Build(
+                                    InternalStageBuild::Utxos,
+                                ))
+                                .into(),
+                            )
+                            .view(),
+                    )
+                    .spacing(5),
+            )
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(match stage {
+                InternalStageBuild::Details => self.view_details(),
+                InternalStageBuild::Utxos => self.view_utxos(),
+            })
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(error)
+            .push(Space::with_height(Length::Fixed(5.0)))
+            .push(continue_btn)
+            .max_width(850.0)
+    }
+
+    fn view_details<'a>(&self) -> Column<'a, Message> {
         let policy_pick_list = Column::new()
             .push(Text::new("Policy").view())
             .push(
@@ -436,33 +545,6 @@ impl SpendState {
             .placeholder("Description")
             .view();
 
-        let error = if let Some(error) = &self.error {
-            Row::new().push(Text::new(error).color(DARK_RED).view())
-        } else {
-            Row::new()
-        };
-
-        let (next_stage, ready): (InternalStage, bool) = {
-            match &self.policy {
-                Some(policy) => {
-                    let descriptor = policy.policy.descriptor.to_string();
-                    if descriptor.contains("after") || descriptor.contains("older") {
-                        (InternalStage::SelectPolicyPath, true)
-                    } else {
-                        (InternalStage::Review, true)
-                    }
-                }
-                None => (InternalStage::default(), false),
-            }
-        };
-
-        let continue_btn = Button::new()
-            .text("Continue")
-            .width(Length::Fixed(400.0))
-            .loading(!ready)
-            .on_press(SpendMessage::SetInternalStage(next_stage).into())
-            .view();
-
         let details = Column::new()
             .push(policy_pick_list)
             .push(address)
@@ -472,48 +554,25 @@ impl SpendState {
             .spacing(10)
             .max_width(400);
 
-        Column::new()
-            .spacing(10)
-            .padding(20)
-            .push(
-                Column::new()
-                    .push(Text::new("Send").size(24).bold().view())
-                    .push(
-                        Text::new("Create a new spending proposal")
-                            .extra_light()
-                            .view(),
-                    )
-                    .spacing(10)
-                    .width(Length::Fill),
-            )
-            .push(Space::with_height(Length::Fixed(5.0)))
-            .push(
-                Row::new()
-                    .push(details)
-                    .push(rule::vertical())
-                    .push(
-                        FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
-                            .max_width(400.0),
-                    )
-                    .spacing(25)
-                    .height(Length::Fixed(335.0)),
-            )
-            .push(if self.utxos.is_empty() {
-                Column::new()
-            } else {
-                Column::new()
-                    .push(Space::with_height(Length::Fixed(20.0)))
-                    .push(UtxoSelector::new(
-                        self.utxos.clone(),
-                        self.selected_utxos.clone(),
-                        |s| SpendMessage::SelectedUtxosChanged(s).into(),
-                    ))
-            })
-            .push(Space::with_height(Length::Fixed(5.0)))
-            .push(error)
-            .push(Space::with_height(Length::Fixed(5.0)))
-            .push(continue_btn)
-            .max_width(810.0)
+        Column::new().push(
+            Row::new()
+                .push(details)
+                .push(rule::vertical())
+                .push(
+                    FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
+                        .max_width(400.0),
+                )
+                .spacing(25)
+                .height(Length::Fixed(335.0)),
+        )
+    }
+
+    fn view_utxos<'a>(&self) -> Column<'a, Message> {
+        Column::new().push(UtxoSelector::new(
+            self.utxos.clone(),
+            self.selected_utxos.clone(),
+            |s| SpendMessage::SelectedUtxosChanged(s).into(),
+        ))
     }
 
     fn view_policy_tree<'a>(&self) -> Column<'a, Message> {
@@ -586,7 +645,7 @@ impl SpendState {
             .style(ButtonStyle::Bordered)
             .text("Back")
             .width(Length::Fill)
-            .on_press(SpendMessage::SetInternalStage(InternalStage::Default).into())
+            .on_press(SpendMessage::SetInternalStage(InternalStage::default()).into())
             .width(Length::Fixed(400.0))
             .loading(self.loading)
             .view();
@@ -662,7 +721,7 @@ impl SpendState {
                     if descriptor.contains("after") || descriptor.contains("older") {
                         InternalStage::SelectPolicyPath
                     } else {
-                        InternalStage::Default
+                        InternalStage::default()
                     }
                 }
                 None => InternalStage::default(),
