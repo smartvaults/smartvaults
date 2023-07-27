@@ -193,6 +193,7 @@ impl Policy {
             }
 
             if let Some(utxos) = utxos {
+                builder.manually_selected_only();
                 builder.add_utxos(&utxos)?;
             }
 
