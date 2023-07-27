@@ -136,6 +136,7 @@ impl SpendState {
                         amount,
                         description,
                         fee_rate,
+                        None,
                         policy_path,
                     )
                     .await?;

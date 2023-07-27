@@ -19,6 +19,12 @@ impl From<bdk::bitcoin::OutPoint> for OutPoint {
     }
 }
 
+impl From<&OutPoint> for bdk::bitcoin::OutPoint {
+    fn from(outpoint: &OutPoint) -> Self {
+        outpoint.inner
+    }
+}
+
 impl OutPoint {
     pub fn txid(&self) -> String {
         self.inner.txid.to_string()

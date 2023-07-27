@@ -67,6 +67,7 @@ mod test {
             "Testing",
             FeeRate::from_sat_per_vb(1.0),
             None,
+            None,
         )?;
 
         let approved_a: ApprovedProposal = proposal.approve(&seed_a, Vec::new(), NETWORK)?;
@@ -137,6 +138,7 @@ mod test {
             Amount::Custom(1120),
             "Testing",
             FeeRate::from_sat_per_vb(1.0),
+            None,
             None,
         )?;
 

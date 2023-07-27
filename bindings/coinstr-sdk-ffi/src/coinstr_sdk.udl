@@ -321,9 +321,9 @@ interface Coinstr {
     [Throws=FFIError]
     string save_policy(string name, string description, string descriptor, sequence<string> public_keys);
     [Throws=FFIError]
-    GetProposal spend(string policy_id, string to_address, Amount amount, string description, u8 target_blocks);
+    GetProposal spend(string policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos);
     [Throws=FFIError]
-    GetProposal self_transfer(string from_policy_id, string to_policy_id, Amount amount, u8 target_blocks);   
+    GetProposal self_transfer(string from_policy_id, string to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos);   
     [Throws=FFIError]
     string approve(string proposal_id);
     [Throws=FFIError]

@@ -21,7 +21,7 @@ use crate::error::Result;
 use crate::{
     AbortHandle, Amount, Approval, Balance, CompletedProposal, Config, GetCompletedProposal,
     GetPolicy, GetProposal, KeychainSeed, Metadata, NostrConnectRequest, NostrConnectSession,
-    NostrConnectURI, Relay, Signer, TransactionDetails, Utxo,
+    NostrConnectURI, OutPoint, Relay, Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -353,6 +353,7 @@ impl Coinstr {
         amount: Arc<Amount>,
         description: String,
         target_blocks: u8,
+        utxos: Option<Vec<Arc<OutPoint>>>,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let policy_id = EventId::from_hex(policy_id)?;
@@ -365,6 +366,7 @@ impl Coinstr {
                     amount.inner(),
                     description,
                     FeeRate::Priority(Priority::Custom(target_blocks)),
+                    utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
                     None,
                 )
                 .await?;
@@ -378,6 +380,7 @@ impl Coinstr {
         to_policy_id: String,
         amount: Arc<Amount>,
         target_blocks: u8,
+        utxos: Option<Vec<Arc<OutPoint>>>,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let from_policy_id = EventId::from_hex(from_policy_id)?;
@@ -389,6 +392,7 @@ impl Coinstr {
                     to_policy_id,
                     amount.inner(),
                     FeeRate::Priority(Priority::Custom(target_blocks)),
+                    utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
                     None,
                 )
                 .await?;

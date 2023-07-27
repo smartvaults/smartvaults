@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, OutPoint, XOnlyPublicKey};
 use bdk::database::{BatchDatabase, MemoryDatabase};
 use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
@@ -169,6 +169,7 @@ impl Policy {
         Ok(result)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn spend<D, S>(
         &self,
         wallet: Wallet<D>,
@@ -176,6 +177,7 @@ impl Policy {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<Proposal, Error>
     where
@@ -188,6 +190,10 @@ impl Policy {
 
             if let Some(path) = policy_path {
                 builder.policy_path(path, KeychainKind::External);
+            }
+
+            if let Some(utxos) = utxos {
+                builder.add_utxos(&utxos)?;
             }
 
             builder.fee_rate(fee_rate).enable_rbf();

@@ -85,7 +85,7 @@ impl SelfTransferState {
         Command::perform(
             async move {
                 let GetProposal { proposal_id, .. } = client
-                    .self_transfer(from_policy_id, to_policy_id, amount, fee_rate, None)
+                    .self_transfer(from_policy_id, to_policy_id, amount, fee_rate, None, None)
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
             },

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, PrivateKey, Txid, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, OutPoint, PrivateKey, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::SqliteDatabase;
@@ -938,6 +938,7 @@ impl Coinstr {
     }
 
     /// Make a spending proposal
+    #[allow(clippy::too_many_arguments)]
     pub async fn spend<S>(
         &self,
         policy_id: EventId,
@@ -945,6 +946,7 @@ impl Coinstr {
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error>
     where
@@ -973,7 +975,15 @@ impl Coinstr {
         // Build spending proposal
         let wallet: Wallet<SqliteDatabase> =
             self.wallet(policy_id, &policy.descriptor.to_string())?;
-        let proposal = policy.spend(wallet, address, amount, description, fee_rate, policy_path)?;
+        let proposal = policy.spend(
+            wallet,
+            address,
+            amount,
+            description,
+            fee_rate,
+            utxos,
+            policy_path,
+        )?;
 
         if let Proposal::Spending {
             amount,
@@ -1028,6 +1038,7 @@ impl Coinstr {
         to_policy_id: EventId,
         amount: Amount,
         fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error> {
         let address = self
@@ -1044,6 +1055,7 @@ impl Coinstr {
             amount,
             description,
             fee_rate,
+            utxos,
             policy_path,
         )
         .await
