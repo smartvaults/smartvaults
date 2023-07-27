@@ -1487,6 +1487,22 @@ impl Coinstr {
         })
     }
 
+    fn rebroadcaster(&self) -> AbortHandle {
+        let this = self.clone();
+        thread::abortable(async move {
+            loop {
+                // TODO: check last rebroadcast timestamp from db
+                if false {
+                    match this.rebroadcast_all_events().await {
+                        Ok(_) => log::info!("All events rebroadcasted to relays"),
+                        Err(e) => log::error!("Impossible to rebroadcast events to relays: {e}"),
+                    }
+                }
+                thread::sleep(Duration::from_secs(60)).await;
+            }
+        })
+    }
+
     pub fn is_first_sync_completed(&self) -> bool {
         self.first_sync.completed()
     }
@@ -1547,6 +1563,9 @@ impl Coinstr {
                 let pending_event_handler = this.handle_pending_events();
                 let metadata_sync = this.sync_metadata();
 
+                // Rebroadcaster
+                let rebroadcaster = this.rebroadcaster();
+
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
                         Ok(ts) => ts,
@@ -1601,6 +1620,7 @@ impl Coinstr {
                                 timechain_sync.abort();
                                 pending_event_handler.abort();
                                 metadata_sync.abort();
+                                rebroadcaster.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
@@ -1888,6 +1908,7 @@ impl Coinstr {
         for event in events.into_iter() {
             self.client.send_event(event).await?;
         }
+        // TODO: save last rebroadcast timestamp
         Ok(())
     }
 
