@@ -89,7 +89,7 @@ interface TransactionDetails {
 
 interface BlockTime {
   u32 height();
-  u64 timestamp();
+  Timestamp timestamp();
 };
 
 interface KeychainSeed {

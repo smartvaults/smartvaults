@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use coinstr_sdk::core::bdk;
+use nostr_ffi::Timestamp;
 
 pub struct BlockTime {
     inner: bdk::BlockTime,
@@ -20,8 +21,8 @@ impl BlockTime {
         self.inner.height
     }
 
-    pub fn timestamp(&self) -> u64 {
-        self.inner.timestamp
+    pub fn timestamp(&self) -> Arc<Timestamp> {
+        Arc::new(Timestamp::from_secs(self.inner.timestamp))
     }
 }
 
