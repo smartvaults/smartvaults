@@ -391,7 +391,9 @@ impl SpendState {
         let continue_btn = Button::new()
             .text("Continue")
             .width(Length::Fixed(400.0))
-            .loading(!ready || self.to_address.is_empty() || self.amount.is_none())
+            .loading(
+                !ready || self.to_address.is_empty() || (self.amount.is_none() && !self.send_all),
+            )
             .on_press(SpendMessage::SetInternalStage(next_stage).into())
             .view();
 
