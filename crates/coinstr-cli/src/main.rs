@@ -537,6 +537,10 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     Ok(coinstr.delete_proposal_by_id(proposal_id).await?)
                 }
             }
+            DeleteCommand::Approval { approval_id } => {
+                coinstr.revoke_approval(approval_id).await?;
+                Ok(())
+            }
             DeleteCommand::Signer { signer_id } => {
                 Ok(coinstr.delete_signer_by_id(signer_id).await?)
             }

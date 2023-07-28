@@ -438,6 +438,12 @@ pub enum DeleteCommand {
         #[arg(long)]
         completed: bool,
     },
+    /// Delete approval by id
+    Approval {
+        /// Approval id
+        #[arg(required = true)]
+        approval_id: EventId,
+    },
     /// Delete signer by id
     Signer {
         /// Signer id
