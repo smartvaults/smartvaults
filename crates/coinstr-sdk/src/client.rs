@@ -509,6 +509,7 @@ impl Coinstr {
                 "wss://nostr.rocks".into(),
                 "wss://relay.damus.io".into(),
                 "wss://nostr.bitcoiner.social".into(),
+                "wss://soloco.nl".into(),
             ],
             _ => vec![
                 "wss://test.relay.report".into(),
