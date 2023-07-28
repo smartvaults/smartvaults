@@ -827,7 +827,7 @@ impl Store {
 
     pub fn get_event_by_id(&self, event_id: EventId) -> Result<Event, Error> {
         let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT event FROM events WHERE event_id = ?;")?;
+        let mut stmt = conn.prepare("SELECT event FROM events WHERE event_id = ? LIMIT 1;")?;
         let mut rows = stmt.query([event_id.to_hex()])?;
         let row = rows.next()?.ok_or(Error::NotFound("event".into()))?;
         let json: String = row.get(0)?;

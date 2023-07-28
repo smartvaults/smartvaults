@@ -1798,7 +1798,15 @@ impl Coinstr {
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event(event_id, ..) = tag {
-                    self.db.delete_generic_event_id(*event_id)?;
+                    if let Ok(Event { pubkey, .. }) = self.db.get_event_by_id(*event_id) {
+                        if pubkey == event.pubkey {
+                            self.db.delete_generic_event_id(*event_id)?;
+                        } else {
+                            log::warn!(
+                                "{pubkey} tried to delete an event not owned by him: {event_id}"
+                            );
+                        }
+                    }
                 }
             }
         } else if event.kind == Kind::ContactList {
