@@ -135,6 +135,8 @@ pub enum Error {
     CantGenerateNostrConnectResponse,
     #[error("invalid fee rate")]
     InvalidFeeRate,
+    #[error("impossible to delete a not owned event")]
+    TryingToDeleteNotOwnedEvent,
     #[error("{0}")]
     Generic(String),
 }
@@ -705,28 +707,34 @@ impl Coinstr {
     }
 
     pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
+        let Event { pubkey, .. } = self.db.get_event_by_id(policy_id)?;
+
         // Get nostr pubkeys and shared keys
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
         let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
-        // Get all events linked to the policy
-        let event_ids = self.db.get_event_ids_linked_to_policy(policy_id)?;
+        if pubkey == shared_keys.public_key() {
+            // Get all events linked to the policy
+            let event_ids = self.db.get_event_ids_linked_to_policy(policy_id)?;
 
-        let mut tags: Vec<Tag> = nostr_pubkeys
-            .into_iter()
-            .map(|p| Tag::PubKey(p, None))
-            .collect();
-        tags.push(Tag::Event(policy_id, None, None));
-        event_ids
-            .into_iter()
-            .for_each(|id| tags.push(Tag::Event(id, None, None)));
+            let mut tags: Vec<Tag> = nostr_pubkeys
+                .into_iter()
+                .map(|p| Tag::PubKey(p, None))
+                .collect();
+            tags.push(Tag::Event(policy_id, None, None));
+            event_ids
+                .into_iter()
+                .for_each(|id| tags.push(Tag::Event(id, None, None)));
 
-        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+            self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
-        self.db.delete_policy(policy_id)?;
+            self.db.delete_policy(policy_id)?;
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(Error::TryingToDeleteNotOwnedEvent)
+        }
     }
 
     pub async fn delete_proposal_by_id(&self, proposal_id: EventId) -> Result<(), Error> {
@@ -742,31 +750,35 @@ impl Coinstr {
         // Get shared key
         let shared_keys = self.db.get_shared_key(policy_id)?;
 
-        // Extract `p` tags from proposal event to notify users about proposal deletion
-        let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
-            .into_iter()
-            .cloned()
-            .collect();
+        if proposal_event.pubkey == shared_keys.public_key() {
+            // Extract `p` tags from proposal event to notify users about proposal deletion
+            let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
+                .into_iter()
+                .cloned()
+                .collect();
 
-        // Get all events linked to the proposal
-        /* let filter = Filter::new().event(proposal_id);
-        let events = self.client.get_events_of(vec![filter], timeout).await?; */
+            // Get all events linked to the proposal
+            /* let filter = Filter::new().event(proposal_id);
+            let events = self.client.get_events_of(vec![filter], timeout).await?; */
 
-        tags.push(Tag::Event(proposal_id, None, None));
-        /* let mut ids: Vec<EventId> = vec![proposal_id];
+            tags.push(Tag::Event(proposal_id, None, None));
+            /* let mut ids: Vec<EventId> = vec![proposal_id];
 
-        for event in events.into_iter() {
-            if event.kind != COMPLETED_PROPOSAL_KIND {
-                ids.push(event.id);
-            }
-        } */
+            for event in events.into_iter() {
+                if event.kind != COMPLETED_PROPOSAL_KIND {
+                    ids.push(event.id);
+                }
+            } */
 
-        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+            self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
-        self.db.delete_proposal(proposal_id)?;
+            self.db.delete_proposal(proposal_id)?;
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(Error::TryingToDeleteNotOwnedEvent)
+        }
     }
 
     pub async fn delete_completed_proposal_by_id(
@@ -794,20 +806,24 @@ impl Coinstr {
         // Get shared key
         let shared_keys = self.db.get_shared_key(*policy_id)?;
 
-        // Extract `p` tags from proposal event to notify users about proposal deletion
-        let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
-            .into_iter()
-            .cloned()
-            .collect();
+        if proposal_event.pubkey == shared_keys.public_key() {
+            // Extract `p` tags from proposal event to notify users about proposal deletion
+            let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
+                .into_iter()
+                .cloned()
+                .collect();
 
-        tags.push(Tag::Event(completed_proposal_id, None, None));
+            tags.push(Tag::Event(completed_proposal_id, None, None));
 
-        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+            self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
-        self.db.delete_completed_proposal(completed_proposal_id)?;
+            self.db.delete_completed_proposal(completed_proposal_id)?;
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(Error::TryingToDeleteNotOwnedEvent)
+        }
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
@@ -1233,23 +1249,29 @@ impl Coinstr {
     }
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        let policy_id = self.db.get_policy_id_by_approval_id(approval_id)?;
+        let Event { pubkey, .. } = self.db.get_event_by_id(approval_id)?;
+        let keys = self.keys();
+        if pubkey == keys.public_key() {
+            let policy_id = self.db.get_policy_id_by_approval_id(approval_id)?;
 
-        // Get nostr pubkeys linked to policy
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+            // Get nostr pubkeys linked to policy
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
 
-        let mut tags: Vec<Tag> = nostr_pubkeys
-            .into_iter()
-            .map(|p| Tag::PubKey(p, None))
-            .collect();
-        tags.push(Tag::Event(approval_id, None, None));
+            let mut tags: Vec<Tag> = nostr_pubkeys
+                .into_iter()
+                .map(|p| Tag::PubKey(p, None))
+                .collect();
+            tags.push(Tag::Event(approval_id, None, None));
 
-        let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&self.keys())?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
+            self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
-        self.db.delete_approval(approval_id)?;
+            self.db.delete_approval(approval_id)?;
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(Error::TryingToDeleteNotOwnedEvent)
+        }
     }
 
     pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {
