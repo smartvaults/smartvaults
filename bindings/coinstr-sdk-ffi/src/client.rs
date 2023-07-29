@@ -573,6 +573,16 @@ impl Coinstr {
             .collect())
     }
 
+    pub fn disconnect_nostr_connect_session(&self, app_public_key: String) -> Result<()> {
+        block_on(async move {
+            let app_public_key = XOnlyPublicKey::from_str(&app_public_key)?;
+            Ok(self
+                .inner
+                .disconnect_nostr_connect_session(app_public_key)
+                .await?)
+        })
+    }
+
     pub fn get_nostr_connect_requests(
         &self,
         approved: bool,

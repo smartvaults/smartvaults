@@ -367,6 +367,8 @@ interface Coinstr {
     [Throws=FFIError]
     sequence<NostrConnectSession> get_nostr_connect_sessions();
     [Throws=FFIError]
+    void disconnect_nostr_connect_session(string app_public_key);
+    [Throws=FFIError]
     record<DOMString, NostrConnectRequest> get_nostr_connect_requests(boolean approved);
     [Throws=FFIError]
     void approve_nostr_connect_request(string event_id);
