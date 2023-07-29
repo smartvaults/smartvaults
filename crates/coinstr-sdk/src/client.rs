@@ -42,8 +42,9 @@ use tokio::sync::broadcast::{self, Receiver, Sender};
 
 use crate::config::Config;
 use crate::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND,
-    PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND,
+    CONNECT_SEND_TIMEOUT, POLICY_KIND, PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND,
+    SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
     GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
@@ -1851,7 +1852,7 @@ impl Coinstr {
             if let Ok(request) = msg.to_request() {
                 match request {
                     NIP46Request::Disconnect => {
-                        self.disconnect_nostr_connect_session(event.pubkey, None)
+                        self._disconnect_nostr_connect_session(event.pubkey, None)
                             .await?;
                     }
                     NIP46Request::GetPublicKey => {
@@ -2153,7 +2154,7 @@ impl Coinstr {
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
         self.client
-            .send_event_to_with_custom_wait(relay_url, nip46_event, Some(Duration::from_secs(30)))
+            .send_event_to_with_custom_wait(relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT))
             .await?;
 
         self.db.save_nostr_connect_uri(uri)?;
@@ -2165,7 +2166,7 @@ impl Coinstr {
         Ok(self.db.get_nostr_connect_sessions()?)
     }
 
-    pub async fn disconnect_nostr_connect_session(
+    async fn _disconnect_nostr_connect_session(
         &self,
         app_public_key: XOnlyPublicKey,
         wait: Option<Duration>,
@@ -2180,6 +2181,14 @@ impl Coinstr {
             .await?;
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
+    }
+
+    pub async fn disconnect_nostr_connect_session(
+        &self,
+        app_public_key: XOnlyPublicKey,
+    ) -> Result<(), Error> {
+        self._disconnect_nostr_connect_session(app_public_key, Some(CONNECT_SEND_TIMEOUT))
+            .await
     }
 
     pub fn get_nostr_connect_requests(
@@ -2208,7 +2217,7 @@ impl Coinstr {
                 .send_event_to_with_custom_wait(
                     uri.relay_url,
                     nip46_event,
-                    Some(Duration::from_secs(30)),
+                    Some(CONNECT_SEND_TIMEOUT),
                 )
                 .await?;
             self.db.set_nostr_connect_request_as_approved(event_id)?;

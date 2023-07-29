@@ -127,10 +127,7 @@ impl State for ConnectState {
                     Command::perform(
                         async move {
                             client
-                                .disconnect_nostr_connect_session(
-                                    app_public_key,
-                                    Some(Duration::from_secs(30)),
-                                )
+                                .disconnect_nostr_connect_session(app_public_key)
                                 .await
                         },
                         |res| match res {

@@ -26,3 +26,4 @@ pub const METADATA_SYNC_INTERVAL: Duration = Duration::from_secs(3600);
 
 // Timeout
 pub(crate) const SEND_TIMEOUT: Duration = Duration::from_secs(2);
+pub(crate) const CONNECT_SEND_TIMEOUT: Duration = Duration::from_secs(5);

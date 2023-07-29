@@ -343,7 +343,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             ConnectCommand::Disconnect { app_public_key } => {
                 coinstr
-                    .disconnect_nostr_connect_session(app_public_key, Some(Duration::from_secs(30)))
+                    .disconnect_nostr_connect_session(app_public_key)
                     .await?;
                 Ok(())
             }
