@@ -50,6 +50,13 @@ impl LabelKind {
         let hash = hash::sha256(unhashed_identifier).to_string();
         Ok(hash[..32].to_string())
     }
+
+    pub fn type_string(&self) -> String {
+        match self {
+            Self::Address(..) => String::from("address"),
+            Self::Utxo(..) => String::from("utxo"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -81,6 +88,14 @@ impl Label {
         S: Into<String>,
     {
         Self::new(LabelKind::Utxo(utxo), text)
+    }
+
+    pub fn kind(&self) -> LabelKind {
+        self.kind.clone()
+    }
+
+    pub fn text(&self) -> String {
+        self.text.clone()
     }
 
     pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
