@@ -22,7 +22,7 @@ coinstr-core = { path = "../coinstr-core" }
 fern = { version = "0.6", default-features = false }
 futures-util = "0.3"
 log = "0.4"
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "8261bff952bcb7f58926422dd8e03e04cc80d1a5", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "c962316659345e679a4b8df525958583b75d827d", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
 parking_lot = "0.12"
 r2d2 = "0.8"
 r2d2_sqlite = "0.21"
