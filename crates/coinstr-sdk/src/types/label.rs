@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::str::FromStr;
+
 use coinstr_core::bitcoin::{Address, OutPoint};
 use coinstr_core::crypto::hash;
 use coinstr_core::util::{Encryption, Serde};
@@ -14,6 +16,8 @@ use crate::util::encryption::EncryptionWithKeys;
 pub enum Error {
     #[error(transparent)]
     Keys(#[from] nostr_sdk::key::Error),
+    #[error("invalid label kind")]
+    InvalidLabelKind,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,6 +25,19 @@ pub enum Error {
 pub enum LabelKind {
     Address(Address),
     Utxo(OutPoint),
+}
+
+impl FromStr for LabelKind {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match Address::from_str(s) {
+            Ok(address) => Ok(Self::Address(address)),
+            Err(_) => match OutPoint::from_str(s) {
+                Ok(utxo) => Ok(Self::Utxo(utxo)),
+                Err(_) => Err(Error::InvalidLabelKind),
+            },
+        }
+    }
 }
 
 impl LabelKind {
@@ -42,24 +59,28 @@ pub struct Label {
 }
 
 impl Label {
-    pub fn address<S>(address: Address, label: S) -> Self
+    pub fn new<S>(kind: LabelKind, text: S) -> Self
     where
         S: Into<String>,
     {
         Self {
-            kind: LabelKind::Address(address),
-            text: label.into(),
+            kind,
+            text: text.into(),
         }
     }
 
-    pub fn utxo<S>(utxo: OutPoint, label: S) -> Self
+    pub fn address<S>(address: Address, text: S) -> Self
     where
         S: Into<String>,
     {
-        Self {
-            kind: LabelKind::Utxo(utxo),
-            text: label.into(),
-        }
+        Self::new(LabelKind::Address(address), text)
+    }
+
+    pub fn utxo<S>(utxo: OutPoint, text: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::new(LabelKind::Utxo(utxo), text)
     }
 
     pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
