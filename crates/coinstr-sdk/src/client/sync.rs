@@ -22,9 +22,10 @@ use tokio::sync::broadcast::Receiver;
 
 use super::{Coinstr, Error, Message};
 use crate::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
-    SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
+    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
+use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 use crate::{util, Notification};
 
@@ -129,6 +130,7 @@ impl Coinstr {
             SHARED_KEY_KIND,
             SIGNERS_KIND,
             SHARED_SIGNERS_KIND,
+            LABELS_KIND,
             Kind::EventDeletion,
         ]);
 
@@ -391,6 +393,21 @@ impl Coinstr {
                 };
                 self.db.save_notification(event.id, notification)?;
                 return Ok(Some(Message::Notification(notification)));
+            }
+        } else if event.kind == LABELS_KIND {
+            if let Some(policy_id) = util::extract_first_event_id(&event) {
+                if let Some(identifier) = util::extract_first_identifier(&event) {
+                    if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
+                        let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
+                        self.db.save_label(identifier, policy_id, label)?;
+                    } else {
+                        self.db.save_pending_event(&event)?;
+                    }
+                } else {
+                    log::error!("Label identifier not found in event {}", event.id);
+                }
+            } else {
+                log::error!("Impossible to find policy id in proposal {}", event.id);
             }
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
