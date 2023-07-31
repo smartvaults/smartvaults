@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use coinstr_sdk::core::bdk::LocalUtxo;
 use coinstr_sdk::core::bitcoin::OutPoint;
+use coinstr_sdk::db::model::GetUtxo;
 use coinstr_sdk::util::format;
 use iced::widget::{Column, Row};
 use iced::{Alignment, Element, Length, Renderer};
@@ -20,14 +21,14 @@ pub enum Event {
 }
 
 pub struct UtxoSelector {
-    utxos: Vec<LocalUtxo>,
+    utxos: Vec<GetUtxo>,
     selected_utxos: HashSet<OutPoint>,
     on_select: Box<dyn Fn(HashSet<OutPoint>) -> Message>,
 }
 
 impl UtxoSelector {
     pub fn new(
-        utxos: Vec<LocalUtxo>,
+        utxos: Vec<GetUtxo>,
         selected_utxos: HashSet<OutPoint>,
         on_select: impl Fn(HashSet<OutPoint>) -> Message + 'static,
     ) -> Self {
@@ -90,10 +91,10 @@ impl Component<Message, Renderer> for UtxoSelector {
             )
             .push(rule::horizontal_bold());
 
-        for LocalUtxo {
-            outpoint, txout, ..
-        } in self.utxos.iter()
-        {
+        for GetUtxo { utxo, label } in self.utxos.iter() {
+            let LocalUtxo {
+                outpoint, txout, ..
+            } = utxo;
             let selected: bool = self.selected_utxos.contains(outpoint);
             let txid: String = outpoint.txid.to_string();
             content = content
@@ -114,7 +115,11 @@ impl Component<Message, Renderer> for UtxoSelector {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(Text::new("-").width(Length::Fill).view())
+                        .push(
+                            Text::new(label.clone().unwrap_or_else(|| String::from("-")))
+                                .width(Length::Fill)
+                                .view(),
+                        )
                         .push(
                             Button::new()
                                 .text(if selected { "Selected" } else { "Select" })

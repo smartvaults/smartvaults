@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use bdk::bitcoin::XOnlyPublicKey;
-use bdk::Balance;
+use bdk::{Balance, LocalUtxo};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::nips::nip46::Message;
@@ -78,4 +78,10 @@ pub struct GetCompletedProposal {
     pub policy_id: EventId,
     pub completed_proposal_id: EventId,
     pub proposal: CompletedProposal,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetUtxo {
+    pub utxo: LocalUtxo,
+    pub label: Option<String>,
 }

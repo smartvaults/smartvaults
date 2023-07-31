@@ -18,7 +18,7 @@ use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::wallet::AddressIndex;
-use bdk::{Balance, LocalUtxo, TransactionDetails, Wallet};
+use bdk::{Balance, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
@@ -48,7 +48,7 @@ use crate::constants::{
 use crate::db::model::{
     GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
     GetDetailedPolicyResult, GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult,
-    NostrConnectRequest,
+    GetUtxo, NostrConnectRequest,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -1389,7 +1389,7 @@ impl Coinstr {
     }
 
     /// Get wallet UTXOs
-    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
+    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         Ok(self.db.get_utxos(policy_id)?)
     }
 

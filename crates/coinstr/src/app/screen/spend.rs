@@ -6,11 +6,11 @@ use std::fmt;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use coinstr_sdk::core::bdk::{Balance, LocalUtxo};
+use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::bitcoin::{Address, OutPoint};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
-use coinstr_sdk::db::model::{GetPolicy, GetProposal};
+use coinstr_sdk::db::model::{GetPolicy, GetProposal, GetUtxo};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Row, Space};
@@ -76,7 +76,7 @@ pub enum SpendMessage {
     FeeRateChanged(FeeRate),
     PolicyLoaded(
         Option<Balance>,
-        Vec<LocalUtxo>,
+        Vec<GetUtxo>,
         Option<SatisfiableItem>,
         Option<Vec<(String, Vec<String>)>>,
     ),
@@ -96,7 +96,7 @@ pub struct SpendState {
     send_all: bool,
     description: String,
     fee_rate: FeeRate,
-    utxos: Vec<LocalUtxo>,
+    utxos: Vec<GetUtxo>,
     selected_utxos: HashSet<OutPoint>,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     balance: Option<Balance>,

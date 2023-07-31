@@ -14,7 +14,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::{Address, Network, Txid};
+use bdk::bitcoin::{Address, Network, OutPoint, Txid};
 use bdk::blockchain::{ElectrumBlockchain, GetHeight};
 use bdk::database::SqliteDatabase;
 use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
@@ -44,12 +44,12 @@ mod relays;
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal, GetNotificationsResult,
-    GetPolicy, GetProposal, GetSharedSignerResult,
+    GetPolicy, GetProposal, GetSharedSignerResult, GetUtxo,
 };
 use super::Error;
 use crate::client::Message;
 use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
-use crate::types::Notification;
+use crate::types::{Label, Notification};
 use crate::util::encryption::EncryptionWithKeys;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
@@ -632,10 +632,24 @@ impl Store {
         wallet.get_address(index).ok().map(|a| a.address)
     }
 
-    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
+    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
+        // Get UTXOs
         let wallets = self.wallets.lock();
         let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        Ok(wallet.list_unspent()?)
+        let utxos: Vec<LocalUtxo> = wallet.list_unspent()?;
+        drop(wallets);
+
+        // Get labels
+        let labels: HashMap<OutPoint, Label> = self.get_utxos_labels(policy_id)?;
+
+        // Compose output
+        Ok(utxos
+            .into_iter()
+            .map(|utxo| GetUtxo {
+                label: labels.get(&utxo.outpoint).map(|l| l.text()),
+                utxo,
+            })
+            .collect())
     }
 
     pub fn get_total_balance(&self) -> Result<Balance, Error> {
