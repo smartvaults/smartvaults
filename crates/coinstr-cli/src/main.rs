@@ -148,16 +148,6 @@ async fn run() -> Result<()> {
             let file = File::open(path)?;
             let reader = BufReader::new(file);
 
-            println!("Syncing...");
-
-            loop {
-                if coinstr.is_first_sync_completed() {
-                    println!("Sync completed");
-                    break;
-                }
-                tokio::time::sleep(Duration::from_secs(3)).await;
-            }
-
             for line in reader.lines().flatten() {
                 let mut vec: Vec<String> = cli::parser::split(&line)?;
                 vec.insert(0, String::new());
