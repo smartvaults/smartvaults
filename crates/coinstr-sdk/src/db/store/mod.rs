@@ -37,6 +37,7 @@ use tokio::sync::broadcast::Sender;
 
 mod connect;
 mod contacts;
+mod label;
 mod policy;
 mod relays;
 
