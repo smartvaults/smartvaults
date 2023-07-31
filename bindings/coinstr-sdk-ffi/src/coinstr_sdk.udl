@@ -94,6 +94,7 @@ interface Utxo {
     OutPoint outpoint();
     u64 value();
     boolean is_spent();
+    string? label();
 };
 
 interface Balance {

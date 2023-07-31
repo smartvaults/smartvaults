@@ -3,8 +3,9 @@
 
 use std::sync::Arc;
 
-use coinstr_sdk::core::bdk::{self, LocalUtxo};
+use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bitcoin::{self, Address, Network};
+use coinstr_sdk::db::model::GetUtxo;
 use nostr_ffi::Timestamp;
 
 use crate::error::Result;
@@ -36,26 +37,30 @@ impl OutPoint {
 }
 
 pub struct Utxo {
-    inner: LocalUtxo,
+    inner: GetUtxo,
 }
 
-impl From<LocalUtxo> for Utxo {
-    fn from(inner: LocalUtxo) -> Self {
+impl From<GetUtxo> for Utxo {
+    fn from(inner: GetUtxo) -> Self {
         Self { inner }
     }
 }
 
 impl Utxo {
     pub fn outpoint(&self) -> Arc<OutPoint> {
-        Arc::new(self.inner.outpoint.into())
+        Arc::new(self.inner.utxo.outpoint.into())
     }
 
     pub fn value(&self) -> u64 {
-        self.inner.txout.value
+        self.inner.utxo.txout.value
     }
 
     pub fn is_spent(&self) -> bool {
-        self.inner.is_spent
+        self.inner.utxo.is_spent
+    }
+
+    pub fn label(&self) -> Option<String> {
+        self.inner.label.clone()
     }
 }
 
