@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::fmt;
 use std::str::FromStr;
 
 use coinstr_core::bitcoin::{Address, OutPoint};
@@ -16,8 +17,34 @@ use crate::util::encryption::EncryptionWithKeys;
 pub enum Error {
     #[error(transparent)]
     Keys(#[from] nostr_sdk::key::Error),
-    #[error("invalid label kind")]
-    InvalidLabelKind,
+    #[error("unknown label kind")]
+    UnknownLabelKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LabelKey {
+    Address,
+    Utxo,
+}
+
+impl fmt::Display for LabelKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Address => write!(f, "address"),
+            Self::Utxo => write!(f, "utxo"),
+        }
+    }
+}
+
+impl FromStr for LabelKey {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "address" => Ok(Self::Address),
+            "utxo" => Ok(Self::Utxo),
+            _ => Err(Error::UnknownLabelKind),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,7 +61,7 @@ impl FromStr for LabelKind {
             Ok(address) => Ok(Self::Address(address)),
             Err(_) => match OutPoint::from_str(s) {
                 Ok(utxo) => Ok(Self::Utxo(utxo)),
-                Err(_) => Err(Error::InvalidLabelKind),
+                Err(_) => Err(Error::UnknownLabelKind),
             },
         }
     }
@@ -51,10 +78,10 @@ impl LabelKind {
         Ok(hash[..32].to_string())
     }
 
-    pub fn type_string(&self) -> String {
+    pub fn key(&self) -> LabelKey {
         match self {
-            Self::Address(..) => String::from("address"),
-            Self::Utxo(..) => String::from("utxo"),
+            Self::Address(..) => LabelKey::Address,
+            Self::Utxo(..) => LabelKey::Utxo,
         }
     }
 }

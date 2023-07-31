@@ -7,6 +7,7 @@ use bdk::bitcoin::{Address, OutPoint};
 use nostr_sdk::EventId;
 
 use super::{Error, Store};
+use crate::types::label::LabelKey;
 use crate::types::{Label, LabelKind};
 use crate::util::encryption::EncryptionWithKeys;
 
@@ -18,14 +19,14 @@ impl Store {
         label: Label,
     ) -> Result<(), Error> {
         let conn = self.pool.get()?;
-        let type_string: String = label.kind().type_string();
+        let key: LabelKey = label.kind().key();
         let label: String = label.encrypt_with_keys(&self.keys)?;
         conn.execute(
-            "INSERT INTO labels (id, policy_id, type, label) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET label = ?;",
+            "INSERT INTO labels (id, policy_id, key, label) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET label = ?;",
             (
                 identifier,
                 policy_id.to_hex(),
-                type_string,
+                key.to_string(),
                 label.clone(),
                 label,
             ),
@@ -39,8 +40,8 @@ impl Store {
     ) -> Result<HashMap<Address, Label>, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
-            conn.prepare_cached("SELECT id, label FROM labels WHERE policy_id = ? AND type = ?;")?;
-        let mut rows = stmt.query((policy_id.to_hex(), "address"))?;
+            conn.prepare_cached("SELECT id, label FROM labels WHERE policy_id = ? AND key = ?;")?;
+        let mut rows = stmt.query((policy_id.to_hex(), LabelKey::Address.to_string()))?;
         let mut labels = HashMap::new();
         while let Ok(Some(row)) = rows.next() {
             let label: String = row.get(0)?;
@@ -55,8 +56,8 @@ impl Store {
     pub fn get_utxos_labels(&self, policy_id: EventId) -> Result<HashMap<OutPoint, Label>, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
-            conn.prepare_cached("SELECT label FROM labels WHERE policy_id = ? AND type = ?;")?;
-        let mut rows = stmt.query((policy_id.to_hex(), "utxo"))?;
+            conn.prepare_cached("SELECT label FROM labels WHERE policy_id = ? AND key = ?;")?;
+        let mut rows = stmt.query((policy_id.to_hex(), LabelKey::Utxo.to_string()))?;
         let mut labels = HashMap::new();
         while let Ok(Some(row)) = rows.next() {
             let label: String = row.get(0)?;
