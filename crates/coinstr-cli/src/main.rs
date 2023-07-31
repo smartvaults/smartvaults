@@ -17,6 +17,7 @@ use coinstr_sdk::core::types::Priority;
 use coinstr_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
 use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::Metadata;
+use coinstr_sdk::types::Label;
 use coinstr_sdk::util::format;
 use coinstr_sdk::{logger, Coinstr};
 use rustyline::error::ReadlineError;
@@ -491,6 +492,16 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     println!("No metadata passed with args! If you want to set empty metadata, use --empty flag");
                 }
 
+                Ok(())
+            }
+            SetCommand::Label {
+                policy_id,
+                kind,
+                text,
+            } => {
+                let label = Label::new(kind, text);
+                let event_id = coinstr.save_label(policy_id, label).await?;
+                println!("Label saved at event {event_id}");
                 Ok(())
             }
         },
