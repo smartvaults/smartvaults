@@ -12,7 +12,7 @@ use coinstr_sdk::core::bips::bip32::Fingerprint;
 use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_sdk::nostr::prelude::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Url};
-use coinstr_sdk::types::LabelKind;
+use coinstr_sdk::types::LabelData;
 
 pub mod batch;
 pub mod io;
@@ -408,7 +408,7 @@ pub enum SetCommand {
         policy_id: EventId,
         /// Address, UTXO, ...
         #[arg(required = true)]
-        kind: LabelKind,
+        data: LabelData,
         /// Label
         #[arg(required = true)]
         text: String,

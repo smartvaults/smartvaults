@@ -497,10 +497,10 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             SetCommand::Label {
                 policy_id,
-                kind,
+                data,
                 text,
             } => {
-                let label = Label::new(kind, text);
+                let label = Label::new(data, text);
                 let event_id = coinstr.save_label(policy_id, label).await?;
                 println!("Label saved at event {event_id}");
                 Ok(())

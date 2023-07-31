@@ -19,15 +19,17 @@ pub enum Error {
     Keys(#[from] nostr_sdk::key::Error),
     #[error("unknown label kind")]
     UnknownLabelKind,
+    #[error("unknown label data")]
+    UnknownLabelData,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LabelKey {
+pub enum LabelKind {
     Address,
     Utxo,
 }
 
-impl fmt::Display for LabelKey {
+impl fmt::Display for LabelKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Address => write!(f, "address"),
@@ -36,7 +38,7 @@ impl fmt::Display for LabelKey {
     }
 }
 
-impl FromStr for LabelKey {
+impl FromStr for LabelKind {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -49,12 +51,12 @@ impl FromStr for LabelKey {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum LabelKind {
+pub enum LabelData {
     Address(Address),
     Utxo(OutPoint),
 }
 
-impl FromStr for LabelKind {
+impl FromStr for LabelData {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match Address::from_str(s) {
@@ -67,7 +69,7 @@ impl FromStr for LabelKind {
     }
 }
 
-impl LabelKind {
+impl LabelData {
     pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
         let data = match self {
             Self::Address(addr) => addr.to_string(),
@@ -78,27 +80,27 @@ impl LabelKind {
         Ok(hash[..32].to_string())
     }
 
-    pub fn key(&self) -> LabelKey {
+    pub fn kind(&self) -> LabelKind {
         match self {
-            Self::Address(..) => LabelKey::Address,
-            Self::Utxo(..) => LabelKey::Utxo,
+            Self::Address(..) => LabelKind::Address,
+            Self::Utxo(..) => LabelKind::Utxo,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label {
-    kind: LabelKind,
+    data: LabelData,
     text: String,
 }
 
 impl Label {
-    pub fn new<S>(kind: LabelKind, text: S) -> Self
+    pub fn new<S>(data: LabelData, text: S) -> Self
     where
         S: Into<String>,
     {
         Self {
-            kind,
+            data,
             text: text.into(),
         }
     }
@@ -107,18 +109,22 @@ impl Label {
     where
         S: Into<String>,
     {
-        Self::new(LabelKind::Address(address), text)
+        Self::new(LabelData::Address(address), text)
     }
 
     pub fn utxo<S>(utxo: OutPoint, text: S) -> Self
     where
         S: Into<String>,
     {
-        Self::new(LabelKind::Utxo(utxo), text)
+        Self::new(LabelData::Utxo(utxo), text)
     }
 
     pub fn kind(&self) -> LabelKind {
-        self.kind.clone()
+        self.data.kind()
+    }
+
+    pub fn data(&self) -> LabelData {
+        self.data.clone()
     }
 
     pub fn text(&self) -> String {
@@ -126,7 +132,7 @@ impl Label {
     }
 
     pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
-        self.kind.generate_identifier(shared_key)
+        self.data.generate_identifier(shared_key)
     }
 }
 
@@ -155,7 +161,7 @@ mod test {
                 .unwrap();
         let utxo = OutPoint::new(txid, 0);
         assert_eq!(
-            LabelKind::Utxo(utxo)
+            LabelData::Utxo(utxo)
                 .generate_identifier(&shared_key)
                 .unwrap(),
             String::from("2666dc6af5686c709f757a6d31f0f394")
@@ -163,7 +169,7 @@ mod test {
 
         let address = Address::from_str("bc1qzqhj36c0ctkty36eqdac9q0gv9lrmnanyff0sn").unwrap();
         assert_eq!(
-            LabelKind::Address(address)
+            LabelData::Address(address)
                 .generate_identifier(&shared_key)
                 .unwrap(),
             String::from("f225b2d56e21560d31ef180f5ff144c2")
