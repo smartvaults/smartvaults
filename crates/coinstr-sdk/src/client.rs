@@ -18,6 +18,7 @@ use bdk::database::SqliteDatabase;
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
+use bdk::wallet::AddressIndex;
 use bdk::{Balance, LocalUtxo, TransactionDetails, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
@@ -1837,8 +1838,12 @@ impl Coinstr {
         self.db.get_txs_with_descriptions(policy_id)
     }
 
+    pub fn get_address(&self, policy_id: EventId, index: AddressIndex) -> Option<Address> {
+        self.db.get_address(policy_id, index)
+    }
+
     pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
-        self.db.get_last_unused_address(policy_id)
+        self.get_address(policy_id, AddressIndex::LastUnused)
     }
 
     /// Get wallet UTXOs

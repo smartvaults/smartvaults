@@ -625,13 +625,10 @@ impl Store {
         })
     }
 
-    pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
+    pub fn get_address(&self, policy_id: EventId, index: AddressIndex) -> Option<Address> {
         let wallets = self.wallets.lock();
         let wallet = wallets.get(&policy_id)?;
-        wallet
-            .get_address(AddressIndex::LastUnused)
-            .ok()
-            .map(|a| a.address)
+        wallet.get_address(index).ok().map(|a| a.address)
     }
 
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
