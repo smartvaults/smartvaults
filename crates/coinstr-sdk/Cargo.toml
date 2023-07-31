@@ -25,7 +25,7 @@ log = "0.4"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "c962316659345e679a4b8df525958583b75d827d", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
 parking_lot = "0.12"
 r2d2 = "0.8"
-r2d2_sqlite = "0.21"
+r2d2_sqlite = "0.22"
 rusqlite = { version = "0.28", features = ["bundled", "serde_json", "url"] }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
