@@ -10,7 +10,7 @@ use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 
 impl Coinstr {
-    pub async fn save_label(&self, policy_id: EventId, label: Label) -> Result<(), Error> {
+    pub async fn save_label(&self, policy_id: EventId, label: Label) -> Result<EventId, Error> {
         let shared_key: Keys = self.db.get_shared_key(policy_id)?;
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
 
@@ -28,11 +28,11 @@ impl Coinstr {
         let event: Event = EventBuilder::new(LABELS_KIND, content, &tags).to_event(&shared_key)?;
 
         // Publish event
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
 
         // Save to db
         self.db.save_label(identifier, policy_id, label)?;
 
-        Ok(())
+        Ok(event_id)
     }
 }
