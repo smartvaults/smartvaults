@@ -15,6 +15,7 @@ pub mod util;
 
 pub use self::policy::Policy;
 pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
+pub use self::signer::{SharedSigner, Signer, SignerType};
 pub use self::types::{Amount, FeeRate, Priority};
 
 #[cfg(test)]
