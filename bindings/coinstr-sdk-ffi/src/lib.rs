@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 mod abortable;
+mod address;
 mod amount;
 mod approval;
 mod balance;
@@ -42,6 +43,7 @@ mod ffi {
 
     // Coinstr
     pub use crate::abortable::AbortHandle;
+    pub use crate::address::AddressIndex;
     pub use crate::amount::Amount;
     pub use crate::approval::Approval;
     pub use crate::balance::Balance;

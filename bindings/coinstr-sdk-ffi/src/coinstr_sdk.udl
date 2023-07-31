@@ -116,6 +116,14 @@ interface BlockTime {
   Timestamp timestamp();
 };
 
+[Enum]
+interface AddressIndex {
+  New();
+  LastUnused();
+  Peek(u32 index);
+  Reset(u32 index);
+};
+
 interface KeychainSeed {
     string mnemonic();
     string? passphrase();
@@ -354,6 +362,8 @@ interface Coinstr {
     sequence<TransactionDetails> get_all_txs();
     [Throws=FFIError]
     TransactionDetails? get_tx(string txid);
+    [Throws=FFIError]
+    string? get_address(string policy_id, AddressIndex index);
     [Throws=FFIError]
     string? get_last_unused_address(string policy_id);
 

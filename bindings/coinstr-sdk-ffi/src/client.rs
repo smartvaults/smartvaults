@@ -19,9 +19,9 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    AbortHandle, Amount, Approval, Balance, CompletedProposal, Config, GetCompletedProposal,
-    GetPolicy, GetProposal, KeychainSeed, Metadata, NostrConnectRequest, NostrConnectSession,
-    NostrConnectURI, OutPoint, Relay, Signer, TransactionDetails, Utxo,
+    AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config,
+    GetCompletedProposal, GetPolicy, GetProposal, KeychainSeed, Metadata, NostrConnectRequest,
+    NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer, TransactionDetails, Utxo,
 };
 
 pub struct Coinstr {
@@ -520,6 +520,14 @@ impl Coinstr {
     pub fn get_tx(&self, txid: String) -> Result<Option<Arc<TransactionDetails>>> {
         let txid = Txid::from_str(&txid)?;
         Ok(self.inner.get_tx(txid).map(|(tx, ..)| Arc::new(tx.into())))
+    }
+
+    pub fn get_address(&self, policy_id: String, index: AddressIndex) -> Result<Option<String>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        Ok(self
+            .inner
+            .get_address(policy_id, index.into())
+            .map(|a| a.to_string()))
     }
 
     pub fn get_last_unused_address(&self, policy_id: String) -> Result<Option<String>> {
