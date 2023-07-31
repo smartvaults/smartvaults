@@ -162,25 +162,11 @@ pub struct Coinstr {
 }
 
 impl Coinstr {
-    /// Open keychain
-    pub async fn open<P, S, PSW>(
-        base_path: P,
-        name: S,
-        get_password: PSW,
-        network: Network,
-    ) -> Result<Self, Error>
+    async fn new<P>(base_path: P, keechain: KeeChain, network: Network) -> Result<Self, Error>
     where
         P: AsRef<Path>,
-        S: Into<String>,
-        PSW: FnOnce() -> Result<String>,
     {
         let base_path = base_path.as_ref();
-
-        // Open keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
-        let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
-        let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
-        keechain.keychain.apply_passphrase(passphrase);
 
         // Get nostr keys
         let keys = Keys::from_mnemonic(
@@ -219,6 +205,29 @@ impl Coinstr {
         this.init().await?;
 
         Ok(this)
+    }
+
+    /// Open keychain
+    pub async fn open<P, S, PSW>(
+        base_path: P,
+        name: S,
+        get_password: PSW,
+        network: Network,
+    ) -> Result<Self, Error>
+    where
+        P: AsRef<Path>,
+        S: Into<String>,
+        PSW: FnOnce() -> Result<String>,
+    {
+        let base_path = base_path.as_ref();
+
+        // Open keychain
+        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
+        let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
+        let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
+        keechain.keychain.apply_passphrase(passphrase);
+
+        Self::new(base_path, keechain, network).await
     }
 
     /// Generate keychain
@@ -250,43 +259,7 @@ impl Coinstr {
             keechain.keychain.apply_passphrase(Some(passphrase));
         }
 
-        // Get nostr keys
-        let keys = Keys::from_mnemonic(
-            keechain.keychain.seed.mnemonic().to_string(),
-            keechain.keychain.seed.passphrase(),
-        )?;
-
-        // Open db
-        let db = Store::open(
-            util::dir::user_db(base_path, network, keys.public_key())?,
-            util::dir::timechain_db(base_path, network)?,
-            &keys,
-            network,
-        )?;
-
-        // Load wallets
-        db.load_wallets()?;
-
-        let opts = Options::new()
-            .wait_for_connection(false)
-            .wait_for_send(false)
-            .wait_for_subscription(false);
-
-        let (sender, _) = broadcast::channel::<Option<Message>>(1024);
-
-        let this = Self {
-            network,
-            keechain,
-            client: Client::with_opts(&keys, opts),
-            config: Config::try_from_file(base_path, network)?,
-            db,
-            syncing: Arc::new(AtomicBool::new(false)),
-            sync_channel: sender,
-        };
-
-        this.init().await?;
-
-        Ok(this)
+        Self::new(base_path, keechain, network).await
     }
 
     /// Restore keychain
@@ -318,43 +291,7 @@ impl Coinstr {
             keechain.keychain.apply_passphrase(Some(passphrase));
         }
 
-        // Get nostr keys
-        let keys = Keys::from_mnemonic(
-            keechain.keychain.seed.mnemonic().to_string(),
-            keechain.keychain.seed.passphrase(),
-        )?;
-
-        // Open db
-        let db = Store::open(
-            util::dir::user_db(base_path, network, keys.public_key())?,
-            util::dir::timechain_db(base_path, network)?,
-            &keys,
-            network,
-        )?;
-
-        // Load wallets
-        db.load_wallets()?;
-
-        let opts = Options::new()
-            .wait_for_connection(false)
-            .wait_for_send(false)
-            .wait_for_subscription(false);
-
-        let (sender, _) = broadcast::channel::<Option<Message>>(1024);
-
-        let this = Self {
-            network,
-            keechain,
-            client: Client::with_opts(&keys, opts),
-            config: Config::try_from_file(base_path, network)?,
-            db,
-            syncing: Arc::new(AtomicBool::new(false)),
-            sync_channel: sender,
-        };
-
-        this.init().await?;
-
-        Ok(this)
+        Self::new(base_path, keechain, network).await
     }
 
     pub fn list_keychains<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
