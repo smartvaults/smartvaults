@@ -16,7 +16,9 @@ use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
-use coinstr_sdk::db::model::{GetCompletedProposal, GetPolicy, GetProposal, NostrConnectRequest};
+use coinstr_sdk::db::model::{
+    GetCompletedProposal, GetPolicy, GetProposal, GetUtxo, NostrConnectRequest,
+};
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
 use coinstr_sdk::util::{self, format};
@@ -118,6 +120,7 @@ pub fn print_policy(
     balance: Option<Balance>,
     address: Option<Address>,
     txs: Vec<TransactionDetails>,
+    utxos: Vec<GetUtxo>,
 ) {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
     println!("- ID: {policy_id}");
@@ -166,6 +169,13 @@ pub fn print_policy(
         );
         print_txs(txs, 10);
     }
+
+    println!();
+
+    if !utxos.is_empty() {
+        println!("{}", "Latest 10 UTXOs".fg::<BlazeOrange>().underline());
+        print_utxos(utxos, 10);
+    }
 }
 
 pub fn print_txs(txs: Vec<TransactionDetails>, limit: usize) {
@@ -194,6 +204,23 @@ pub fn print_txs(txs: Vec<TransactionDetails>, limit: usize) {
             tx.confirmation_time
                 .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
                 .unwrap_or_else(|| String::from("pending"))
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_utxos(utxos: Vec<GetUtxo>, limit: usize) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "UTXO", "Value", "Label"]);
+
+    for (index, GetUtxo { utxo, label }) in utxos.into_iter().take(limit).enumerate() {
+        table.add_row(row![
+            index + 1,
+            utxo.outpoint.to_string(),
+            format!("{} sat", format::number(utxo.txout.value)),
+            label.unwrap_or_else(|| String::from("-"))
         ]);
     }
 
