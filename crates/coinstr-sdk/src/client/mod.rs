@@ -41,6 +41,8 @@ use nostr_sdk::{
 };
 use tokio::sync::broadcast::{self, Receiver, Sender};
 
+mod label;
+
 use crate::config::Config;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND,
@@ -107,6 +109,8 @@ pub enum Error {
     Config(#[from] crate::config::Error),
     #[error(transparent)]
     Store(#[from] crate::db::Error),
+    #[error(transparent)]
+    Label(#[from] crate::types::label::Error),
     #[error("password not match")]
     PasswordNotMatch,
     #[error("not enough public keys")]

@@ -24,13 +24,12 @@ pub enum LabelKind {
 }
 
 impl LabelKind {
-    pub fn generate_identifier(&self, shared_keys: &Keys) -> Result<String, Error> {
+    pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
         let data = match self {
             Self::Address(addr) => addr.to_string(),
             Self::Utxo(utxo) => utxo.to_string(),
         };
-        let unhashed_identifier =
-            format!("{}:{}", shared_keys.secret_key()?.display_secret(), data);
+        let unhashed_identifier = format!("{}:{}", shared_key.secret_key()?.display_secret(), data);
         let hash = hash::sha256(unhashed_identifier).to_string();
         Ok(hash[..32].to_string())
     }
@@ -40,6 +39,32 @@ impl LabelKind {
 pub struct Label {
     kind: LabelKind,
     text: String,
+}
+
+impl Label {
+    pub fn address<S>(address: Address, label: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            kind: LabelKind::Address(address),
+            text: label.into(),
+        }
+    }
+
+    pub fn utxo<S>(utxo: OutPoint, label: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self {
+            kind: LabelKind::Utxo(utxo),
+            text: label.into(),
+        }
+    }
+
+    pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
+        self.kind.generate_identifier(shared_key)
+    }
 }
 
 impl Serde for Label {}
@@ -60,7 +85,7 @@ mod test {
         let secret_key =
             SecretKey::from_str("151319b71ef19352fea2540b756771ffe8679d5d846ee7eae004829d8a9bf718")
                 .unwrap();
-        let shared_keys = Keys::new(secret_key);
+        let shared_key = Keys::new(secret_key);
 
         let txid =
             Txid::from_str("3faa6bff53689b9763ed77fc693831a14030977f0ea79411b1132d27135eb1a9")
@@ -68,7 +93,7 @@ mod test {
         let utxo = OutPoint::new(txid, 0);
         assert_eq!(
             LabelKind::Utxo(utxo)
-                .generate_identifier(&shared_keys)
+                .generate_identifier(&shared_key)
                 .unwrap(),
             String::from("2666dc6af5686c709f757a6d31f0f394")
         );
@@ -76,7 +101,7 @@ mod test {
         let address = Address::from_str("bc1qzqhj36c0ctkty36eqdac9q0gv9lrmnanyff0sn").unwrap();
         assert_eq!(
             LabelKind::Address(address)
-                .generate_identifier(&shared_keys)
+                .generate_identifier(&shared_key)
                 .unwrap(),
             String::from("f225b2d56e21560d31ef180f5ff144c2")
         );
