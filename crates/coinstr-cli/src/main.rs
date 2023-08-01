@@ -474,6 +474,12 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 util::print_relays(relays).await;
                 Ok(())
             }
+            GetCommand::Addresses { policy_id } => {
+                let addresses = coinstr.get_addresses(policy_id)?;
+                let balances = coinstr.get_addresses_balances(policy_id)?;
+                util::print_addresses(addresses, balances);
+                Ok(())
+            }
         },
         Command::Set { command } => match command {
             SetCommand::Metadata {

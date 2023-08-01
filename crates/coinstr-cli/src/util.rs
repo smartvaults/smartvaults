@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use coinstr_sdk::core::bdk::database::MemoryDatabase;
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
@@ -9,7 +9,7 @@ use coinstr_sdk::core::bdk::wallet::AddressIndex;
 use coinstr_sdk::core::bdk::{Balance, TransactionDetails, Wallet};
 use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
-use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::bitcoin::{Network, Script};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::signer::Signer;
@@ -502,6 +502,31 @@ pub async fn print_relays(relays: BTreeMap<Url, Relay>) {
             } else {
                 stats.connected_at().to_human_datetime()
             }
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_addresses(addresses: Vec<GetAddress>, balances: HashMap<Script, u64>) {
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "Address", "Label", "Balance"]);
+
+    for (index, GetAddress { address, label }) in addresses.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            address.to_string(),
+            label.unwrap_or_else(|| String::from("-")),
+            format!(
+                "{} sat",
+                format::number(
+                    balances
+                        .get(&address.script_pubkey())
+                        .copied()
+                        .unwrap_or_default()
+                )
+            )
         ]);
     }
 

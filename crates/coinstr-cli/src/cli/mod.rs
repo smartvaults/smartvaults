@@ -382,6 +382,12 @@ pub enum GetCommand {
     Signers,
     /// Get relays
     Relays,
+    /// Get addresses
+    Addresses {
+        /// Policy id
+        #[arg(required = true)]
+        policy_id: EventId,
+    },
 }
 
 #[derive(Debug, Subcommand)]
