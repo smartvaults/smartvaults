@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use bdk::bitcoin::{Address, OutPoint};
+use bdk::bitcoin::{OutPoint, Script};
 use nostr_sdk::EventId;
 
 use super::{Error, Store};
@@ -36,7 +36,7 @@ impl Store {
     pub fn get_addresses_labels(
         &self,
         policy_id: EventId,
-    ) -> Result<HashMap<Address, Label>, Error> {
+    ) -> Result<HashMap<Script, Label>, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
             conn.prepare_cached("SELECT id, label FROM labels WHERE policy_id = ? AND kind = ?;")?;
@@ -46,7 +46,7 @@ impl Store {
             let label: String = row.get(0)?;
             let label = Label::decrypt_with_keys(&self.keys, label)?;
             if let LabelData::Address(addr) = label.data() {
-                labels.insert(addr, label);
+                labels.insert(addr.script_pubkey(), label);
             };
         }
         Ok(labels)

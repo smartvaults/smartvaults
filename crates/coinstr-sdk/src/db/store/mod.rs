@@ -14,7 +14,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::{Address, Network, OutPoint, Txid};
+use bdk::bitcoin::{Address, Network, OutPoint, Script, Txid};
 use bdk::blockchain::{ElectrumBlockchain, GetHeight};
 use bdk::database::SqliteDatabase;
 use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
@@ -640,13 +640,17 @@ impl Store {
         drop(wallets);
 
         // Get labels
-        let labels: HashMap<OutPoint, Label> = self.get_utxos_labels(policy_id)?;
+        let script_labels: HashMap<Script, Label> = self.get_addresses_labels(policy_id)?;
+        let utxo_labels: HashMap<OutPoint, Label> = self.get_utxos_labels(policy_id)?;
 
         // Compose output
         Ok(utxos
             .into_iter()
             .map(|utxo| GetUtxo {
-                label: labels.get(&utxo.outpoint).map(|l| l.text()),
+                label: utxo_labels
+                    .get(&utxo.outpoint)
+                    .or_else(|| script_labels.get(&utxo.txout.script_pubkey))
+                    .map(|l| l.text()),
                 utxo,
             })
             .collect())
