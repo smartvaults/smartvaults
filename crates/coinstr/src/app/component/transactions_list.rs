@@ -154,7 +154,7 @@ impl TransactionsList {
                         } else {
                             tx.confirmation_time
                                 .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
-                                .unwrap_or_default()
+                                .unwrap_or_else(|| String::from("Pending"))
                         })
                         .width(Length::Fixed(225.0))
                         .view(),
