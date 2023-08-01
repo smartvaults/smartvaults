@@ -39,7 +39,7 @@ impl Store {
     ) -> Result<HashMap<Script, Label>, Error> {
         let conn = self.pool.get()?;
         let mut stmt =
-            conn.prepare_cached("SELECT id, label FROM labels WHERE policy_id = ? AND kind = ?;")?;
+            conn.prepare_cached("SELECT label FROM labels WHERE policy_id = ? AND kind = ?;")?;
         let mut rows = stmt.query((policy_id.to_hex(), LabelKind::Address.to_string()))?;
         let mut labels = HashMap::new();
         while let Ok(Some(row)) = rows.next() {
