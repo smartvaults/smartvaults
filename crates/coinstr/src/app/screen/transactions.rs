@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::db::model::GetTransaction;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Space};
@@ -13,7 +13,7 @@ use crate::component::Text;
 
 #[derive(Debug, Clone)]
 pub enum TransactionsMessage {
-    LoadTxs(Transactions),
+    LoadTxs(Vec<GetTransaction>),
     Reload,
 }
 
@@ -22,7 +22,7 @@ pub struct TransactionsState {
     loading: bool,
     loaded: bool,
     policy_id: Option<EventId>,
-    transactions: Transactions,
+    transactions: Vec<GetTransaction>,
 }
 
 impl TransactionsState {
@@ -48,7 +48,7 @@ impl State for TransactionsState {
         Command::perform(
             async move {
                 match policy_id {
-                    Some(policy_id) => client.get_txs_with_descriptions(policy_id),
+                    Some(policy_id) => client.get_txs(policy_id).ok(),
                     None => client.get_all_transactions().ok(),
                 }
             },
@@ -93,7 +93,7 @@ impl State for TransactionsState {
             content = content
                 .push(Text::new(title).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(40.0)))
-                .push(TransactionsList::new(Some(self.transactions.clone())).view(ctx));
+                .push(TransactionsList::new(self.transactions.clone()).view(ctx));
         }
 
         Dashboard::new()

@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use coinstr_sdk::core::bdk::database::MemoryDatabase;
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
 use coinstr_sdk::core::bdk::wallet::AddressIndex;
-use coinstr_sdk::core::bdk::{Balance, TransactionDetails, Wallet};
+use coinstr_sdk::core::bdk::{Balance, Wallet};
 use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_sdk::core::bitcoin::{Network, Script};
@@ -16,7 +16,8 @@ use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
 use coinstr_sdk::db::model::{
-    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetUtxo, NostrConnectRequest,
+    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    NostrConnectRequest,
 };
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
@@ -118,7 +119,7 @@ pub fn print_policy(
     item: SatisfiableItem,
     balance: Option<Balance>,
     address: GetAddress,
-    txs: Vec<TransactionDetails>,
+    txs: Vec<GetTransaction>,
     utxos: Vec<GetUtxo>,
 ) {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
@@ -175,12 +176,20 @@ pub fn print_policy(
     }
 }
 
-pub fn print_txs(txs: Vec<TransactionDetails>, limit: usize) {
+pub fn print_txs(txs: Vec<GetTransaction>, limit: usize) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "Txid", "Sent", "Received", "Total", "Date/Time"]);
+    table.set_titles(row![
+        "#",
+        "Txid",
+        "Sent",
+        "Received",
+        "Total",
+        "Label",
+        "Date/Time"
+    ]);
 
-    for (index, tx) in txs.into_iter().take(limit).enumerate() {
+    for (index, GetTransaction { tx, label, .. }) in txs.into_iter().take(limit).enumerate() {
         let (total, positive): (u64, bool) = {
             let received: i64 = tx.received as i64;
             let sent: i64 = tx.sent as i64;
@@ -198,6 +207,7 @@ pub fn print_txs(txs: Vec<TransactionDetails>, limit: usize) {
                 if positive { "+" } else { "-" },
                 format::number(total)
             ),
+            label.unwrap_or_else(|| String::from("-")),
             tx.confirmation_time
                 .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
                 .unwrap_or_else(|| String::from("pending"))

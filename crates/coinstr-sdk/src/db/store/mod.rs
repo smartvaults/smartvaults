@@ -21,7 +21,6 @@ use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, S
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::AddressIndex;
 use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
-use coinstr_core::policy::Policy;
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::util::serde::Serde;
@@ -44,7 +43,7 @@ mod relays;
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetAddress, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
-    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult, GetUtxo,
+    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult, GetTransaction, GetUtxo,
 };
 use super::Error;
 use crate::client::Message;
@@ -54,7 +53,6 @@ use crate::util::encryption::EncryptionWithKeys;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
 pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
-pub type Transactions = Vec<(TransactionDetails, Option<String>)>;
 
 #[derive(Debug, Clone, Default)]
 pub struct BlockHeight {
@@ -222,23 +220,6 @@ impl Store {
             pubkeys.push(XOnlyPublicKey::from_str(&public_key)?);
         }
         Ok(pubkeys)
-    }
-
-    pub fn policy_with_details(
-        &self,
-        policy_id: EventId,
-    ) -> Option<(
-        Policy,
-        Option<Balance>,
-        Option<Transactions>,
-        Option<Timestamp>,
-    )> {
-        let GetPolicy {
-            policy, last_sync, ..
-        } = self.get_policy(policy_id).ok()?;
-        let balance = self.get_balance(policy_id);
-        let list = self.get_txs_with_descriptions(policy_id);
-        Some((policy, balance, list, last_sync))
     }
 
     pub fn proposal_exists(&self, proposal_id: EventId) -> Result<bool, Error> {
@@ -522,6 +503,28 @@ impl Store {
         Ok(proposals)
     }
 
+    pub fn completed_proposals_by_policy_id(
+        &self,
+        policy_id: EventId,
+    ) -> Result<Vec<GetCompletedProposal>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT completed_proposal_id, completed_proposal FROM completed_proposals WHERE policy_id = ?;",
+        )?;
+        let mut rows = stmt.query([policy_id.to_hex()])?;
+        let mut proposals = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let proposal_id: String = row.get(0)?;
+            let proposal: String = row.get(1)?;
+            proposals.push(GetCompletedProposal {
+                policy_id,
+                completed_proposal_id: EventId::from_hex(proposal_id)?,
+                proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
+            });
+        }
+        Ok(proposals)
+    }
+
     pub fn get_completed_proposal(
         &self,
         completed_proposal_id: EventId,
@@ -570,8 +573,15 @@ impl Store {
         Ok(())
     }
 
-    fn get_description_by_txid(&self, txid: Txid) -> Result<Option<String>, Error> {
-        for GetCompletedProposal { proposal, .. } in self.completed_proposals()?.into_iter() {
+    fn get_description_by_txid(
+        &self,
+        policy_id: EventId,
+        txid: Txid,
+    ) -> Result<Option<String>, Error> {
+        for GetCompletedProposal { proposal, .. } in self
+            .completed_proposals_by_policy_id(policy_id)?
+            .into_iter()
+        {
             if let CompletedProposal::Spending {
                 tx, description, ..
             } = proposal
@@ -584,9 +594,12 @@ impl Store {
         Ok(None)
     }
 
-    pub fn get_txs_descriptions(&self) -> Result<HashMap<Txid, String>, Error> {
+    fn get_txs_descriptions(&self, policy_id: EventId) -> Result<HashMap<Txid, String>, Error> {
         let mut map = HashMap::new();
-        for GetCompletedProposal { proposal, .. } in self.completed_proposals()?.into_iter() {
+        for GetCompletedProposal { proposal, .. } in self
+            .completed_proposals_by_policy_id(policy_id)?
+            .into_iter()
+        {
             if let CompletedProposal::Spending {
                 tx, description, ..
             } = proposal
@@ -605,24 +618,51 @@ impl Store {
         wallet.get_balance().ok()
     }
 
-    pub fn get_txs(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
+    pub fn get_txs(&self, policy_id: EventId, sort: bool) -> Result<Vec<GetTransaction>, Error> {
         let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id)?;
-        wallet.list_transactions(true).ok()
+        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        let mut txs: Vec<TransactionDetails> = wallet.list_transactions(true)?;
+        drop(wallets);
+
+        if sort {
+            txs.sort_by(|a, b| {
+                b.confirmation_time
+                    .as_ref()
+                    .map(|t| t.height)
+                    .unwrap_or(u32::MAX)
+                    .cmp(
+                        &a.confirmation_time
+                            .as_ref()
+                            .map(|t| t.height)
+                            .unwrap_or(u32::MAX),
+                    )
+            });
+        }
+
+        let descriptions = self.get_txs_descriptions(policy_id)?;
+
+        Ok(txs
+            .into_iter()
+            .map(|tx| GetTransaction {
+                policy_id,
+                label: descriptions.get(&tx.txid).cloned(),
+                tx,
+            })
+            .collect())
     }
 
-    /// Get transactions with descriptions
-    pub fn get_txs_with_descriptions(&self, policy_id: EventId) -> Option<Transactions> {
+    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
+        let label: Option<String> = self.get_description_by_txid(policy_id, txid)?;
         let wallets = self.wallets.lock();
-        let descriptions = self.get_txs_descriptions().ok()?;
-        let wallet = wallets.get(&policy_id)?;
-        wallet.list_transactions(false).ok().map(|list| {
-            list.into_iter()
-                .map(|tx| {
-                    let txid = tx.txid;
-                    (tx, descriptions.get(&txid).cloned())
-                })
-                .collect()
+        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        let tx: TransactionDetails = wallet
+            .get_tx(&txid, true)?
+            .ok_or(Error::NotFound("tx".to_string()))?;
+        drop(wallets);
+        Ok(GetTransaction {
+            policy_id,
+            tx,
+            label,
         })
     }
 
@@ -743,43 +783,39 @@ impl Store {
         Ok(total_balance)
     }
 
-    pub fn get_all_transactions(&self) -> Result<Vec<(TransactionDetails, Option<String>)>, Error> {
-        let descriptions = self.get_txs_descriptions()?;
-        let mut transactions = Vec::new();
+    pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
+        let mut txs = Vec::new();
         let mut already_seen = Vec::new();
         for GetPolicy {
             policy_id, policy, ..
         } in self.get_policies()?.into_iter()
         {
             if !already_seen.contains(&policy.descriptor) {
-                for tx in self.get_txs(policy_id).unwrap_or_default().into_iter() {
-                    let desc: Option<String> = descriptions.get(&tx.txid).cloned();
-                    transactions.push((tx, desc))
+                for tx in self
+                    .get_txs(policy_id, false)
+                    .unwrap_or_default()
+                    .into_iter()
+                {
+                    txs.push(tx)
                 }
                 already_seen.push(policy.descriptor);
             }
         }
-        Ok(transactions)
-    }
 
-    pub fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
-        let desc = self.get_description_by_txid(txid).ok()?;
-        let mut already_seen = Vec::new();
-        for GetPolicy {
-            policy_id, policy, ..
-        } in self.get_policies().ok()?.into_iter()
-        {
-            if !already_seen.contains(&policy.descriptor) {
-                let txs = self.get_txs(policy_id)?;
-                for tx in txs.into_iter() {
-                    if tx.txid == txid {
-                        return Some((tx, desc));
-                    }
-                }
-                already_seen.push(policy.descriptor);
-            }
-        }
-        None
+        txs.sort_by(|a, b| {
+            b.confirmation_time
+                .as_ref()
+                .map(|t| t.height)
+                .unwrap_or(u32::MAX)
+                .cmp(
+                    &a.confirmation_time
+                        .as_ref()
+                        .map(|t| t.height)
+                        .unwrap_or(u32::MAX),
+                )
+        });
+
+        Ok(txs)
     }
 
     pub fn schedule_for_sync(&self, policy_id: EventId) -> Result<(), Error> {

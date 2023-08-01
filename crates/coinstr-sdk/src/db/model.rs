@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use bdk::bitcoin::{Address, XOnlyPublicKey};
-use bdk::{Balance, LocalUtxo};
+use bdk::{Balance, LocalUtxo, TransactionDetails};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::nips::nip46::Message;
@@ -97,5 +97,19 @@ impl Deref for GetAddress {
     type Target = Address;
     fn deref(&self) -> &Self::Target {
         &self.address
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GetTransaction {
+    pub policy_id: EventId,
+    pub tx: TransactionDetails,
+    pub label: Option<String>,
+}
+
+impl Deref for GetTransaction {
+    type Target = TransactionDetails;
+    fn deref(&self) -> &Self::Target {
+        &self.tx
     }
 }

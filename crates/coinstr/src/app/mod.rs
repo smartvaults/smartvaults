@@ -59,7 +59,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::NewProof(policy) => NewProofState::new(policy.clone()).into(),
         Stage::Proposals => ProposalsState::new().into(),
         Stage::Proposal(proposal_id) => ProposalState::new(*proposal_id).into(),
-        Stage::Transaction(txid) => TransactionState::new(*txid).into(),
+        Stage::Transaction { policy_id, txid } => TransactionState::new(*policy_id, *txid).into(),
         Stage::Transactions(policy_id) => TransactionsState::new(*policy_id).into(),
         Stage::History => HistoryState::new().into(),
         Stage::CompletedProposal(completed_proposal_id) => {

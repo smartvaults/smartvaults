@@ -244,7 +244,10 @@ impl State for CompletedProposalState {
                                 .push(Text::new("Type: spending").view())
                                 .push(
                                     Text::new(format!("Txid: {txid}"))
-                                        .on_press(Message::View(Stage::Transaction(txid)))
+                                        .on_press(Message::View(Stage::Transaction {
+                                            policy_id,
+                                            txid,
+                                        }))
                                         .view(),
                                 )
                                 .push(Text::new(format!("Description: {description}")).view());

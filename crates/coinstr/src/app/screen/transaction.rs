@@ -1,9 +1,9 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bdk::TransactionDetails;
 use coinstr_sdk::core::bitcoin::{Address, Txid};
-use coinstr_sdk::nostr::Timestamp;
+use coinstr_sdk::db::model::GetTransaction;
+use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row, Space};
 use iced::{Command, Element, Length};
@@ -15,7 +15,7 @@ use crate::theme::color::{GREEN, RED};
 
 #[derive(Debug, Clone)]
 pub enum TransactionMessage {
-    LoadTx((TransactionDetails, Option<String>)),
+    LoadTx(GetTransaction),
     Reload,
 }
 
@@ -23,15 +23,17 @@ pub enum TransactionMessage {
 pub struct TransactionState {
     loading: bool,
     loaded: bool,
+    policy_id: EventId,
     txid: Txid,
-    tx: Option<(TransactionDetails, Option<String>)>,
+    tx: Option<GetTransaction>,
 }
 
 impl TransactionState {
-    pub fn new(txid: Txid) -> Self {
+    pub fn new(policy_id: EventId, txid: Txid) -> Self {
         Self {
             loading: false,
             loaded: false,
+            policy_id,
             txid,
             tx: None,
         }
@@ -46,11 +48,15 @@ impl State for TransactionState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         let client = ctx.client.clone();
         let txid = self.txid;
+        let policy_id = self.policy_id;
         self.loading = true;
-        Command::perform(async move { client.get_tx(txid) }, |res| match res {
-            Some(tx) => TransactionMessage::LoadTx(tx).into(),
-            None => Message::View(Stage::Transactions(None)),
-        })
+        Command::perform(
+            async move { client.get_tx(policy_id, txid).ok() },
+            |res| match res {
+                Some(tx) => TransactionMessage::LoadTx(tx).into(),
+                None => Message::View(Stage::Transactions(None)),
+            },
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -77,7 +83,7 @@ impl State for TransactionState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(20).padding(20);
 
-        if let Some((tx, description)) = &self.tx {
+        if let Some(GetTransaction { tx, label, .. }) = &self.tx {
             let (total, positive): (u64, bool) = {
                 let received: i64 = tx.received as i64;
                 let sent: i64 = tx.sent as i64;
@@ -292,11 +298,9 @@ impl State for TransactionState {
                         Column::new()
                             .push(Text::new("Description").bigger().extra_light().view())
                             .push(
-                                Text::new(
-                                    description.as_ref().map(|s| s.as_str()).unwrap_or_default(),
-                                )
-                                .size(25)
-                                .view(),
+                                Text::new(label.as_ref().map(|s| s.as_str()).unwrap_or_default())
+                                    .size(25)
+                                    .view(),
                             )
                             .spacing(10)
                             .width(Length::Fill),

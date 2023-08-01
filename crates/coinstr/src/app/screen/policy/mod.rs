@@ -4,8 +4,7 @@
 use coinstr_sdk::core::bdk::Balance;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::signer::Signer;
-use coinstr_sdk::db::model::GetProposal;
-use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::db::model::{GetPolicy, GetProposal, GetTransaction};
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -36,7 +35,7 @@ pub enum PolicyMessage {
         Vec<GetProposal>,
         Option<Signer>,
         Option<Balance>,
-        Option<Transactions>,
+        Vec<GetTransaction>,
         Option<Timestamp>,
     ),
     ErrorChanged(Option<String>),
@@ -53,7 +52,7 @@ pub struct PolicyState {
     proposals: Vec<GetProposal>,
     signer: Option<Signer>,
     balance: Option<Balance>,
-    transactions: Option<Transactions>,
+    transactions: Vec<GetTransaction>,
     last_sync: Option<Timestamp>,
     error: Option<String>,
 }
@@ -68,7 +67,7 @@ impl PolicyState {
             proposals: Vec::new(),
             signer: None,
             balance: None,
-            transactions: None,
+            transactions: Vec::new(),
             last_sync: None,
             error: None,
         }
@@ -91,8 +90,11 @@ impl State for PolicyState {
         Command::perform(
             async move {
                 client.mark_notification_as_seen_by_id(policy_id).ok()?;
-                let (policy, balance, list, last_sync) =
-                    client.db.policy_with_details(policy_id)?;
+                let GetPolicy {
+                    policy, last_sync, ..
+                } = client.get_policy_by_id(policy_id).ok()?;
+                let balance = client.get_balance(policy_id);
+                let list = client.get_txs(policy_id).ok()?;
                 let proposals = client.get_proposals_by_policy_id(policy_id).ok()?;
                 let signer = client
                     .search_signer_by_descriptor(policy.descriptor.clone())

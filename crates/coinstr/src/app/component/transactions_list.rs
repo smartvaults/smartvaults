@@ -1,8 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bdk::TransactionDetails;
-use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::db::model::GetTransaction;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util::format;
 use iced::widget::{Column, Row, Space};
@@ -14,13 +13,13 @@ use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{BROWSER, CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
 pub struct TransactionsList {
-    list: Option<Transactions>,
+    list: Vec<GetTransaction>,
     take: Option<usize>,
     policy_id: Option<EventId>,
 }
 
 impl TransactionsList {
-    pub fn new(list: Option<Transactions>) -> Self {
+    pub fn new(list: Vec<GetTransaction>) -> Self {
         Self {
             list,
             take: None,
@@ -42,24 +41,11 @@ impl TransactionsList {
         }
     }
 
-    fn list(self) -> Box<dyn Iterator<Item = (TransactionDetails, Option<String>)>> {
-        let mut list = self.list.unwrap_or_default();
-        list.sort_by(|(a, _), (b, _)| {
-            b.confirmation_time
-                .as_ref()
-                .map(|t| t.height)
-                .unwrap_or(u32::MAX)
-                .cmp(
-                    &a.confirmation_time
-                        .as_ref()
-                        .map(|t| t.height)
-                        .unwrap_or(u32::MAX),
-                )
-        });
+    fn list(self) -> Box<dyn Iterator<Item = GetTransaction>> {
         if let Some(take) = self.take {
-            Box::new(list.into_iter().take(take))
+            Box::new(self.list.into_iter().take(take))
         } else {
-            Box::new(list.into_iter())
+            Box::new(self.list.into_iter())
         }
     }
 
@@ -106,114 +92,114 @@ impl TransactionsList {
             .width(Length::Fill)
             .spacing(10);
 
-        match &self.list {
-            Some(list) => {
-                if list.is_empty() {
-                    transactions =
-                        transactions.push(Text::new("No transactions").extra_light().view());
+        if self.list.is_empty() {
+            transactions = transactions.push(Text::new("No transactions").extra_light().view());
+        } else {
+            let list_len = self.list.len();
+            let take = self.take;
+            let policy_id = self.policy_id;
+
+            for GetTransaction {
+                policy_id,
+                tx,
+                label,
+            } in self.list()
+            {
+                let status = if tx.confirmation_time.is_some() {
+                    Icon::new(CHECK).color(GREEN)
                 } else {
-                    let list_len = list.len();
-                    let take = self.take;
-                    let policy_id = self.policy_id;
+                    Icon::new(HOURGLASS).color(YELLOW)
+                };
 
-                    for (tx, description) in self.list() {
-                        let status = if tx.confirmation_time.is_some() {
-                            Icon::new(CHECK).color(GREEN)
+                let (total, positive): (u64, bool) = {
+                    let received: i64 = tx.received as i64;
+                    let sent: i64 = tx.sent as i64;
+                    let tot = received - sent;
+                    let positive = tot >= 0;
+                    (tot.unsigned_abs(), positive)
+                };
+
+                let row = Row::new()
+                    .push(status.width(Length::Fixed(70.0)).view())
+                    .push(
+                        Text::new(if ctx.hide_balances {
+                            String::from("*****")
                         } else {
-                            Icon::new(HOURGLASS).color(YELLOW)
-                        };
+                            tx.confirmation_time
+                                .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
+                                .unwrap_or_default()
+                        })
+                        .width(Length::Fill)
+                        .view(),
+                    )
+                    .push(
+                        Text::new(label.unwrap_or_default())
+                            .width(Length::Fill)
+                            .view(),
+                    )
+                    .push(
+                        Text::new(format!(
+                            "{} sat",
+                            if ctx.hide_balances {
+                                String::from("*****")
+                            } else {
+                                format!(
+                                    "{}{}",
+                                    if positive { "+" } else { "-" },
+                                    format::number(total)
+                                )
+                            }
+                        ))
+                        .color(if positive { GREEN } else { RED })
+                        .width(Length::Fill)
+                        .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .icon(CLIPBOARD)
+                            .style(ButtonStyle::Bordered)
+                            .on_press(Message::Clipboard(tx.txid.to_string()))
+                            .width(Length::Fixed(40.0))
+                            .view(),
+                    )
+                    .push({
+                        let mut btn = Button::new()
+                            .icon(BROWSER)
+                            .style(ButtonStyle::Bordered)
+                            .width(Length::Fixed(40.0));
 
-                        let (total, positive): (u64, bool) = {
-                            let received: i64 = tx.received as i64;
-                            let sent: i64 = tx.sent as i64;
-                            let tot = received - sent;
-                            let positive = tot >= 0;
-                            (tot.unsigned_abs(), positive)
-                        };
-
-                        let row = Row::new()
-                            .push(status.width(Length::Fixed(70.0)).view())
-                            .push(
-                                Text::new(if ctx.hide_balances {
-                                    String::from("*****")
-                                } else {
-                                    tx.confirmation_time
-                                        .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
-                                        .unwrap_or_default()
-                                })
-                                .width(Length::Fill)
-                                .view(),
-                            )
-                            .push(
-                                Text::new(description.unwrap_or_default())
-                                    .width(Length::Fill)
-                                    .view(),
-                            )
-                            .push(
-                                Text::new(format!(
-                                    "{} sat",
-                                    if ctx.hide_balances {
-                                        String::from("*****")
-                                    } else {
-                                        format!(
-                                            "{}{}",
-                                            if positive { "+" } else { "-" },
-                                            format::number(total)
-                                        )
-                                    }
-                                ))
-                                .color(if positive { GREEN } else { RED })
-                                .width(Length::Fill)
-                                .view(),
-                            )
-                            .push(
-                                Button::new()
-                                    .icon(CLIPBOARD)
-                                    .style(ButtonStyle::Bordered)
-                                    .on_press(Message::Clipboard(tx.txid.to_string()))
-                                    .width(Length::Fixed(40.0))
-                                    .view(),
-                            )
-                            .push({
-                                let mut btn = Button::new()
-                                    .icon(BROWSER)
-                                    .style(ButtonStyle::Bordered)
-                                    .width(Length::Fixed(40.0));
-
-                                if let Ok(url) = ctx.client.config().block_explorer() {
-                                    btn = btn.on_press(Message::OpenInBrowser(format!(
-                                        "{url}/tx/{}",
-                                        tx.txid
-                                    )));
-                                }
-
-                                btn.view()
-                            })
-                            .push(
-                                Button::new()
-                                    .icon(FULLSCREEN)
-                                    .on_press(Message::View(Stage::Transaction(tx.txid)))
-                                    .width(Length::Fixed(40.0))
-                                    .view(),
-                            )
-                            .spacing(10)
-                            .align_items(Alignment::Center)
-                            .width(Length::Fill);
-                        transactions = transactions.push(row).push(rule::horizontal());
-                    }
-
-                    if let Some(take) = take {
-                        if list_len > take {
-                            transactions = transactions.push(
-                                Text::new("Show all")
-                                    .on_press(Message::View(Stage::Transactions(policy_id)))
-                                    .view(),
-                            );
+                        if let Ok(url) = ctx.client.config().block_explorer() {
+                            btn = btn
+                                .on_press(Message::OpenInBrowser(format!("{url}/tx/{}", tx.txid)));
                         }
-                    }
+
+                        btn.view()
+                    })
+                    .push(
+                        Button::new()
+                            .icon(FULLSCREEN)
+                            .on_press(Message::View(Stage::Transaction {
+                                policy_id,
+                                txid: tx.txid,
+                            }))
+                            .width(Length::Fixed(40.0))
+                            .view(),
+                    )
+                    .spacing(10)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill);
+                transactions = transactions.push(row).push(rule::horizontal());
+            }
+
+            if let Some(take) = take {
+                if list_len > take {
+                    transactions = transactions.push(
+                        Text::new("Show all")
+                            .on_press(Message::View(Stage::Transactions(policy_id)))
+                            .view(),
+                    );
                 }
             }
-            None => transactions = transactions.push(Text::new("Unavailable").view()),
         };
 
         transactions

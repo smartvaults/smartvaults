@@ -2,8 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::Balance;
-use coinstr_sdk::db::model::GetProposal;
-use coinstr_sdk::db::store::Transactions;
+use coinstr_sdk::db::model::{GetProposal, GetTransaction};
 use iced::widget::{Column, Space};
 use iced::{Command, Element, Length};
 
@@ -15,7 +14,7 @@ use crate::component::Text;
 pub enum DashboardMessage {
     Send,
     Deposit,
-    Load(Option<Balance>, Vec<GetProposal>, Option<Transactions>),
+    Load(Option<Balance>, Vec<GetProposal>, Vec<GetTransaction>),
     Reload,
 }
 
@@ -25,7 +24,7 @@ pub struct DashboardState {
     loaded: bool,
     balance: Option<Balance>,
     proposals: Vec<GetProposal>,
-    transactions: Option<Transactions>,
+    transactions: Vec<GetTransaction>,
 }
 
 impl DashboardState {
@@ -35,7 +34,7 @@ impl DashboardState {
             loaded: false,
             balance: None,
             proposals: Vec::new(),
-            transactions: None,
+            transactions: Vec::new(),
         }
     }
 }
@@ -57,7 +56,7 @@ impl State for DashboardState {
                 (balance, proposals, txs)
             },
             |(balance, proposals, txs)| {
-                DashboardMessage::Load(Some(balance), proposals, Some(txs)).into()
+                DashboardMessage::Load(Some(balance), proposals, txs).into()
             },
         )
     }

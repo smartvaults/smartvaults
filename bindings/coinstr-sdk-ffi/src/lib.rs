@@ -60,7 +60,7 @@ mod ffi {
     pub use crate::seed::Seed as KeychainSeed;
     pub use crate::signer::Signer;
     pub use crate::transaction::{
-        BlockTime, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
+        BlockTime, GetTransaction, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
     };
 
     // UDL

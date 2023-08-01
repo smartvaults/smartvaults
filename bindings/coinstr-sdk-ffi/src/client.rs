@@ -20,8 +20,8 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
-    GetCompletedProposal, GetPolicy, GetProposal, KeychainSeed, Metadata, NostrConnectRequest,
-    NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer, TransactionDetails, Utxo,
+    GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, KeychainSeed, Metadata,
+    NostrConnectRequest, NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer, Utxo,
 };
 
 pub struct Coinstr {
@@ -483,7 +483,7 @@ impl Coinstr {
             .map(|b| Arc::new(b.into())))
     }
 
-    pub fn get_txs(&self, policy_id: String) -> Result<Vec<Arc<TransactionDetails>>> {
+    pub fn get_txs(&self, policy_id: String) -> Result<Vec<Arc<GetTransaction>>> {
         let policy_id = EventId::from_hex(policy_id)?;
         Ok(self
             .inner
@@ -492,6 +492,15 @@ impl Coinstr {
             .into_iter()
             .map(|tx| Arc::new(tx.into()))
             .collect())
+    }
+
+    pub fn get_tx(&self, policy_id: String, txid: String) -> Result<Arc<GetTransaction>> {
+        let policy_id = EventId::from_hex(policy_id)?;
+        let txid = Txid::from_str(&txid)?;
+        Ok(self
+            .inner
+            .get_tx(policy_id, txid)
+            .map(|tx| Arc::new(tx.into()))?)
     }
 
     pub fn get_utxos(&self, policy_id: String) -> Result<Vec<Arc<Utxo>>> {
@@ -508,18 +517,13 @@ impl Coinstr {
         Ok(Arc::new(self.inner.get_total_balance()?.into()))
     }
 
-    pub fn get_all_txs(&self) -> Result<Vec<Arc<TransactionDetails>>> {
+    pub fn get_all_txs(&self) -> Result<Vec<Arc<GetTransaction>>> {
         Ok(self
             .inner
             .get_all_transactions()?
             .into_iter()
-            .map(|(tx, ..)| Arc::new(tx.into()))
+            .map(|tx| Arc::new(tx.into()))
             .collect())
-    }
-
-    pub fn get_tx(&self, txid: String) -> Result<Option<Arc<TransactionDetails>>> {
-        let txid = Txid::from_str(&txid)?;
-        Ok(self.inner.get_tx(txid).map(|(tx, ..)| Arc::new(tx.into())))
     }
 
     pub fn get_address(&self, policy_id: String, index: AddressIndex) -> Result<Arc<GetAddress>> {

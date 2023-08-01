@@ -188,20 +188,27 @@ impl State for ProposalState {
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
 
-                    return Command::perform(
-                        async move { client.finalize(proposal_id).await },
-                        |res| match res {
-                            Ok(proposal) => match proposal {
-                                CompletedProposal::Spending { tx, .. } => {
-                                    Message::View(Stage::Transaction(tx.txid()))
-                                }
-                                CompletedProposal::ProofOfReserve { .. } => {
-                                    Message::View(Stage::History)
-                                }
+                    if let Some(policy_id) = self.policy_id {
+                        return Command::perform(
+                            async move { client.finalize(proposal_id).await },
+                            move |res| match res {
+                                Ok(proposal) => match proposal {
+                                    CompletedProposal::Spending { tx, .. } => {
+                                        Message::View(Stage::Transaction {
+                                            policy_id,
+                                            txid: tx.txid(),
+                                        })
+                                    }
+                                    CompletedProposal::ProofOfReserve { .. } => {
+                                        Message::View(Stage::History)
+                                    }
+                                },
+                                Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
                             },
-                            Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
-                        },
-                    );
+                        );
+                    } else {
+                        self.error = Some(String::from("No policy id found"));
+                    }
                 }
                 ProposalMessage::Signed(value) => self.signed = value,
                 ProposalMessage::Reload => {

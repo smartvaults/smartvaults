@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bitcoin::{self, Address, Network};
-use coinstr_sdk::db::model::GetUtxo;
+use coinstr_sdk::db::model::{self, GetUtxo};
 use nostr_ffi::Timestamp;
 
 use crate::error::Result;
@@ -224,5 +224,25 @@ impl TransactionDetails {
 
     pub fn transaction(&self) -> Option<Arc<Transaction>> {
         self.inner.transaction.clone().map(|tx| Arc::new(tx.into()))
+    }
+}
+
+pub struct GetTransaction {
+    inner: model::GetTransaction,
+}
+
+impl From<model::GetTransaction> for GetTransaction {
+    fn from(inner: model::GetTransaction) -> Self {
+        Self { inner }
+    }
+}
+
+impl GetTransaction {
+    pub fn tx(&self) -> Arc<TransactionDetails> {
+        Arc::new(self.inner.tx.clone().into())
+    }
+
+    pub fn label(&self) -> Option<String> {
+        self.inner.label.clone()
     }
 }

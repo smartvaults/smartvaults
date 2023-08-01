@@ -18,7 +18,7 @@ use bdk::electrum_client::Client as ElectrumClient;
 use bdk::miniscript::Descriptor;
 use bdk::signer::{SignerContext, SignerWrapper};
 use bdk::wallet::AddressIndex;
-use bdk::{Balance, TransactionDetails, Wallet};
+use bdk::{Balance, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
@@ -48,9 +48,9 @@ use crate::constants::{
 use crate::db::model::{
     GetAddress, GetAllSigners, GetApprovedProposalResult, GetApprovedProposals,
     GetCompletedProposal, GetDetailedPolicyResult, GetNotificationsResult, GetPolicy, GetProposal,
-    GetSharedSignerResult, GetUtxo, NostrConnectRequest,
+    GetSharedSignerResult, GetTransaction, GetUtxo, NostrConnectRequest,
 };
-use crate::db::store::{Store, Transactions};
+use crate::db::store::Store;
 use crate::types::{Notification, PolicyBackup};
 use crate::util;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
@@ -1370,12 +1370,8 @@ impl Coinstr {
         self.db.get_balance(policy_id)
     }
 
-    pub fn get_txs(&self, policy_id: EventId) -> Option<Vec<TransactionDetails>> {
-        self.db.get_txs(policy_id)
-    }
-
-    pub fn get_txs_with_descriptions(&self, policy_id: EventId) -> Option<Transactions> {
-        self.db.get_txs_with_descriptions(policy_id)
+    pub fn get_txs(&self, policy_id: EventId) -> Result<Vec<GetTransaction>, Error> {
+        Ok(self.db.get_txs(policy_id, true)?)
     }
 
     pub fn get_address(
@@ -1410,12 +1406,12 @@ impl Coinstr {
         Ok(self.db.get_total_balance()?)
     }
 
-    pub fn get_all_transactions(&self) -> Result<Vec<(TransactionDetails, Option<String>)>, Error> {
+    pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
         Ok(self.db.get_all_transactions()?)
     }
 
-    pub fn get_tx(&self, txid: Txid) -> Option<(TransactionDetails, Option<String>)> {
-        self.db.get_tx(txid)
+    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
+        Ok(self.db.get_tx(policy_id, txid)?)
     }
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {

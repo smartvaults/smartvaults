@@ -117,6 +117,11 @@ interface TransactionDetails {
   Transaction? transaction();
 };
 
+interface GetTransaction {
+    TransactionDetails tx();
+    string? label();
+};
+
 interface BlockTime {
   u32 height();
   Timestamp timestamp();
@@ -359,15 +364,15 @@ interface Coinstr {
     [Throws=FFIError]
     Balance? get_balance(string policy_id);
     [Throws=FFIError]
-    sequence<TransactionDetails> get_txs(string policy_id);
+    sequence<GetTransaction> get_txs(string policy_id);
+    [Throws=FFIError]
+    GetTransaction get_tx(string policy_id, string txid);
     [Throws=FFIError]
     sequence<Utxo> get_utxos(string policy_id);
     [Throws=FFIError]
     Balance get_total_balance();
     [Throws=FFIError]
-    sequence<TransactionDetails> get_all_txs();
-    [Throws=FFIError]
-    TransactionDetails? get_tx(string txid);
+    sequence<GetTransaction> get_all_txs();
     [Throws=FFIError]
     GetAddress get_address(string policy_id, AddressIndex index);
     [Throws=FFIError]
