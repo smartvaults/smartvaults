@@ -46,9 +46,9 @@ use crate::constants::{
     SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use crate::db::model::{
-    GetAllSigners, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
-    GetDetailedPolicyResult, GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult,
-    GetUtxo, NostrConnectRequest,
+    GetAddress, GetAllSigners, GetApprovedProposalResult, GetApprovedProposals,
+    GetCompletedProposal, GetDetailedPolicyResult, GetNotificationsResult, GetPolicy, GetProposal,
+    GetSharedSignerResult, GetUtxo, NostrConnectRequest,
 };
 use crate::db::store::{Store, Transactions};
 use crate::types::{Notification, PolicyBackup};
@@ -975,9 +975,7 @@ impl Coinstr {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error> {
-        let address = self
-            .get_last_unused_address(to_policy_id)
-            .ok_or(Error::PolicyNotFound)?;
+        let address = self.get_last_unused_address(to_policy_id)?.address;
         let description: String = format!(
             "Self transfer from policy #{} to #{}",
             util::cut_event_id(from_policy_id),
@@ -1380,11 +1378,15 @@ impl Coinstr {
         self.db.get_txs_with_descriptions(policy_id)
     }
 
-    pub fn get_address(&self, policy_id: EventId, index: AddressIndex) -> Option<Address> {
-        self.db.get_address(policy_id, index)
+    pub fn get_address(
+        &self,
+        policy_id: EventId,
+        index: AddressIndex,
+    ) -> Result<GetAddress, Error> {
+        Ok(self.db.get_address(policy_id, index)?)
     }
 
-    pub fn get_last_unused_address(&self, policy_id: EventId) -> Option<Address> {
+    pub fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
         self.get_address(policy_id, AddressIndex::LastUnused)
     }
 

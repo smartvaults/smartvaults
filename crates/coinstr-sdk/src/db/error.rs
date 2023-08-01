@@ -55,6 +55,9 @@ pub enum Error {
     Electrum(#[from] bdk::electrum_client::Error),
     #[error("electrum client not initialized")]
     ElectrumClientNotInit,
+    /// Label error
+    #[error(transparent)]
+    Label(#[from] crate::types::label::Error),
     /// Not found
     #[error("impossible to open policy {0} db")]
     FailedToOpenPolicyDb(EventId),

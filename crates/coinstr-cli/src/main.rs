@@ -442,7 +442,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 } else {
                     let item = policy.satisfiable_item(coinstr.network())?;
                     let balance = coinstr.get_balance(policy_id);
-                    let address = coinstr.get_last_unused_address(policy_id);
+                    let address = coinstr.get_last_unused_address(policy_id)?;
                     let txs = coinstr.get_txs(policy_id).unwrap_or_default();
                     let utxos = coinstr.get_utxos(policy_id).unwrap_or_default();
                     util::print_policy(policy, policy_id, item, balance, address, txs, utxos);

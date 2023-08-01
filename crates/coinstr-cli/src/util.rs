@@ -9,7 +9,6 @@ use coinstr_sdk::core::bdk::wallet::AddressIndex;
 use coinstr_sdk::core::bdk::{Balance, TransactionDetails, Wallet};
 use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
-use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
@@ -17,7 +16,7 @@ use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
 use coinstr_sdk::db::model::{
-    GetCompletedProposal, GetPolicy, GetProposal, GetUtxo, NostrConnectRequest,
+    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetUtxo, NostrConnectRequest,
 };
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
 use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
@@ -118,7 +117,7 @@ pub fn print_policy(
     policy_id: EventId,
     item: SatisfiableItem,
     balance: Option<Balance>,
-    address: Option<Address>,
+    address: GetAddress,
     txs: Vec<TransactionDetails>,
     utxos: Vec<GetUtxo>,
 ) {
@@ -157,9 +156,7 @@ pub fn print_policy(
     println!(
         "\n{}: {}\n",
         "Deposit address".fg::<BlazeOrange>().underline(),
-        address
-            .map(|a| a.to_string())
-            .unwrap_or_else(|| String::from("Unavailable"))
+        address.address
     );
 
     if !txs.is_empty() {

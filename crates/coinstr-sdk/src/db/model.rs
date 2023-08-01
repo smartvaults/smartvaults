@@ -2,8 +2,9 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeMap;
+use std::ops::Deref;
 
-use bdk::bitcoin::XOnlyPublicKey;
+use bdk::bitcoin::{Address, XOnlyPublicKey};
 use bdk::{Balance, LocalUtxo};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
@@ -84,4 +85,17 @@ pub struct GetCompletedProposal {
 pub struct GetUtxo {
     pub utxo: LocalUtxo,
     pub label: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetAddress {
+    pub address: Address,
+    pub label: Option<String>,
+}
+
+impl Deref for GetAddress {
+    type Target = Address;
+    fn deref(&self) -> &Self::Target {
+        &self.address
+    }
 }

@@ -14,7 +14,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::{Address, Network, OutPoint, Script, Txid};
+use bdk::bitcoin::{Network, OutPoint, Script, Txid};
 use bdk::blockchain::{ElectrumBlockchain, GetHeight};
 use bdk::database::SqliteDatabase;
 use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
@@ -43,13 +43,13 @@ mod relays;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
-    GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal, GetNotificationsResult,
-    GetPolicy, GetProposal, GetSharedSignerResult, GetUtxo,
+    GetAddress, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
+    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult, GetUtxo,
 };
 use super::Error;
 use crate::client::Message;
 use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
-use crate::types::{Label, Notification};
+use crate::types::{Label, LabelData, Notification};
 use crate::util::encryption::EncryptionWithKeys;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
@@ -626,10 +626,27 @@ impl Store {
         })
     }
 
-    pub fn get_address(&self, policy_id: EventId, index: AddressIndex) -> Option<Address> {
+    pub fn get_address(
+        &self,
+        policy_id: EventId,
+        index: AddressIndex,
+    ) -> Result<GetAddress, Error> {
         let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id)?;
-        wallet.get_address(index).ok().map(|a| a.address)
+        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        let address = wallet.get_address(index)?;
+        drop(wallets);
+
+        let shared_key = self.get_shared_key(policy_id)?;
+        let identifier: String =
+            LabelData::Address(address.address.clone()).generate_identifier(&shared_key)?;
+        let label = self
+            .get_label_by_identifier(identifier)
+            .ok()
+            .map(|l| l.text());
+        Ok(GetAddress {
+            address: address.address,
+            label,
+        })
     }
 
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
