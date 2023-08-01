@@ -210,34 +210,7 @@ impl State for ReceiveState {
                 );
 
             if let Some(address) = self.address.as_ref() {
-                content = content.push(Space::with_height(Length::Fixed(20.0)));
-
-                if let Some(qr_code) = self.qr_code.as_ref() {
-                    content = content
-                        .push(QRCode::new(qr_code).cell_size(5))
-                        .push(Space::with_height(Length::Fixed(10.0)));
-                };
-
-                let mut address_splitted = String::new();
-                for (index, char) in address.to_string().char_indices() {
-                    if index % 4 == 0 {
-                        address_splitted.push(' ');
-                    }
-                    address_splitted.push(char);
-                }
-
                 content = content
-                    .push(Text::new(address_splitted).extra_light().view())
-                    .push(Space::with_height(Length::Fixed(10.0)))
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::Bordered)
-                            .icon(CLIPBOARD)
-                            .text("Copy")
-                            .width(Length::Fill)
-                            .on_press(Message::Clipboard(address.to_string()))
-                            .view(),
-                    )
                     .push(
                         TextInput::new("Label", &self.label)
                             .on_input(|l| ReceiveMessage::LabelChanged(l).into())
@@ -265,6 +238,34 @@ impl State for ReceiveState {
                                     )
                                     .view(),
                             )
+                            .view(),
+                    )
+                    .push(Space::with_height(Length::Fixed(20.0)));
+
+                if let Some(qr_code) = self.qr_code.as_ref() {
+                    content = content
+                        .push(QRCode::new(qr_code).cell_size(5))
+                        .push(Space::with_height(Length::Fixed(10.0)));
+                };
+
+                let mut address_splitted = String::new();
+                for (index, char) in address.to_string().char_indices() {
+                    if index % 4 == 0 {
+                        address_splitted.push(' ');
+                    }
+                    address_splitted.push(char);
+                }
+
+                content = content
+                    .push(Text::new(address_splitted).extra_light().view())
+                    .push(Space::with_height(Length::Fixed(10.0)))
+                    .push(
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .icon(CLIPBOARD)
+                            .text("Copy")
+                            .width(Length::Fill)
+                            .on_press(Message::Clipboard(address.to_string()))
                             .view(),
                     );
             }
