@@ -77,8 +77,8 @@ pub enum SpendMessage {
     PolicyLoaded(
         Option<Balance>,
         Vec<GetUtxo>,
-        Option<SatisfiableItem>,
-        Option<Vec<(String, Vec<String>)>>,
+        SatisfiableItem,
+        Vec<(String, Vec<String>)>,
     ),
     SelectedUtxosChanged(HashSet<OutPoint>),
     ToggleCondition(String, usize),
@@ -225,32 +225,46 @@ impl State for SpendState {
                 }
                 SpendMessage::LoadPolicy(policy_id) => {
                     let client = ctx.client.clone();
-                    let policy = self.policy.clone();
-                    return Command::perform(
-                        async move {
-                            let balance = client.get_balance(policy_id);
-                            let utxos = client.get_utxos(policy_id).unwrap_or_default();
-                            let policy = policy?.policy;
-                            let item = policy.satisfiable_item(client.network()).ok();
-                            let conditions = policy.selectable_conditions(client.network()).ok();
-                            Some((balance, utxos, item, conditions))
-                        },
-                        |res| match res {
-                            Some((balance, utxos, item, conditions)) => {
-                                SpendMessage::PolicyLoaded(balance, utxos, item, conditions).into()
-                            }
-                            None => SpendMessage::ErrorChanged(Some(String::from(
-                                "Impossible to load policy",
-                            )))
-                            .into(),
-                        },
-                    );
+                    if let Some(policy) = self.policy.as_ref() {
+                        let policy = policy.policy.clone();
+                        return Command::perform(
+                            async move {
+                                let balance = client.get_balance(policy_id);
+                                let utxos = client.get_utxos(policy_id)?;
+                                let item = policy.satisfiable_item(client.network())?;
+                                let conditions = policy.selectable_conditions(client.network())?;
+                                Ok::<
+                                    (
+                                        Option<Balance>,
+                                        Vec<GetUtxo>,
+                                        SatisfiableItem,
+                                        Vec<(String, Vec<String>)>,
+                                    ),
+                                    Box<dyn std::error::Error>,
+                                >((
+                                    balance, utxos, item, conditions,
+                                ))
+                            },
+                            |res| match res {
+                                Ok((balance, utxos, item, conditions)) => {
+                                    SpendMessage::PolicyLoaded(balance, utxos, item, conditions)
+                                        .into()
+                                }
+                                Err(e) => SpendMessage::ErrorChanged(Some(format!(
+                                    "Impossible to load policy: {e}",
+                                )))
+                                .into(),
+                            },
+                        );
+                    } else {
+                        self.error = Some(String::from("Select a policy"));
+                    }
                 }
                 SpendMessage::PolicyLoaded(balance, utxos, item, conditions) => {
                     self.balance = balance;
                     self.utxos = utxos;
-                    self.satisfiable_item = item;
-                    self.selectable_conditions = conditions;
+                    self.satisfiable_item = Some(item);
+                    self.selectable_conditions = Some(conditions);
                 }
                 SpendMessage::SelectedUtxosChanged(s) => self.selected_utxos = s,
                 SpendMessage::ToggleCondition(id, index) => match self.policy_path.as_mut() {

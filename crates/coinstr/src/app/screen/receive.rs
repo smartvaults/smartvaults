@@ -3,10 +3,10 @@
 
 use std::fmt;
 
-use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::db::model::GetPolicy;
+use coinstr_sdk::db::model::{GetAddress, GetPolicy};
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::Label;
 use coinstr_sdk::util;
 use iced::widget::qr_code::{self, QRCode};
 use iced::widget::{Column, PickList, Space};
@@ -14,7 +14,7 @@ use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
-use crate::component::{Button, ButtonStyle, Text};
+use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone, Eq)]
@@ -40,8 +40,11 @@ pub enum ReceiveMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
     LoadAddress(EventId),
     PolicySelectd(PolicyPicLisk),
-    AddressChanged(Option<Address>),
+    AddressChanged(GetAddress),
+    LabelChanged(String),
+    SaveLabel(Label),
     ErrorChanged(Option<String>),
+    Reload,
 }
 
 #[derive(Debug)]
@@ -49,7 +52,8 @@ pub struct ReceiveState {
     policy: Option<PolicyPicLisk>,
     policies: Vec<PolicyPicLisk>,
     qr_code: Option<qr_code::State>,
-    address: Option<Address>,
+    address: Option<GetAddress>,
+    label: String,
     loading: bool,
     loaded: bool,
     error: Option<String>,
@@ -65,6 +69,7 @@ impl ReceiveState {
             policies: Vec::new(),
             qr_code: None,
             address: None,
+            label: String::new(),
             loading: false,
             loaded: false,
             error: None,
@@ -118,7 +123,10 @@ impl State for ReceiveState {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move { client.get_last_unused_address(policy_id) },
-                        |address| ReceiveMessage::AddressChanged(address).into(),
+                        |res| match res {
+                            Ok(address) => ReceiveMessage::AddressChanged(address).into(),
+                            Err(e) => ReceiveMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
                     );
                 }
                 ReceiveMessage::PolicySelectd(policy) => {
@@ -129,15 +137,34 @@ impl State for ReceiveState {
                     });
                 }
                 ReceiveMessage::AddressChanged(value) => {
-                    self.address = value;
+                    self.label = value.label.clone().unwrap_or_default();
+                    self.address = Some(value);
                     if let Some(address) = self.address.as_ref() {
-                        self.qr_code = qr_code::State::new(format!("bitcoin:{address}")).ok();
+                        self.qr_code = qr_code::State::new(address.to_qr_uri()).ok();
+                    }
+                }
+                ReceiveMessage::LabelChanged(label) => self.label = label,
+                ReceiveMessage::SaveLabel(label) => {
+                    let client = ctx.client.clone();
+                    if let Some(policy) = self.policy.as_ref() {
+                        self.loading = false;
+                        let policy_id = policy.policy_id;
+                        return Command::perform(
+                            async move { client.save_label(policy_id, label).await },
+                            |res| match res {
+                                Ok(_) => ReceiveMessage::Reload.into(),
+                                Err(e) => ReceiveMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        );
+                    } else {
+                        self.error = Some(String::from("Policy not selected"));
                     }
                 }
                 ReceiveMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;
                 }
+                ReceiveMessage::Reload => return self.load(ctx),
             }
         }
 
@@ -209,6 +236,35 @@ impl State for ReceiveState {
                             .text("Copy")
                             .width(Length::Fill)
                             .on_press(Message::Clipboard(address.to_string()))
+                            .view(),
+                    )
+                    .push(
+                        TextInput::new("Label", &self.label)
+                            .on_input(|l| ReceiveMessage::LabelChanged(l).into())
+                            .placeholder("Label")
+                            .button(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .text("Save")
+                                    .width(Length::Fixed(80.0))
+                                    .loading(
+                                        self.loading
+                                            || self.label.is_empty()
+                                            || self
+                                                .address
+                                                .as_ref()
+                                                .map(|a| a.label.clone().unwrap_or_default())
+                                                .eq(&Some(self.label.clone())),
+                                    )
+                                    .on_press(
+                                        ReceiveMessage::SaveLabel(Label::address(
+                                            address.address.clone(),
+                                            self.label.clone(),
+                                        ))
+                                        .into(),
+                                    )
+                                    .view(),
+                            )
                             .view(),
                     );
             }
