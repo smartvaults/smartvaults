@@ -67,4 +67,15 @@ impl Store {
         }
         Ok(labels)
     }
+
+    pub fn get_label_by_identifier(&self, identifier: String) -> Result<Label, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare_cached("SELECT label FROM labels WHERE id = ? ;")?;
+        let mut rows = stmt.query([identifier])?;
+        let row = rows
+            .next()?
+            .ok_or(Error::NotFound("label identifier".into()))?;
+        let label: String = row.get(0)?;
+        Ok(Label::decrypt_with_keys(&self.keys, label)?)
+    }
 }
