@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, OutPoint, PrivateKey, Txid, XOnlyPublicKey};
+use bdk::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
 use bdk::blockchain::Blockchain;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::database::SqliteDatabase;
@@ -1390,9 +1390,20 @@ impl Coinstr {
         self.get_address(policy_id, AddressIndex::LastUnused)
     }
 
+    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
+        Ok(self.db.get_addresses(policy_id)?)
+    }
+
     /// Get wallet UTXOs
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         Ok(self.db.get_utxos(policy_id)?)
+    }
+
+    pub fn get_addresses_balances(
+        &self,
+        policy_id: EventId,
+    ) -> Result<HashMap<Script, u64>, Error> {
+        Ok(self.db.get_addresses_balances(policy_id)?)
     }
 
     pub fn get_total_balance(&self) -> Result<Balance, Error> {

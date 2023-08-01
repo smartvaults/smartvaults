@@ -649,6 +649,39 @@ impl Store {
         })
     }
 
+    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
+        let wallets = self.wallets.lock();
+        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        let last_unused = wallet.get_address(AddressIndex::LastUnused)?;
+        let script_labels: HashMap<Script, Label> = self.get_addresses_labels(policy_id)?;
+
+        let mut addresses = Vec::new();
+
+        for index in 0.. {
+            let addr = wallet.get_address(AddressIndex::Peek(index))?;
+            addresses.push(GetAddress {
+                address: addr.address.clone(),
+                label: script_labels
+                    .get(&addr.address.script_pubkey())
+                    .map(|l| l.text()),
+            });
+            if addr == last_unused {
+                for i in index + 1..index + 20 {
+                    let addr = wallet.get_address(AddressIndex::Peek(i))?;
+                    addresses.push(GetAddress {
+                        address: addr.address.clone(),
+                        label: script_labels
+                            .get(&addr.address.script_pubkey())
+                            .map(|l| l.text()),
+                    });
+                }
+                break;
+            }
+        }
+
+        Ok(addresses)
+    }
+
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         // Get UTXOs
         let wallets = self.wallets.lock();
@@ -671,6 +704,27 @@ impl Store {
                 utxo,
             })
             .collect())
+    }
+
+    pub fn get_addresses_balances(
+        &self,
+        policy_id: EventId,
+    ) -> Result<HashMap<Script, u64>, Error> {
+        // Get UTXOs
+        let wallets = self.wallets.lock();
+        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
+        let utxos: Vec<LocalUtxo> = wallet.list_unspent()?;
+        drop(wallets);
+
+        let mut map = HashMap::new();
+
+        for utxo in utxos.into_iter() {
+            map.entry(utxo.txout.script_pubkey)
+                .and_modify(|amount| *amount += utxo.txout.value)
+                .or_insert(utxo.txout.value);
+        }
+
+        Ok(map)
     }
 
     pub fn get_total_balance(&self) -> Result<Balance, Error> {
