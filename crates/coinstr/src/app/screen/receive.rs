@@ -56,6 +56,7 @@ pub struct ReceiveState {
     label: String,
     loading: bool,
     loaded: bool,
+    allow_reload: bool,
     error: Option<String>,
 }
 
@@ -72,6 +73,7 @@ impl ReceiveState {
             label: String::new(),
             loading: false,
             loaded: false,
+            allow_reload: false,
             error: None,
         }
     }
@@ -83,6 +85,10 @@ impl State for ReceiveState {
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loaded && !self.allow_reload {
+            return Command::none();
+        }
+
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
@@ -112,6 +118,7 @@ impl State for ReceiveState {
                     self.policies = policies;
                     self.loading = false;
                     self.loaded = true;
+                    self.allow_reload = false;
                     if let Some(policy) = self.policy.as_ref() {
                         let policy_id = policy.policy_id;
                         return Command::perform(async {}, move |_| {
@@ -164,7 +171,10 @@ impl State for ReceiveState {
                     self.loading = false;
                     self.error = error;
                 }
-                ReceiveMessage::Reload => return self.load(ctx),
+                ReceiveMessage::Reload => {
+                    self.allow_reload = true;
+                    return self.load(ctx);
+                }
             }
         }
 
