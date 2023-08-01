@@ -97,6 +97,11 @@ interface Utxo {
     string? label();
 };
 
+interface GetAddress {
+    string address();
+    string? label();
+};
+
 interface Balance {
     u64 get_spendable();
     u64 get_total();
@@ -364,9 +369,9 @@ interface Coinstr {
     [Throws=FFIError]
     TransactionDetails? get_tx(string txid);
     [Throws=FFIError]
-    string? get_address(string policy_id, AddressIndex index);
+    GetAddress get_address(string policy_id, AddressIndex index);
     [Throws=FFIError]
-    string? get_last_unused_address(string policy_id);
+    GetAddress get_last_unused_address(string policy_id);
 
     [Throws=FFIError]
     void rebroadcast_all_events();

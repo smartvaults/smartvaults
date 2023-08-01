@@ -19,7 +19,7 @@ use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
 
 use crate::error::Result;
 use crate::{
-    AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config,
+    AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
     GetCompletedProposal, GetPolicy, GetProposal, KeychainSeed, Metadata, NostrConnectRequest,
     NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer, TransactionDetails, Utxo,
 };
@@ -522,20 +522,16 @@ impl Coinstr {
         Ok(self.inner.get_tx(txid).map(|(tx, ..)| Arc::new(tx.into())))
     }
 
-    pub fn get_address(&self, policy_id: String, index: AddressIndex) -> Result<Option<String>> {
+    pub fn get_address(&self, policy_id: String, index: AddressIndex) -> Result<Arc<GetAddress>> {
         let policy_id = EventId::from_hex(policy_id)?;
-        Ok(self
-            .inner
-            .get_address(policy_id, index.into())
-            .map(|a| a.to_string()))
+        let address = self.inner.get_address(policy_id, index.into())?;
+        Ok(Arc::new(address.into()))
     }
 
-    pub fn get_last_unused_address(&self, policy_id: String) -> Result<Option<String>> {
+    pub fn get_last_unused_address(&self, policy_id: String) -> Result<Arc<GetAddress>> {
         let policy_id = EventId::from_hex(policy_id)?;
-        Ok(self
-            .inner
-            .get_last_unused_address(policy_id)
-            .map(|a| a.to_string()))
+        let address = self.inner.get_last_unused_address(policy_id)?;
+        Ok(Arc::new(address.into()))
     }
 
     pub fn rebroadcast_all_events(&self) -> Result<()> {

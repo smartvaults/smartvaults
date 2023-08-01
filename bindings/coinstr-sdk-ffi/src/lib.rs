@@ -43,7 +43,7 @@ mod ffi {
 
     // Coinstr
     pub use crate::abortable::AbortHandle;
-    pub use crate::address::AddressIndex;
+    pub use crate::address::{AddressIndex, GetAddress};
     pub use crate::amount::Amount;
     pub use crate::approval::Approval;
     pub use crate::balance::Balance;
