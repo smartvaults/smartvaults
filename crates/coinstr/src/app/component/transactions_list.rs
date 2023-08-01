@@ -3,7 +3,7 @@
 
 use coinstr_sdk::db::model::GetTransaction;
 use coinstr_sdk::nostr::{EventId, Timestamp};
-use coinstr_sdk::util::format;
+use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 
@@ -16,6 +16,7 @@ pub struct TransactionsList {
     list: Vec<GetTransaction>,
     take: Option<usize>,
     policy_id: Option<EventId>,
+    hide_policy_id: bool,
 }
 
 impl TransactionsList {
@@ -24,6 +25,7 @@ impl TransactionsList {
             list,
             take: None,
             policy_id: None,
+            hide_policy_id: false,
         }
     }
 
@@ -37,6 +39,13 @@ impl TransactionsList {
     pub fn policy_id(self, policy_id: EventId) -> Self {
         Self {
             policy_id: Some(policy_id),
+            ..self
+        }
+    }
+
+    pub fn hide_policy_id(self) -> Self {
+        Self {
+            hide_policy_id: true,
             ..self
         }
     }
@@ -60,18 +69,27 @@ impl TransactionsList {
                             .width(Length::Fixed(70.0))
                             .view(),
                     )
+                    .push(if self.hide_policy_id {
+                        Text::new("").view()
+                    } else {
+                        Text::new("Policy ID")
+                            .bold()
+                            .bigger()
+                            .width(Length::Fixed(115.0))
+                            .view()
+                    })
                     .push(
                         Text::new("Date/Time")
                             .bold()
                             .bigger()
-                            .width(Length::Fill)
+                            .width(Length::Fixed(225.0))
                             .view(),
                     )
                     .push(
                         Text::new("Description")
                             .bold()
                             .bigger()
-                            .width(Length::Fill)
+                            .width(Length::FillPortion(2))
                             .view(),
                     )
                     .push(
@@ -98,6 +116,7 @@ impl TransactionsList {
             let list_len = self.list.len();
             let take = self.take;
             let policy_id = self.policy_id;
+            let hide_policy_id = self.hide_policy_id;
 
             for GetTransaction {
                 policy_id,
@@ -121,6 +140,14 @@ impl TransactionsList {
 
                 let row = Row::new()
                     .push(status.width(Length::Fixed(70.0)).view())
+                    .push(if hide_policy_id {
+                        Text::new("").view()
+                    } else {
+                        Text::new(util::cut_event_id(policy_id))
+                            .width(Length::Fixed(115.0))
+                            .on_press(Message::View(Stage::Policy(policy_id)))
+                            .view()
+                    })
                     .push(
                         Text::new(if ctx.hide_balances {
                             String::from("*****")
@@ -129,12 +156,12 @@ impl TransactionsList {
                                 .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
                                 .unwrap_or_default()
                         })
-                        .width(Length::Fill)
+                        .width(Length::Fixed(225.0))
                         .view(),
                     )
                     .push(
                         Text::new(label.unwrap_or_default())
-                            .width(Length::Fill)
+                            .width(Length::FillPortion(2))
                             .view(),
                     )
                     .push(

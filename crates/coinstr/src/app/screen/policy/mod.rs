@@ -368,6 +368,7 @@ impl State for PolicyState {
                     TransactionsList::new(self.transactions.clone())
                         .take(5)
                         .policy_id(self.policy_id)
+                        .hide_policy_id()
                         .view(ctx),
                 );
         }
