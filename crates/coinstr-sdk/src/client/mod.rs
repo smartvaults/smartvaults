@@ -193,7 +193,7 @@ impl Coinstr {
             .wait_for_send(false)
             .wait_for_subscription(false);
 
-        let (sender, _) = broadcast::channel::<Option<Message>>(1024);
+        let (sender, _) = broadcast::channel::<Option<Message>>(2048);
 
         let this = Self {
             network,
