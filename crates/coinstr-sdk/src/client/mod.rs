@@ -1660,7 +1660,7 @@ impl Coinstr {
     pub fn get_nostr_connect_requests(
         &self,
         approved: bool,
-    ) -> Result<Vec<(EventId, NostrConnectRequest)>, Error> {
+    ) -> Result<Vec<NostrConnectRequest>, Error> {
         Ok(self.db.get_nostr_connect_requests(approved)?)
     }
 

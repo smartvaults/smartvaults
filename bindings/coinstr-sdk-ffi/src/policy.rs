@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::policy;
 use coinstr_sdk::db::model;
-use nostr_ffi::{Timestamp, EventId};
+use nostr_ffi::{EventId, Timestamp};
 
 #[derive(Clone)]
 pub struct Policy {

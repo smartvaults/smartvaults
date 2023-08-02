@@ -569,7 +569,7 @@ pub fn print_sessions(sessions: Vec<(NostrConnectURI, Timestamp)>) {
     table.printstd();
 }
 
-pub fn print_requests(requests: Vec<(EventId, NostrConnectRequest)>) -> Result<()> {
+pub fn print_requests(requests: Vec<NostrConnectRequest>) -> Result<()> {
     let mut table = Table::new();
 
     table.set_titles(row![
@@ -580,10 +580,10 @@ pub fn print_requests(requests: Vec<(EventId, NostrConnectRequest)>) -> Result<(
         "Requested at",
     ]);
 
-    for (index, (event_id, req)) in requests.into_iter().enumerate() {
+    for (index, req) in requests.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
-            event_id,
+            req.event_id,
             util::cut_public_key(req.app_public_key),
             req.message.to_request()?.method(),
             req.timestamp.to_human_datetime(),

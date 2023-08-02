@@ -122,26 +122,24 @@ impl Store {
     pub fn get_nostr_connect_requests(
         &self,
         approved: bool,
-    ) -> Result<Vec<(EventId, NostrConnectRequest)>, Error> {
+    ) -> Result<Vec<NostrConnectRequest>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT event_id, app_public_key, message, timestamp, approved FROM nostr_connect_requests WHERE approved = ? ORDER BY timestamp DESC;")?;
         let mut rows = stmt.query([approved])?;
-        let mut requests: Vec<(EventId, NostrConnectRequest)> = Vec::new();
+        let mut requests = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let event_id: String = row.get(0)?;
             let app_public_key: String = row.get(1)?;
             let message: String = row.get(2)?;
             let timestamp: u64 = row.get(3)?;
             let approved: bool = row.get(4)?;
-            requests.push((
-                EventId::from_hex(event_id)?,
-                NostrConnectRequest {
-                    app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
-                    message: NIP46Message::from_json(message)?,
-                    timestamp: Timestamp::from(timestamp),
-                    approved,
-                },
-            ));
+            requests.push(NostrConnectRequest {
+                event_id: EventId::from_hex(event_id)?,
+                app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
+                message: NIP46Message::from_json(message)?,
+                timestamp: Timestamp::from(timestamp),
+                approved,
+            });
         }
         Ok(requests)
     }
@@ -161,6 +159,7 @@ impl Store {
         let timestamp: u64 = row.get(2)?;
         let approved: bool = row.get(3)?;
         Ok(NostrConnectRequest {
+            event_id,
             app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
             message: NIP46Message::from_json(message)?,
             timestamp: Timestamp::from(timestamp),

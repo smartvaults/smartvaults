@@ -61,6 +61,7 @@ pub struct GetAllSigners {
 
 #[derive(Debug, Clone)]
 pub struct NostrConnectRequest {
+    pub event_id: EventId,
     pub app_public_key: XOnlyPublicKey,
     pub message: Message,
     pub timestamp: Timestamp,

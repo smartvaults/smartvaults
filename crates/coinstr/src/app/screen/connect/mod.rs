@@ -21,7 +21,7 @@ use crate::theme::color::RED;
 use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOP, STOPWATCH, TRASH};
 
 type Sessions = Vec<(NostrConnectURI, Timestamp)>;
-type Requests = Vec<(EventId, NostrConnectRequest)>;
+type Requests = Vec<NostrConnectRequest>;
 type Authorizations = BTreeMap<XOnlyPublicKey, Timestamp>;
 
 #[derive(Debug, Clone)]
@@ -382,11 +382,11 @@ impl State for ConnectState {
                         )
                         .push(rule::horizontal_bold());
 
-                    for (req_id, request) in self.pending_requests.iter() {
+                    for request in self.pending_requests.iter() {
                         if let Ok(req) = request.message.to_request() {
                             let row = Row::new()
                                 .push(
-                                    Text::new(util::cut_event_id(*req_id))
+                                    Text::new(util::cut_event_id(request.event_id))
                                         .width(Length::Fixed(115.0))
                                         .view(),
                                 )
@@ -404,7 +404,9 @@ impl State for ConnectState {
                                 .push(
                                     Button::new()
                                         .icon(CHECK)
-                                        .on_press(ConnectMessage::ApproveRequest(*req_id).into())
+                                        .on_press(
+                                            ConnectMessage::ApproveRequest(request.event_id).into(),
+                                        )
                                         .loading(self.loading)
                                         .style(ButtonStyle::Bordered)
                                         .width(Length::Fixed(120.0))
@@ -413,7 +415,9 @@ impl State for ConnectState {
                                 .push(
                                     Button::new()
                                         .icon(TRASH)
-                                        .on_press(ConnectMessage::DeleteRequest(*req_id).into())
+                                        .on_press(
+                                            ConnectMessage::DeleteRequest(request.event_id).into(),
+                                        )
                                         .loading(self.loading)
                                         .style(ButtonStyle::BorderedDanger)
                                         .width(Length::Fixed(40.0))
@@ -469,11 +473,11 @@ impl State for ConnectState {
                         )
                         .push(rule::horizontal_bold());
 
-                    for (req_id, request) in self.approved_requests.iter() {
+                    for request in self.approved_requests.iter() {
                         if let Ok(req) = request.message.to_request() {
                             let row = Row::new()
                                 .push(
-                                    Text::new(util::cut_event_id(*req_id))
+                                    Text::new(util::cut_event_id(request.event_id))
                                         .width(Length::Fixed(115.0))
                                         .view(),
                                 )

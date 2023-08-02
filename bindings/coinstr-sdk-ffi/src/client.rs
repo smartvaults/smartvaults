@@ -212,11 +212,19 @@ impl Coinstr {
     }
 
     pub fn get_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<Arc<GetPolicy>> {
-        Ok(Arc::new(self.inner.get_policy_by_id(policy_id.as_ref().into())?.into()))
+        Ok(Arc::new(
+            self.inner
+                .get_policy_by_id(policy_id.as_ref().into())?
+                .into(),
+        ))
     }
 
     pub fn get_proposal_by_id(&self, proposal_id: Arc<EventId>) -> Result<Arc<GetProposal>> {
-        Ok(Arc::new(self.inner.get_proposal_by_id(proposal_id.as_ref().into())?.into()))
+        Ok(Arc::new(
+            self.inner
+                .get_proposal_by_id(proposal_id.as_ref().into())?
+                .into(),
+        ))
     }
 
     pub fn get_completed_proposal_by_id(
@@ -231,22 +239,35 @@ impl Coinstr {
     }
 
     pub fn get_signer_by_id(&self, signer_id: Arc<EventId>) -> Result<Arc<Signer>> {
-        Ok(Arc::new(self.inner.get_signer_by_id(signer_id.as_ref().into())?.into()))
+        Ok(Arc::new(
+            self.inner
+                .get_signer_by_id(signer_id.as_ref().into())?
+                .into(),
+        ))
     }
 
     pub fn delete_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            Ok(self.inner.delete_policy_by_id(policy_id.as_ref().into()).await?)
+            Ok(self
+                .inner
+                .delete_policy_by_id(policy_id.as_ref().into())
+                .await?)
         })
     }
 
     pub fn delete_proposal_by_id(&self, proposal_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            Ok(self.inner.delete_proposal_by_id(proposal_id.as_ref().into()).await?)
+            Ok(self
+                .inner
+                .delete_proposal_by_id(proposal_id.as_ref().into())
+                .await?)
         })
     }
 
-    pub fn delete_completed_proposal_by_id(&self, completed_proposal_id: Arc<EventId>) -> Result<()> {
+    pub fn delete_completed_proposal_by_id(
+        &self,
+        completed_proposal_id: Arc<EventId>,
+    ) -> Result<()> {
         block_on(async move {
             Ok(self
                 .inner
@@ -257,7 +278,10 @@ impl Coinstr {
 
     pub fn delete_signer_by_id(&self, signer_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            Ok(self.inner.delete_signer_by_id(signer_id.as_ref().into()).await?)
+            Ok(self
+                .inner
+                .delete_signer_by_id(signer_id.as_ref().into())
+                .await?)
         })
     }
 
@@ -271,13 +295,19 @@ impl Coinstr {
         Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
-    pub fn get_proposals_by_policy_id(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<GetProposal>>> {
-        let proposals = self.inner.get_proposals_by_policy_id(policy_id.as_ref().into())?;
+    pub fn get_proposals_by_policy_id(
+        &self,
+        policy_id: Arc<EventId>,
+    ) -> Result<Vec<Arc<GetProposal>>> {
+        let proposals = self
+            .inner
+            .get_proposals_by_policy_id(policy_id.as_ref().into())?;
         Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
     pub fn is_proposal_signed(&self, proposal_id: Arc<EventId>) -> Result<bool> {
-        let GetProposalSdk { proposal, .. } = self.inner.get_proposal_by_id(proposal_id.as_ref().into())?;
+        let GetProposalSdk { proposal, .. } =
+            self.inner.get_proposal_by_id(proposal_id.as_ref().into())?;
         let approvals = self
             .inner
             .get_approvals_by_proposal_id(proposal_id.as_ref().into())?
@@ -326,11 +356,12 @@ impl Coinstr {
             for pk in public_keys.into_iter() {
                 nostr_pubkeys.push(XOnlyPublicKey::from_str(&pk)?);
             }
-            Ok(Arc::new(self
-                .inner
-                .save_policy(name, description, descriptor, nostr_pubkeys)
-                .await?
-                .into()))
+            Ok(Arc::new(
+                self.inner
+                    .save_policy(name, description, descriptor, nostr_pubkeys)
+                    .await?
+                    .into(),
+            ))
         })
     }
 
@@ -409,24 +440,36 @@ impl Coinstr {
 
     pub fn revoke_approval(&self, approval_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            Ok(self.inner.revoke_approval(approval_id.as_ref().into()).await?)
+            Ok(self
+                .inner
+                .revoke_approval(approval_id.as_ref().into())
+                .await?)
         })
     }
 
     pub fn finalize(&self, proposal_id: Arc<EventId>) -> Result<CompletedProposal> {
         block_on(async move {
-            Ok(self.inner.finalize(proposal_id.as_ref().into()).await?.into())
+            Ok(self
+                .inner
+                .finalize(proposal_id.as_ref().into())
+                .await?
+                .into())
         })
     }
 
-    pub fn new_proof_proposal(&self, policy_id: Arc<EventId>, message: String) -> Result<Arc<EventId>> {
+    pub fn new_proof_proposal(
+        &self,
+        policy_id: Arc<EventId>,
+        message: String,
+    ) -> Result<Arc<EventId>> {
         block_on(async move {
-            Ok(Arc::new(self
-                .inner
-                .new_proof_proposal(policy_id.as_ref().into(), message)
-                .await?
-                .0
-                .into()))
+            Ok(Arc::new(
+                self.inner
+                    .new_proof_proposal(policy_id.as_ref().into(), message)
+                    .await?
+                    .0
+                    .into(),
+            ))
         })
     }
 
@@ -456,8 +499,7 @@ impl Coinstr {
     }
 
     pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
-        self
-            .inner
+        self.inner
             .get_balance(policy_id.as_ref().into())
             .map(|b| Arc::new(b.into()))
     }
@@ -501,13 +543,21 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn get_address(&self, policy_id: Arc<EventId>, index: AddressIndex) -> Result<Arc<GetAddress>> {
-        let address = self.inner.get_address(policy_id.as_ref().into(), index.into())?;
+    pub fn get_address(
+        &self,
+        policy_id: Arc<EventId>,
+        index: AddressIndex,
+    ) -> Result<Arc<GetAddress>> {
+        let address = self
+            .inner
+            .get_address(policy_id.as_ref().into(), index.into())?;
         Ok(Arc::new(address.into()))
     }
 
     pub fn get_last_unused_address(&self, policy_id: Arc<EventId>) -> Result<Arc<GetAddress>> {
-        let address = self.inner.get_last_unused_address(policy_id.as_ref().into())?;
+        let address = self
+            .inner
+            .get_last_unused_address(policy_id.as_ref().into())?;
         Ok(Arc::new(address.into()))
     }
 
@@ -566,17 +616,22 @@ impl Coinstr {
     pub fn get_nostr_connect_requests(
         &self,
         approved: bool,
-    ) -> Result<HashMap<String, Arc<NostrConnectRequest>>> {
+    ) -> Result<Vec<Arc<NostrConnectRequest>>> {
         Ok(self
             .inner
             .get_nostr_connect_requests(approved)?
             .into_iter()
-            .map(|(id, req)| (id.to_hex(), Arc::new(req.into())))
+            .map(|req| Arc::new(req.into()))
             .collect())
     }
 
     pub fn approve_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
-        block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id.as_ref().into()).await?) })
+        block_on(async move {
+            Ok(self
+                .inner
+                .approve_nostr_connect_request(event_id.as_ref().into())
+                .await?)
+        })
     }
 
     pub fn auto_approve_nostr_connect_requests(
@@ -595,7 +650,9 @@ impl Coinstr {
     // TODO: add get_nostr_connect_pre_authorizations
 
     pub fn delete_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
-        Ok(self.inner.delete_nostr_connect_request(event_id.as_ref().into())?)
+        Ok(self
+            .inner
+            .delete_nostr_connect_request(event_id.as_ref().into())?)
     }
 
     pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
