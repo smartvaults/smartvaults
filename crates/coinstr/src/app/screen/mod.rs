@@ -6,6 +6,7 @@ mod add_contact;
 #[cfg(feature = "hwi")]
 mod add_hw_signer;
 mod add_signer;
+mod addresses;
 mod completed_proposal;
 mod connect;
 mod contacts;
@@ -34,6 +35,7 @@ pub use self::add_contact::{AddContactMessage, AddContactState};
 #[cfg(feature = "hwi")]
 pub use self::add_hw_signer::{AddHWSignerMessage, AddHWSignerState};
 pub use self::add_signer::{AddSignerMessage, AddSignerState};
+pub use self::addresses::{AddressesMessage, AddressesState};
 pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalState};
 pub use self::connect::add_session::{AddNostrConnectSessionMessage, AddNostrConnectSessionState};
 pub use self::connect::{ConnectMessage, ConnectState};

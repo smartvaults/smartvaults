@@ -5,11 +5,11 @@
 use super::screen::AddHWSignerMessage;
 use super::screen::{
     AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage, AddPolicyMessage,
-    AddRelayMessage, AddSignerMessage, ChangePasswordMessage, CompletedProposalMessage,
-    ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage,
-    HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage, PolicyBuilderMessage,
-    PolicyMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
-    ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
+    AddRelayMessage, AddSignerMessage, AddressesMessage, ChangePasswordMessage,
+    CompletedProposalMessage, ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage,
+    EditProfileMessage, HistoryMessage, NewProofMessage, NotificationsMessage, PoliciesMessage,
+    PolicyBuilderMessage, PolicyMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage,
+    ProposalsMessage, ReceiveMessage, RelaysMessage, RestorePolicyMessage, RevokeAllSignersMessage,
     SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
     SpendMessage, TransactionMessage, TransactionsMessage,
 };
@@ -35,6 +35,7 @@ pub enum Message {
     Transactions(TransactionsMessage),
     History(HistoryMessage),
     CompletedProposal(CompletedProposalMessage),
+    Addresses(AddressesMessage),
     Signers(SignersMessage),
     RevokeAllSigners(RevokeAllSignersMessage),
     Signer(SignerMessage),

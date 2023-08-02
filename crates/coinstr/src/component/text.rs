@@ -74,12 +74,12 @@ where
         }
     }
 
-    /* pub fn horizontal_alignment(self, alignment: Horizontal) -> Self {
+    pub fn horizontal_alignment(self, alignment: Horizontal) -> Self {
         Self {
             horizontal_alignment: Some(alignment),
             ..self
         }
-    } */
+    }
 
     pub fn on_press(self, message: Message) -> Self {
         Self {

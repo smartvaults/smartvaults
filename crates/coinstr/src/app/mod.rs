@@ -19,12 +19,12 @@ pub use self::message::Message;
 use self::screen::AddHWSignerState;
 use self::screen::{
     AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
-    AddRelayState, AddSignerState, ChangePasswordState, CompletedProposalState, ConfigState,
-    ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState, NewProofState,
-    NotificationsState, PoliciesState, PolicyBuilderState, PolicyState, PolicyTreeState,
-    ProfileState, ProposalState, ProposalsState, ReceiveState, RelaysState, RestorePolicyState,
-    RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState, SignerState,
-    SignersState, SpendState, TransactionState, TransactionsState,
+    AddRelayState, AddSignerState, AddressesState, ChangePasswordState, CompletedProposalState,
+    ConfigState, ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState,
+    NewProofState, NotificationsState, PoliciesState, PolicyBuilderState, PolicyState,
+    PolicyTreeState, ProfileState, ProposalState, ProposalsState, ReceiveState, RelaysState,
+    RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState,
+    SignerState, SignersState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -65,6 +65,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::CompletedProposal(completed_proposal_id) => {
             CompletedProposalState::new(*completed_proposal_id).into()
         }
+        Stage::Addresses(policy) => AddressesState::new(policy.clone()).into(),
         Stage::Signers => SignersState::new().into(),
         Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),
         Stage::Signer(signer_id, signer) => SignerState::new(*signer_id, signer.clone()).into(),

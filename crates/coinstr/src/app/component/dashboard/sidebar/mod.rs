@@ -11,7 +11,9 @@ use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::{Icon, Text};
 use crate::constants::{APP_LOGO_MAINNET, APP_LOGO_REGTEST, APP_LOGO_SIGNET, APP_LOGO_TESTNET};
-use crate::theme::icon::{CONTACTS, HISTORY, HOME, KEY, LINK, LOCK, SEND_PENDING, SETTING, WALLET};
+use crate::theme::icon::{
+    CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, SEND_PENDING, SETTING, WALLET,
+};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -44,6 +46,8 @@ impl Sidebar {
             .view(ctx, Message::View(Stage::Proposals));
         let history_button = SidebarButton::new("History", Icon::new(HISTORY).view())
             .view(ctx, Message::View(Stage::History));
+        let addresses_button = SidebarButton::new("Addresses", Icon::new(LIST).view())
+            .view(ctx, Message::View(Stage::Addresses(None)));
         let signers_button = SidebarButton::new("Signers", Icon::new(KEY).view())
             .view(ctx, Message::View(Stage::Signers));
         let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS).view())
@@ -75,6 +79,7 @@ impl Sidebar {
                 policies_button,
                 proposals_button,
                 history_button,
+                addresses_button,
                 signers_button,
                 contacts_button,
                 connect_button,
