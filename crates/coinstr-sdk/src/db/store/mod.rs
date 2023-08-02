@@ -14,7 +14,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::{Network, OutPoint, Script, Txid};
+use bdk::bitcoin::{Address, Network, OutPoint, Script, Txid};
 use bdk::blockchain::{ElectrumBlockchain, GetHeight};
 use bdk::database::SqliteDatabase;
 use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
@@ -621,11 +621,45 @@ impl Store {
     pub fn get_txs(&self, policy_id: EventId, sort: bool) -> Result<Vec<GetTransaction>, Error> {
         let wallets = self.wallets.lock();
         let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let mut txs: Vec<TransactionDetails> = wallet.list_transactions(true)?;
+        let txs: Vec<TransactionDetails> = wallet.list_transactions(true)?;
+
+        let descriptions: HashMap<Txid, String> = self.get_txs_descriptions(policy_id)?;
+        let script_labels: HashMap<Script, Label> = self.get_addresses_labels(policy_id)?;
+
+        let mut list: Vec<GetTransaction> = Vec::new();
+
+        for tx in txs.into_iter() {
+            let label: Option<String> = if tx.received > tx.sent {
+                let mut label = None;
+                for txout in tx
+                    .transaction
+                    .as_ref()
+                    .ok_or(Error::NotFound("raw tx".to_string()))?
+                    .output
+                    .iter()
+                {
+                    if wallet.is_mine(&txout.script_pubkey)? {
+                        label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
+                        break;
+                    }
+                }
+                label
+            } else {
+                // TODO: try to get UTXO label?
+                descriptions.get(&tx.txid).cloned()
+            };
+
+            list.push(GetTransaction {
+                policy_id,
+                label,
+                tx,
+            })
+        }
+
         drop(wallets);
 
         if sort {
-            txs.sort_by(|a, b| {
+            list.sort_by(|a, b| {
                 b.confirmation_time
                     .as_ref()
                     .map(|t| t.height)
@@ -639,26 +673,45 @@ impl Store {
             });
         }
 
-        let descriptions = self.get_txs_descriptions(policy_id)?;
-
-        Ok(txs
-            .into_iter()
-            .map(|tx| GetTransaction {
-                policy_id,
-                label: descriptions.get(&tx.txid).cloned(),
-                tx,
-            })
-            .collect())
+        Ok(list)
     }
 
     pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
-        let label: Option<String> = self.get_description_by_txid(policy_id, txid)?;
         let wallets = self.wallets.lock();
         let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
         let tx: TransactionDetails = wallet
             .get_tx(&txid, true)?
             .ok_or(Error::NotFound("tx".to_string()))?;
-        drop(wallets);
+
+        let label: Option<String> = if tx.received > tx.sent {
+            let mut label = None;
+            for txout in tx
+                .transaction
+                .as_ref()
+                .ok_or(Error::NotFound("raw tx".to_string()))?
+                .output
+                .iter()
+            {
+                if wallet.is_mine(&txout.script_pubkey)? {
+                    let shared_key = self.get_shared_key(policy_id)?;
+                    let identifier: String = LabelData::Address(Address::from_script(
+                        &txout.script_pubkey,
+                        self.network,
+                    )?)
+                    .generate_identifier(&shared_key)?;
+                    label = self
+                        .get_label_by_identifier(identifier)
+                        .ok()
+                        .map(|l| l.text());
+                    break;
+                }
+            }
+            label
+        } else {
+            // TODO: try to get UTXO label?
+            self.get_description_by_txid(policy_id, txid)?
+        };
+
         Ok(GetTransaction {
             policy_id,
             tx,
