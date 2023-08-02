@@ -494,6 +494,7 @@ pub async fn print_relays(relays: BTreeMap<Url, Relay>) {
         "Success",
         "Sent (bytes)",
         "Received (bytes)",
+        "Queue",
         "Connected at"
     ]);
 
@@ -507,6 +508,7 @@ pub async fn print_relays(relays: BTreeMap<Url, Relay>) {
             stats.success(),
             format::big_number(stats.bytes_sent() as u64),
             format::big_number(stats.bytes_received() as u64),
+            relay.queue(),
             if stats.connected_at() == Timestamp::from(0) {
                 String::from("-")
             } else {

@@ -9,6 +9,7 @@ use coinstr_sdk::nostr::{RelayStatus, Url};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
+use iced_native::alignment::Horizontal;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
@@ -22,6 +23,7 @@ pub struct Relay {
     proxy: Option<SocketAddr>,
     status: RelayStatus,
     stats: RelayConnectionStats,
+    queue: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +71,7 @@ impl State for RelaysState {
                         proxy: relay.proxy(),
                         status: relay.status().await,
                         stats: relay.stats(),
+                        queue: relay.queue(),
                     });
                 }
                 relays
@@ -123,6 +126,7 @@ impl State for RelaysState {
                             Text::new("Proxy")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                                 .view(),
                         )
@@ -130,6 +134,7 @@ impl State for RelaysState {
                             Text::new("Status")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
                         )
@@ -137,6 +142,7 @@ impl State for RelaysState {
                             Text::new("Attemps")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
                         )
@@ -144,6 +150,7 @@ impl State for RelaysState {
                             Text::new("Success")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
                         )
@@ -151,6 +158,7 @@ impl State for RelaysState {
                             Text::new("Sent (bytes)")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
                         )
@@ -158,13 +166,23 @@ impl State for RelaysState {
                             Text::new("Received (bytes)")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
+                                .view(),
+                        )
+                        .push(
+                            Text::new("Queue")
+                                .bold()
+                                .bigger()
+                                .horizontal_alignment(Horizontal::Center)
+                                .width(Length::Fixed(80.0))
                                 .view(),
                         )
                         .push(
                             Text::new("Connected at")
                                 .bold()
                                 .bigger()
+                                .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                                 .view(),
                         )
@@ -197,6 +215,7 @@ impl State for RelaysState {
                 proxy,
                 status,
                 stats,
+                queue,
             } in self.relays.iter()
             {
                 let status = match status {
@@ -216,32 +235,49 @@ impl State for RelaysState {
                                 .map(|p| p.to_string())
                                 .unwrap_or_else(|| String::from("-")),
                         )
+                        .horizontal_alignment(Horizontal::Center)
                         .width(Length::Fill)
                         .view(),
                     )
-                    .push(Row::new().push(status).width(Length::Fixed(100.0)))
+                    .push(
+                        Column::new()
+                            .push(status)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fixed(100.0)),
+                    )
                     .push(
                         Text::new(stats.attempts().to_string())
+                            .horizontal_alignment(Horizontal::Center)
                             .width(Length::Fixed(100.0))
                             .view(),
                     )
                     .push(
                         Text::new(stats.success().to_string())
+                            .horizontal_alignment(Horizontal::Center)
                             .width(Length::Fixed(100.0))
                             .view(),
                     )
                     .push(
                         Text::new(util::format::big_number(stats.bytes_sent() as u64))
+                            .horizontal_alignment(Horizontal::Center)
                             .width(Length::Fixed(100.0))
                             .view(),
                     )
                     .push(
                         Text::new(util::format::big_number(stats.bytes_received() as u64))
+                            .horizontal_alignment(Horizontal::Center)
                             .width(Length::Fixed(100.0))
                             .view(),
                     )
                     .push(
+                        Text::new(queue.to_string())
+                            .horizontal_alignment(Horizontal::Center)
+                            .width(Length::Fixed(80.0))
+                            .view(),
+                    )
+                    .push(
                         Text::new(stats.connected_at().to_human_datetime())
+                            .horizontal_alignment(Horizontal::Center)
                             .width(Length::Fill)
                             .view(),
                     )
