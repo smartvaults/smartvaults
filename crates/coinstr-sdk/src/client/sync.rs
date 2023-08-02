@@ -453,9 +453,7 @@ impl Coinstr {
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
                         let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                             .to_event(&keys)?;
-                        self.client
-                            .send_event_to_with_custom_wait(uri.relay_url, nip46_event, None)
-                            .await?;
+                        self.send_event_to(uri.relay_url, nip46_event, None).await?;
                     }
                     _ => {
                         if self
@@ -471,9 +469,7 @@ impl Coinstr {
                             let nip46_event =
                                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                                     .to_event(&keys)?;
-                            self.client
-                                .send_event_to_with_custom_wait(uri.relay_url, nip46_event, None)
-                                .await?;
+                            self.send_event_to(uri.relay_url, nip46_event, None).await?;
                             self.db.save_nostr_connect_request(
                                 event.id,
                                 event.pubkey,

@@ -74,6 +74,8 @@ pub enum Error {
     #[error(transparent)]
     Client(#[from] nostr_sdk::client::Error),
     #[error(transparent)]
+    RelayPool(#[from] nostr_sdk::relay::pool::Error),
+    #[error(transparent)]
     Keys(#[from] nostr_sdk::key::Error),
     #[error(transparent)]
     EventId(#[from] nostr_sdk::event::id::Error),
@@ -512,11 +514,11 @@ impl Coinstr {
         self.db.save_event(&event)?;
         let event_id = event.id;
         let msg = ClientMessage::new_event(event);
-        self.client.send_msg_with_custom_wait(msg, wait).await?;
+        self.client.pool().send_msg(msg, wait).await?;
         Ok(event_id)
     }
 
-    /* async fn send_event_to<S>(
+    async fn send_event_to<S>(
         &self,
         url: S,
         event: Event,
@@ -528,11 +530,10 @@ impl Coinstr {
         self.db.save_event(&event)?;
         let event_id = event.id;
         let msg = ClientMessage::new_event(event);
-        self.client
-            .send_msg_to_with_custom_wait(url, msg, wait)
-            .await?;
+        let url = Url::parse(&url.into())?;
+        self.client.pool().send_msg_to(url, msg, wait).await?;
         Ok(event_id)
-    } */
+    }
 
     /// Get config
     pub fn config(&self) -> Config {
@@ -1621,8 +1622,7 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.client
-            .send_event_to_with_custom_wait(relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT))
+        self.send_event_to(relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT))
             .await?;
 
         self.db.save_nostr_connect_uri(uri)?;
@@ -1644,9 +1644,7 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Disconnect);
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.client
-            .send_event_to_with_custom_wait(uri.relay_url, nip46_event, wait)
-            .await?;
+        self.send_event_to(uri.relay_url, nip46_event, wait).await?;
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
     }
@@ -1681,12 +1679,7 @@ impl Coinstr {
                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
             let nip46_event =
                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-            self.client
-                .send_event_to_with_custom_wait(
-                    uri.relay_url,
-                    nip46_event,
-                    Some(CONNECT_SEND_TIMEOUT),
-                )
+            self.send_event_to(uri.relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT))
                 .await?;
             self.db.set_nostr_connect_request_as_approved(event_id)?;
             Ok(())
