@@ -1,8 +1,10 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
 use std::fmt;
 
+use coinstr_sdk::core::bitcoin::Script;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::db::model::{GetAddress, GetPolicy};
 use coinstr_sdk::nostr::EventId;
@@ -39,7 +41,7 @@ pub enum AddressesMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
     LoadAddresses(EventId),
     PolicySelectd(PolicyPicLisk),
-    AddressesChanged(Vec<GetAddress>),
+    AddressesChanged(Vec<GetAddress>, HashMap<Script, u64>),
     ErrorChanged(Option<String>),
 }
 
@@ -48,6 +50,7 @@ pub struct AddressesState {
     policy: Option<PolicyPicLisk>,
     policies: Vec<PolicyPicLisk>,
     addresses: Vec<GetAddress>,
+    balances: HashMap<Script, u64>,
     loading: bool,
     loaded: bool,
     error: Option<String>,
@@ -62,6 +65,7 @@ impl AddressesState {
             }),
             policies: Vec::new(),
             addresses: Vec::new(),
+            balances: HashMap::new(),
             loading: false,
             loaded: false,
             error: None,
@@ -114,9 +118,17 @@ impl State for AddressesState {
                 AddressesMessage::LoadAddresses(policy_id) => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.get_addresses(policy_id) },
+                        async move {
+                            let addresses = client.get_addresses(policy_id)?;
+                            let balances = client.get_addresses_balances(policy_id)?;
+                            Ok::<(Vec<GetAddress>, HashMap<Script, u64>), Box<dyn std::error::Error>>(
+                                (addresses, balances),
+                            )
+                        },
                         |res| match res {
-                            Ok(addresses) => AddressesMessage::AddressesChanged(addresses).into(),
+                            Ok((addresses, balances)) => {
+                                AddressesMessage::AddressesChanged(addresses, balances).into()
+                            }
                             Err(e) => AddressesMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );
@@ -128,8 +140,9 @@ impl State for AddressesState {
                         AddressesMessage::LoadAddresses(policy_id).into()
                     });
                 }
-                AddressesMessage::AddressesChanged(value) => {
-                    self.addresses = value;
+                AddressesMessage::AddressesChanged(addresses, balances) => {
+                    self.addresses = addresses;
+                    self.balances = balances;
                 }
                 AddressesMessage::ErrorChanged(error) => {
                     self.loading = false;
@@ -230,10 +243,18 @@ impl State for AddressesState {
                             .view(),
                     )
                     .push(
-                        Text::new("0")
-                            .horizontal_alignment(Horizontal::Center)
-                            .width(Length::Fixed(125.0))
-                            .view(),
+                        Text::new(format!(
+                            "{} sat",
+                            util::format::number(
+                                self.balances
+                                    .get(&address.script_pubkey())
+                                    .copied()
+                                    .unwrap_or_default()
+                            )
+                        ))
+                        .horizontal_alignment(Horizontal::Center)
+                        .width(Length::Fixed(125.0))
+                        .view(),
                     )
                     .push(
                         Button::new()
