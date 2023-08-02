@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use coinstr_sdk::db::model;
-use nostr_ffi::EventId;
+use nostr_ffi::{EventId, PublicKey};
 
 use crate::NostrConnectURI;
 
@@ -28,8 +28,8 @@ impl NostrConnectRequest {
         Arc::new(self.inner.event_id.into())
     }
 
-    pub fn app_public_key(&self) -> String {
-        self.inner.app_public_key.to_string()
+    pub fn app_public_key(&self) -> Arc<PublicKey> {
+        Arc::new(self.inner.app_public_key.into())
     }
 
     pub fn message(&self) -> String {

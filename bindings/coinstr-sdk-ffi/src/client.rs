@@ -14,9 +14,8 @@ use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal as GetProposalSdk};
-use coinstr_sdk::nostr::key::FromPkStr;
-use coinstr_sdk::nostr::{self, block_on, Keys};
-use nostr_ffi::EventId;
+use coinstr_sdk::nostr::{self, block_on};
+use nostr_ffi::{EventId, Keys, PublicKey};
 
 use crate::error::Result;
 use crate::{
@@ -130,7 +129,7 @@ impl Coinstr {
         Arc::new(self.inner.keychain().seed().into())
     }
 
-    pub fn keys(&self) -> Arc<crate::Keys> {
+    pub fn keys(&self) -> Arc<Keys> {
         Arc::new(self.inner.keys().into())
     }
 
@@ -186,6 +185,7 @@ impl Coinstr {
         Ok(Arc::new(self.inner.get_profile()?.into()))
     }
 
+    // TODO: return PublicKey instead of String (must replace HashMap with Vec)
     pub fn get_contacts(&self) -> Result<HashMap<String, Arc<Metadata>>> {
         Ok(self
             .inner
@@ -196,18 +196,17 @@ impl Coinstr {
     }
 
     /// Add new contact
-    pub fn add_contact(&self, public_key: String) -> Result<()> {
-        block_on(async move {
-            let keys: Keys = Keys::from_pk_str(&public_key)?;
-            Ok(self.inner.add_contact(keys.public_key()).await?)
-        })
+    pub fn add_contact(&self, public_key: Arc<PublicKey>) -> Result<()> {
+        block_on(async move { Ok(self.inner.add_contact(public_key.as_ref().into()).await?) })
     }
 
     /// Remove contact
-    pub fn remove_contact(&self, public_key: String) -> Result<()> {
+    pub fn remove_contact(&self, public_key: Arc<PublicKey>) -> Result<()> {
         block_on(async move {
-            let keys: Keys = Keys::from_pk_str(&public_key)?;
-            Ok(self.inner.remove_contact(keys.public_key()).await?)
+            Ok(self
+                .inner
+                .remove_contact(public_key.as_ref().into())
+                .await?)
         })
     }
 
@@ -324,6 +323,7 @@ impl Coinstr {
         Ok(proposal.finalize(approvals, self.inner.network()).is_ok())
     }
 
+    // TODO: replace String with EventId (replace HashMap with Vec)
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: Arc<EventId>,
@@ -349,13 +349,10 @@ impl Coinstr {
         name: String,
         description: String,
         descriptor: String,
-        public_keys: Vec<String>,
+        public_keys: Vec<Arc<PublicKey>>,
     ) -> Result<Arc<EventId>> {
         block_on(async move {
-            let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
-            for pk in public_keys.into_iter() {
-                nostr_pubkeys.push(XOnlyPublicKey::from_str(&pk)?);
-            }
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| p.as_ref().into()).collect();            
             Ok(Arc::new(
                 self.inner
                     .save_policy(name, description, descriptor, nostr_pubkeys)
@@ -489,6 +486,7 @@ impl Coinstr {
 
     // TODO: add get_all_signers
 
+    // TODO: replace String with EventId
     pub fn get_signers(&self) -> Result<HashMap<String, Arc<Signer>>> {
         Ok(self
             .inner
@@ -603,12 +601,11 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn disconnect_nostr_connect_session(&self, app_public_key: String) -> Result<()> {
+    pub fn disconnect_nostr_connect_session(&self, app_public_key: Arc<PublicKey>) -> Result<()> {
         block_on(async move {
-            let app_public_key = XOnlyPublicKey::from_str(&app_public_key)?;
             Ok(self
                 .inner
-                .disconnect_nostr_connect_session(app_public_key)
+                .disconnect_nostr_connect_session(app_public_key.as_ref().into())
                 .await?)
         })
     }
@@ -636,12 +633,11 @@ impl Coinstr {
 
     pub fn auto_approve_nostr_connect_requests(
         &self,
-        app_public_key: String,
+        app_public_key: Arc<PublicKey>,
         duration: Duration,
     ) -> Result<()> {
-        let app_public_key = XOnlyPublicKey::from_str(&app_public_key)?;
         self.inner
-            .auto_approve_nostr_connect_requests(app_public_key, duration);
+            .auto_approve_nostr_connect_requests(app_public_key.as_ref().into(), duration);
         Ok(())
     }
 

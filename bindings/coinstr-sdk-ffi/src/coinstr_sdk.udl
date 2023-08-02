@@ -25,6 +25,8 @@ interface AbortHandle {
     boolean is_aborted();
 };
 
+// Nostr FFI
+
 interface Timestamp {
     [Name=now]
     constructor();
@@ -34,7 +36,52 @@ interface Timestamp {
     string to_human_datetime();
 };
 
+interface SecretKey {
+    [Throws=FFIError, Name=from_hex]
+    constructor(string hex);
+    [Throws=FFIError, Name=from_bech32]
+    constructor(string pk);
+    string to_hex();
+    [Throws=FFIError]
+    string to_bech32();
+};
+
+interface PublicKey {
+    [Throws=FFIError, Name=from_hex]
+    constructor(string hex);
+    [Throws=FFIError, Name=from_bech32]
+    constructor(string pk);
+    [Throws=FFIError, Name=from_nostr_uri]
+    constructor(string uri);
+    string to_hex();
+    [Throws=FFIError]
+    string to_bech32();
+    [Throws=FFIError]
+    string to_nostr_uri();
+};
+
+interface Keys {
+    constructor(SecretKey sk);
+    [Name=from_public_key]
+    constructor(PublicKey pk);
+    [Throws=FFIError, Name=from_sk_str]
+    constructor(string sk);
+    [Throws=FFIError, Name=from_pk_str]
+    constructor(string pk);
+    [Name=generate]
+    constructor();
+    [Throws=FFIError, Name=vanity]
+    constructor(sequence<string> prefixes, boolean bech32, u8 num_cores);
+    [Throws=FFIError, Name=from_mnemonic]
+    constructor(string mnemonic, optional string? passphrase = null);
+    PublicKey public_key();
+    [Throws=FFIError]
+    SecretKey secret_key();
+};
+
 interface EventId {
+    [Throws=FFIError]
+    constructor(PublicKey pubkey, Timestamp created_at, u64 kind, sequence<sequence<string>> tags, string content);
     [Throws=FFIError, Name=from_slice]
     constructor(sequence<u8> bytes);
     [Throws=FFIError, Name=from_hex]
@@ -51,6 +98,12 @@ interface EventId {
     string to_nostr_uri();
 };
 
+interface Metadata {
+    string? name();
+    string? display_name();
+    string? nip05();
+};
+
 enum RelayStatus {
     "Initialized",
     "Connected",
@@ -65,6 +118,8 @@ interface Relay {
     RelayStatus status();
     boolean is_connected();
 };
+
+// Bitcoin & BDK
 
 enum Network {
     "Bitcoin",
@@ -152,25 +207,12 @@ interface AddressIndex {
   Reset(u32 index);
 };
 
+
+// Coinstr
+
 interface KeychainSeed {
     string mnemonic();
     string? passphrase();
-};
-
-interface Keys {
-    string public_key();
-    [Throws=FFIError]
-    string public_key_bech32();
-    [Throws=FFIError]
-    string secret_key();
-    [Throws=FFIError]
-    string secret_key_bech32();
-};
-
-interface Metadata {
-    string? name();
-    string? display_name();
-    string? nip05();
 };
 
 interface Policy {
@@ -237,14 +279,14 @@ interface GetCompletedProposal {
 };
 
 interface Approval {
-    string public_key();
-    u64 timestamp();
+    PublicKey public_key();
+    Timestamp timestamp();
 };
 
 interface NostrConnectURI {
     [Throws=FFIError, Name=from_string]
     constructor(string uri);
-    string public_key();
+    PublicKey public_key();
     string relay_url();
     string name();
     string? url();
@@ -257,7 +299,7 @@ dictionary NostrConnectSession {
 };
 
 interface NostrConnectRequest {
-    string app_public_key();
+    PublicKey app_public_key();
     string message();
     u64 timestamp();
     boolean approved();
@@ -319,9 +361,9 @@ interface Coinstr {
     [Throws=FFIError]
     record<DOMString, Metadata> get_contacts();
     [Throws=FFIError]
-    void add_contact(string public_key);
+    void add_contact(PublicKey public_key);
     [Throws=FFIError]
-    void remove_contact(string public_key);
+    void remove_contact(PublicKey public_key);
 
     [Throws=FFIError]
     GetPolicy get_policy_by_id(EventId policy_id);  
@@ -355,7 +397,7 @@ interface Coinstr {
     sequence<GetCompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]
-    EventId save_policy(string name, string description, string descriptor, sequence<string> public_keys);
+    EventId save_policy(string name, string description, string descriptor, sequence<PublicKey> public_keys);
     [Throws=FFIError]
     GetProposal spend(EventId policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos);
     [Throws=FFIError]
@@ -404,13 +446,13 @@ interface Coinstr {
     [Throws=FFIError]
     sequence<NostrConnectSession> get_nostr_connect_sessions();
     [Throws=FFIError]
-    void disconnect_nostr_connect_session(string app_public_key);
+    void disconnect_nostr_connect_session(PublicKey app_public_key);
     [Throws=FFIError]
     sequence<NostrConnectRequest> get_nostr_connect_requests(boolean approved);
     [Throws=FFIError]
     void approve_nostr_connect_request(EventId event_id);
     [Throws=FFIError]
-    void auto_approve_nostr_connect_requests(string app_public_key, duration duration);
+    void auto_approve_nostr_connect_requests(PublicKey app_public_key, duration duration);
     [Throws=FFIError]
     void delete_nostr_connect_request(EventId event_id);
 
