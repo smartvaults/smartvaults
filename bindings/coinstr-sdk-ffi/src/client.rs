@@ -352,7 +352,8 @@ impl Coinstr {
         public_keys: Vec<Arc<PublicKey>>,
     ) -> Result<Arc<EventId>> {
         block_on(async move {
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| p.as_ref().into()).collect();            
+            let nostr_pubkeys: Vec<XOnlyPublicKey> =
+                public_keys.into_iter().map(|p| p.as_ref().into()).collect();
             Ok(Arc::new(
                 self.inner
                     .save_policy(name, description, descriptor, nostr_pubkeys)
