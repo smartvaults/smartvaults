@@ -1,8 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::sync::Arc;
+
 use coinstr_sdk::core::proposal;
 use coinstr_sdk::db::model;
+use nostr_ffi::EventId;
 
 #[derive(Clone)]
 pub enum CompletedProposal {
@@ -49,12 +52,12 @@ impl From<model::GetCompletedProposal> for GetCompletedProposal {
 }
 
 impl GetCompletedProposal {
-    pub fn completed_proposal_id(&self) -> String {
-        self.inner.completed_proposal_id.to_string()
+    pub fn completed_proposal_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.completed_proposal_id.into())
     }
 
-    pub fn policy_id(&self) -> String {
-        self.inner.policy_id.to_string()
+    pub fn policy_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.policy_id.into())
     }
 
     pub fn completed_proposal(&self) -> CompletedProposal {

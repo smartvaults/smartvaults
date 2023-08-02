@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::policy;
 use coinstr_sdk::db::model;
-use nostr_ffi::Timestamp;
+use nostr_ffi::{Timestamp, EventId};
 
 #[derive(Clone)]
 pub struct Policy {
@@ -52,8 +52,8 @@ impl From<model::GetPolicy> for GetPolicy {
 }
 
 impl GetPolicy {
-    pub fn policy_id(&self) -> String {
-        self.inner.policy_id.to_string()
+    pub fn policy_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.policy_id.into())
     }
 
     pub fn policy(&self) -> Arc<Policy> {

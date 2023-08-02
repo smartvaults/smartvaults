@@ -35,7 +35,7 @@ mod ffi {
     pub use coinstr_sdk::core::signer::SignerType;
     pub use coinstr_sdk::core::types::WordCount;
     pub use coinstr_sdk::nostr::RelayStatus;
-    pub use nostr_ffi::{NostrConnectURI, Timestamp};
+    pub use nostr_ffi::{NostrConnectURI, Timestamp, EventId};
 
     // Namespace
     pub use crate::get_keychains_list;

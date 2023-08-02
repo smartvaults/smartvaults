@@ -34,6 +34,23 @@ interface Timestamp {
     string to_human_datetime();
 };
 
+interface EventId {
+    [Throws=FFIError, Name=from_slice]
+    constructor(sequence<u8> bytes);
+    [Throws=FFIError, Name=from_hex]
+    constructor(string hex);
+    [Throws=FFIError, Name=from_bech32]
+    constructor(string id);
+    [Throws=FFIError, Name=from_nostr_uri]
+    constructor(string uri);
+    sequence<u8> as_bytes();
+    string to_hex();
+    [Throws=FFIError]
+    string to_bech32();
+    [Throws=FFIError]
+    string to_nostr_uri();
+};
+
 enum RelayStatus {
     "Initialized",
     "Connected",
@@ -163,7 +180,7 @@ interface Policy {
 };
 
 interface GetPolicy {
-    string policy_id();
+    EventId policy_id();
     Policy policy();
     Timestamp? last_sync();
 };
@@ -196,8 +213,8 @@ interface Proposal {
 };
 
 interface GetProposal {
-    string proposal_id();
-    string policy_id();
+    EventId proposal_id();
+    EventId policy_id();
     Proposal proposal();
 };
 
@@ -214,8 +231,8 @@ interface CompletedProposal {
 };
 
 interface GetCompletedProposal {
-    string completed_proposal_id();
-    string policy_id();
+    EventId completed_proposal_id();
+    EventId policy_id();
     CompletedProposal completed_proposal();
 };
 
@@ -307,81 +324,80 @@ interface Coinstr {
     void remove_contact(string public_key);
 
     [Throws=FFIError]
-    GetPolicy get_policy_by_id(string policy_id);  
+    GetPolicy get_policy_by_id(EventId policy_id);  
     [Throws=FFIError]
-    GetProposal get_proposal_by_id(string proposal_id);  
+    GetProposal get_proposal_by_id(EventId proposal_id);  
     [Throws=FFIError]
-    GetCompletedProposal get_completed_proposal_by_id(string completed_proposal_id);
+    GetCompletedProposal get_completed_proposal_by_id(EventId completed_proposal_id);
     [Throws=FFIError]
-    Signer get_signer_by_id(string signer_id); 
+    Signer get_signer_by_id(EventId signer_id); 
 
     [Throws=FFIError]
-    void delete_policy_by_id(string policy_id);  
+    void delete_policy_by_id(EventId policy_id);  
     [Throws=FFIError]
-    void delete_proposal_by_id(string proposal_id);  
+    void delete_proposal_by_id(EventId proposal_id);  
     [Throws=FFIError]
-    void delete_completed_proposal_by_id(string completed_proposal_id);
+    void delete_completed_proposal_by_id(EventId completed_proposal_id);
     [Throws=FFIError]
-    void delete_signer_by_id(string signer_id); 
+    void delete_signer_by_id(EventId signer_id); 
 
     [Throws=FFIError]
     sequence<GetPolicy> get_policies();
     [Throws=FFIError]
     sequence<GetProposal> get_proposals();
     [Throws=FFIError]
-    sequence<GetProposal> get_proposals_by_policy_id(string policy_id);
+    sequence<GetProposal> get_proposals_by_policy_id(EventId policy_id);
     [Throws=FFIError]
-    boolean is_proposal_signed(string proposal_id);
+    boolean is_proposal_signed(EventId proposal_id);
     [Throws=FFIError]
-    record<DOMString, Approval> get_approvals_by_proposal_id(string proposal_id);
+    record<DOMString, Approval> get_approvals_by_proposal_id(EventId proposal_id);
     [Throws=FFIError]
     sequence<GetCompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]
-    string save_policy(string name, string description, string descriptor, sequence<string> public_keys);
+    EventId save_policy(string name, string description, string descriptor, sequence<string> public_keys);
     [Throws=FFIError]
-    GetProposal spend(string policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos);
+    GetProposal spend(EventId policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos);
     [Throws=FFIError]
-    GetProposal self_transfer(string from_policy_id, string to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos);   
+    GetProposal self_transfer(EventId from_policy_id, EventId to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos);   
     [Throws=FFIError]
-    string approve(string proposal_id);
+    EventId approve(EventId proposal_id);
     [Throws=FFIError]
-    string approve_with_signed_psbt(string proposal_id, string signed_psbt);
+    EventId approve_with_signed_psbt(EventId proposal_id, string signed_psbt);
     [Throws=FFIError]
-    void revoke_approval(string approval_id);
+    void revoke_approval(EventId approval_id);
     [Throws=FFIError]
-    CompletedProposal finalize(string proposal_id);
+    CompletedProposal finalize(EventId proposal_id);
     [Throws=FFIError]
-    string new_proof_proposal(string policy_id, string message);
+    EventId new_proof_proposal(EventId policy_id, string message);
 
     [Throws=FFIError]
     boolean coinstr_signer_exists();
     [Throws=FFIError]
-    string save_coinstr_signer();
+    EventId save_coinstr_signer();
     [Throws=FFIError]
     record<DOMString, Signer> get_signers();
 
+    Balance? get_balance(EventId policy_id);
     [Throws=FFIError]
-    Balance? get_balance(string policy_id);
+    sequence<GetTransaction> get_txs(EventId policy_id);
     [Throws=FFIError]
-    sequence<GetTransaction> get_txs(string policy_id);
+    GetTransaction get_tx(EventId policy_id, string txid);
     [Throws=FFIError]
-    GetTransaction get_tx(string policy_id, string txid);
-    [Throws=FFIError]
-    sequence<Utxo> get_utxos(string policy_id);
+    sequence<Utxo> get_utxos(EventId policy_id);
     [Throws=FFIError]
     Balance get_total_balance();
     [Throws=FFIError]
     sequence<GetTransaction> get_all_txs();
     [Throws=FFIError]
-    GetAddress get_address(string policy_id, AddressIndex index);
+    GetAddress get_address(EventId policy_id, AddressIndex index);
     [Throws=FFIError]
-    GetAddress get_last_unused_address(string policy_id);
+    GetAddress get_last_unused_address(EventId policy_id);
 
     [Throws=FFIError]
     void rebroadcast_all_events();
     [Throws=FFIError]
-    void republish_shared_key_for_policy(string policy_id);
+    void republish_shared_key_for_policy(EventId policy_id);
     
     [Throws=FFIError]
     void new_nostr_connect_session(NostrConnectURI uri);
@@ -392,11 +408,11 @@ interface Coinstr {
     [Throws=FFIError]
     record<DOMString, NostrConnectRequest> get_nostr_connect_requests(boolean approved);
     [Throws=FFIError]
-    void approve_nostr_connect_request(string event_id);
+    void approve_nostr_connect_request(EventId event_id);
     [Throws=FFIError]
     void auto_approve_nostr_connect_requests(string app_public_key, duration duration);
     [Throws=FFIError]
-    void delete_nostr_connect_request(string event_id);
+    void delete_nostr_connect_request(EventId event_id);
 
     [Self=ByArc]
     AbortHandle handle_sync(SyncHandler handler);

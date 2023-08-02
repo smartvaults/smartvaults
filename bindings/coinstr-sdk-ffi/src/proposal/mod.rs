@@ -1,8 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::sync::Arc;
+
 use coinstr_sdk::core::proposal;
 use coinstr_sdk::db::model;
+use nostr_ffi::EventId;
 
 mod approved;
 mod completed;
@@ -67,12 +70,12 @@ impl From<model::GetProposal> for GetProposal {
 }
 
 impl GetProposal {
-    pub fn proposal_id(&self) -> String {
-        self.inner.proposal_id.to_string()
+    pub fn proposal_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.proposal_id.into())
     }
 
-    pub fn policy_id(&self) -> String {
-        self.inner.policy_id.to_string()
+    pub fn policy_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.policy_id.into())
     }
 
     pub fn proposal(&self) -> Proposal {

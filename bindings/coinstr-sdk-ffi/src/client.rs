@@ -14,8 +14,9 @@ use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal as GetProposalSdk};
-use coinstr_sdk::nostr::prelude::FromPkStr;
-use coinstr_sdk::nostr::{self, block_on, EventId, Keys};
+use coinstr_sdk::nostr::key::FromPkStr;
+use coinstr_sdk::nostr::{self, block_on, Keys};
+use nostr_ffi::EventId;
 
 use crate::error::Result;
 use crate::{
@@ -210,61 +211,53 @@ impl Coinstr {
         })
     }
 
-    pub fn get_policy_by_id(&self, policy_id: String) -> Result<Arc<GetPolicy>> {
-        let policy_id = EventId::from_hex(policy_id)?;
-        Ok(Arc::new(self.inner.get_policy_by_id(policy_id)?.into()))
+    pub fn get_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<Arc<GetPolicy>> {
+        Ok(Arc::new(self.inner.get_policy_by_id(policy_id.as_ref().into())?.into()))
     }
 
-    pub fn get_proposal_by_id(&self, proposal_id: String) -> Result<Arc<GetProposal>> {
-        let proposal_id = EventId::from_hex(proposal_id)?;
-        Ok(Arc::new(self.inner.get_proposal_by_id(proposal_id)?.into()))
+    pub fn get_proposal_by_id(&self, proposal_id: Arc<EventId>) -> Result<Arc<GetProposal>> {
+        Ok(Arc::new(self.inner.get_proposal_by_id(proposal_id.as_ref().into())?.into()))
     }
 
     pub fn get_completed_proposal_by_id(
         &self,
-        completed_proposal_id: String,
+        completed_proposal_id: Arc<EventId>,
     ) -> Result<Arc<GetCompletedProposal>> {
-        let completed_proposal_id = EventId::from_hex(completed_proposal_id)?;
         Ok(Arc::new(
             self.inner
-                .get_completed_proposal_by_id(completed_proposal_id)?
+                .get_completed_proposal_by_id(completed_proposal_id.as_ref().into())?
                 .into(),
         ))
     }
 
-    pub fn get_signer_by_id(&self, signer_id: String) -> Result<Arc<Signer>> {
-        let signer_id = EventId::from_hex(signer_id)?;
-        Ok(Arc::new(self.inner.get_signer_by_id(signer_id)?.into()))
+    pub fn get_signer_by_id(&self, signer_id: Arc<EventId>) -> Result<Arc<Signer>> {
+        Ok(Arc::new(self.inner.get_signer_by_id(signer_id.as_ref().into())?.into()))
     }
 
-    pub fn delete_policy_by_id(&self, policy_id: String) -> Result<()> {
+    pub fn delete_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            let policy_id = EventId::from_hex(policy_id)?;
-            Ok(self.inner.delete_policy_by_id(policy_id).await?)
+            Ok(self.inner.delete_policy_by_id(policy_id.as_ref().into()).await?)
         })
     }
 
-    pub fn delete_proposal_by_id(&self, proposal_id: String) -> Result<()> {
+    pub fn delete_proposal_by_id(&self, proposal_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            let proposal_id = EventId::from_hex(proposal_id)?;
-            Ok(self.inner.delete_proposal_by_id(proposal_id).await?)
+            Ok(self.inner.delete_proposal_by_id(proposal_id.as_ref().into()).await?)
         })
     }
 
-    pub fn delete_completed_proposal_by_id(&self, completed_proposal_id: String) -> Result<()> {
+    pub fn delete_completed_proposal_by_id(&self, completed_proposal_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            let completed_proposal_id = EventId::from_hex(completed_proposal_id)?;
             Ok(self
                 .inner
-                .delete_completed_proposal_by_id(completed_proposal_id)
+                .delete_completed_proposal_by_id(completed_proposal_id.as_ref().into())
                 .await?)
         })
     }
 
-    pub fn delete_signer_by_id(&self, signer_id: String) -> Result<()> {
+    pub fn delete_signer_by_id(&self, signer_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            let signer_id = EventId::from_hex(signer_id)?;
-            Ok(self.inner.delete_signer_by_id(signer_id).await?)
+            Ok(self.inner.delete_signer_by_id(signer_id.as_ref().into()).await?)
         })
     }
 
@@ -273,25 +266,21 @@ impl Coinstr {
         Ok(policies.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
-    // TODO: add `get_detailed_policies` method
-
     pub fn get_proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
         let proposals = self.inner.get_proposals()?;
         Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
-    pub fn get_proposals_by_policy_id(&self, policy_id: String) -> Result<Vec<Arc<GetProposal>>> {
-        let policy_id = EventId::from_hex(policy_id)?;
-        let proposals = self.inner.get_proposals_by_policy_id(policy_id)?;
+    pub fn get_proposals_by_policy_id(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<GetProposal>>> {
+        let proposals = self.inner.get_proposals_by_policy_id(policy_id.as_ref().into())?;
         Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
     }
 
-    pub fn is_proposal_signed(&self, proposal_id: String) -> Result<bool> {
-        let proposal_id = EventId::from_hex(proposal_id)?;
-        let GetProposalSdk { proposal, .. } = self.inner.get_proposal_by_id(proposal_id)?;
+    pub fn is_proposal_signed(&self, proposal_id: Arc<EventId>) -> Result<bool> {
+        let GetProposalSdk { proposal, .. } = self.inner.get_proposal_by_id(proposal_id.as_ref().into())?;
         let approvals = self
             .inner
-            .get_approvals_by_proposal_id(proposal_id)?
+            .get_approvals_by_proposal_id(proposal_id.as_ref().into())?
             .iter()
             .map(
                 |(
@@ -307,12 +296,11 @@ impl Coinstr {
 
     pub fn get_approvals_by_proposal_id(
         &self,
-        proposal_id: String,
+        proposal_id: Arc<EventId>,
     ) -> Result<HashMap<String, Arc<Approval>>> {
-        let proposal_id = EventId::from_hex(proposal_id)?;
         Ok(self
             .inner
-            .get_approvals_by_proposal_id(proposal_id)?
+            .get_approvals_by_proposal_id(proposal_id.as_ref().into())?
             .into_iter()
             .map(|(id, res)| (id.to_hex(), Arc::new(res.into())))
             .collect())
@@ -332,23 +320,23 @@ impl Coinstr {
         description: String,
         descriptor: String,
         public_keys: Vec<String>,
-    ) -> Result<String> {
+    ) -> Result<Arc<EventId>> {
         block_on(async move {
             let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
             for pk in public_keys.into_iter() {
                 nostr_pubkeys.push(XOnlyPublicKey::from_str(&pk)?);
             }
-            Ok(self
+            Ok(Arc::new(self
                 .inner
                 .save_policy(name, description, descriptor, nostr_pubkeys)
                 .await?
-                .to_hex())
+                .into()))
         })
     }
 
     pub fn spend(
         &self,
-        policy_id: String,
+        policy_id: Arc<EventId>,
         to_address: String,
         amount: Arc<Amount>,
         description: String,
@@ -356,12 +344,11 @@ impl Coinstr {
         utxos: Option<Vec<Arc<OutPoint>>>,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
-            let policy_id = EventId::from_hex(policy_id)?;
             let to_address = Address::from_str(&to_address)?;
             let proposal = self
                 .inner
                 .spend(
-                    policy_id,
+                    policy_id.as_ref().into(),
                     to_address,
                     amount.inner(),
                     description,
@@ -376,20 +363,18 @@ impl Coinstr {
 
     pub fn self_transfer(
         &self,
-        from_policy_id: String,
-        to_policy_id: String,
+        from_policy_id: Arc<EventId>,
+        to_policy_id: Arc<EventId>,
         amount: Arc<Amount>,
         target_blocks: u8,
         utxos: Option<Vec<Arc<OutPoint>>>,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
-            let from_policy_id = EventId::from_hex(from_policy_id)?;
-            let to_policy_id = EventId::from_hex(to_policy_id)?;
             let proposal = self
                 .inner
                 .self_transfer(
-                    from_policy_id,
-                    to_policy_id,
+                    from_policy_id.as_ref().into(),
+                    to_policy_id.as_ref().into(),
                     amount.inner(),
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
@@ -400,53 +385,48 @@ impl Coinstr {
         })
     }
 
-    pub fn approve(&self, proposal_id: String) -> Result<String> {
+    pub fn approve(&self, proposal_id: Arc<EventId>) -> Result<Arc<EventId>> {
         block_on(async move {
-            let proposal_id = EventId::from_hex(proposal_id)?;
-            let (approval_id, ..) = self.inner.approve(proposal_id).await?;
-            Ok(approval_id.to_hex())
+            let (approval_id, ..) = self.inner.approve(proposal_id.as_ref().into()).await?;
+            Ok(Arc::new(approval_id.into()))
         })
     }
 
     pub fn approve_with_signed_psbt(
         &self,
-        proposal_id: String,
+        proposal_id: Arc<EventId>,
         signed_psbt: String,
-    ) -> Result<String> {
+    ) -> Result<Arc<EventId>> {
         block_on(async move {
-            let proposal_id = EventId::from_hex(proposal_id)?;
             let signed_psbt = PartiallySignedTransaction::from_str(&signed_psbt)?;
             let (approval_id, ..) = self
                 .inner
-                .approve_with_signed_psbt(proposal_id, signed_psbt)
+                .approve_with_signed_psbt(proposal_id.as_ref().into(), signed_psbt)
                 .await?;
-            Ok(approval_id.to_hex())
+            Ok(Arc::new(approval_id.into()))
         })
     }
 
-    pub fn revoke_approval(&self, approval_id: String) -> Result<()> {
+    pub fn revoke_approval(&self, approval_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            let approval_id = EventId::from_hex(approval_id)?;
-            Ok(self.inner.revoke_approval(approval_id).await?)
+            Ok(self.inner.revoke_approval(approval_id.as_ref().into()).await?)
         })
     }
 
-    pub fn finalize(&self, proposal_id: String) -> Result<CompletedProposal> {
+    pub fn finalize(&self, proposal_id: Arc<EventId>) -> Result<CompletedProposal> {
         block_on(async move {
-            let proposal_id = EventId::from_hex(proposal_id)?;
-            Ok(self.inner.finalize(proposal_id).await?.into())
+            Ok(self.inner.finalize(proposal_id.as_ref().into()).await?.into())
         })
     }
 
-    pub fn new_proof_proposal(&self, policy_id: String, message: String) -> Result<String> {
+    pub fn new_proof_proposal(&self, policy_id: Arc<EventId>, message: String) -> Result<Arc<EventId>> {
         block_on(async move {
-            let policy_id = EventId::from_hex(policy_id)?;
-            Ok(self
+            Ok(Arc::new(self
                 .inner
-                .new_proof_proposal(policy_id, message)
+                .new_proof_proposal(policy_id.as_ref().into(), message)
                 .await?
                 .0
-                .to_hex())
+                .into()))
         })
     }
 
@@ -460,8 +440,8 @@ impl Coinstr {
         Ok(self.inner.coinstr_signer_exists()?)
     }
 
-    pub fn save_coinstr_signer(&self) -> Result<String> {
-        block_on(async move { Ok(self.inner.save_coinstr_signer().await?.to_hex()) })
+    pub fn save_coinstr_signer(&self) -> Result<Arc<EventId>> {
+        block_on(async move { Ok(Arc::new(self.inner.save_coinstr_signer().await?.into())) })
     }
 
     // TODO: add get_all_signers
@@ -475,39 +455,34 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn get_balance(&self, policy_id: String) -> Result<Option<Arc<Balance>>> {
-        let policy_id = EventId::from_hex(policy_id)?;
-        Ok(self
+    pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
+        self
             .inner
-            .get_balance(policy_id)
-            .map(|b| Arc::new(b.into())))
+            .get_balance(policy_id.as_ref().into())
+            .map(|b| Arc::new(b.into()))
     }
 
-    pub fn get_txs(&self, policy_id: String) -> Result<Vec<Arc<GetTransaction>>> {
-        let policy_id = EventId::from_hex(policy_id)?;
+    pub fn get_txs(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<GetTransaction>>> {
         Ok(self
             .inner
-            .get_txs(policy_id)
-            .unwrap_or_default()
+            .get_txs(policy_id.as_ref().into())?
             .into_iter()
             .map(|tx| Arc::new(tx.into()))
             .collect())
     }
 
-    pub fn get_tx(&self, policy_id: String, txid: String) -> Result<Arc<GetTransaction>> {
-        let policy_id = EventId::from_hex(policy_id)?;
+    pub fn get_tx(&self, policy_id: Arc<EventId>, txid: String) -> Result<Arc<GetTransaction>> {
         let txid = Txid::from_str(&txid)?;
         Ok(self
             .inner
-            .get_tx(policy_id, txid)
+            .get_tx(policy_id.as_ref().into(), txid)
             .map(|tx| Arc::new(tx.into()))?)
     }
 
-    pub fn get_utxos(&self, policy_id: String) -> Result<Vec<Arc<Utxo>>> {
-        let policy_id = EventId::from_hex(policy_id)?;
+    pub fn get_utxos(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<Utxo>>> {
         Ok(self
             .inner
-            .get_utxos(policy_id)?
+            .get_utxos(policy_id.as_ref().into())?
             .into_iter()
             .map(|u| Arc::new(u.into()))
             .collect())
@@ -526,15 +501,13 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn get_address(&self, policy_id: String, index: AddressIndex) -> Result<Arc<GetAddress>> {
-        let policy_id = EventId::from_hex(policy_id)?;
-        let address = self.inner.get_address(policy_id, index.into())?;
+    pub fn get_address(&self, policy_id: Arc<EventId>, index: AddressIndex) -> Result<Arc<GetAddress>> {
+        let address = self.inner.get_address(policy_id.as_ref().into(), index.into())?;
         Ok(Arc::new(address.into()))
     }
 
-    pub fn get_last_unused_address(&self, policy_id: String) -> Result<Arc<GetAddress>> {
-        let policy_id = EventId::from_hex(policy_id)?;
-        let address = self.inner.get_last_unused_address(policy_id)?;
+    pub fn get_last_unused_address(&self, policy_id: Arc<EventId>) -> Result<Arc<GetAddress>> {
+        let address = self.inner.get_last_unused_address(policy_id.as_ref().into())?;
         Ok(Arc::new(address.into()))
     }
 
@@ -542,12 +515,11 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.rebroadcast_all_events().await?) })
     }
 
-    pub fn republish_shared_key_for_policy(&self, policy_id: String) -> Result<()> {
+    pub fn republish_shared_key_for_policy(&self, policy_id: Arc<EventId>) -> Result<()> {
         block_on(async move {
-            let policy_id = EventId::from_hex(policy_id)?;
             Ok(self
                 .inner
-                .republish_shared_key_for_policy(policy_id)
+                .republish_shared_key_for_policy(policy_id.as_ref().into())
                 .await?)
         })
     }
@@ -603,9 +575,8 @@ impl Coinstr {
             .collect())
     }
 
-    pub fn approve_nostr_connect_request(&self, event_id: String) -> Result<()> {
-        let event_id = EventId::from_hex(event_id)?;
-        block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id).await?) })
+    pub fn approve_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
+        block_on(async move { Ok(self.inner.approve_nostr_connect_request(event_id.as_ref().into()).await?) })
     }
 
     pub fn auto_approve_nostr_connect_requests(
@@ -623,9 +594,8 @@ impl Coinstr {
 
     // TODO: add get_nostr_connect_pre_authorizations
 
-    pub fn delete_nostr_connect_request(&self, event_id: String) -> Result<()> {
-        let event_id = EventId::from_hex(event_id)?;
-        Ok(self.inner.delete_nostr_connect_request(event_id)?)
+    pub fn delete_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
+        Ok(self.inner.delete_nostr_connect_request(event_id.as_ref().into())?)
     }
 
     pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
