@@ -2,7 +2,8 @@
 // Distributed under the MIT software license
 
 namespace coinstr_sdk {
-    void init_logger(LogLevel level);
+    [Throws=FFIError]
+    void init_logger(string base_path, Network network);
     [Throws=FFIError]
     sequence<string> get_keychains_list(string base_path, Network network);
 };
@@ -10,14 +11,6 @@ namespace coinstr_sdk {
 [Error]
 interface FFIError {
     Generic(string err);
-};
-
-enum LogLevel {
-    "Error",
-    "Warn",
-    "Info",
-    "Debug",
-    "Trace",
 };
 
 interface AbortHandle {

@@ -39,7 +39,7 @@ mod ffi {
 
     // Namespace
     pub use crate::get_keychains_list;
-    pub use crate::logger::{init_logger, LogLevel};
+    pub use crate::logger::init_logger;
 
     // Coinstr
     pub use crate::abortable::AbortHandle;

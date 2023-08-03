@@ -18,6 +18,12 @@ impl fmt::Display for FFIError {
     }
 }
 
+impl From<coinstr_sdk::logger::Error> for FFIError {
+    fn from(e: coinstr_sdk::logger::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<std::io::Error> for FFIError {
     fn from(e: std::io::Error) -> Self {
         Self::Generic { err: e.to_string() }
