@@ -879,7 +879,7 @@ impl Store {
         &self,
         endpoint: S,
         proxy: Option<SocketAddr>,
-        sender: &Sender<Option<Message>>,
+        sender: &Sender<Message>,
     ) -> Result<(), Error>
     where
         S: Into<String>,
@@ -916,7 +916,7 @@ impl Store {
             self.block_height.set_block_height(block_height);
             self.block_height.just_synced();
 
-            let _ = sender.send(Some(Message::BlockHeightUpdated));
+            let _ = sender.send(Message::BlockHeightUpdated);
         }
 
         let loaded_wallet_ids: Vec<EventId> = {
@@ -952,7 +952,7 @@ impl Store {
                     }
                 }
 
-                let _ = sender.send(Some(Message::WalletSyncCompleted(policy_id)));
+                let _ = sender.send(Message::WalletSyncCompleted(policy_id));
 
                 log::info!("Policy {policy_id} synced");
             }

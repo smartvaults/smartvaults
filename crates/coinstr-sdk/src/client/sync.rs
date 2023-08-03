@@ -15,12 +15,12 @@ use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::{
-    Event, EventBuilder, Filter, Keys, Kind, Metadata, RelayMessage, RelayPoolNotification, Result,
-    Tag, TagKind, Timestamp,
+    Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, RelayMessage,
+    RelayPoolNotification, Result, Tag, TagKind, Timestamp,
 };
 use tokio::sync::broadcast::Receiver;
 
-use super::{Coinstr, Error, Message};
+use super::{Coinstr, Error};
 use crate::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
@@ -28,6 +28,31 @@ use crate::constants::{
 use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 use crate::{util, Notification};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EventHandled {
+    SharedKey(EventId),
+    Policy(EventId),
+    Proposal(EventId),
+    Approval { proposal_id: EventId },
+    CompletedProposal(EventId),
+    Signer(EventId),
+    MySharedSigner(EventId),
+    SharedSigner(EventId),
+    Contacts,
+    Metadata(XOnlyPublicKey),
+    NostrConnectRequest(EventId),
+    Label,
+    EventDeletion,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Message {
+    Notification(Notification),
+    EventHandled(EventHandled),
+    WalletSyncCompleted(EventId),
+    BlockHeightUpdated,
+}
 
 impl Coinstr {
     fn sync_with_timechain(&self) -> AbortHandle {
@@ -59,15 +84,8 @@ impl Coinstr {
                     Ok(events) => {
                         for event in events.into_iter() {
                             let event_id = event.id;
-                            match this.handle_event(event).await {
-                                Ok(notification) => {
-                                    this.sync_channel.send(notification).ok();
-                                }
-                                Err(e) => {
-                                    log::error!(
-                                        "Impossible to handle pending event {event_id}: {e}"
-                                    );
-                                }
+                            if let Err(e) = this.handle_event(event).await {
+                                log::error!("Impossible to handle pending event {event_id}: {e}");
                             }
                         }
                     }
@@ -117,7 +135,7 @@ impl Coinstr {
         })
     }
 
-    pub fn sync_notifications(&self) -> Receiver<Option<Message>> {
+    pub fn sync_notifications(&self) -> Receiver<Message> {
         self.sync_channel.subscribe()
     }
 
@@ -199,15 +217,8 @@ impl Coinstr {
                                 let event_id = event.id;
                                 if event.is_expired() {
                                     log::warn!("Event {event_id} expired");
-                                } else {
-                                    match this.handle_event(event).await {
-                                        Ok(notification) => {
-                                            this.sync_channel.send(notification).ok();
-                                        }
-                                        Err(e) => {
-                                            log::error!("Impossible to handle event {event_id}: {e}");
-                                        }
-                                    }
+                                } else if let Err(e) = this.handle_event(event).await {
+                                    log::error!("Impossible to handle event {event_id}: {e}");
                                 }
                             }
                             RelayPoolNotification::Message(relay_url, relay_msg) => {
@@ -244,10 +255,10 @@ impl Coinstr {
         }
     }
 
-    async fn handle_event(&self, event: Event) -> Result<Option<Message>> {
+    async fn handle_event(&self, event: Event) -> Result<()> {
         if self.db.event_was_deleted(event.id)? {
             log::warn!("Received an event that was deleted: {}", event.id);
-            return Ok(None);
+            return Ok(());
         }
 
         if event.kind != Kind::NostrConnect {
@@ -264,6 +275,8 @@ impl Coinstr {
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
                 self.db.save_shared_key(policy_id, shared_key)?;
+                self.sync_channel
+                    .send(Message::EventHandled(EventHandled::SharedKey(event.id)))?;
             }
         } else if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
             if let Ok(shared_key) = self.db.get_shared_key(event.id) {
@@ -280,7 +293,10 @@ impl Coinstr {
                     self.db.save_policy(event.id, policy, nostr_pubkeys)?;
                     let notification = Notification::NewPolicy(event.id);
                     self.db.save_notification(event.id, notification)?;
-                    return Ok(Some(Message::Notification(notification)));
+                    self.sync_channel
+                        .send(Message::Notification(notification))?;
+                    self.sync_channel
+                        .send(Message::EventHandled(EventHandled::Policy(event.id)))?;
                 }
             } else {
                 self.db.save_pending_event(&event)?;
@@ -292,7 +308,10 @@ impl Coinstr {
                     self.db.save_proposal(event.id, policy_id, proposal)?;
                     let notification = Notification::NewProposal(event.id);
                     self.db.save_notification(event.id, notification)?;
-                    return Ok(Some(Message::Notification(notification)));
+                    self.sync_channel
+                        .send(Message::Notification(notification))?;
+                    self.sync_channel
+                        .send(Message::EventHandled(EventHandled::Proposal(event.id)))?;
                 } else {
                     self.db.save_pending_event(&event)?;
                 }
@@ -321,7 +340,12 @@ impl Coinstr {
                             public_key: event.pubkey,
                         };
                         self.db.save_notification(event.id, notification)?;
-                        return Ok(Some(Message::Notification(notification)));
+                        self.sync_channel
+                            .send(Message::Notification(notification))?;
+                        self.sync_channel
+                            .send(Message::EventHandled(EventHandled::Approval {
+                                proposal_id,
+                            }))?;
                     } else {
                         self.db.save_pending_event(&event)?;
                     }
@@ -357,7 +381,11 @@ impl Coinstr {
                         )?;
                         let notification = Notification::NewCompletedProposal(event.id);
                         self.db.save_notification(event.id, notification)?;
-                        return Ok(Some(Message::Notification(notification)));
+                        self.sync_channel
+                            .send(Message::Notification(notification))?;
+                        self.sync_channel.send(Message::EventHandled(
+                            EventHandled::CompletedProposal(event.id),
+                        ))?;
                     } else {
                         self.db.save_pending_event(&event)?;
                     }
@@ -372,6 +400,8 @@ impl Coinstr {
             let keys = self.client.keys();
             let signer = Signer::decrypt_with_keys(&keys, event.content)?;
             self.db.save_signer(event.id, signer)?;
+            self.sync_channel
+                .send(Message::EventHandled(EventHandled::Signer(event.id)))?;
         } else if event.kind == SHARED_SIGNERS_KIND {
             let public_key =
                 util::extract_first_public_key(&event).ok_or(Error::PublicKeyNotFound)?;
@@ -381,6 +411,10 @@ impl Coinstr {
                     util::extract_first_event_id(&event).ok_or(Error::SignerIdNotFound)?;
                 self.db
                     .save_my_shared_signer(signer_id, event.id, public_key)?;
+                self.sync_channel
+                    .send(Message::EventHandled(EventHandled::MySharedSigner(
+                        event.id,
+                    )))?;
             } else {
                 let shared_signer =
                     nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
@@ -392,7 +426,10 @@ impl Coinstr {
                     owner_public_key: event.pubkey,
                 };
                 self.db.save_notification(event.id, notification)?;
-                return Ok(Some(Message::Notification(notification)));
+                self.sync_channel
+                    .send(Message::Notification(notification))?;
+                self.sync_channel
+                    .send(Message::EventHandled(EventHandled::SharedSigner(event.id)))?;
             }
         } else if event.kind == LABELS_KIND {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
@@ -400,6 +437,8 @@ impl Coinstr {
                     if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
                         let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
                         self.db.save_label(identifier, policy_id, label)?;
+                        self.sync_channel
+                            .send(Message::EventHandled(EventHandled::Label))?;
                     } else {
                         self.db.save_pending_event(&event)?;
                     }
@@ -423,6 +462,8 @@ impl Coinstr {
                     }
                 }
             }
+            self.sync_channel
+                .send(Message::EventHandled(EventHandled::EventDeletion))?;
         } else if event.kind == Kind::ContactList {
             let mut contacts = HashSet::new();
             for tag in event.tags.into_iter() {
@@ -431,9 +472,13 @@ impl Coinstr {
                 }
             }
             self.db.save_contacts(contacts)?;
+            self.sync_channel
+                .send(Message::EventHandled(EventHandled::Contacts))?;
         } else if event.kind == Kind::Metadata {
             let metadata = Metadata::from_json(event.content)?;
             self.db.set_metadata(event.pubkey, metadata)?;
+            self.sync_channel
+                .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey)?
         {
@@ -494,9 +539,12 @@ impl Coinstr {
                         }
                     }
                 };
+                self.sync_channel.send(Message::EventHandled(
+                    EventHandled::NostrConnectRequest(event.id),
+                ))?;
             }
         }
 
-        Ok(None)
+        Ok(())
     }
 }

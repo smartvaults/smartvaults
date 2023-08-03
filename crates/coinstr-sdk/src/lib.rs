@@ -12,5 +12,5 @@ pub mod logger;
 pub mod types;
 pub mod util;
 
-pub use self::client::Coinstr;
-pub use self::types::Notification;
+pub use self::client::{Coinstr, EventHandled, Message};
+pub use self::types::{Label, LabelData, LabelKind, Notification, PolicyBackup};

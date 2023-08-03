@@ -29,7 +29,7 @@ where
         let mut receiver = self.client.sync_notifications();
         let stream = stream! {
             while let Ok(item) = receiver.recv().await {
-                if let Some(Message::Notification(notification)) = item {
+                if let Message::Notification(notification) = item {
                     if let Err(e) = DesktopNotification::new().summary("Coinstr").body(&notification.to_string()).show() {
                         log::error!("Impossible to send desktop notification: {e}");
                     };

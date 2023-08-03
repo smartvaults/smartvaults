@@ -39,6 +39,7 @@ use tokio::sync::broadcast::{self, Sender};
 mod label;
 mod sync;
 
+pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND,
@@ -145,13 +146,6 @@ pub enum Error {
     Generic(String),
 }
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    Notification(Notification),
-    WalletSyncCompleted(EventId),
-    BlockHeightUpdated,
-}
-
 /// Coinstr
 #[derive(Debug, Clone)]
 pub struct Coinstr {
@@ -161,7 +155,7 @@ pub struct Coinstr {
     config: Config,
     pub db: Store,
     syncing: Arc<AtomicBool>,
-    sync_channel: Sender<Option<Message>>,
+    sync_channel: Sender<Message>,
 }
 
 impl Coinstr {
@@ -193,7 +187,7 @@ impl Coinstr {
             .wait_for_send(false)
             .wait_for_subscription(false);
 
-        let (sender, _) = broadcast::channel::<Option<Message>>(2048);
+        let (sender, _) = broadcast::channel::<Message>(2048);
 
         let this = Self {
             network,
