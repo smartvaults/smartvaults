@@ -30,7 +30,7 @@ impl Navbar {
                 }
             }
             Err(e) => {
-                log::error!("Impossible to count unseen notifications: {e}");
+                tracing::error!("Impossible to count unseen notifications: {e}");
                 None
             }
         };

@@ -461,7 +461,7 @@ impl Coinstr {
 
         // TODO: rebroadcast only once per day
         /* if let Err(e) = self.rebroadcast_all_events().await {
-            log::error!("Impossible to rebroadcast stored events: {e}");
+            tracing::error!("Impossible to rebroadcast stored events: {e}");
         } */
 
         Ok(())
@@ -853,7 +853,7 @@ impl Coinstr {
             )
             .to_event(&keys)?;
             let event_id: EventId = self.send_event(event, None).await?;
-            log::info!("Published shared key for {pubkey} at event {event_id}");
+            tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
 
         // Publish the event
@@ -1224,7 +1224,7 @@ impl Coinstr {
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id).await {
-            log::error!("Impossibe to delete proposal {proposal_id}: {e}");
+            tracing::error!("Impossibe to delete proposal {proposal_id}: {e}");
         }
 
         // Cache
@@ -1439,7 +1439,7 @@ impl Coinstr {
             )
             .to_event(&keys)?;
             let event_id: EventId = self.send_event(event, None).await?;
-            log::info!("Published shared key for {pubkey} at event {event_id}");
+            tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
         Ok(())
     }
@@ -1511,7 +1511,7 @@ impl Coinstr {
                 .db
                 .my_shared_signer_already_shared(signer_id, public_key)?
             {
-                log::warn!("Signer {signer_id} already shared with {public_key}");
+                tracing::warn!("Signer {signer_id} already shared with {public_key}");
             } else {
                 let content: String =
                     nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
@@ -1604,7 +1604,7 @@ impl Coinstr {
         let last_sync: Timestamp = match self.db.get_last_relay_sync(&relay_url) {
             Ok(ts) => ts,
             Err(e) => {
-                log::error!("Impossible to get last relay sync: {e}");
+                tracing::error!("Impossible to get last relay sync: {e}");
                 Timestamp::from(0)
             }
         };

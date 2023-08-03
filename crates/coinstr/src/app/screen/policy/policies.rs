@@ -70,8 +70,8 @@ impl State for PoliciesState {
 
                     if let Some(path) = path {
                         match ctx.client.save_policy_backup(policy_id, &path) {
-                            Ok(_) => log::info!("Exported policy backup to {}", path.display()),
-                            Err(e) => log::error!("Impossible to create file: {e}"),
+                            Ok(_) => tracing::info!("Exported policy backup to {}", path.display()),
+                            Err(e) => tracing::error!("Impossible to create file: {e}"),
                         }
                     }
                     Command::none()

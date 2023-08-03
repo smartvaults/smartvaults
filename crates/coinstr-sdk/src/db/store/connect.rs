@@ -115,7 +115,7 @@ impl Store {
             "DELETE FROM nostr_connect_requests WHERE app_public_key = ?;",
             [app_public_key.to_string()],
         )?;
-        log::info!("Deleted nostr connect session {app_public_key}");
+        tracing::info!("Deleted nostr connect session {app_public_key}");
         Ok(())
     }
 
@@ -215,7 +215,7 @@ impl Store {
             "DELETE FROM nostr_connect_requests WHERE event_id = ?;",
             [event_id.to_hex()],
         )?;
-        log::info!("Deleted nostr connect request {event_id}");
+        tracing::info!("Deleted nostr connect request {event_id}");
         Ok(())
     }
 }

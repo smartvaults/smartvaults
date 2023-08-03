@@ -31,7 +31,7 @@ where
             while let Ok(item) = receiver.recv().await {
                 if let Message::Notification(notification) = item {
                     if let Err(e) = DesktopNotification::new().summary("Coinstr").body(&notification.to_string()).show() {
-                        log::error!("Impossible to send desktop notification: {e}");
+                        tracing::error!("Impossible to send desktop notification: {e}");
                     };
                 }
                 yield ();

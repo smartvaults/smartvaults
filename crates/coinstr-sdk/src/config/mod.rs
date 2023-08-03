@@ -100,11 +100,11 @@ impl Config {
                         },
                     })
                 }
-                Err(e) => log::error!("Impossible to deserialize config file: {e}"),
+                Err(e) => tracing::error!("Impossible to deserialize config file: {e}"),
             };
         }
 
-        log::warn!("Using default config");
+        tracing::warn!("Using default config");
 
         let (endpoint, block_explorer) = match network {
             Network::Bitcoin => (

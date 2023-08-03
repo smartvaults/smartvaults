@@ -40,7 +40,7 @@ pub fn curr_db_version(conn: &mut Connection) -> Result<usize, Error> {
 pub fn run(conn: &mut PooledConnection) -> Result<(), Error> {
     // check the version.
     let mut curr_version = curr_db_version(conn)?;
-    log::info!("DB version = {:?}", curr_version);
+    tracing::info!("DB version = {:?}", curr_version);
 
     match curr_version.cmp(&DB_VERSION) {
         // Database is new or not current
@@ -69,12 +69,12 @@ pub fn run(conn: &mut PooledConnection) -> Result<(), Error> {
             }
 
             if curr_version == DB_VERSION {
-                log::info!("All migration scripts completed successfully (v{DB_VERSION})");
+                tracing::info!("All migration scripts completed successfully (v{DB_VERSION})");
             }
         }
         // Database is current, all is good
         Ordering::Equal => {
-            log::debug!("Database version was already current (v{DB_VERSION})");
+            tracing::debug!("Database version was already current (v{DB_VERSION})");
         }
         // Database is newer than what this code understands, abort
         Ordering::Greater => {
@@ -86,36 +86,36 @@ pub fn run(conn: &mut PooledConnection) -> Result<(), Error> {
 
     // Setup PRAGMA
     conn.execute_batch(STARTUP_SQL)?;
-    log::debug!("SQLite PRAGMA startup completed");
+    tracing::debug!("SQLite PRAGMA startup completed");
     Ok(())
 }
 
 fn mig_init(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/001_init.sql"))?;
-    log::info!("database schema initialized to v1");
+    tracing::info!("database schema initialized to v1");
     Ok(1)
 }
 
 fn mig_1_to_2(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/002_notifications.sql"))?;
-    log::info!("database schema upgraded v1 -> v2");
+    tracing::info!("database schema upgraded v1 -> v2");
     Ok(2)
 }
 
 fn mig_2_to_3(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/003_nostr_connect.sql"))?;
-    log::info!("database schema upgraded v2 -> v3");
+    tracing::info!("database schema upgraded v2 -> v3");
     Ok(3)
 }
 
 fn mig_3_to_4(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/004_relays.sql"))?;
-    log::info!("database schema upgraded v3 -> v4");
+    tracing::info!("database schema upgraded v3 -> v4");
     Ok(4)
 }
 
 fn mig_4_to_5(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/005_labels.sql"))?;
-    log::info!("database schema upgraded v4 -> v5");
+    tracing::info!("database schema upgraded v4 -> v5");
     Ok(5)
 }

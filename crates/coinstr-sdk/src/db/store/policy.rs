@@ -168,7 +168,7 @@ impl Store {
         )?;
         let mut wallets = self.wallets.lock();
         wallets.remove(&policy_id);
-        log::info!("Deleted policy {policy_id}");
+        tracing::info!("Deleted policy {policy_id}");
         Ok(())
     }
 

@@ -31,7 +31,7 @@ impl Store {
             "DELETE FROM contacts WHERE public_key = ?;",
             [public_key.to_string()],
         )?;
-        log::info!("Deleted contact {public_key}");
+        tracing::info!("Deleted contact {public_key}");
         Ok(())
     }
 
@@ -45,7 +45,7 @@ impl Store {
                 "INSERT OR IGNORE INTO metadata (public_key, metadata) VALUES (?, ?);",
             )?;
             stmt.execute([public_key.to_string(), Metadata::default().as_json()])?;
-            log::info!("Saved contact {public_key}");
+            tracing::info!("Saved contact {public_key}");
         }
 
         Ok(())
@@ -106,7 +106,7 @@ impl Store {
                 }
             }
             Err(e) => {
-                log::error!("{e}");
+                tracing::error!("{e}");
                 util::cut_public_key(public_key)
             }
         }

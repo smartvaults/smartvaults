@@ -1,14 +1,18 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::env;
 use std::path::{Path, PathBuf};
 
 use bdk::bitcoin::Network;
-use fern::{Dispatch, InitError};
-use log::LevelFilter;
 use nostr_sdk::Timestamp;
 use thiserror::Error;
+use tracing::Level;
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::fmt::writer::BoxMakeWriter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::reload::Layer as ReloadLayer;
+use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
+use tracing_subscriber::Layer;
 
 use crate::util::dir;
 
@@ -19,9 +23,7 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] dir::Error),
     #[error(transparent)]
-    Log(#[from] log::SetLoggerError),
-    #[error(transparent)]
-    Logger(#[from] InitError),
+    Logger(#[from] TryInitError),
 }
 
 pub fn init<P>(base_path: P, network: Network) -> Result<(), Error>
@@ -45,37 +47,25 @@ where
         None => path,
     };
 
-    let mut log_file = path.join(now.as_u64().to_string());
-    log_file.set_extension("log");
+    let file_appender = tracing_appender::rolling::never(path, format!("{}.log", now.as_u64()));
+    let writer = BoxMakeWriter::new(file_appender);
+    let file_log = tracing_subscriber::fmt::layer()
+        .with_writer(writer)
+        .with_ansi(false)
+        .with_file(false);
+    let (file_log, ..) = ReloadLayer::new(file_log);
 
-    let mut dispatcher = Dispatch::new()
-        .format(|out, message, record| {
-            out.finish(format_args!(
-                "[{} {} {}] {}",
-                Timestamp::now().to_human_datetime(),
-                record.level(),
-                record.target(),
-                message
-            ))
-        })
-        // Default filter
-        .level(LevelFilter::Debug)
-        .level_for("bdk::blockchain::script_sync", LevelFilter::Info);
+    let stdout_log = tracing_subscriber::fmt::layer().with_file(false);
 
-    if !cfg!(debug_assertions) {
-        dispatcher = dispatcher
-            // Crates filters
-            .level_for("bdk", LevelFilter::Info)
-            .level_for("rustls", LevelFilter::Off)
-    }
+    let target_filter = Targets::new()
+        .with_default(Level::DEBUG)
+        .with_target("bdk", Level::INFO)
+        .with_target("bdk::blockchain::script_sync", Level::INFO)
+        .with_target("rustls", Level::ERROR);
 
-    if let Ok(stdout) = env::var("STDOUT_LOG") {
-        if stdout == "true" {
-            dispatcher = dispatcher.chain(std::io::stdout());
-        }
-    }
-
-    dispatcher.chain(fern::log_file(log_file)?).apply()?;
+    tracing_subscriber::registry()
+        .with(stdout_log.and_then(file_log).with_filter(target_filter))
+        .try_init()?;
 
     Ok(())
 }

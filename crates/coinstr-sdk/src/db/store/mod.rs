@@ -250,7 +250,7 @@ impl Store {
                 proposal.encrypt_with_keys(&self.keys)?,
             ),
         )?;
-        log::info!("Spending proposal {proposal_id} saved");
+        tracing::info!("Spending proposal {proposal_id} saved");
         Ok(())
     }
 
@@ -342,7 +342,7 @@ impl Store {
             [proposal_id.to_hex()],
         )?;
 
-        log::info!("Deleted proposal {proposal_id}");
+        tracing::info!("Deleted proposal {proposal_id}");
         Ok(())
     }
 
@@ -452,7 +452,7 @@ impl Store {
             "DELETE FROM approved_proposals WHERE approval_id = ?;",
             [approval_id.to_hex()],
         )?;
-        log::info!("Deleted approval {approval_id}");
+        tracing::info!("Deleted approval {approval_id}");
         Ok(())
     }
 
@@ -479,7 +479,7 @@ impl Store {
             "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
             (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.encrypt_with_keys(&self.keys)?),
         )?;
-        log::info!("Completed proposal {completed_proposal_id} saved");
+        tracing::info!("Completed proposal {completed_proposal_id} saved");
         Ok(())
     }
 
@@ -569,7 +569,7 @@ impl Store {
             "DELETE FROM completed_proposals WHERE completed_proposal_id = ?;",
             [completed_proposal_id.to_hex()],
         )?;
-        log::info!("Deleted completed proposal {completed_proposal_id}");
+        tracing::info!("Deleted completed proposal {completed_proposal_id}");
         Ok(())
     }
 
@@ -894,7 +894,7 @@ impl Store {
             S: Into<String>,
         {
             let endpoint = endpoint.into();
-            log::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
             let config = ElectrumConfig::builder().socks5(proxy)?.build();
             Ok(ElectrumBlockchain::from(ElectrumClient::from_config(
@@ -932,7 +932,7 @@ impl Store {
         {
             let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
             if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
-                log::info!("Syncing policy {policy_id}");
+                tracing::info!("Syncing policy {policy_id}");
 
                 if blockchain.is_none() {
                     blockchain = Some(initialize(&endpoint, proxy)?);
@@ -954,7 +954,7 @@ impl Store {
 
                 let _ = sender.send(Message::WalletSyncCompleted(policy_id));
 
-                log::info!("Policy {policy_id} synced");
+                tracing::info!("Policy {policy_id} synced");
             }
         }
         Ok(())
@@ -1035,7 +1035,7 @@ impl Store {
         let mut stmt =
             conn.prepare_cached("INSERT OR IGNORE INTO pending_events (event) VALUES (?);")?;
         stmt.execute([event.as_json()])?;
-        log::info!("Saved pending event {} (kind={:?})", event.id, event.kind);
+        tracing::info!("Saved pending event {} (kind={:?})", event.id, event.kind);
         Ok(())
     }
 
@@ -1156,7 +1156,7 @@ impl Store {
         let mut stmt = conn
             .prepare_cached("INSERT OR IGNORE INTO signers (signer_id, signer) VALUES (?, ?);")?;
         stmt.execute((signer_id.to_hex(), signer.encrypt_with_keys(&self.keys)?))?;
-        log::info!("Saved signer {signer_id}");
+        tracing::info!("Saved signer {signer_id}");
         Ok(())
     }
 
@@ -1216,7 +1216,7 @@ impl Store {
             [signer_id.to_hex()],
         )?;
 
-        log::info!("Deleted signer {signer_id}");
+        tracing::info!("Deleted signer {signer_id}");
         Ok(())
     }
 
@@ -1235,7 +1235,7 @@ impl Store {
             "DELETE FROM shared_signers WHERE shared_signer_id = ?;",
             [shared_signer_id.to_hex()],
         )?;
-        log::info!("Deleted shared signer {shared_signer_id}");
+        tracing::info!("Deleted shared signer {shared_signer_id}");
         Ok(())
     }
 
@@ -1296,7 +1296,7 @@ impl Store {
             shared_signer_id.to_hex(),
             public_key.to_string(),
         ))?;
-        log::info!("Saved my shared signer {shared_signer_id} (signer {signer_id})");
+        tracing::info!("Saved my shared signer {shared_signer_id} (signer {signer_id})");
         Ok(())
     }
 
@@ -1314,7 +1314,7 @@ impl Store {
             owner_public_key.to_string(),
             shared_signer.encrypt_with_keys(&self.keys)?,
         ))?;
-        log::info!("Saved shared signer {shared_signer_id}");
+        tracing::info!("Saved shared signer {shared_signer_id}");
         Ok(())
     }
 

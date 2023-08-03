@@ -141,7 +141,7 @@ impl App {
             Message::Clipboard(data) => clipboard::write(data),
             Message::OpenInBrowser(url) => {
                 if let Err(e) = webbrowser::open(&url) {
-                    log::error!("Impossible to open link on browser: {e}");
+                    tracing::error!("Impossible to open link on browser: {e}");
                 }
                 Command::none()
             }

@@ -127,7 +127,7 @@ impl Application for CoinstrApp {
                     let client = app.ctx.client.clone();
                     tokio::task::spawn(async move {
                         if let Err(e) = client.shutdown().await {
-                            log::error!("Impossible to shutdown client: {}", e.to_string());
+                            tracing::error!("Impossible to shutdown client: {}", e.to_string());
                         }
                     });
                     let new = Self::new(app.ctx.client.network());

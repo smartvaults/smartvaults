@@ -66,9 +66,9 @@ impl Coinstr {
                         &this.sync_channel,
                     ) {
                         Ok(_) => (),
-                        Err(e) => log::error!("Impossible to sync wallets: {e}"),
+                        Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                     },
-                    Err(e) => log::error!("Impossible to sync wallets: {e}"),
+                    Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
                 thread::sleep(Duration::from_secs(10)).await;
@@ -85,11 +85,13 @@ impl Coinstr {
                         for event in events.into_iter() {
                             let event_id = event.id;
                             if let Err(e) = this.handle_event(event).await {
-                                log::error!("Impossible to handle pending event {event_id}: {e}");
+                                tracing::error!(
+                                    "Impossible to handle pending event {event_id}: {e}"
+                                );
                             }
                         }
                     }
-                    Err(e) => log::error!("Impossible to get pending events: {e}"),
+                    Err(e) => tracing::error!("Impossible to get pending events: {e}"),
                 }
                 thread::sleep(Duration::from_secs(30)).await;
             }
@@ -109,10 +111,12 @@ impl Coinstr {
                                 .authors(public_keys.into_iter().map(|p| p.to_string()).collect());
                             this.client.req_events_of(vec![filter], Some(timeout)).await;
                         } else {
-                            log::debug!("No public keys metadata to sync")
+                            tracing::debug!("No public keys metadata to sync")
                         }
                     }
-                    Err(e) => log::error!("Impossible to get unsynced metadata public keys: {e}"),
+                    Err(e) => {
+                        tracing::error!("Impossible to get unsynced metadata public keys: {e}")
+                    }
                 }
                 thread::sleep(Duration::from_secs(60)).await;
             }
@@ -126,8 +130,10 @@ impl Coinstr {
                 // TODO: check last rebroadcast timestamp from db
                 if false {
                     match this.rebroadcast_all_events().await {
-                        Ok(_) => log::info!("All events rebroadcasted to relays"),
-                        Err(e) => log::error!("Impossible to rebroadcast events to relays: {e}"),
+                        Ok(_) => tracing::info!("All events rebroadcasted to relays"),
+                        Err(e) => {
+                            tracing::error!("Impossible to rebroadcast events to relays: {e}")
+                        }
                     }
                 }
                 thread::sleep(Duration::from_secs(60)).await;
@@ -178,7 +184,7 @@ impl Coinstr {
 
     pub(crate) fn sync(&self) {
         if self.syncing.load(Ordering::SeqCst) {
-            log::warn!("Syncing threads are already running");
+            tracing::warn!("Syncing threads are already running");
         } else {
             let _ = self
                 .syncing
@@ -199,13 +205,13 @@ impl Coinstr {
                     let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
                         Ok(ts) => ts,
                         Err(e) => {
-                            log::error!("Impossible to get last relay sync: {e}");
+                            tracing::error!("Impossible to get last relay sync: {e}");
                             Timestamp::from(0)
                         }
                     };
                     let filters = this.sync_filters(last_sync);
                     if let Err(e) = relay.subscribe(filters, None).await {
-                        log::error!("Impossible to subscribe to {relay_url}: {e}");
+                        tracing::error!("Impossible to subscribe to {relay_url}: {e}");
                     }
                 }
 
@@ -216,14 +222,14 @@ impl Coinstr {
                             RelayPoolNotification::Event(_, event) => {
                                 let event_id = event.id;
                                 if event.is_expired() {
-                                    log::warn!("Event {event_id} expired");
+                                    tracing::warn!("Event {event_id} expired");
                                 } else if let Err(e) = this.handle_event(event).await {
-                                    log::error!("Impossible to handle event {event_id}: {e}");
+                                    tracing::error!("Impossible to handle event {event_id}: {e}");
                                 }
                             }
                             RelayPoolNotification::Message(relay_url, relay_msg) => {
                                 if let RelayMessage::EndOfStoredEvents(subscription_id) = relay_msg {
-                                    log::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
+                                    tracing::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
                                     if let Ok(relay) = this.client.relay(&relay_url).await {
                                         let subscription = relay.subscription().await;
                                         if subscription.id() == subscription_id {
@@ -231,14 +237,14 @@ impl Coinstr {
                                                 .db
                                                 .save_last_relay_sync(&relay_url, Timestamp::now())
                                             {
-                                                log::error!("Impossible to save last relay sync: {e}");
+                                                tracing::error!("Impossible to save last relay sync: {e}");
                                             }
                                         }
                                     }
                                 }
                             }
                             RelayPoolNotification::Stop | RelayPoolNotification::Shutdown => {
-                                log::debug!("Received stop/shutdown msg");
+                                tracing::debug!("Received stop/shutdown msg");
                                 timechain_sync.abort();
                                 pending_event_handler.abort();
                                 metadata_sync.abort();
@@ -250,20 +256,20 @@ impl Coinstr {
                         Ok(false)
                     })
                     .await;
-                log::debug!("Exited from nostr sync thread");
+                tracing::debug!("Exited from nostr sync thread");
             });
         }
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
         if self.db.event_was_deleted(event.id)? {
-            log::warn!("Received an event that was deleted: {}", event.id);
+            tracing::warn!("Received an event that was deleted: {}", event.id);
             return Ok(());
         }
 
         if event.kind != Kind::NostrConnect {
             if let Err(e) = self.db.save_event(&event) {
-                log::error!("Impossible to save event {}: {e}", event.id);
+                tracing::error!("Impossible to save event {}: {e}", event.id);
             }
         }
 
@@ -288,7 +294,7 @@ impl Coinstr {
                     }
                 }
                 if nostr_pubkeys.is_empty() {
-                    log::error!("Policy {} not contains any nostr pubkey", event.id);
+                    tracing::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
                     self.db.save_policy(event.id, policy, nostr_pubkeys)?;
                     let notification = Notification::NewPolicy(event.id);
@@ -316,7 +322,7 @@ impl Coinstr {
                     self.db.save_pending_event(&event)?;
                 }
             } else {
-                log::error!("Impossible to find policy id in proposal {}", event.id);
+                tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
         } else if event.kind == APPROVED_PROPOSAL_KIND
             && !self.db.approved_proposal_exists(event.id)?
@@ -350,10 +356,10 @@ impl Coinstr {
                         self.db.save_pending_event(&event)?;
                     }
                 } else {
-                    log::error!("Impossible to find policy id in proposal {}", event.id);
+                    tracing::error!("Impossible to find policy id in proposal {}", event.id);
                 }
             } else {
-                log::error!(
+                tracing::error!(
                     "Impossible to find proposal id in approved proposal {}",
                     event.id
                 );
@@ -390,7 +396,7 @@ impl Coinstr {
                         self.db.save_pending_event(&event)?;
                     }
                 } else {
-                    log::error!(
+                    tracing::error!(
                         "Impossible to find policy id in completed proposal {}",
                         event.id
                     );
@@ -443,10 +449,10 @@ impl Coinstr {
                         self.db.save_pending_event(&event)?;
                     }
                 } else {
-                    log::error!("Label identifier not found in event {}", event.id);
+                    tracing::error!("Label identifier not found in event {}", event.id);
                 }
             } else {
-                log::error!("Impossible to find policy id in proposal {}", event.id);
+                tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
@@ -455,7 +461,7 @@ impl Coinstr {
                         if pubkey == event.pubkey {
                             self.db.delete_generic_event_id(*event_id)?;
                         } else {
-                            log::warn!(
+                            tracing::warn!(
                                 "{pubkey} tried to delete an event not owned by him: {event_id}"
                             );
                         }
@@ -522,7 +528,7 @@ impl Coinstr {
                                 event.created_at,
                                 true,
                             )?;
-                            log::info!(
+                            tracing::info!(
                                 "Auto approved nostr connect request {} for app {}",
                                 event.id,
                                 event.pubkey

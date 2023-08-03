@@ -23,7 +23,7 @@ release:
 	cd contrib/release && make
 
 dev-gui:
-	cargo fmt --all && STDOUT_LOG=true cargo run -p coinstr -- --testnet
+	cargo fmt --all && cargo run -p coinstr -- --testnet
 
 precommit:
 	@bash .githooks/pre-push

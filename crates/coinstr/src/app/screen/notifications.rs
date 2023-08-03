@@ -44,7 +44,7 @@ impl State for NotificationsState {
         Command::perform(async move { client.get_notifications() }, |res| match res {
             Ok(list) => NotificationsMessage::LoadNotifications(list).into(),
             Err(e) => {
-                log::error!("Impossible to load notifications: {e}");
+                tracing::error!("Impossible to load notifications: {e}");
                 Message::View(Stage::Dashboard)
             }
         })

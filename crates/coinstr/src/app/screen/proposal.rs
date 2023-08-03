@@ -254,9 +254,9 @@ impl State for ProposalState {
                             let psbt = proposal.psbt();
                             match psbt.save_to_file(&path) {
                                 Ok(_) => {
-                                    log::info!("PSBT exported to {}", path.display())
+                                    tracing::info!("PSBT exported to {}", path.display())
                                 }
-                                Err(e) => log::error!("Impossible to create file: {e}"),
+                                Err(e) => tracing::error!("Impossible to create file: {e}"),
                             }
                         }
                     }
@@ -345,7 +345,7 @@ impl State for ProposalState {
                                     )
                                 }
                                 Err(e) => {
-                                    log::error!("Impossible to calculate fee: {e}");
+                                    tracing::error!("Impossible to calculate fee: {e}");
                                 }
                             };
 
