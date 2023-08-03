@@ -460,6 +460,31 @@ interface Coinstr {
     AbortHandle handle_sync(SyncHandler handler);
 };
 
+[Enum]
+interface EventHandled {
+    EHSharedKey(string event_id);
+    EHPolicy(string policy_id);
+    EHProposal(string proposal_id);
+    EHApproval(string proposal_id);
+    EHCompletedProposal(string completed_proposal_id);
+    EHSigner(string signer_id);
+    EHMySharedSigner(string my_shared_signer_id);
+    EHSharedSigner(string shared_signer_id);
+    EHContacts();
+    EHMetadata(string public_key);
+    EHNostrConnectRequest(string request_id);
+    EHLabel();
+    EHEventDeletion();
+};
+
+[Enum]
+interface Message {
+  EvH(EventHandled event);
+  WalletSyncCompleted(string policy_id);
+  BlockHeightUpdated();
+  Null();
+};
+
 callback interface SyncHandler {
-    void handle();
+    void handle(Message msg);
 };

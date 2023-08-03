@@ -20,7 +20,7 @@ use nostr_ffi::{EventId, Keys, PublicKey};
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
-    GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, KeychainSeed, Metadata,
+    GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, KeychainSeed, Message, Metadata,
     NostrConnectRequest, NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer, Utxo,
 };
 
@@ -656,10 +656,10 @@ impl Coinstr {
         let handle = async_utility::thread::abortable(async move {
             let mut receiver = self.inner.sync_notifications();
             let handler = Arc::new(handler);
-            while receiver.recv().await.is_ok() {
+            while let Ok(message) = receiver.recv().await {
                 let h = handler.clone();
                 let _ = tokio::task::spawn_blocking(move || {
-                    h.handle();
+                    h.handle(message.into());
                 })
                 .await;
             }
@@ -670,5 +670,5 @@ impl Coinstr {
 }
 
 pub trait SyncHandler: Send + Sync + Debug {
-    fn handle(&self);
+    fn handle(&self, msg: Message);
 }

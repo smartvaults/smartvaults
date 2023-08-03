@@ -10,6 +10,7 @@ mod client;
 mod config;
 mod error;
 mod logger;
+mod message;
 mod metadata;
 mod nip46;
 mod policy;
@@ -48,6 +49,7 @@ mod ffi {
     pub use crate::balance::Balance;
     pub use crate::client::{Coinstr, SyncHandler};
     pub use crate::config::Config;
+    pub use crate::message::{EventHandled, Message};
     pub use crate::metadata::Metadata;
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
     pub use crate::policy::{GetPolicy, Policy};
