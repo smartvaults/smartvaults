@@ -12,7 +12,10 @@ use coinstr_sdk::logger;
 use constants::DEFAULT_FONT_SIZE;
 use iced::{executor, font, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
-use theme::font::{BOLD_BYTES, EXTRA_LIGHT_BYTES, ICONS_BYTES, REGULAR, REGULAR_BYTES};
+use theme::font::{
+    BOOTSTRAP_ICONS_BYTES, REGULAR, ROBOTO_MONO_BOLD_BYTES, ROBOTO_MONO_EXTRA_LIGHT_BYTES,
+    ROBOTO_MONO_REGULAR_BYTES,
+};
 
 mod app;
 mod component;
@@ -77,10 +80,10 @@ impl Application for CoinstrApp {
                 state: State::Start(stage.0),
             },
             Command::batch(vec![
-                font::load(REGULAR_BYTES).map(Message::FontLoaded),
-                font::load(EXTRA_LIGHT_BYTES).map(Message::FontLoaded),
-                font::load(BOLD_BYTES).map(Message::FontLoaded),
-                font::load(ICONS_BYTES).map(Message::FontLoaded),
+                font::load(ROBOTO_MONO_REGULAR_BYTES).map(Message::FontLoaded),
+                font::load(ROBOTO_MONO_EXTRA_LIGHT_BYTES).map(Message::FontLoaded),
+                font::load(ROBOTO_MONO_BOLD_BYTES).map(Message::FontLoaded),
+                font::load(BOOTSTRAP_ICONS_BYTES).map(Message::FontLoaded),
                 stage.1.map(|m| m.into()),
             ]),
         )
