@@ -124,7 +124,7 @@ impl TransactionsList {
                 };
 
                 let row = Row::new()
-                    .push(status.width(Length::Fixed(70.0)).view())
+                    .push(status.width(Length::Fixed(70.0)))
                     .push(if hide_policy_id {
                         Text::new("").view()
                     } else {

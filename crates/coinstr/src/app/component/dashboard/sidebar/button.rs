@@ -5,16 +5,16 @@ use iced::widget::{Button, Container, Row, Text};
 use iced::{Alignment, Length};
 
 use crate::app::{Context, Message};
-use crate::component::ButtonStyle;
+use crate::component::{ButtonStyle, Icon};
 
 #[derive(Clone)]
 pub struct SidebarButton<'a> {
     text: &'a str,
-    icon: Text<'a>,
+    icon: Icon,
 }
 
 impl<'a> SidebarButton<'a> {
-    pub fn new(text: &'a str, icon: Text<'a>) -> Self {
+    pub fn new(text: &'a str, icon: Icon) -> Self {
         Self { text, icon }
     }
 

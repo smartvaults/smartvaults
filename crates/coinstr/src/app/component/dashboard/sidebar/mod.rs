@@ -38,28 +38,27 @@ impl Sidebar {
             .height(Length::Fixed(80.0));
 
         // Buttons
-        let home_button = SidebarButton::new("Dashboard", Icon::new(HOME).view())
+        let home_button = SidebarButton::new("Dashboard", Icon::new(HOME))
             .view(ctx, Message::View(Stage::Dashboard));
-        let policies_button = SidebarButton::new("Policies", Icon::new(WALLET).view())
+        let policies_button = SidebarButton::new("Policies", Icon::new(WALLET))
             .view(ctx, Message::View(Stage::Policies));
-        let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING).view())
+        let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING))
             .view(ctx, Message::View(Stage::Proposals));
-        let history_button = SidebarButton::new("History", Icon::new(HISTORY).view())
+        let history_button = SidebarButton::new("History", Icon::new(HISTORY))
             .view(ctx, Message::View(Stage::History));
-        let addresses_button = SidebarButton::new("Addresses", Icon::new(LIST).view())
+        let addresses_button = SidebarButton::new("Addresses", Icon::new(LIST))
             .view(ctx, Message::View(Stage::Addresses(None)));
-        let signers_button = SidebarButton::new("Signers", Icon::new(KEY).view())
-            .view(ctx, Message::View(Stage::Signers));
-        let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS).view())
+        let signers_button =
+            SidebarButton::new("Signers", Icon::new(KEY)).view(ctx, Message::View(Stage::Signers));
+        let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS))
             .view(ctx, Message::View(Stage::Contacts));
-        let connect_button = SidebarButton::new("Connect", Icon::new(LINK).view())
+        let connect_button = SidebarButton::new("Connect", Icon::new(LINK))
             .view(ctx, Message::View(Stage::NostrConnect));
-        let settings_button = SidebarButton::new("Settings", Icon::new(SETTING).view())
+        let settings_button = SidebarButton::new("Settings", Icon::new(SETTING))
             .view(ctx, Message::View(Stage::Settings));
 
         // Footer
-        let lock_button =
-            SidebarButton::new("Lock", Icon::new(LOCK).view()).view(ctx, Message::Lock);
+        let lock_button = SidebarButton::new("Lock", Icon::new(LOCK)).view(ctx, Message::Lock);
         let version = Text::new(format!(
             "{} v{} ({})",
             env!("CARGO_PKG_NAME"),

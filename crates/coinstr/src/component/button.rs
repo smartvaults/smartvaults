@@ -80,7 +80,7 @@ where
                 }
 
                 let mut row = Row::new()
-                    .push(icon.view())
+                    .push(icon)
                     .spacing(10)
                     .width(Length::Fill)
                     .align_items(Alignment::Center);

@@ -2,12 +2,13 @@
 // Distributed under the MIT software license
 
 use iced::alignment::Horizontal;
-use iced::widget::Text;
-use iced::{Color, Length};
+use iced::widget::{component, Component, Text};
+use iced::{Color, Element, Length, Renderer};
 
 use crate::constants::DEFAULT_ICON_SIZE;
 use crate::theme::font::ICON_FONT;
 
+#[derive(Debug, Clone)]
 pub struct Icon {
     unicode: char,
     size: u16,
@@ -39,8 +40,17 @@ impl Icon {
             ..self
         }
     }
+}
 
-    pub fn view(self) -> Text<'static> {
+impl<Message> Component<Message, Renderer> for Icon {
+    type State = ();
+    type Event = ();
+
+    fn update(&mut self, _state: &mut Self::State, _event: Self::Event) -> Option<Message> {
+        None
+    }
+
+    fn view(&self, _state: &Self::State) -> Element<Self::Event, Renderer> {
         let mut icon = Text::new(self.unicode.to_string())
             .font(ICON_FONT)
             .width(self.width)
@@ -51,6 +61,15 @@ impl Icon {
             icon = icon.style(color);
         }
 
-        icon
+        icon.into()
+    }
+}
+
+impl<'a, Message> From<Icon> for Element<'a, Message, Renderer>
+where
+    Message: 'a,
+{
+    fn from(icon: Icon) -> Self {
+        component(icon)
     }
 }
