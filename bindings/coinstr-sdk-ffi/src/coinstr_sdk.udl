@@ -292,6 +292,7 @@ dictionary NostrConnectSession {
 };
 
 interface NostrConnectRequest {
+    EventId event_id();
     PublicKey app_public_key();
     string message();
     u64 timestamp();
