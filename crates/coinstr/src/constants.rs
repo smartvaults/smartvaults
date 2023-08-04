@@ -11,3 +11,5 @@ pub const APP_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 pub const DEFAULT_FONT_SIZE: u8 = 16;
 pub const SMALLER_FONT_SIZE: u8 = 14;
 pub const BIGGER_FONT_SIZE: u8 = 18;
+
+pub const DEFAULT_ICON_SIZE: u8 = 18;

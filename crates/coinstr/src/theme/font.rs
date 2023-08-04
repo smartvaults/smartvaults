@@ -1,43 +1,16 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::font::{Family, Stretch, Weight};
 use iced::Font;
 
-//pub const REGULAR_BYTES: &[u8] = include_bytes!("../../static/font/RobotoMono-Regular.ttf");
+pub const ICONS_BYTES: &[u8] = include_bytes!("../../static/icon/bootstrap-icons.otf");
 
-pub const REGULAR: Font = Font {
-    family: Family::SansSerif,
-    weight: Weight::Normal,
-    monospaced: false,
-    stretch: Stretch::Normal,
-};
+pub const REGULAR_BYTES: &[u8] = include_bytes!("../../static/font/RobotoMono-Regular.ttf");
+pub const EXTRA_LIGHT_BYTES: &[u8] = include_bytes!("../../static/font/RobotoMono-ExtraLight.ttf");
+pub const BOLD_BYTES: &[u8] = include_bytes!("../../static/font/RobotoMono-Bold.ttf");
 
-pub const EXTRA_LIGHT: Font = Font {
-    family: Family::SansSerif,
-    weight: Weight::ExtraLight,
-    monospaced: false,
-    stretch: Stretch::Normal,
-};
+pub const ICON_FONT: Font = Font::with_name("bootstrap-icons");
 
-pub const BOLD: Font = Font {
-    family: Family::SansSerif,
-    weight: Weight::Bold,
-    monospaced: false,
-    stretch: Stretch::Normal,
-};
-
-/* pub const REGULAR: Font = Font::External {
-    name: "Regular",
-    bytes: REGULAR_BYTES,
-};
-
-pub const EXTRA_LIGHT: Font = Font::External {
-    name: "ExtraLight",
-    bytes: include_bytes!("../../static/font/RobotoMono-ExtraLight.ttf"),
-};
-
-pub const BOLD: Font = Font::External {
-    name: "Bold",
-    bytes: include_bytes!("../../static/font/RobotoMono-Bold.ttf"),
-}; */
+pub const REGULAR: Font = Font::with_name("RobotoMono-Regular");
+pub const EXTRA_LIGHT: Font = Font::with_name("RobotoMono-ExtraLight");
+pub const BOLD: Font = Font::with_name("RobotoMono-Bold");

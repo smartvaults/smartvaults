@@ -10,8 +10,9 @@ use std::str::FromStr;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::logger;
 use constants::DEFAULT_FONT_SIZE;
-use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
+use iced::{executor, font, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
+use theme::font::{BOLD_BYTES, EXTRA_LIGHT_BYTES, ICONS_BYTES, REGULAR, REGULAR_BYTES};
 
 mod app;
 mod component;
@@ -41,7 +42,7 @@ pub fn main() -> iced::Result {
     settings.window.min_size = Some((1000, 700));
     settings.antialiasing = false;
     settings.default_text_size = DEFAULT_FONT_SIZE as f32;
-    //settings.default_font = Some(theme::font::REGULAR_BYTES);
+    settings.default_font = REGULAR;
 
     logger::init(BASE_PATH.clone(), network, true).unwrap();
 
@@ -60,6 +61,7 @@ pub enum State {
 pub enum Message {
     Start(Box<start::Message>),
     App(Box<app::Message>),
+    FontLoaded(Result<(), font::Error>),
 }
 
 impl Application for CoinstrApp {
@@ -74,7 +76,13 @@ impl Application for CoinstrApp {
             Self {
                 state: State::Start(stage.0),
             },
-            stage.1.map(|m| m.into()),
+            Command::batch(vec![
+                font::load(REGULAR_BYTES).map(Message::FontLoaded),
+                font::load(EXTRA_LIGHT_BYTES).map(Message::FontLoaded),
+                font::load(BOLD_BYTES).map(Message::FontLoaded),
+                font::load(ICONS_BYTES).map(Message::FontLoaded),
+                stage.1.map(|m| m.into()),
+            ]),
         )
     }
 

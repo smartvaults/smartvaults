@@ -5,10 +5,8 @@ use iced::alignment::Horizontal;
 use iced::widget::Text;
 use iced::{Color, Length};
 
-/* const ICONS: Font = Font::External {
-    name: "Icons",
-    bytes: include_bytes!("../../static/icon/bootstrap-icons.otf"),
-}; */
+use crate::constants::DEFAULT_ICON_SIZE;
+use crate::theme::font::ICON_FONT;
 
 pub struct Icon {
     unicode: char,
@@ -21,8 +19,8 @@ impl Icon {
     pub fn new(unicode: char) -> Self {
         Self {
             unicode,
-            size: 20,
-            width: Length::Fixed(20.0),
+            size: DEFAULT_ICON_SIZE as u16,
+            width: Length::Fixed(DEFAULT_ICON_SIZE as f32),
             color: None,
         }
     }
@@ -44,7 +42,7 @@ impl Icon {
 
     pub fn view(self) -> Text<'static> {
         let mut icon = Text::new(self.unicode.to_string())
-            //.font(ICONS)
+            .font(ICON_FONT)
             .width(self.width)
             .horizontal_alignment(Horizontal::Center)
             .size(self.size);
