@@ -120,7 +120,9 @@ impl State for SettingsState {
             .max_width(450.0);
         let dashboard = Dashboard::new().view(ctx, content, true, true);
 
-        Modal::new(self.show_modal, dashboard, || {
+        Modal::new(
+            self.show_modal,
+            dashboard,
             Card::new(
                 Text::new("Clear DB").view(),
                 Text::new("Do you want really delete all data store into the DB?").view(),
@@ -147,9 +149,8 @@ impl State for SettingsState {
                             .view(),
                     ),
             )
-            .max_width(300.0)
-            .into()
-        })
+            .max_width(300.0),
+        )
         .on_esc(SettingsMessage::CloseModal.into())
         .backdrop(SettingsMessage::CloseModal.into())
         .into()

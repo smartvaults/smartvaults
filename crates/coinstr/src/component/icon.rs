@@ -3,12 +3,12 @@
 
 use iced::alignment::Horizontal;
 use iced::widget::Text;
-use iced::{Color, Font, Length};
+use iced::{Color, Length};
 
-const ICONS: Font = Font::External {
+/* const ICONS: Font = Font::External {
     name: "Icons",
     bytes: include_bytes!("../../static/icon/bootstrap-icons.otf"),
-};
+}; */
 
 pub struct Icon {
     unicode: char,
@@ -44,7 +44,7 @@ impl Icon {
 
     pub fn view(self) -> Text<'static> {
         let mut icon = Text::new(self.unicode.to_string())
-            .font(ICONS)
+            //.font(ICONS)
             .width(self.width)
             .horizontal_alignment(Horizontal::Center)
             .size(self.size);

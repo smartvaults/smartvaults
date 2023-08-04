@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use iced::widget::{self, button, Container, Row};
-use iced::{theme, Alignment, Background, Color, Length, Theme, Vector};
+use iced::{theme, Alignment, Background, BorderRadius, Color, Length, Theme, Vector};
 
 use super::{Icon, Text};
 use crate::theme::color::TRANSPARENT;
@@ -136,7 +136,7 @@ impl button::StyleSheet for ButtonStyle {
             Self::Primary => button::Appearance {
                 shadow_offset: Vector::default(),
                 background: Some(Background::Color(palette.primary)),
-                border_radius: 10.0,
+                border_radius: BorderRadius::from(10.0),
                 border_width: 0.0,
                 border_color: TRANSPARENT,
                 text_color: palette.text,
@@ -144,7 +144,7 @@ impl button::StyleSheet for ButtonStyle {
             Self::Bordered => button::Appearance {
                 shadow_offset: Vector::default(),
                 background: Some(Background::Color(TRANSPARENT)),
-                border_radius: 10.0,
+                border_radius: BorderRadius::from(10.0),
                 border_width: 1.0,
                 border_color: palette.primary,
                 text_color: palette.primary,
@@ -152,7 +152,7 @@ impl button::StyleSheet for ButtonStyle {
             Self::Danger => button::Appearance {
                 shadow_offset: Vector::default(),
                 background: Some(Background::Color(palette.danger)),
-                border_radius: 10.0,
+                border_radius: BorderRadius::from(10.0),
                 border_width: 0.0,
                 border_color: TRANSPARENT,
                 text_color: palette.text,
@@ -160,7 +160,7 @@ impl button::StyleSheet for ButtonStyle {
             Self::BorderedDanger => button::Appearance {
                 shadow_offset: Vector::default(),
                 background: Some(Background::Color(TRANSPARENT)),
-                border_radius: 10.0,
+                border_radius: BorderRadius::from(10.0),
                 border_width: 1.0,
                 border_color: palette.danger,
                 text_color: palette.danger,

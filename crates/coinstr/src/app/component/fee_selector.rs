@@ -2,9 +2,8 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::{FeeRate, Priority};
-use iced::widget::{Column, Radio, Row};
+use iced::widget::{component, Column, Component, Radio, Row};
 use iced::{Alignment, Element, Length, Renderer};
-use iced_lazy::Component;
 
 use crate::app::Message;
 use crate::component::{Button, ButtonStyle, NumericInput, Text};
@@ -224,6 +223,6 @@ impl FeeSelector {
 
 impl<'a> From<FeeSelector> for Element<'a, Message, Renderer> {
     fn from(numeric_input: FeeSelector) -> Self {
-        iced_lazy::component(numeric_input)
+        component(numeric_input)
     }
 }

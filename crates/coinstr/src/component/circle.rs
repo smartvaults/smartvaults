@@ -1,12 +1,13 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::{Color, Element, Length, Point, Rectangle, Size};
-use iced_native::layout::{self, Layout};
-use iced_native::renderer;
-use iced_native::widget::{self, Widget};
+use iced::advanced::layout::{self, Layout};
+use iced::advanced::renderer;
+use iced::advanced::widget::{self, Widget};
+use iced::mouse;
+use iced::{Color, Element, Length, Rectangle, Size};
 
-use crate::theme::color::BLACK;
+use crate::theme::color::{BLACK, TRANSPARENT};
 
 pub struct Circle {
     radius: f32,
@@ -53,7 +54,7 @@ where
         _theme: &Renderer::Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
-        _cursor_position: Point,
+        _cursor: mouse::Cursor,
         _viewport: &Rectangle,
     ) {
         renderer.fill_quad(
@@ -61,7 +62,7 @@ where
                 bounds: layout.bounds(),
                 border_radius: self.radius.into(),
                 border_width: 0.0,
-                border_color: Color::TRANSPARENT,
+                border_color: TRANSPARENT,
             },
             self.color,
         );

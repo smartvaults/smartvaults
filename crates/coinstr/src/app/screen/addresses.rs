@@ -9,9 +9,9 @@ use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::db::model::{GetAddress, GetPolicy};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
+use iced::alignment::Horizontal;
 use iced::widget::{Column, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use iced_native::alignment::Horizontal;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};

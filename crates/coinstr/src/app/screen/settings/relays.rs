@@ -7,9 +7,9 @@ use std::time::Duration;
 use coinstr_sdk::nostr::relay::RelayConnectionStats;
 use coinstr_sdk::nostr::{RelayStatus, Url};
 use coinstr_sdk::util;
+use iced::alignment::Horizontal;
 use iced::widget::{Column, Row, Space};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
-use iced_native::alignment::Horizontal;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};

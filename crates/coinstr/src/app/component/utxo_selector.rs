@@ -7,10 +7,8 @@ use coinstr_sdk::core::bdk::LocalUtxo;
 use coinstr_sdk::core::bitcoin::OutPoint;
 use coinstr_sdk::db::model::GetUtxo;
 use coinstr_sdk::util::format;
-use iced::widget::{Column, Row};
+use iced::widget::{component, Column, Component, Row, Space};
 use iced::{Alignment, Element, Length, Renderer};
-use iced_lazy::Component;
-use iced_native::widget::Space;
 
 use crate::app::Message;
 use crate::component::{rule, Button, ButtonStyle, Text};
@@ -144,6 +142,6 @@ impl Component<Message, Renderer> for UtxoSelector {
 
 impl<'a> From<UtxoSelector> for Element<'a, Message, Renderer> {
     fn from(numeric_input: UtxoSelector) -> Self {
-        iced_lazy::component(numeric_input)
+        component(numeric_input)
     }
 }

@@ -3,7 +3,7 @@
 
 use iced::widget::rule::FillMode;
 use iced::widget::{rule, Rule};
-use iced::{theme, Renderer, Theme};
+use iced::{theme, BorderRadius, Renderer, Theme};
 
 use crate::theme::color::GREY;
 
@@ -29,7 +29,7 @@ impl rule::StyleSheet for BoldRuleStyle {
             width: 3,
             color: GREY,
             fill_mode: FillMode::Full,
-            radius: 0.0,
+            radius: BorderRadius::default(),
         }
     }
 }

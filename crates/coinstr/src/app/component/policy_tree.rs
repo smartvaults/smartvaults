@@ -2,9 +2,8 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
-use iced::widget::{Column, Row};
-use iced_native::widget::Space;
-use iced_native::Length;
+use iced::widget::{Column, Row, Space};
+use iced::Length;
 
 use crate::app::Message;
 use crate::component::Text;

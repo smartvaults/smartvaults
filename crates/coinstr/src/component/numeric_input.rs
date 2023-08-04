@@ -4,9 +4,8 @@
 use std::ops::Add;
 use std::str::FromStr;
 
-use iced::widget::{text_input, Column, Row, Text};
+use iced::widget::{component, text_input, Column, Component, Row, Text};
 use iced::{Element, Renderer};
-use iced_lazy::{self, Component};
 
 pub trait Number: Add + ToString + FromStr {}
 
@@ -119,6 +118,6 @@ where
     Message: 'a,
 {
     fn from(numeric_input: NumericInput<T, Message>) -> Self {
-        iced_lazy::component(numeric_input)
+        component(numeric_input)
     }
 }
