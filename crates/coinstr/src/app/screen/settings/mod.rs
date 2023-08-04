@@ -84,6 +84,13 @@ impl State for SettingsState {
             )
             .push(
                 Button::new()
+                    .text("Recovery keys")
+                    .icon(KEY)
+                    .width(Length::Fill)
+                    .view(),
+            )
+            .push(
+                Button::new()
                     .text("Relays")
                     .icon(NETWORK)
                     .on_press(Message::View(Stage::Relays))
