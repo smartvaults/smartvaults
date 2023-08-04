@@ -59,7 +59,12 @@ where
         .with_default(Level::DEBUG)
         .with_target("bdk", Level::INFO)
         .with_target("bdk::blockchain::script_sync", Level::INFO)
-        .with_target("rustls", Level::ERROR);
+        .with_target("rustls", Level::ERROR)
+        .with_target("wgpu_core", Level::ERROR)
+        .with_target("iced_wgpu", Level::ERROR)
+        .with_target("cosmic_text", Level::ERROR)
+        .with_target("naga", Level::ERROR)
+        .with_target("wgpu_hal", Level::ERROR);
 
     if stdout {
         let stdout_log = tracing_subscriber::fmt::layer().with_file(false);
