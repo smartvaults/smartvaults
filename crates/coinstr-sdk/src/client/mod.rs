@@ -397,6 +397,9 @@ impl Coinstr {
         let filters = self.sync_filters(last_sync);
         relay.subscribe(filters, None).await?;
         relay.connect(false).await;
+        if let Err(e) = self.rebroadcast_to(url.clone()).await {
+            tracing::error!("Impossible to rebroadcast events to {url}: {e}");
+        }
         Ok(())
     }
 
@@ -458,11 +461,6 @@ impl Coinstr {
 
         // Restore Nostr Connect Session relays
         self.load_nostr_connect_relays().await?;
-
-        // TODO: rebroadcast only once per day
-        /* if let Err(e) = self.rebroadcast_all_events().await {
-            tracing::error!("Impossible to rebroadcast stored events: {e}");
-        } */
 
         Ok(())
     }
@@ -1413,6 +1411,19 @@ impl Coinstr {
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
             self.client.send_event(event).await?;
+        }
+        // TODO: save last rebroadcast timestamp
+        Ok(())
+    }
+
+    pub async fn rebroadcast_to<S>(&self, url: S) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        let url = url.into();
+        let events: Vec<Event> = self.db.get_events()?;
+        for event in events.into_iter() {
+            self.client.send_event_to(&url, event).await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
