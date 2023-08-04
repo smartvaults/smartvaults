@@ -56,6 +56,7 @@ impl Navbar {
                 Row::new()
                     .push(Icon::new(BOX).view())
                     .push(Text::new(format::number(ctx.client.block_height() as u64)).view())
+                    .align_items(Alignment::Center)
                     .padding(10)
                     .spacing(10),
             )
@@ -64,6 +65,7 @@ impl Navbar {
                 Row::new()
                     .push(Icon::new(FINGERPRINT).view())
                     .push(fingerprint.view())
+                    .align_items(Alignment::Center)
                     .padding(10)
                     .spacing(10),
             )
@@ -93,7 +95,7 @@ impl Navbar {
                     .view(),
             )
             .spacing(10)
-            .padding(10)
+            .padding(5)
             .height(Length::Fixed(60.0))
             .align_items(Alignment::Center)
     }
