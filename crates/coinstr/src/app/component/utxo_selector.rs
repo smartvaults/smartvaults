@@ -64,24 +64,12 @@ impl Component<Message, Renderer> for UtxoSelector {
                     .push(
                         Text::new("UTXO")
                             .bold()
-                            .bigger()
+                            .big()
                             .width(Length::Fixed(180.0))
                             .view(),
                     )
-                    .push(
-                        Text::new("Value")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    )
-                    .push(
-                        Text::new("Label")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    )
+                    .push(Text::new("Value").bold().big().width(Length::Fill).view())
+                    .push(Text::new("Label").bold().big().width(Length::Fill).view())
                     .push(Space::with_width(Length::Fixed(130.0)))
                     .spacing(20)
                     .align_items(Alignment::Center)

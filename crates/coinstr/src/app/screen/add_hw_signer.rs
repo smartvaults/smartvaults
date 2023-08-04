@@ -145,7 +145,7 @@ impl State for AddHWSignerState {
                 content = content
                     .push(
                         Column::new()
-                            .push(Text::new("Create signer").bigger().bold().view())
+                            .push(Text::new("Create signer").big().bold().view())
                             .push(Text::new("Create a new HW signer").extra_light().view())
                             .spacing(10)
                             .width(Length::Fill),
@@ -188,18 +188,12 @@ impl State for AddHWSignerState {
                 content = content
                     .push(
                         Row::new()
-                            .push(Text::new("Type").bold().bigger().width(Length::Fill).view())
-                            .push(
-                                Text::new("Model")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fill)
-                                    .view(),
-                            )
+                            .push(Text::new("Type").bold().big().width(Length::Fill).view())
+                            .push(Text::new("Model").bold().big().width(Length::Fill).view())
                             .push(
                                 Text::new("Fingerprint")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )

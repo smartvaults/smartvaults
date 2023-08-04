@@ -188,7 +188,7 @@ impl State for ReceiveState {
             content = content
                 .push(
                     Column::new()
-                        .push(Text::new("Receive").bigger().bold().view())
+                        .push(Text::new("Receive").big().bold().view())
                         .push(
                             Text::new("Send sats to the address below to fund your wallet.")
                                 .extra_light()

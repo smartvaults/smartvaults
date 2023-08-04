@@ -8,8 +8,10 @@ pub const APP_LOGO_SIGNET: &[u8] = include_bytes!("../static/img/coinstr-signet.
 pub const APP_LOGO_REGTEST: &[u8] = include_bytes!("../static/img/coinstr-regtest.svg");
 pub const APP_DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 
+pub const BIGGER_FONT_SIZE: u8 = 20;
+pub const BIG_FONT_SIZE: u8 = 18;
 pub const DEFAULT_FONT_SIZE: u8 = 16;
-pub const SMALLER_FONT_SIZE: u8 = 14;
-pub const BIGGER_FONT_SIZE: u8 = 18;
+pub const SMALL_FONT_SIZE: u8 = 14;
+pub const SMALLER_FONT_SIZE: u8 = 12;
 
 pub const DEFAULT_ICON_SIZE: u8 = 20;

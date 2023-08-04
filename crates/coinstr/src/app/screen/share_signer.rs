@@ -173,15 +173,15 @@ impl State for ShareSignerState {
                             .push(
                                 Text::new("Public Key")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
+                            .push(Text::new("Name").bold().big().width(Length::Fill).view())
                             .push(
                                 Text::new("Display Name")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )

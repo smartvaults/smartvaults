@@ -172,7 +172,7 @@ impl State for NewProofState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Proof of Reserve").bigger().bold().view())
+                        .push(Text::new("Proof of Reserve").big().bold().view())
                         .push(
                             Text::new("Create a new Proof of Reserve")
                                 .extra_light()

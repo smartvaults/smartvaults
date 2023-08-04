@@ -452,31 +452,25 @@ impl State for ProposalState {
 
                     if !self.approved_proposals.is_empty() {
                         content = content
-                            .push(Text::new("Approvals").bold().bigger().view())
+                            .push(Text::new("Approvals").bold().big().view())
                             .push(Space::with_height(10.0))
                             .push(
                                 Row::new()
                                     .push(
                                         Text::new("ID")
                                             .bold()
-                                            .bigger()
+                                            .big()
                                             .width(Length::Fixed(115.0))
                                             .view(),
                                     )
                                     .push(
                                         Text::new("Date/Time")
                                             .bold()
-                                            .bigger()
+                                            .big()
                                             .width(Length::Fill)
                                             .view(),
                                     )
-                                    .push(
-                                        Text::new("User")
-                                            .bold()
-                                            .bigger()
-                                            .width(Length::Fill)
-                                            .view(),
-                                    )
+                                    .push(Text::new("User").bold().big().width(Length::Fill).view())
                                     .push(Space::with_width(Length::Fixed(40.0)))
                                     .spacing(10)
                                     .align_items(Alignment::Center)

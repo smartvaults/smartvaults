@@ -6,7 +6,9 @@ use iced::widget::{Button, Text as NativeText};
 use iced::{Color, Element, Font, Length};
 
 use super::button::ButtonStyle;
-use crate::constants::{BIGGER_FONT_SIZE, DEFAULT_FONT_SIZE, SMALLER_FONT_SIZE};
+use crate::constants::{
+    BIGGER_FONT_SIZE, BIG_FONT_SIZE, DEFAULT_FONT_SIZE, SMALLER_FONT_SIZE, SMALL_FONT_SIZE,
+};
 use crate::theme::font::{BOLD, EXTRA_LIGHT, REGULAR};
 
 pub struct Text<Message> {
@@ -60,6 +62,13 @@ where
         Self { font: BOLD, ..self }
     }
 
+    pub fn small(self) -> Self {
+        Self {
+            size: SMALL_FONT_SIZE as u16,
+            ..self
+        }
+    }
+
     pub fn smaller(self) -> Self {
         Self {
             size: SMALLER_FONT_SIZE as u16,
@@ -67,6 +76,14 @@ where
         }
     }
 
+    pub fn big(self) -> Self {
+        Self {
+            size: BIG_FONT_SIZE as u16,
+            ..self
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn bigger(self) -> Self {
         Self {
             size: BIGGER_FONT_SIZE as u16,

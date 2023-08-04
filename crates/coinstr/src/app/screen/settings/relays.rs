@@ -121,11 +121,11 @@ impl State for RelaysState {
             content = content
                 .push(
                     Row::new()
-                        .push(Text::new("Url").bold().bigger().width(Length::Fill).view())
+                        .push(Text::new("Url").bold().big().width(Length::Fill).view())
                         .push(
                             Text::new("Proxy")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                                 .view(),
@@ -133,7 +133,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Status")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
@@ -141,7 +141,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Attemps")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
@@ -149,7 +149,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Success")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
@@ -157,7 +157,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Sent (bytes)")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
@@ -165,7 +165,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Received (bytes)")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(100.0))
                                 .view(),
@@ -173,7 +173,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Queue")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(80.0))
                                 .view(),
@@ -181,7 +181,7 @@ impl State for RelaysState {
                         .push(
                             Text::new("Connected at")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                                 .view(),

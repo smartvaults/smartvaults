@@ -143,7 +143,7 @@ impl State for OpenState {
             row![column![
                 row![svg],
                 row![Space::with_height(Length::Fixed(5.0))],
-                row![Text::new(APP_DESCRIPTION).bigger().color(GREY).view()]
+                row![Text::new(APP_DESCRIPTION).big().color(GREY).view()]
             ]
             .align_items(Alignment::Center)
             .spacing(15)],

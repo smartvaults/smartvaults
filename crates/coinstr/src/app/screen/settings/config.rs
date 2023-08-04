@@ -159,7 +159,7 @@ impl State for ConfigState {
         let content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Configs").bigger().bold().view())
+                    .push(Text::new("Configs").big().bold().view())
                     .push(Text::new("Edit Configs").extra_light().view())
                     .spacing(10)
                     .width(Length::Fill),

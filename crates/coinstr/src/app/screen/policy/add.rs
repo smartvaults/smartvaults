@@ -152,7 +152,7 @@ impl State for AddPolicyState {
                             ""
                         }
                     ))
-                    .smaller()
+                    .small()
                     .view(),
                 )
             }
@@ -199,7 +199,7 @@ impl State for AddPolicyState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Create policy").bigger().bold().view())
+                        .push(Text::new("Create policy").big().bold().view())
                         .push(Text::new("Create a new policy").extra_light().view())
                         .spacing(10)
                         .width(Length::Fill),
@@ -243,22 +243,22 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
             .align_items(Alignment::Center);
     } else {
         content = content
-            .push(Text::new("Select public keys").bigger().bold().view())
+            .push(Text::new("Select public keys").big().bold().view())
             .push(Space::with_height(Length::Fixed(30.0)))
             .push(
                 Row::new()
                     .push(
                         Text::new("Public Key")
                             .bold()
-                            .bigger()
+                            .big()
                             .width(Length::Fill)
                             .view(),
                     )
-                    .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
+                    .push(Text::new("Name").bold().big().width(Length::Fill).view())
                     .push(
                         Text::new("Display Name")
                             .bold()
-                            .bigger()
+                            .big()
                             .width(Length::Fill)
                             .view(),
                     )

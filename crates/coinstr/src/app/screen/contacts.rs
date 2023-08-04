@@ -126,25 +126,19 @@ impl State for ContactsState {
                             .push(
                                 Text::new("Public Key")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
+                            .push(Text::new("Name").bold().big().width(Length::Fill).view())
                             .push(
                                 Text::new("Display Name")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
-                            .push(
-                                Text::new("NIP-05")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fill)
-                                    .view(),
-                            )
+                            .push(Text::new("NIP-05").bold().big().width(Length::Fill).view())
                             .push(
                                 Button::new()
                                     .style(ButtonStyle::Bordered)

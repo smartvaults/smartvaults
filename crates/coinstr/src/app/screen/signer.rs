@@ -155,18 +155,18 @@ impl State for SignerState {
 
             if !self.my_shared_signers.is_empty() {
                 content = content
-                    .push(Text::new("My Shared Signers").bold().bigger().view())
+                    .push(Text::new("My Shared Signers").bold().big().view())
                     .push(Space::with_height(10.0))
                     .push(
                         Row::new()
                             .push(
                                 Text::new("ID")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fixed(115.0))
                                     .view(),
                             )
-                            .push(Text::new("User").bold().bigger().width(Length::Fill).view())
+                            .push(Text::new("User").bold().big().width(Length::Fill).view())
                             .push(Space::with_width(Length::Fixed(40.0)))
                             .spacing(10)
                             .align_items(Alignment::Center)

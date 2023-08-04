@@ -194,21 +194,21 @@ impl State for TransactionState {
                     Row::new()
                         .push(
                             Column::new()
-                                .push(Text::new("Block").bigger().extra_light().view())
-                                .push(Text::new(confirmed_at_block).bigger().view())
+                                .push(Text::new("Block").big().extra_light().view())
+                                .push(Text::new(confirmed_at_block).big().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
                         .push(
                             Column::new()
-                                .push(Text::new("Confirmations").bigger().extra_light().view())
-                                .push(Text::new(confirmations).bigger().view())
+                                .push(Text::new("Confirmations").big().extra_light().view())
+                                .push(Text::new(confirmations).big().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
                         .push(
                             Column::new()
-                                .push(Text::new("Lock time").bigger().extra_light().view())
+                                .push(Text::new("Lock time").big().extra_light().view())
                                 .push(
                                     Text::new(
                                         tx.transaction
@@ -216,7 +216,7 @@ impl State for TransactionState {
                                             .map(|t| format::number(t.lock_time.to_u32() as u64))
                                             .unwrap_or_else(|| "00000000".to_string()),
                                     )
-                                    .bigger()
+                                    .big()
                                     .view(),
                                 )
                                 .spacing(10)
@@ -229,10 +229,10 @@ impl State for TransactionState {
                     Row::new()
                         .push(
                             Column::new()
-                                .push(Text::new("Incoming").bigger().extra_light().view())
+                                .push(Text::new("Incoming").big().extra_light().view())
                                 .push(
                                     Text::new(format!("{} sat", format::number(tx.received)))
-                                        .bigger()
+                                        .big()
                                         .view(),
                                 )
                                 .spacing(10)
@@ -240,10 +240,10 @@ impl State for TransactionState {
                         )
                         .push(
                             Column::new()
-                                .push(Text::new("Outcoming").bigger().extra_light().view())
+                                .push(Text::new("Outcoming").big().extra_light().view())
                                 .push(
                                     Text::new(format!("{} sat", format::number(tx.sent)))
-                                        .bigger()
+                                        .big()
                                         .view(),
                                 )
                                 .spacing(10)
@@ -251,7 +251,7 @@ impl State for TransactionState {
                         )
                         .push(
                             Column::new()
-                                .push(Text::new("Net").bigger().extra_light().view())
+                                .push(Text::new("Net").big().extra_light().view())
                                 .push(
                                     Text::new(format!(
                                         "{}{} sat",
@@ -259,7 +259,7 @@ impl State for TransactionState {
                                         format::number(total)
                                     ))
                                     .color(if positive { GREEN } else { RED })
-                                    .bigger()
+                                    .big()
                                     .view(),
                                 )
                                 .spacing(10)
@@ -272,14 +272,14 @@ impl State for TransactionState {
                     Row::new()
                         .push(
                             Column::new()
-                                .push(Text::new("Fee").bigger().extra_light().view())
+                                .push(Text::new("Fee").big().extra_light().view())
                                 .push(
                                     Text::new(match tx.fee {
                                         Some(fee) => format!("{} sat", format::number(fee)),
                                         None => String::from("-"),
                                     })
                                     .color(RED)
-                                    .bigger()
+                                    .big()
                                     .view(),
                                 )
                                 .spacing(10)
@@ -287,8 +287,8 @@ impl State for TransactionState {
                         )
                         .push(
                             Column::new()
-                                .push(Text::new("Date/Time").bigger().extra_light().view())
-                                .push(Text::new(confirmed_at_time).bigger().view())
+                                .push(Text::new("Date/Time").big().extra_light().view())
+                                .push(Text::new(confirmed_at_time).big().view())
                                 .spacing(10)
                                 .width(Length::FillPortion(2)),
                         ),
@@ -296,10 +296,10 @@ impl State for TransactionState {
                 .push(
                     Row::new().push(
                         Column::new()
-                            .push(Text::new("Description").bigger().extra_light().view())
+                            .push(Text::new("Description").big().extra_light().view())
                             .push(
                                 Text::new(label.as_ref().map(|s| s.as_str()).unwrap_or_default())
-                                    .bigger()
+                                    .big()
                                     .view(),
                             )
                             .spacing(10)

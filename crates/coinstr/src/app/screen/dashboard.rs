@@ -109,7 +109,7 @@ impl State for DashboardState {
                         .view(),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Pending proposals").bold().bigger().view())
+                .push(Text::new("Pending proposals").bold().big().view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
                     PendingProposalsList::new(self.proposals.clone())
@@ -117,7 +117,7 @@ impl State for DashboardState {
                         .view(),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Transactions").bold().bigger().view())
+                .push(Text::new("Transactions").bold().big().view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())

@@ -200,41 +200,41 @@ impl State for ConnectState {
                 // Sessions
 
                 content = content
-                    .push(Text::new("Sessions").bigger().bold().view())
+                    .push(Text::new("Sessions").big().bold().view())
                     .push(
                         Row::new()
                             .push(
                                 Text::new("App Public Key")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fixed(175.0))
                                     .view(),
                             )
                             .push(
                                 Text::new("App Name")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
                             .push(
                                 Text::new("Relay Url")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
                             .push(
                                 Text::new("Connected at")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
                             .push(
                                 Text::new("Pre-authorized until")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fill)
                                     .view(),
                             )
@@ -343,34 +343,28 @@ impl State for ConnectState {
                 if !self.pending_requests.is_empty() {
                     content = content
                         .push(Space::with_height(Length::Fixed(40.0)))
-                        .push(Text::new("Pending requests").bigger().bold().view())
+                        .push(Text::new("Pending requests").big().bold().view())
                         .push(
                             Row::new()
                                 .push(
                                     Text::new("ID")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fixed(115.0))
                                         .view(),
                                 )
                                 .push(
                                     Text::new("App Public Key")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fixed(175.0))
                                         .view(),
                                 )
-                                .push(
-                                    Text::new("Method")
-                                        .bold()
-                                        .bigger()
-                                        .width(Length::Fill)
-                                        .view(),
-                                )
+                                .push(Text::new("Method").bold().big().width(Length::Fill).view())
                                 .push(
                                     Text::new("Requested at")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fill)
                                         .view(),
                                 )
@@ -436,34 +430,28 @@ impl State for ConnectState {
                 if !self.approved_requests.is_empty() {
                     content = content
                         .push(Space::with_height(Length::Fixed(40.0)))
-                        .push(Text::new("Approved requests").bigger().bold().view())
+                        .push(Text::new("Approved requests").big().bold().view())
                         .push(
                             Row::new()
                                 .push(
                                     Text::new("ID")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fixed(115.0))
                                         .view(),
                                 )
                                 .push(
                                     Text::new("App Public Key")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fixed(175.0))
                                         .view(),
                                 )
-                                .push(
-                                    Text::new("Method")
-                                        .bold()
-                                        .bigger()
-                                        .width(Length::Fill)
-                                        .view(),
-                                )
+                                .push(Text::new("Method").bold().big().width(Length::Fill).view())
                                 .push(
                                     Text::new("Requested at")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fill)
                                         .view(),
                                 )

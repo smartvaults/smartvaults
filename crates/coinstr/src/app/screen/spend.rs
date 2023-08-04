@@ -416,7 +416,7 @@ impl SpendState {
             .padding(20)
             .push(
                 Column::new()
-                    .push(Text::new("Send").bigger().bold().view())
+                    .push(Text::new("Send").big().bold().view())
                     .push(
                         Text::new("Create a new spending proposal")
                             .extra_light()
@@ -504,7 +504,7 @@ impl SpendState {
             .push(
                 Text::new("Transfer to other policy")
                     .extra_light()
-                    .smaller()
+                    .small()
                     .on_press(Message::View(Stage::SelfTransfer))
                     .view(),
             )
@@ -548,7 +548,7 @@ impl SpendState {
                 None => String::from("Loading..."),
             })
             .extra_light()
-            .smaller()
+            .small()
             .width(Length::Fill)
             .view()
         } else {

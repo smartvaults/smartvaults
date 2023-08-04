@@ -135,14 +135,14 @@ impl State for NotificationsState {
                         .push(
                             Text::new("Date/Time")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .width(Length::Fixed(225.0))
                                 .view(),
                         )
                         .push(
                             Text::new("Description")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .width(Length::Fill)
                                 .view(),
                         )

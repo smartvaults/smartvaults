@@ -185,7 +185,7 @@ impl State for AddressesState {
                         .push(
                             Text::new("#")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(80.0))
                                 .view(),
@@ -193,7 +193,7 @@ impl State for AddressesState {
                         .push(
                             Text::new("Address")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                                 .view(),
@@ -201,7 +201,7 @@ impl State for AddressesState {
                         .push(
                             Text::new("Label")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                                 .view(),
@@ -209,7 +209,7 @@ impl State for AddressesState {
                         .push(
                             Text::new("Balance")
                                 .bold()
-                                .bigger()
+                                .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(125.0))
                                 .view(),

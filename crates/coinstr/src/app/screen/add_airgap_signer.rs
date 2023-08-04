@@ -114,7 +114,7 @@ impl State for AddAirGapSignerState {
         let content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Create signer").bigger().bold().view())
+                    .push(Text::new("Create signer").big().bold().view())
                     .push(
                         Text::new("Create a new airgapped signer")
                             .extra_light()

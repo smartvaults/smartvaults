@@ -233,7 +233,7 @@ impl State for PolicyBuilderState {
                                                 "User: {}",
                                                 ctx.client.db.get_public_key_name(*pk)
                                             ))
-                                            .smaller()
+                                            .small()
                                             .extra_light()
                                             .view(),
                                         )
@@ -242,7 +242,7 @@ impl State for PolicyBuilderState {
                                                 "Fingerprint: {}",
                                                 desc.master_fingerprint()
                                             ))
-                                            .smaller()
+                                            .small()
                                             .extra_light()
                                             .view(),
                                         )
@@ -320,7 +320,7 @@ impl State for PolicyBuilderState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Policy builder").bigger().bold().view())
+                        .push(Text::new("Policy builder").big().bold().view())
                         .push(Text::new("Build a new policy").extra_light().view())
                         .spacing(10)
                         .width(Length::Fill),
@@ -355,28 +355,28 @@ fn view_signer_selector<'a>(
     // My Signers
 
     content = content
-        .push(Text::new("My Signers").bigger().bold().view())
+        .push(Text::new("My Signers").big().bold().view())
         .push(
             Row::new()
                 .push(
                     Text::new("ID")
                         .bold()
-                        .bigger()
+                        .big()
                         .width(Length::Fixed(115.0))
                         .view(),
                 )
-                .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
+                .push(Text::new("Name").bold().big().width(Length::Fill).view())
                 .push(
                     Text::new("Fingerprint")
                         .bold()
-                        .bigger()
+                        .big()
                         .width(Length::Fixed(175.0))
                         .view(),
                 )
                 .push(
                     Text::new("Type")
                         .bold()
-                        .bigger()
+                        .big()
                         .width(Length::Fixed(125.0))
                         .view(),
                 )
@@ -444,30 +444,24 @@ fn view_signer_selector<'a>(
 
     content = content
         .push(Space::with_height(Length::Fixed(40.0)))
-        .push(Text::new("Contacts's Signers").bigger().bold().view())
+        .push(Text::new("Contacts's Signers").big().bold().view())
         .push(
             Row::new()
                 .push(
                     Text::new("ID")
                         .bold()
-                        .bigger()
+                        .big()
                         .width(Length::Fixed(115.0))
                         .view(),
                 )
                 .push(
                     Text::new("Fingerprint")
                         .bold()
-                        .bigger()
+                        .big()
                         .width(Length::Fixed(175.0))
                         .view(),
                 )
-                .push(
-                    Text::new("Owner")
-                        .bold()
-                        .bigger()
-                        .width(Length::Fill)
-                        .view(),
-                )
+                .push(Text::new("Owner").bold().big().width(Length::Fill).view())
                 .push(Space::with_width(Length::Fixed(180.0)))
                 .spacing(10)
                 .align_items(Alignment::Center)

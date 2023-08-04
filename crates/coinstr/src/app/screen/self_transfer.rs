@@ -377,7 +377,7 @@ impl State for SelfTransferState {
                         None => String::from("Loading..."),
                     })
                     .extra_light()
-                    .smaller()
+                    .small()
                     .width(Length::Fill)
                     .view()
                 } else {
@@ -407,7 +407,7 @@ impl State for SelfTransferState {
                 content = content
                     .push(
                         Column::new()
-                            .push(Text::new("Self transfer").bigger().bold().view())
+                            .push(Text::new("Self transfer").big().bold().view())
                             .push(
                                 Text::new("Create a new spending proposal")
                                     .extra_light()

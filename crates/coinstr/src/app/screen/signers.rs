@@ -130,28 +130,28 @@ impl State for SignersState {
                 // My Signers
 
                 content = content
-                    .push(Text::new("My Signers").bigger().bold().view())
+                    .push(Text::new("My Signers").big().bold().view())
                     .push(
                         Row::new()
                             .push(
                                 Text::new("ID")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fixed(115.0))
                                     .view(),
                             )
-                            .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
+                            .push(Text::new("Name").bold().big().width(Length::Fill).view())
                             .push(
                                 Text::new("Fingerprint")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fixed(175.0))
                                     .view(),
                             )
                             .push(
                                 Text::new("Type")
                                     .bold()
-                                    .bigger()
+                                    .big()
                                     .width(Length::Fixed(125.0))
                                     .view(),
                             )
@@ -221,30 +221,24 @@ impl State for SignersState {
                 if !self.shared_signers.is_empty() {
                     content = content
                         .push(Space::with_height(Length::Fixed(40.0)))
-                        .push(Text::new("Contacts's Signers").bigger().bold().view())
+                        .push(Text::new("Contacts's Signers").big().bold().view())
                         .push(
                             Row::new()
                                 .push(
                                     Text::new("ID")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fixed(115.0))
                                         .view(),
                                 )
                                 .push(
                                     Text::new("Fingerprint")
                                         .bold()
-                                        .bigger()
+                                        .big()
                                         .width(Length::Fixed(175.0))
                                         .view(),
                                 )
-                                .push(
-                                    Text::new("Owner")
-                                        .bold()
-                                        .bigger()
-                                        .width(Length::Fill)
-                                        .view(),
-                                )
+                                .push(Text::new("Owner").bold().big().width(Length::Fill).view())
                                 .push(Space::with_width(Length::Fixed(40.0)))
                                 .spacing(10)
                                 .align_items(Alignment::Center)

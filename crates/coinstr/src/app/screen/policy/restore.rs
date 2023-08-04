@@ -136,7 +136,7 @@ impl State for RestorePolicyState {
             .width(Length::Fill);
 
         if self.public_keys.is_empty() {
-            public_keys = public_keys.push(Text::new("No public keys").smaller().view())
+            public_keys = public_keys.push(Text::new("No public keys").small().view())
         } else {
             for public_key in self.public_keys.iter() {
                 public_keys = public_keys.push(
@@ -144,7 +144,7 @@ impl State for RestorePolicyState {
                         "- {}",
                         ctx.client.db.get_public_key_name(*public_key)
                     ))
-                    .smaller()
+                    .small()
                     .view(),
                 )
             }
@@ -159,7 +159,7 @@ impl State for RestorePolicyState {
         let mut content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Restore policy").bigger().bold().view())
+                    .push(Text::new("Restore policy").big().bold().view())
                     .push(
                         Text::new("Restore policy from a backup")
                             .extra_light()

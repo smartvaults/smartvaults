@@ -114,7 +114,7 @@ impl State for ChangePasswordState {
         let content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Change password").bigger().bold().view())
+                    .push(Text::new("Change password").big().bold().view())
                     .spacing(10)
                     .width(Length::Fill),
             )
