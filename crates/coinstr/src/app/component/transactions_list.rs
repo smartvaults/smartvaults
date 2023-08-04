@@ -62,43 +62,28 @@ impl TransactionsList {
         let mut transactions = Column::new()
             .push(
                 Row::new()
-                    .push(
-                        Text::new("Status")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fixed(70.0))
-                            .view(),
-                    )
+                    .push(Text::new("Status").bold().width(Length::Fixed(70.0)).view())
                     .push(if self.hide_policy_id {
                         Text::new("").view()
                     } else {
                         Text::new("Policy ID")
                             .bold()
-                            .bigger()
                             .width(Length::Fixed(115.0))
                             .view()
                     })
                     .push(
                         Text::new("Date/Time")
                             .bold()
-                            .bigger()
                             .width(Length::Fixed(225.0))
                             .view(),
                     )
                     .push(
                         Text::new("Description")
                             .bold()
-                            .bigger()
                             .width(Length::FillPortion(2))
                             .view(),
                     )
-                    .push(
-                        Text::new("Amount")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    )
+                    .push(Text::new("Amount").bold().width(Length::Fill).view())
                     .push(Space::with_width(40.0))
                     .push(Space::with_width(40.0))
                     .push(Space::with_width(40.0))

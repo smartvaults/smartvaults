@@ -103,7 +103,6 @@ impl State for OpenState {
                     Message::Open(OpenMessage::KeychainSelect(name))
                 })
                 .width(Length::Fill)
-                .text_size(20)
                 .padding(10)
                 .placeholder(if self.keychains.is_empty() {
                     "No keychain availabe"

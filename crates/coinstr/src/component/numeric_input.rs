@@ -95,8 +95,7 @@ where
                 .as_deref()
                 .unwrap_or(""),
         )
-        .padding(10)
-        .size(20);
+        .padding(10);
 
         if self.on_input.is_some() {
             text_input = text_input.on_input(Event::InputChanged);
@@ -105,7 +104,7 @@ where
         let mut content = Column::new();
 
         if !self.name.is_empty() {
-            content = content.push(Text::new(&self.name).size(20));
+            content = content.push(Text::new(&self.name));
         }
 
         content.push(Row::new().push(text_input)).spacing(5).into()

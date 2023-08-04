@@ -115,25 +115,12 @@ impl State for PoliciesState {
                 content = content
                     .push(
                         Row::new()
-                            .push(
-                                Text::new("ID")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fixed(115.0))
-                                    .view(),
-                            )
-                            .push(Text::new("Name").bold().bigger().width(Length::Fill).view())
-                            .push(
-                                Text::new("Description")
-                                    .bold()
-                                    .bigger()
-                                    .width(Length::Fill)
-                                    .view(),
-                            )
+                            .push(Text::new("ID").bold().width(Length::Fixed(115.0)).view())
+                            .push(Text::new("Name").bold().width(Length::Fill).view())
+                            .push(Text::new("Description").bold().width(Length::Fill).view())
                             .push(
                                 Text::new("Balance")
                                     .bold()
-                                    .bigger()
                                     .width(Length::Fixed(125.0))
                                     .view(),
                             )

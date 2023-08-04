@@ -97,7 +97,7 @@ impl State for TransactionState {
                     .push(
                         Text::new(format!("{} inputs", transaction.input.len()))
                             .bold()
-                            .size(30)
+                            .size(20)
                             .view(),
                     )
                     .push(rule::horizontal_bold());
@@ -125,7 +125,7 @@ impl State for TransactionState {
                     .push(
                         Text::new(format!("{} outputs", transaction.output.len()))
                             .bold()
-                            .size(30)
+                            .size(20)
                             .view(),
                     )
                     .push(rule::horizontal_bold());
@@ -161,8 +161,8 @@ impl State for TransactionState {
                 (inputs, outputs)
             } else {
                 (
-                    Column::new().push(Text::new("Inputs unavailable").bold().size(30).view()),
-                    Column::new().push(Text::new("Outputs unavailable").bold().size(30).view()),
+                    Column::new().push(Text::new("Inputs unavailable").bold().size(20).view()),
+                    Column::new().push(Text::new("Outputs unavailable").bold().size(20).view()),
                 )
             };
 
@@ -195,14 +195,14 @@ impl State for TransactionState {
                         .push(
                             Column::new()
                                 .push(Text::new("Block").bigger().extra_light().view())
-                                .push(Text::new(confirmed_at_block).size(25).view())
+                                .push(Text::new(confirmed_at_block).bigger().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
                         .push(
                             Column::new()
                                 .push(Text::new("Confirmations").bigger().extra_light().view())
-                                .push(Text::new(confirmations).size(25).view())
+                                .push(Text::new(confirmations).bigger().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
@@ -216,7 +216,7 @@ impl State for TransactionState {
                                             .map(|t| format::number(t.lock_time.to_u32() as u64))
                                             .unwrap_or_else(|| "00000000".to_string()),
                                     )
-                                    .size(25)
+                                    .bigger()
                                     .view(),
                                 )
                                 .spacing(10)
@@ -232,7 +232,7 @@ impl State for TransactionState {
                                 .push(Text::new("Incoming").bigger().extra_light().view())
                                 .push(
                                     Text::new(format!("{} sat", format::number(tx.received)))
-                                        .size(25)
+                                        .bigger()
                                         .view(),
                                 )
                                 .spacing(10)
@@ -243,7 +243,7 @@ impl State for TransactionState {
                                 .push(Text::new("Outcoming").bigger().extra_light().view())
                                 .push(
                                     Text::new(format!("{} sat", format::number(tx.sent)))
-                                        .size(25)
+                                        .bigger()
                                         .view(),
                                 )
                                 .spacing(10)
@@ -259,7 +259,7 @@ impl State for TransactionState {
                                         format::number(total)
                                     ))
                                     .color(if positive { GREEN } else { RED })
-                                    .size(25)
+                                    .bigger()
                                     .view(),
                                 )
                                 .spacing(10)
@@ -279,7 +279,7 @@ impl State for TransactionState {
                                         None => String::from("-"),
                                     })
                                     .color(RED)
-                                    .size(25)
+                                    .bigger()
                                     .view(),
                                 )
                                 .spacing(10)
@@ -288,7 +288,7 @@ impl State for TransactionState {
                         .push(
                             Column::new()
                                 .push(Text::new("Date/Time").bigger().extra_light().view())
-                                .push(Text::new(confirmed_at_time).size(25).view())
+                                .push(Text::new(confirmed_at_time).bigger().view())
                                 .spacing(10)
                                 .width(Length::FillPortion(2)),
                         ),
@@ -299,7 +299,7 @@ impl State for TransactionState {
                             .push(Text::new("Description").bigger().extra_light().view())
                             .push(
                                 Text::new(label.as_ref().map(|s| s.as_str()).unwrap_or_default())
-                                    .size(25)
+                                    .bigger()
                                     .view(),
                             )
                             .spacing(10)

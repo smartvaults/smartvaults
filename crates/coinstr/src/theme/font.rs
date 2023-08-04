@@ -9,21 +9,21 @@ use iced::Font;
 pub const REGULAR: Font = Font {
     family: Family::SansSerif,
     weight: Weight::Normal,
-    monospaced: true,
+    monospaced: false,
     stretch: Stretch::Normal,
 };
 
 pub const EXTRA_LIGHT: Font = Font {
     family: Family::SansSerif,
     weight: Weight::ExtraLight,
-    monospaced: true,
+    monospaced: false,
     stretch: Stretch::Normal,
 };
 
 pub const BOLD: Font = Font {
     family: Family::SansSerif,
     weight: Weight::Bold,
-    monospaced: true,
+    monospaced: false,
     stretch: Stretch::Normal,
 };
 

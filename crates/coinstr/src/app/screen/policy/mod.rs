@@ -350,7 +350,7 @@ impl State for PolicyState {
             if !self.proposals.is_empty() {
                 content = content
                     .push(Space::with_height(Length::Fixed(20.0)))
-                    .push(Text::new("Pending proposals").bold().size(25).view())
+                    .push(Text::new("Pending proposals").bold().bigger().view())
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(
                         PendingProposalsList::new(self.proposals.clone())
@@ -362,7 +362,7 @@ impl State for PolicyState {
 
             content = content
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Transactions").bold().size(25).view())
+                .push(Text::new("Transactions").bold().bigger().view())
                 .push(Space::with_height(Length::Fixed(5.0)))
                 .push(
                     TransactionsList::new(self.transactions.clone())

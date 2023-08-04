@@ -159,7 +159,7 @@ impl State for RestorePolicyState {
         let mut content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Restore policy").size(24).bold().view())
+                    .push(Text::new("Restore policy").bigger().bold().view())
                     .push(
                         Text::new("Restore policy from a backup")
                             .extra_light()

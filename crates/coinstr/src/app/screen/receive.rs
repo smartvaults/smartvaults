@@ -188,7 +188,7 @@ impl State for ReceiveState {
             content = content
                 .push(
                     Column::new()
-                        .push(Text::new("Receive").size(24).bold().view())
+                        .push(Text::new("Receive").bigger().bold().view())
                         .push(
                             Text::new("Send sats to the address below to fund your wallet.")
                                 .extra_light()
@@ -206,7 +206,6 @@ impl State for ReceiveState {
                                 ReceiveMessage::PolicySelectd(policy).into()
                             })
                             .width(Length::Fill)
-                            .text_size(20)
                             .padding(10)
                             .placeholder(
                                 if self.policies.is_empty() {

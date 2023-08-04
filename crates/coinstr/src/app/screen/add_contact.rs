@@ -83,7 +83,7 @@ impl State for AddContactState {
         let content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Add contact").size(24).bold().view())
+                    .push(Text::new("Add contact").bigger().bold().view())
                     .push(Text::new("Add a new contact").extra_light().view())
                     .spacing(10)
                     .width(Length::Fill),

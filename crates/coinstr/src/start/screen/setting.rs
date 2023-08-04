@@ -178,7 +178,7 @@ impl State for SettingState {
         let content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Settings").size(24).bold().view())
+                    .push(Text::new("Settings").bigger().bold().view())
                     .push(Text::new("Edit settings").extra_light().view())
                     .spacing(10)
                     .width(Length::Fill),

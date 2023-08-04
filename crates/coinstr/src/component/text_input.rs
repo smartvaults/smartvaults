@@ -3,6 +3,8 @@
 
 use iced::widget::{Button, Column, Row, TextInput as NativeTextInput};
 
+use crate::constants::DEFAULT_FONT_SIZE;
+
 use super::Text;
 
 pub struct TextInput<Message> {
@@ -75,7 +77,7 @@ where
     pub fn view(self) -> Column<'static, Message> {
         let mut text_input = NativeTextInput::new(self.placeholder.as_str(), self.value.as_str())
             .padding(10)
-            .size(20);
+            .size(DEFAULT_FONT_SIZE as f32);
 
         if self.password {
             text_input = text_input.password();

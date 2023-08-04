@@ -85,7 +85,7 @@ impl State for AddNostrConnectSessionState {
         let content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("New session").size(24).bold().view())
+                    .push(Text::new("New session").bigger().bold().view())
                     .push(Text::new("Add a new session").extra_light().view())
                     .spacing(10)
                     .width(Length::Fill),

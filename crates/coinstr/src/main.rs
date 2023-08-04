@@ -9,6 +9,7 @@ use std::str::FromStr;
 
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::logger;
+use constants::DEFAULT_FONT_SIZE;
 use iced::{executor, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
 
@@ -39,6 +40,7 @@ pub fn main() -> iced::Result {
     settings.id = Some(String::from("io.coinstr.desktop"));
     settings.window.min_size = Some((1000, 700));
     settings.antialiasing = false;
+    settings.default_text_size = DEFAULT_FONT_SIZE as f32;
     //settings.default_font = Some(theme::font::REGULAR_BYTES);
 
     logger::init(BASE_PATH.clone(), network, true).unwrap();

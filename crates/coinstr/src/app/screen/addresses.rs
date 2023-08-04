@@ -167,7 +167,6 @@ impl State for AddressesState {
                                 AddressesMessage::PolicySelectd(policy).into()
                             })
                             .width(Length::Fill)
-                            .text_size(20)
                             .padding(10)
                             .placeholder(
                                 if self.policies.is_empty() {

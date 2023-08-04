@@ -44,43 +44,23 @@ impl PendingProposalsList {
         let mut proposals = Column::new()
             .push(
                 Row::new()
-                    .push(
-                        Text::new("ID")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fixed(115.0))
-                            .view(),
-                    )
+                    .push(Text::new("ID").bold().width(Length::Fixed(115.0)).view())
                     .push(if self.hide_policy_id {
                         Text::new("").view()
                     } else {
                         Text::new("Policy ID")
                             .bold()
-                            .bigger()
                             .width(Length::Fixed(115.0))
                             .view()
                     })
-                    .push(
-                        Text::new("Type")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fixed(125.0))
-                            .view(),
-                    )
+                    .push(Text::new("Type").bold().width(Length::Fixed(125.0)).view())
                     .push(
                         Text::new("Amount")
                             .bold()
-                            .bigger()
                             .width(Length::Fixed(125.0))
                             .view(),
                     )
-                    .push(
-                        Text::new("Description")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    )
+                    .push(Text::new("Description").bold().width(Length::Fill).view())
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
@@ -208,34 +188,15 @@ impl CompletedProposalsList {
         let mut proposals = Column::new()
             .push(
                 Row::new()
-                    .push(
-                        Text::new("ID")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fixed(115.0))
-                            .view(),
-                    )
+                    .push(Text::new("ID").bold().width(Length::Fixed(115.0)).view())
                     .push(
                         Text::new("Policy ID")
                             .bold()
-                            .bigger()
                             .width(Length::Fixed(115.0))
                             .view(),
                     )
-                    .push(
-                        Text::new("Type")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fixed(125.0))
-                            .view(),
-                    )
-                    .push(
-                        Text::new("Description")
-                            .bold()
-                            .bigger()
-                            .width(Length::Fill)
-                            .view(),
-                    )
+                    .push(Text::new("Type").bold().width(Length::Fixed(125.0)).view())
+                    .push(Text::new("Description").bold().width(Length::Fill).view())
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),

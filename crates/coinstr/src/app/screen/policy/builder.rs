@@ -320,7 +320,7 @@ impl State for PolicyBuilderState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Policy builder").size(24).bold().view())
+                        .push(Text::new("Policy builder").bigger().bold().view())
                         .push(Text::new("Build a new policy").extra_light().view())
                         .spacing(10)
                         .width(Length::Fill),

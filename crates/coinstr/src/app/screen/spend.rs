@@ -416,7 +416,7 @@ impl SpendState {
             .padding(20)
             .push(
                 Column::new()
-                    .push(Text::new("Send").size(24).bold().view())
+                    .push(Text::new("Send").bigger().bold().view())
                     .push(
                         Text::new("Create a new spending proposal")
                             .extra_light()
@@ -485,7 +485,6 @@ impl SpendState {
                     SpendMessage::PolicySelectd(policy).into()
                 })
                 .width(Length::Fill)
-                .text_size(20)
                 .padding(10)
                 .placeholder(if self.policies.is_empty() {
                     "No policy availabe"

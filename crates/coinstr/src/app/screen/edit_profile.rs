@@ -145,7 +145,7 @@ impl State for EditProfileState {
             };
 
             content = content
-                .push(Text::new("Edit profile").size(24).bold().view())
+                .push(Text::new("Edit profile").bigger().bold().view())
                 .push(name)
                 .push(display_name)
                 .push(nip05)

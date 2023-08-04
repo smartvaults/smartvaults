@@ -145,7 +145,7 @@ impl State for AddHWSignerState {
                 content = content
                     .push(
                         Column::new()
-                            .push(Text::new("Create signer").size(24).bold().view())
+                            .push(Text::new("Create signer").bigger().bold().view())
                             .push(Text::new("Create a new HW signer").extra_light().view())
                             .spacing(10)
                             .width(Length::Fill),

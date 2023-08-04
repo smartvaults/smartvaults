@@ -149,7 +149,6 @@ impl State for NewProofState {
                         NewProofMessage::PolicySelectd(policy).into()
                     })
                     .width(Length::Fill)
-                    .text_size(20)
                     .padding(10)
                     .placeholder(if self.policies.is_empty() {
                         "No policy availabe"
@@ -173,7 +172,7 @@ impl State for NewProofState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Proof of Reserve").size(24).bold().view())
+                        .push(Text::new("Proof of Reserve").bigger().bold().view())
                         .push(
                             Text::new("Create a new Proof of Reserve")
                                 .extra_light()

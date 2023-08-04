@@ -312,7 +312,6 @@ impl State for SelfTransferState {
                             SelfTransferMessage::FromPolicySelectd(policy).into()
                         })
                         .width(Length::Fill)
-                        .text_size(20)
                         .padding(10)
                         .placeholder(if self.policies.is_empty() {
                             "No policy availabe"
@@ -329,7 +328,6 @@ impl State for SelfTransferState {
                             SelfTransferMessage::ToPolicySelectd(policy).into()
                         })
                         .width(Length::Fill)
-                        .text_size(20)
                         .padding(10)
                         .placeholder(if self.policies.is_empty() {
                             "No policy availabe"
@@ -409,7 +407,7 @@ impl State for SelfTransferState {
                 content = content
                     .push(
                         Column::new()
-                            .push(Text::new("Self transfer").size(24).bold().view())
+                            .push(Text::new("Self transfer").bigger().bold().view())
                             .push(
                                 Text::new("Create a new spending proposal")
                                     .extra_light()

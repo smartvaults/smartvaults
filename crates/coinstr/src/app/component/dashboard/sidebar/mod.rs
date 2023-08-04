@@ -66,7 +66,7 @@ impl Sidebar {
             env!("CARGO_PKG_VERSION"),
             env!("GIT_HASH").chars().take(8).collect::<String>(),
         ))
-        .size(16)
+        .smaller()
         .view();
 
         // Combine sidebar
