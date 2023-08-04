@@ -18,7 +18,7 @@ hwi = ["coinstr-sdk/hwi"]
 async-stream = "0.3"
 coinstr-common = { path = "../coinstr-common" }
 coinstr-sdk = { path = "../coinstr-sdk" }
-iced = { version = "0.10", default-features = false, features = ["advanced", "image", "lazy", "qr_code", "svg", "tokio", "wgpu"] }
+iced = { version = "0.10", default-features = false, features = ["advanced", "lazy", "qr_code", "svg", "tokio", "wgpu"] }
 iced_aw = { version = "0.6", default-features = false, features = ["card", "modal"] }
 iced_futures = "0.7"
 notify-rust = "4.8"

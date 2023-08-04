@@ -13,7 +13,7 @@ use constants::DEFAULT_FONT_SIZE;
 use iced::{executor, font, Application, Command, Element, Settings, Subscription, Theme};
 use once_cell::sync::Lazy;
 use theme::font::{
-    BOOTSTRAP_ICONS_BYTES, REGULAR, ROBOTO_MONO_BOLD_BYTES, ROBOTO_MONO_EXTRA_LIGHT_BYTES,
+    BOOTSTRAP_ICONS_BYTES, REGULAR, ROBOTO_MONO_BOLD_BYTES, ROBOTO_MONO_LIGHT_BYTES,
     ROBOTO_MONO_REGULAR_BYTES,
 };
 
@@ -81,7 +81,7 @@ impl Application for CoinstrApp {
             },
             Command::batch(vec![
                 font::load(ROBOTO_MONO_REGULAR_BYTES).map(Message::FontLoaded),
-                font::load(ROBOTO_MONO_EXTRA_LIGHT_BYTES).map(Message::FontLoaded),
+                font::load(ROBOTO_MONO_LIGHT_BYTES).map(Message::FontLoaded),
                 font::load(ROBOTO_MONO_BOLD_BYTES).map(Message::FontLoaded),
                 font::load(BOOTSTRAP_ICONS_BYTES).map(Message::FontLoaded),
                 stage.1.map(|m| m.into()),
