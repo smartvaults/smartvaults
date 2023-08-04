@@ -578,7 +578,7 @@ impl SpendState {
                         .max_width(400.0),
                 )
                 .spacing(25)
-                .height(Length::Fixed(335.0)),
+                .height(Length::Fixed(375.0)),
         )
     }
 

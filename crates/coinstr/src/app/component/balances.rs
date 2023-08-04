@@ -22,7 +22,7 @@ impl Balances {
     pub fn new(balance: Option<Balance>) -> Self {
         Self {
             balance,
-            size: 40,
+            size: 35,
             hide: false,
             on_send: None,
             on_deposit: None,
@@ -30,7 +30,7 @@ impl Balances {
     }
 
     pub fn bigger(self) -> Self {
-        Self { size: 50, ..self }
+        Self { size: 45, ..self }
     }
 
     pub fn hide(self, hide: bool) -> Self {
