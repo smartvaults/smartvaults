@@ -3,13 +3,12 @@
 
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
 use iced::widget::{Column, Row};
-use iced_aw::style::colors::{CYAN, MAGENTA};
 use iced_native::widget::Space;
 use iced_native::Length;
 
 use crate::app::Message;
 use crate::component::Text;
-use crate::theme::color::GREEN;
+use crate::theme::color::{CYAN, GREEN, MAGENTA};
 
 const LEFT_SPACE: f32 = 30.0;
 
