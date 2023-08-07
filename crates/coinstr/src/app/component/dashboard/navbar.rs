@@ -51,7 +51,11 @@ impl Navbar {
                     .padding(10)
                     .align_items(Alignment::Center),
             )
-            .push(rule::vertical())
+            .push(
+                Row::new()
+                    .push(rule::vertical())
+                    .height(Length::Fixed(40.0)),
+            )
             .push(
                 Row::new()
                     .push(Icon::new(BOX))
@@ -60,7 +64,11 @@ impl Navbar {
                     .padding(10)
                     .spacing(10),
             )
-            .push(rule::vertical())
+            .push(
+                Row::new()
+                    .push(rule::vertical())
+                    .height(Length::Fixed(40.0)),
+            )
             .push(
                 Row::new()
                     .push(Icon::new(FINGERPRINT))
@@ -69,7 +77,11 @@ impl Navbar {
                     .padding(10)
                     .spacing(10),
             )
-            .push(rule::vertical())
+            .push(
+                Row::new()
+                    .push(rule::vertical())
+                    .height(Length::Fixed(40.0)),
+            )
             .push(
                 Button::new()
                     .icon(BELL)
