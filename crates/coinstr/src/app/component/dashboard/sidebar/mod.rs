@@ -9,7 +9,7 @@ mod button;
 
 use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
-use crate::component::{Icon, Text};
+use crate::component::Text;
 use crate::constants::{APP_LOGO_MAINNET, APP_LOGO_REGTEST, APP_LOGO_SIGNET, APP_LOGO_TESTNET};
 use crate::theme::icon::{
     CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, SEND_PENDING, SETTING, WALLET,
@@ -38,27 +38,27 @@ impl Sidebar {
             .height(Length::Fixed(80.0));
 
         // Buttons
-        let home_button = SidebarButton::new("Dashboard", Icon::new(HOME))
-            .view(ctx, Message::View(Stage::Dashboard));
-        let policies_button = SidebarButton::new("Policies", Icon::new(WALLET))
-            .view(ctx, Message::View(Stage::Policies));
-        let proposals_button = SidebarButton::new("Proposals", Icon::new(SEND_PENDING))
+        let home_button =
+            SidebarButton::new("Dashboard", HOME).view(ctx, Message::View(Stage::Dashboard));
+        let policies_button =
+            SidebarButton::new("Policies", WALLET).view(ctx, Message::View(Stage::Policies));
+        let proposals_button = SidebarButton::new("Proposals", SEND_PENDING)
             .view(ctx, Message::View(Stage::Proposals));
-        let history_button = SidebarButton::new("History", Icon::new(HISTORY))
-            .view(ctx, Message::View(Stage::History));
-        let addresses_button = SidebarButton::new("Addresses", Icon::new(LIST))
-            .view(ctx, Message::View(Stage::Addresses(None)));
+        let history_button =
+            SidebarButton::new("History", HISTORY).view(ctx, Message::View(Stage::History));
+        let addresses_button =
+            SidebarButton::new("Addresses", LIST).view(ctx, Message::View(Stage::Addresses(None)));
         let signers_button =
-            SidebarButton::new("Signers", Icon::new(KEY)).view(ctx, Message::View(Stage::Signers));
-        let contacts_button = SidebarButton::new("Contacts", Icon::new(CONTACTS))
-            .view(ctx, Message::View(Stage::Contacts));
-        let connect_button = SidebarButton::new("Connect", Icon::new(LINK))
-            .view(ctx, Message::View(Stage::NostrConnect));
-        let settings_button = SidebarButton::new("Settings", Icon::new(SETTING))
-            .view(ctx, Message::View(Stage::Settings));
+            SidebarButton::new("Signers", KEY).view(ctx, Message::View(Stage::Signers));
+        let contacts_button =
+            SidebarButton::new("Contacts", CONTACTS).view(ctx, Message::View(Stage::Contacts));
+        let connect_button =
+            SidebarButton::new("Connect", LINK).view(ctx, Message::View(Stage::NostrConnect));
+        let settings_button =
+            SidebarButton::new("Settings", SETTING).view(ctx, Message::View(Stage::Settings));
 
         // Footer
-        let lock_button = SidebarButton::new("Lock", Icon::new(LOCK)).view(ctx, Message::Lock);
+        let lock_button = SidebarButton::new("Lock", LOCK).view(ctx, Message::Lock);
         let version = Text::new(format!(
             "{} v{} ({})",
             env!("CARGO_PKG_NAME"),

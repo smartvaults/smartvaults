@@ -1,50 +1,40 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use iced::widget::{Button, Container, Row, Text};
-use iced::{Alignment, Length};
+use iced::widget::Container;
+use iced::Length;
 
 use crate::app::{Context, Message};
-use crate::component::{ButtonStyle, Icon};
+use crate::component::{Button, ButtonStyle};
 
 #[derive(Clone)]
 pub struct SidebarButton<'a> {
     text: &'a str,
-    icon: Icon,
+    icon: char,
 }
 
 impl<'a> SidebarButton<'a> {
-    pub fn new(text: &'a str, icon: Icon) -> Self {
+    pub fn new(text: &'a str, icon: char) -> Self {
         Self { text, icon }
     }
 
     pub fn view(&self, ctx: &Context, msg: Message) -> Container<'a, Message> {
-        let mut style = ButtonStyle::Bordered.into();
+        let mut style = ButtonStyle::Bordered;
 
         if let Message::View(stage) = msg.clone() {
             if ctx.stage.eq(&stage) {
-                style = ButtonStyle::Primary.into();
+                style = ButtonStyle::Primary;
             }
         }
 
-        let content = Container::new(
-            Row::new()
-                .push(self.icon.clone())
-                .push(Text::new(self.text))
-                .spacing(10)
-                .width(Length::Fill)
-                .align_items(Alignment::Center),
-        )
-        .width(Length::Fill)
-        .center_x()
-        .padding(5);
+        let btn = Button::new()
+            .icon(self.icon)
+            .text(self.text)
+            .on_press(msg)
+            .style(style)
+            .width(Length::Fill)
+            .view();
 
-        Container::new(
-            Button::new(content)
-                .on_press(msg)
-                .width(Length::Fill)
-                .style(style),
-        )
-        .width(Length::Fill)
+        Container::new(btn).width(Length::Fill)
     }
 }
