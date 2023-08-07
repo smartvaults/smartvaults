@@ -44,7 +44,7 @@ async fn run() -> Result<()> {
     let network: Network = args.network.into();
     let base_path: PathBuf = coinstr_common::base_path()?;
 
-    logger::init(base_path.clone(), network)?;
+    logger::init(base_path.clone(), network, false)?;
 
     match args.command {
         CliCommand::Generate {

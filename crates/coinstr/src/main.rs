@@ -42,7 +42,7 @@ pub fn main() -> iced::Result {
     settings.antialiasing = false;
     settings.default_font = Some(theme::font::REGULAR_BYTES);
 
-    logger::init(BASE_PATH.clone(), network).unwrap();
+    logger::init(BASE_PATH.clone(), network, true).unwrap();
 
     CoinstrApp::run(settings)
 }

@@ -7,5 +7,5 @@ use coinstr_sdk::logger;
 use crate::error::Result;
 
 pub fn init_logger(base_path: String, network: Network) -> Result<()> {
-    Ok(logger::init(base_path, network)?)
+    Ok(logger::init(base_path, network, true)?)
 }

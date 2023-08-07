@@ -26,7 +26,7 @@ pub enum Error {
     Logger(#[from] TryInitError),
 }
 
-pub fn init<P>(base_path: P, network: Network) -> Result<(), Error>
+pub fn init<P>(base_path: P, network: Network, stdout: bool) -> Result<(), Error>
 where
     P: AsRef<Path>,
 {
@@ -55,17 +55,22 @@ where
         .with_file(false);
     let (file_log, ..) = ReloadLayer::new(file_log);
 
-    let stdout_log = tracing_subscriber::fmt::layer().with_file(false);
-
     let target_filter = Targets::new()
         .with_default(Level::DEBUG)
         .with_target("bdk", Level::INFO)
         .with_target("bdk::blockchain::script_sync", Level::INFO)
         .with_target("rustls", Level::ERROR);
 
-    tracing_subscriber::registry()
-        .with(stdout_log.and_then(file_log).with_filter(target_filter))
-        .try_init()?;
+    if stdout {
+        let stdout_log = tracing_subscriber::fmt::layer().with_file(false);
+        tracing_subscriber::registry()
+            .with(stdout_log.and_then(file_log).with_filter(target_filter))
+            .try_init()?;
+    } else {
+        tracing_subscriber::registry()
+            .with(file_log.with_filter(target_filter))
+            .try_init()?;
+    };
 
     Ok(())
 }
