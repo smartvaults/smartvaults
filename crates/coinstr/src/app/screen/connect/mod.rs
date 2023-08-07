@@ -114,7 +114,7 @@ impl State for ConnectState {
                     self.loading = true;
                     let client = ctx.client.clone();
                     Command::perform(
-                        async move { client.delete_nostr_connect_request(id) },
+                        async move { client.reject_nostr_connect_request(id).await },
                         |res| match res {
                             Ok(_) => ConnectMessage::Reload.into(),
                             Err(e) => ConnectMessage::ErrorChanged(Some(e.to_string())).into(),

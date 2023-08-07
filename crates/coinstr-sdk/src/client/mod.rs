@@ -515,11 +515,14 @@ impl Coinstr {
         url: S,
         event: Event,
         wait: Option<Duration>,
+        save_to_db: bool,
     ) -> Result<EventId, Error>
     where
         S: Into<String>,
     {
-        self.db.save_event(&event)?;
+        if save_to_db {
+            self.db.save_event(&event)?;
+        }
         let event_id = event.id;
         let msg = ClientMessage::new_event(event);
         let url = Url::parse(&url.into())?;
@@ -940,7 +943,7 @@ impl Coinstr {
             msg.push_str(&format!("- Description: {description}"));
             for pubkey in nostr_pubkeys.into_iter() {
                 if sender != pubkey {
-                    self.client.send_direct_msg(pubkey, &msg).await?;
+                    self.client.send_direct_msg(pubkey, &msg, None).await?;
                 }
             }
 
@@ -1270,7 +1273,7 @@ impl Coinstr {
         msg.push_str(&format!("- Message: {message}"));
         for pubkey in nostr_pubkeys.into_iter() {
             if sender != pubkey {
-                self.client.send_direct_msg(pubkey, &msg).await?;
+                self.client.send_direct_msg(pubkey, &msg, None).await?;
             }
         }
 
@@ -1420,10 +1423,10 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        let url = url.into();
+        let url: String = url.into();
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
-            self.client.send_event_to(&url, event).await?;
+            self.client.send_event_to(url.as_str(), event).await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1607,7 +1610,7 @@ impl Coinstr {
 
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
         let relay_url: Url = uri.relay_url.clone();
-        self.client.add_relay(relay_url.as_str(), None).await?;
+        self.client.add_relay(&relay_url, None).await?;
 
         let relay = self.client.relay(&relay_url).await?;
         relay.connect(true).await;
@@ -1627,7 +1630,7 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT))
+        self.send_event_to(relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT), false)
             .await?;
 
         self.db.save_nostr_connect_uri(uri)?;
@@ -1649,7 +1652,8 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Disconnect);
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(uri.relay_url, nip46_event, wait).await?;
+        self.send_event_to(uri.relay_url, nip46_event, wait, false)
+            .await?;
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
     }
@@ -1684,9 +1688,41 @@ impl Coinstr {
                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
             let nip46_event =
                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-            self.send_event_to(uri.relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT))
-                .await?;
+            self.send_event_to(
+                uri.relay_url,
+                nip46_event,
+                Some(CONNECT_SEND_TIMEOUT),
+                false,
+            )
+            .await?;
             self.db.set_nostr_connect_request_as_approved(event_id)?;
+            Ok(())
+        } else {
+            Err(Error::NostrConnectRequestAlreadyApproved)
+        }
+    }
+
+    pub async fn reject_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
+        let NostrConnectRequest {
+            app_public_key,
+            message,
+            approved,
+            ..
+        } = self.db.get_nostr_connect_request(event_id)?;
+        if !approved {
+            let uri = self.db.get_nostr_connect_session(app_public_key)?;
+            let keys = self.client.keys();
+            let msg = message.generate_error_response("Request rejected")?; // TODO: better error msg
+            let nip46_event =
+                EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+            self.send_event_to(
+                uri.relay_url,
+                nip46_event,
+                Some(CONNECT_SEND_TIMEOUT),
+                false,
+            )
+            .await?;
+            self.db.delete_nostr_connect_request(event_id)?;
             Ok(())
         } else {
             Err(Error::NostrConnectRequestAlreadyApproved)
@@ -1709,9 +1745,5 @@ impl Coinstr {
 
     pub fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<XOnlyPublicKey, Timestamp> {
         self.db.get_nostr_connect_pre_authorizations()
-    }
-
-    pub fn delete_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
-        Ok(self.db.delete_nostr_connect_request(event_id)?)
     }
 }

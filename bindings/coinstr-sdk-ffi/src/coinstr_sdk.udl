@@ -446,9 +446,9 @@ interface Coinstr {
     [Throws=FFIError]
     void approve_nostr_connect_request(EventId event_id);
     [Throws=FFIError]
-    void auto_approve_nostr_connect_requests(PublicKey app_public_key, duration duration);
+    void reject_nostr_connect_request(EventId event_id);
     [Throws=FFIError]
-    void delete_nostr_connect_request(EventId event_id);
+    void auto_approve_nostr_connect_requests(PublicKey app_public_key, duration duration);
 
     [Self=ByArc]
     AbortHandle handle_sync(SyncHandler handler);

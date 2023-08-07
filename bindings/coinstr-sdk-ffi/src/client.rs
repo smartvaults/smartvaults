@@ -632,6 +632,15 @@ impl Coinstr {
         })
     }
 
+    pub fn reject_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
+        block_on(async move {
+            Ok(self
+                .inner
+                .reject_nostr_connect_request(event_id.as_ref().into())
+                .await?)
+        })
+    }
+
     pub fn auto_approve_nostr_connect_requests(
         &self,
         app_public_key: Arc<PublicKey>,
@@ -645,12 +654,6 @@ impl Coinstr {
     // TODO: add revoke_nostr_connect_auto_approve
 
     // TODO: add get_nostr_connect_pre_authorizations
-
-    pub fn delete_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
-        Ok(self
-            .inner
-            .delete_nostr_connect_request(event_id.as_ref().into())?)
-    }
 
     pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
         let handle = async_utility::thread::abortable(async move {

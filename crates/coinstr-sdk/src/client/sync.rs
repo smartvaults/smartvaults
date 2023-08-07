@@ -231,13 +231,15 @@ impl Coinstr {
                                 if let RelayMessage::EndOfStoredEvents(subscription_id) = relay_msg {
                                     tracing::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
                                     if let Ok(relay) = this.client.relay(&relay_url).await {
-                                        let subscription = relay.subscription().await;
-                                        if subscription.id() == subscription_id {
-                                            if let Err(e) = this
-                                                .db
-                                                .save_last_relay_sync(&relay_url, Timestamp::now())
-                                            {
-                                                tracing::error!("Impossible to save last relay sync: {e}");
+                                        for (_, subscription) in relay.subscriptions().await.into_iter() {
+                                            if subscription.id() == subscription_id {
+                                                if let Err(e) = this
+                                                    .db
+                                                    .save_last_relay_sync(&relay_url, Timestamp::now())
+                                                {
+                                                    tracing::error!("Impossible to save last relay sync: {e}");
+                                                }
+                                                break;
                                             }
                                         }
                                     }
@@ -504,7 +506,8 @@ impl Coinstr {
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
                         let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                             .to_event(&keys)?;
-                        self.send_event_to(uri.relay_url, nip46_event, None).await?;
+                        self.send_event_to(uri.relay_url, nip46_event, None, false)
+                            .await?;
                     }
                     _ => {
                         if self
@@ -520,7 +523,8 @@ impl Coinstr {
                             let nip46_event =
                                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                                     .to_event(&keys)?;
-                            self.send_event_to(uri.relay_url, nip46_event, None).await?;
+                            self.send_event_to(uri.relay_url, nip46_event, None, false)
+                                .await?;
                             self.db.save_nostr_connect_request(
                                 event.id,
                                 event.pubkey,
