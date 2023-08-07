@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use iced::widget::{self, button, Container, Row};
-use iced::{theme, Alignment, Background, BorderRadius, Color, Length, Theme, Vector};
+use iced::{theme, Alignment, Background, BorderRadius, Color, Length, Padding, Theme, Vector};
 
 use super::{Icon, Text};
 use crate::theme::color::TRANSPARENT;
@@ -89,17 +89,11 @@ where
                     row = row.push(Text::new(&self.text).view());
                 }
 
-                Container::new(row)
-                    .width(Length::Fill)
-                    .center_x()
-                    .padding(5)
+                Container::new(row).padding(Padding::from([2.5, 5.0]))
             }
-            None => Container::new(Text::new(&self.text).view())
-                .width(Length::Fill)
-                .center_x()
-                .padding(5),
+            None => Container::new(Text::new(&self.text).view()).padding(Padding::new(5.0)),
         };
-        let mut button = widget::Button::new(content);
+        let mut button = widget::Button::new(content.width(Length::Fill).center_x());
 
         if !self.loading {
             if let Some(msg) = self.on_press.clone() {

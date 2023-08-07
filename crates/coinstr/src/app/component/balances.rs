@@ -53,7 +53,7 @@ impl Balances {
 
     pub fn view(self) -> Column<'static, Message> {
         let (balance, pending) = if self.hide {
-            (Text::new("***** sat"), Text::new(""))
+            (Text::new("***** sat"), None)
         } else {
             match self.balance {
                 Some(balance) => {
@@ -63,17 +63,20 @@ impl Balances {
                     (
                         Text::new(format!("{} sat", format::number(balance.confirmed))),
                         if pending_balance > 0 {
-                            Text::new(format!("Pending: +{} sat", format::number(pending_balance)))
+                            Some(Text::new(format!(
+                                "Pending: +{} sat",
+                                format::number(pending_balance)
+                            )))
                         } else {
-                            Text::new("")
+                            None
                         },
                     )
                 }
-                None => (Text::new("Unavailable"), Text::new("")),
+                None => (Text::new("Unavailable"), None),
             }
         };
 
-        let btn_size: f32 = self.size as f32 * 3.0 + 30.0;
+        let btn_size: f32 = self.size as f32 * 3.7 + 30.0;
 
         let mut send_btn = Button::new()
             .icon(ARROW_UP)
@@ -95,14 +98,19 @@ impl Balances {
         }
 
         Column::new()
-            .push(
-                Column::new()
+            .push({
+                let mut content = Column::new()
                     .push(balance.size(self.size).view())
-                    .push(pending.size(self.size / 2).extra_light().view())
                     .spacing(10)
                     .width(Length::Fill)
-                    .align_items(Alignment::Center),
-            )
+                    .align_items(Alignment::Center);
+
+                if let Some(pending) = pending {
+                    content = content.push(pending.size(self.size / 2).extra_light().view());
+                }
+
+                content
+            })
             .push(
                 Row::new()
                     .push(send_btn.view())
