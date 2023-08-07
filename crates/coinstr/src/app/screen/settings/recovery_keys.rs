@@ -2,24 +2,30 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::types::Secrets;
-use iced::widget::Column;
-use iced::{Alignment, Command, Element};
+use iced::widget::{Column, Row};
+use iced::{Alignment, Command, Element, Length};
 
 use crate::app::component::Dashboard;
-use crate::app::{Context, Message, Stage, State};
-use crate::component::TextInput;
+use crate::app::{Context, Message, State};
+use crate::component::{Button, Text, TextInput};
+use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
 pub enum RecoveryKeysMessage {
-    Load(Secrets),
+    PasswordChanged(String),
+    Confirm,
+    LoadSecrets(Secrets),
+    ErrorChanged(Option<String>),
     Null,
 }
 
 #[derive(Debug, Default)]
 pub struct RecoveryKeysState {
     secrets: Option<Secrets>,
+    password: String,
     loading: bool,
     loaded: bool,
+    error: Option<String>,
 }
 
 impl RecoveryKeysState {
@@ -33,27 +39,39 @@ impl State for RecoveryKeysState {
         String::from("Recovery Keys")
     }
 
-    fn load(&mut self, ctx: &Context) -> Command<Message> {
-        self.loading = true;
-        let client = ctx.client.clone();
-        Command::perform(
-            async move { client.keychain().secrets(client.network()) },
-            |res| match res {
-                Ok(secrets) => RecoveryKeysMessage::Load(secrets).into(),
-                Err(e) => {
-                    tracing::error!("impossible to load secrets: {e}");
-                    Message::View(Stage::Settings)
-                }
-            },
-        )
+    fn load(&mut self, _ctx: &Context) -> Command<Message> {
+        self.loaded = true;
+        Command::none()
     }
 
-    fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
+    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::RecoveryKeys(msg) = message {
             match msg {
-                RecoveryKeysMessage::Load(secrets) => {
+                RecoveryKeysMessage::PasswordChanged(password) => self.password = password,
+                RecoveryKeysMessage::ErrorChanged(e) => {
+                    self.loading = false;
+                    self.error = e;
+                }
+                RecoveryKeysMessage::Confirm => {
+                    if ctx.client.check_password(&self.password) {
+                        self.loading = true;
+                        let client = ctx.client.clone();
+                        return Command::perform(
+                            async move { client.keychain().secrets(client.network()) },
+                            |res| match res {
+                                Ok(secrets) => RecoveryKeysMessage::LoadSecrets(secrets).into(),
+                                Err(e) => {
+                                    RecoveryKeysMessage::ErrorChanged(Some(e.to_string())).into()
+                                }
+                            },
+                        );
+                    } else {
+                        self.error = Some(String::from("Invalid password"));
+                    }
+                }
+                RecoveryKeysMessage::LoadSecrets(secrets) => {
+                    self.password.clear();
                     self.secrets = Some(secrets);
-                    self.loaded = true;
                     self.loading = false;
                 }
                 RecoveryKeysMessage::Null => (),
@@ -68,8 +86,11 @@ impl State for RecoveryKeysState {
             .align_items(Alignment::Center)
             .spacing(10)
             .padding(20);
+        let mut center = true;
 
         if let Some(secrets) = self.secrets.clone() {
+            center = false;
+
             content = content
                 .push(
                     TextInput::new(
@@ -109,11 +130,34 @@ impl State for RecoveryKeysState {
                         .on_input(|_| RecoveryKeysMessage::Null.into())
                         .view(),
                 );
+        } else {
+            content = content
+                .push(
+                    TextInput::new("Password", &self.password)
+                        .placeholder("Password")
+                        .on_input(|p| RecoveryKeysMessage::PasswordChanged(p).into())
+                        .on_submit(RecoveryKeysMessage::Confirm.into())
+                        .password()
+                        .view(),
+                )
+                .push(if let Some(error) = &self.error {
+                    Row::new().push(Text::new(error).color(DARK_RED).view())
+                } else {
+                    Row::new()
+                })
+                .push(
+                    Button::new()
+                        .text("Confirm")
+                        .on_press(RecoveryKeysMessage::Confirm.into())
+                        .width(Length::Fill)
+                        .view(),
+                )
+                .max_width(400.0)
         }
 
         Dashboard::new()
             .loaded(self.loaded)
-            .view(ctx, content, false, false)
+            .view(ctx, content, center, center)
     }
 }
 
