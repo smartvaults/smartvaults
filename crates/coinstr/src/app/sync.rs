@@ -7,9 +7,9 @@ use std::hash::Hash;
 use async_stream::stream;
 use coinstr_sdk::client::Message;
 use coinstr_sdk::Coinstr;
+use iced::advanced::subscription::{EventStream, Recipe};
+use iced::advanced::Hasher;
 use iced::Subscription;
-use iced_futures::core::Hasher;
-use iced_futures::subscription::{EventStream, Recipe};
 use iced_futures::BoxStream;
 use notify_rust::Notification as DesktopNotification;
 
