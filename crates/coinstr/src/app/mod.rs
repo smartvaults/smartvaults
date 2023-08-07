@@ -22,9 +22,9 @@ use self::screen::{
     AddRelayState, AddSignerState, AddressesState, ChangePasswordState, CompletedProposalState,
     ConfigState, ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState,
     NewProofState, NotificationsState, PoliciesState, PolicyBuilderState, PolicyState,
-    PolicyTreeState, ProfileState, ProposalState, ProposalsState, ReceiveState, RelaysState,
-    RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState,
-    SignerState, SignersState, SpendState, TransactionState, TransactionsState,
+    PolicyTreeState, ProfileState, ProposalState, ProposalsState, ReceiveState, RecoveryKeysState,
+    RelaysState, RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState,
+    ShareSignerState, SignerState, SignersState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -84,6 +84,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Config => ConfigState::new().into(),
         Stage::AddRelay => AddRelayState::new().into(),
         Stage::ChangePassword => ChangePasswordState::new().into(),
+        Stage::RecoveryKeys => RecoveryKeysState::new().into(),
         Stage::NostrConnect => ConnectState::new().into(),
         Stage::AddNostrConnectSession => AddNostrConnectSessionState::new().into(),
     }

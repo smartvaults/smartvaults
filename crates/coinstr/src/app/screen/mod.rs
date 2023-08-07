@@ -60,6 +60,7 @@ pub use self::self_transfer::{SelfTransferMessage, SelfTransferState};
 pub use self::settings::add_relay::{AddRelayMessage, AddRelayState};
 pub use self::settings::change_password::{ChangePasswordMessage, ChangePasswordState};
 pub use self::settings::config::{ConfigMessage, ConfigState};
+pub use self::settings::recovery_keys::{RecoveryKeysMessage, RecoveryKeysState};
 pub use self::settings::relays::{RelaysMessage, RelaysState};
 pub use self::settings::{SettingsMessage, SettingsState};
 pub use self::share_signer::{ShareSignerMessage, ShareSignerState};

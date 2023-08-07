@@ -13,6 +13,7 @@ use crate::theme::icon::{BROADCAST_PIN, KEY, NETWORK, SETTING, TRASH};
 pub mod add_relay;
 pub mod change_password;
 pub mod config;
+pub mod recovery_keys;
 pub mod relays;
 
 #[derive(Debug, Clone)]
@@ -86,6 +87,7 @@ impl State for SettingsState {
                 Button::new()
                     .text("Recovery keys")
                     .icon(KEY)
+                    .on_press(Message::View(Stage::RecoveryKeys))
                     .width(Length::Fill)
                     .view(),
             )
