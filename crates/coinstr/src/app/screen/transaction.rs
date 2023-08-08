@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bitcoin::{Address, Txid};
 use coinstr_sdk::db::model::GetTransaction;
 use coinstr_sdk::nostr::{EventId, Timestamp};
@@ -169,23 +170,22 @@ impl State for TransactionState {
             let txid: String = self.txid.to_string();
             let title = format!("Txid {}..{}", &txid[..6], &txid[txid.len() - 6..]);
 
-            let (confirmed_at_block, confirmed_at_time, confirmations) =
-                match tx.confirmation_time.as_ref() {
-                    Some(block_time) => {
-                        let confirmations: u32 =
-                            ctx.client.block_height().saturating_sub(block_time.height) + 1;
-                        (
-                            format::number(block_time.height as u64),
-                            Timestamp::from(block_time.timestamp).to_human_datetime(),
-                            format::number(confirmations as u64),
-                        )
-                    }
-                    None => (
-                        "Unconfirmed".to_string(),
-                        "Unconfirmed".to_string(),
-                        "Unconfirmed".to_string(),
-                    ),
-                };
+            let (confirmed_at_block, confirmed_at_time, confirmations) = match tx.confirmation_time
+            {
+                ConfirmationTime::Confirmed { height, time } => {
+                    let confirmations: u32 = ctx.client.block_height().saturating_sub(height) + 1;
+                    (
+                        format::number(height as u64),
+                        Timestamp::from(time).to_human_datetime(),
+                        format::number(confirmations as u64),
+                    )
+                }
+                ConfirmationTime::Unconfirmed { .. } => (
+                    "Unconfirmed".to_string(),
+                    "Unconfirmed".to_string(),
+                    "Unconfirmed".to_string(),
+                ),
+            };
 
             content = content
                 .push(Text::new(title).size(40).bold().view())

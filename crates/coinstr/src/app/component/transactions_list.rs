@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::db::model::GetTransaction;
 use coinstr_sdk::nostr::{EventId, Timestamp};
 use coinstr_sdk::util::{self, format};
@@ -109,7 +110,7 @@ impl TransactionsList {
                 label,
             } in self.list()
             {
-                let status = if tx.confirmation_time.is_some() {
+                let status = if tx.confirmation_time.is_confirmed() {
                     Icon::new(CHECK).color(GREEN)
                 } else {
                     Icon::new(HOURGLASS).color(YELLOW)
@@ -137,9 +138,12 @@ impl TransactionsList {
                         Text::new(if ctx.hide_balances {
                             String::from("*****")
                         } else {
-                            tx.confirmation_time
-                                .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
-                                .unwrap_or_else(|| String::from("Pending"))
+                            match tx.confirmation_time {
+                                ConfirmationTime::Confirmed { time, .. } => {
+                                    Timestamp::from(time).to_human_datetime()
+                                }
+                                ConfirmationTime::Unconfirmed { .. } => String::from("Pending"),
+                            }
                         })
                         .width(Length::Fixed(225.0))
                         .view(),

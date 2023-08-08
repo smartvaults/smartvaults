@@ -300,9 +300,7 @@ impl Coinstr {
                 } else {
                     self.db
                         .save_policy(event.id, policy.clone(), nostr_pubkeys)?;
-                    let db = self.db.get_wallet_db(event.id)?;
-                    self.manager
-                        .load_policy(event.id, policy, db, self.network)?;
+                    self.manager.load_policy(event.id, policy, self.network)?;
                     let notification = Notification::NewPolicy(event.id);
                     self.db.save_notification(event.id, notification)?;
                     self.sync_channel

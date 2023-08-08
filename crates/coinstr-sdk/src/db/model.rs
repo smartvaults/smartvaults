@@ -4,8 +4,9 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
 
-use bdk::bitcoin::{Address, XOnlyPublicKey};
-use bdk::{Balance, LocalUtxo, TransactionDetails};
+use coinstr_core::bdk::wallet::Balance;
+use coinstr_core::bdk::{LocalUtxo, TransactionDetails};
+use coinstr_core::bitcoin::{Address, XOnlyPublicKey};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::nips::nip46::Message;

@@ -4,11 +4,11 @@
 use coinstr_sdk::core::bdk;
 
 pub struct Balance {
-    inner: bdk::Balance,
+    inner: bdk::wallet::Balance,
 }
 
-impl From<bdk::Balance> for Balance {
-    fn from(inner: bdk::Balance) -> Self {
+impl From<bdk::wallet::Balance> for Balance {
+    fn from(inner: bdk::wallet::Balance) -> Self {
         Self { inner }
     }
 }
@@ -16,11 +16,11 @@ impl From<bdk::Balance> for Balance {
 impl Balance {
     /// Get sum of trusted_pending and confirmed coins
     pub fn get_spendable(&self) -> u64 {
-        self.inner.get_spendable()
+        self.inner.trusted_spendable()
     }
 
     /// Get the whole balance visible to the wallet
     pub fn get_total(&self) -> u64 {
-        self.inner.get_total()
+        self.inner.total()
     }
 }

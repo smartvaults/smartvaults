@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::db::model::{GetPolicy, GetProposal, GetTransaction};

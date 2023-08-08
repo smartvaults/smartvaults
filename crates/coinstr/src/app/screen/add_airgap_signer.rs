@@ -3,8 +3,8 @@
 
 use std::str::FromStr;
 
-use coinstr_sdk::core::bdk::miniscript::Descriptor;
 use coinstr_sdk::core::bips::bip32::Fingerprint;
+use coinstr_sdk::core::miniscript::Descriptor;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};

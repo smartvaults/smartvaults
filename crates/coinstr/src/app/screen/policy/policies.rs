@@ -159,7 +159,7 @@ impl State for PoliciesState {
                     let balance: String = if last_sync.is_some() {
                         match balance {
                             Some(balance) => {
-                                format!("{} sat", util::format::big_number(balance.get_total()))
+                                format!("{} sat", util::format::big_number(balance.total()))
                             }
                             None => String::from("Unavailabe"),
                         }

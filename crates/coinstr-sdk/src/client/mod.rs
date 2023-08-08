@@ -9,17 +9,14 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
-use bdk::blockchain::Blockchain;
-use bdk::blockchain::ElectrumBlockchain;
-use bdk::database::SqliteDatabase;
-use bdk::electrum_client::Client as ElectrumClient;
-use bdk::miniscript::Descriptor;
-use bdk::signer::{SignerContext, SignerWrapper};
-use bdk::wallet::AddressIndex;
-use bdk::{Balance, Wallet};
+use bdk_electrum::electrum_client::{Client as ElectrumClient, ElectrumApi};
+use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
+use coinstr_core::bdk::wallet::{AddressIndex, Balance};
+use coinstr_core::bdk::{FeeRate as BdkFeeRate, Wallet};
 use coinstr_core::bips::bip39::Mnemonic;
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
+use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
+use coinstr_core::miniscript::Descriptor;
 use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
@@ -68,9 +65,7 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
-    Bdk(#[from] bdk::Error),
-    #[error(transparent)]
-    Electrum(#[from] bdk::electrum_client::Error),
+    Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
     Url(#[from] nostr_sdk::url::ParseError),
     #[error(transparent)]
@@ -178,7 +173,6 @@ impl Coinstr {
         // Open db
         let db = Store::open(
             util::dir::user_db(base_path, network, keys.public_key())?,
-            util::dir::timechain_db(base_path, network)?,
             &keys,
         )?;
 
@@ -193,7 +187,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            manager: Manager::new(db.clone()),
+            manager: Manager::new(db.clone(), util::dir::timechain_db(base_path, network)?),
             config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
@@ -304,9 +298,7 @@ impl Coinstr {
             policy_id, policy, ..
         } in self.get_policies()?.into_iter()
         {
-            let db = self.db.get_wallet_db(policy_id)?;
-            self.manager
-                .load_policy(policy_id, policy, db, self.network)?;
+            self.manager.load_policy(policy_id, policy, self.network)?;
         }
         self.restore_relays().await?;
         self.client.connect().await;
@@ -817,19 +809,6 @@ impl Coinstr {
         Ok(self.db.completed_proposals()?)
     }
 
-    pub fn wallet<S>(
-        &self,
-        policy_id: EventId,
-        descriptor: S,
-    ) -> Result<Wallet<SqliteDatabase>, Error>
-    where
-        S: Into<String>,
-    {
-        let db: SqliteDatabase = self.db.get_wallet_db(policy_id)?;
-        let wallet = Wallet::new(&descriptor.into(), None, self.network, db)?;
-        Ok(wallet)
-    }
-
     pub async fn save_policy<S>(
         &self,
         name: S,
@@ -906,8 +885,7 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        // Get policy and shared keys
-        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
+        // Get shared keys
         let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
 
         let description: &str = &description.into();
@@ -917,27 +895,30 @@ impl Coinstr {
             return Err(Error::InvalidFeeRate);
         }
 
-        let fee_rate = match fee_rate {
+        let fee_rate: f32 = match fee_rate {
             FeeRate::Priority(priority) => {
                 let endpoint: String = self.electrum_endpoint()?;
-                let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-                blockchain.estimate_fee(priority.target_blocks() as usize)?
+                let blockchain = ElectrumClient::new(&endpoint)?;
+                blockchain.estimate_fee(priority.target_blocks() as usize)? as f32
             }
-            FeeRate::Rate(rate) => bdk::FeeRate::from_sat_per_vb(rate),
+            FeeRate::Rate(rate) => rate,
         };
+        let fee_rate: BdkFeeRate = BdkFeeRate::from_sat_per_vb(fee_rate);
 
         // Build spending proposal
-        let wallet: Wallet<SqliteDatabase> =
-            self.wallet(policy_id, &policy.descriptor.to_string())?;
-        let proposal = policy.spend(
-            wallet,
-            address,
-            amount,
-            description,
-            fee_rate,
-            utxos,
-            policy_path,
-        )?;
+        let proposal: Proposal = self
+            .manager
+            .spend(
+                policy_id,
+                address,
+                amount,
+                description,
+                fee_rate,
+                utxos,
+                policy_path,
+                Some(Duration::from_secs(30)),
+            )
+            .await?;
 
         if let Proposal::Spending {
             amount,
@@ -1228,8 +1209,8 @@ impl Coinstr {
         // Broadcast
         if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
             let endpoint = self.config.electrum_endpoint()?;
-            let blockchain = ElectrumBlockchain::from(ElectrumClient::new(&endpoint)?);
-            blockchain.broadcast(tx)?;
+            let blockchain = ElectrumClient::new(&endpoint)?;
+            blockchain.transaction_broadcast(tx)?;
             self.db.schedule_for_sync(policy_id)?;
         }
 
@@ -1268,15 +1249,13 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        let message: &str = &message.into();
+        /* let message: &str = &message.into();
 
         // Get policy and shared keys
         let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
         let shared_keys = self.db.get_shared_key(policy_id)?;
 
         // Build proposal
-        let wallet: Wallet<SqliteDatabase> =
-            self.wallet(policy_id, &policy.descriptor.to_string())?;
         let proposal = policy.proof_of_reserve(wallet, message)?;
 
         // Compose the event
@@ -1305,11 +1284,13 @@ impl Coinstr {
         self.db
             .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
-        Ok((proposal_id, proposal, policy_id))
+        Ok((proposal_id, proposal, policy_id)) */
+
+        todo!()
     }
 
     pub fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
-        let GetCompletedProposal {
+        /* let GetCompletedProposal {
             proposal,
             policy_id,
             ..
@@ -1325,7 +1306,9 @@ impl Coinstr {
             Ok(wallet.verify_proof(&psbt, message, None)?)
         } else {
             Err(Error::UnexpectedProposal)
-        }
+        } */
+
+        todo!()
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
@@ -1464,40 +1447,10 @@ impl Coinstr {
     }
 
     pub async fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
-        let mut txs = Vec::new();
-        let mut already_seen = Vec::new();
-        for GetPolicy {
-            policy_id, policy, ..
-        } in self.get_policies()?.into_iter()
-        {
-            if !already_seen.contains(&policy.descriptor) {
-                for tx in self
-                    .manager
-                    .get_txs(policy_id, false, Some(Duration::from_secs(30)))
-                    .await
-                    .unwrap_or_default()
-                    .into_iter()
-                {
-                    txs.push(tx)
-                }
-                already_seen.push(policy.descriptor);
-            }
-        }
-
-        txs.sort_by(|a, b| {
-            b.confirmation_time
-                .as_ref()
-                .map(|t| t.height)
-                .unwrap_or(u32::MAX)
-                .cmp(
-                    &a.confirmation_time
-                        .as_ref()
-                        .map(|t| t.height)
-                        .unwrap_or(u32::MAX),
-                )
-        });
-
-        Ok(txs)
+        Ok(self
+            .manager
+            .get_all_txs(Some(Duration::from_secs(30)))
+            .await?)
     }
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {

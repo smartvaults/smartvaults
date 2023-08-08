@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bdk::miniscript::DescriptorPublicKey;
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::core::miniscript::DescriptorPublicKey;
 use coinstr_sdk::db::model::{GetAllSigners, GetSharedSignerResult};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};

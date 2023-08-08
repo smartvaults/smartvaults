@@ -7,8 +7,8 @@ use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 
-use bdk::bitcoin::XOnlyPublicKey;
-use bdk::miniscript::Descriptor;
+use coinstr_core::bitcoin::XOnlyPublicKey;
+use coinstr_core::miniscript::Descriptor;
 use coinstr_core::util::Serde;
 use serde::{Deserialize, Serialize};
 

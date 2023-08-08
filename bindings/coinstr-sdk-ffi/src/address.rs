@@ -8,7 +8,6 @@ pub enum AddressIndex {
     New,
     LastUnused,
     Peek { index: u32 },
-    Reset { index: u32 },
 }
 
 impl From<AddressIndex> for wallet::AddressIndex {
@@ -17,7 +16,6 @@ impl From<AddressIndex> for wallet::AddressIndex {
             AddressIndex::New => wallet::AddressIndex::New,
             AddressIndex::LastUnused => wallet::AddressIndex::LastUnused,
             AddressIndex::Peek { index } => wallet::AddressIndex::Peek(index),
-            AddressIndex::Reset { index } => wallet::AddressIndex::Reset(index),
         }
     }
 }
