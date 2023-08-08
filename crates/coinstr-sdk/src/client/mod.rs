@@ -1223,6 +1223,8 @@ impl Coinstr {
                 .build();
             let blockchain = ElectrumClient::from_config(&endpoint, config)?;
             blockchain.transaction_broadcast(tx)?;
+            // Force sync
+            self.manager.sync(policy_id, endpoint, proxy).await?;
         }
 
         // Compose the event

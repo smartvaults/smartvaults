@@ -81,6 +81,7 @@ pub enum Command {
     Sync {
         endpoint: String,
         proxy: Option<SocketAddr>,
+        force: bool,
     },
     ApplyUpdate(LocalUpdate<KeychainKind, ConfirmationTimeAnchor>),
     GetBalance,
@@ -573,11 +574,15 @@ impl Manager {
         thread::spawn(async move {
             while let Some(cmd) = receiver.recv().await {
                 match cmd {
-                    Command::Sync { endpoint, proxy } => match this.db.get_last_sync(policy_id) {
+                    Command::Sync {
+                        endpoint,
+                        proxy,
+                        force,
+                    } => match this.db.get_last_sync(policy_id) {
                         Ok(last_sync) => {
                             let last_sync: Timestamp =
                                 last_sync.unwrap_or_else(|| Timestamp::from(0));
-                            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+                            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() || force {
                                 match this.sync_wallet(policy_id, &mut wallet, endpoint, proxy) {
                                     Ok(_) => {}
                                     Err(e) => {
@@ -719,12 +724,11 @@ impl Manager {
         Ok(handle.clone())
     }
 
-    /* pub async fn sync<S>(
+    pub async fn sync<S>(
         &self,
         policy_id: EventId,
         endpoint: S,
         proxy: Option<SocketAddr>,
-        sender: broadcast::Sender<Option<Message>>,
     ) -> Result<(), Error>
     where
         S: Into<String>,
@@ -733,18 +737,14 @@ impl Manager {
         let handle = self.get_policy_handle(policy_id)?;
         handle
             .sender
-            .send_timeout(
-                Command::Sync {
-                    endpoint: endpoint.clone(),
-                    proxy,
-                    sender: sender.clone(),
-                },
-                Duration::from_secs(10),
-            )
-            .await
-            ?;
+            .try_send(Command::Sync {
+                endpoint: endpoint.clone(),
+                proxy,
+                force: true,
+            })
+            .map_err(|_| Error::SendError)?;
         Ok(())
-    } */
+    }
 
     pub fn sync_all<S>(&self, endpoint: S, proxy: Option<SocketAddr>) -> Result<(), Error>
     where
@@ -757,6 +757,7 @@ impl Manager {
                 .try_send(Command::Sync {
                     endpoint: endpoint.clone(),
                     proxy,
+                    force: false,
                 })
                 .map_err(|_| Error::SendError)?;
         }
