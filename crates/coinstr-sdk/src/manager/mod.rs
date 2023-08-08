@@ -21,7 +21,10 @@ use coinstr_core::bdk::chain::ConfirmationTimeAnchor;
 use coinstr_core::bdk::chain::{ConfirmationTime, PersistBackend};
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, ChangeSet};
 use coinstr_core::bdk::{FeeRate, KeychainKind, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
+use coinstr_core::proposal::ProposalType;
+use coinstr_core::reserves::ProofOfReserves;
 use coinstr_core::{Amount, Policy, Proposal};
 use nostr_sdk::{EventId, Timestamp};
 use parking_lot::Mutex;
@@ -57,6 +60,8 @@ pub enum Error {
     #[error(transparent)]
     Policy(#[from] coinstr_core::policy::Error),
     #[error(transparent)]
+    Proof(#[from] coinstr_core::reserves::ProofError),
+    #[error(transparent)]
     Store(#[from] crate::db::Error),
     #[error(transparent)]
     Label(#[from] crate::types::label::Error),
@@ -77,6 +82,7 @@ pub enum Command {
         endpoint: String,
         proxy: Option<SocketAddr>,
     },
+    ApplyUpdate(LocalUpdate<KeychainKind, ConfirmationTimeAnchor>),
     GetBalance,
     GetAddress(AddressIndex),
     GetAddresses,
@@ -94,7 +100,13 @@ pub enum Command {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     },
-    ApplyUpdate(LocalUpdate<KeychainKind, ConfirmationTimeAnchor>),
+    ProofOfReserve {
+        message: String,
+    },
+    VerifyProof {
+        psbt: PartiallySignedTransaction,
+        message: String,
+    },
     Shutdown,
 }
 
@@ -108,6 +120,7 @@ pub enum Response {
     Tx(GetTransaction),
     Utxos(Vec<GetUtxo>),
     Proposal(Proposal),
+    VerifyProof(u64),
 }
 
 #[derive(Debug, Clone)]
@@ -504,6 +517,32 @@ impl Manager {
         Ok(proposal)
     }
 
+    fn _proof_of_reserve<D>(
+        &self,
+        policy_id: EventId,
+        message: String,
+        wallet: &mut Wallet<D>,
+    ) -> Result<Proposal, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        let GetPolicy { policy, .. } = self.db.get_policy(policy_id)?;
+        let proposal = policy.proof_of_reserve(wallet, message)?;
+        Ok(proposal)
+    }
+
+    fn _verify_proof<D>(
+        &self,
+        psbt: &PartiallySignedTransaction,
+        message: String,
+        wallet: &Wallet<D>,
+    ) -> Result<u64, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        Ok(wallet.verify_proof(psbt, message, None)?)
+    }
+
     pub fn load_policy(
         &self,
         policy_id: EventId,
@@ -611,7 +650,21 @@ impl Manager {
                         &mut wallet,
                     ) {
                         Ok(proposal) => this.send(&tx_sender, Response::Proposal(proposal)),
-                        Err(e) => tracing::error!("Impossible to create proposal: {e}"),
+                        Err(e) => tracing::error!("Impossible to create spending proposal: {e}"),
+                    },
+                    Command::ProofOfReserve { message } => {
+                        match this._proof_of_reserve(policy_id, message, &mut wallet) {
+                            Ok(proposal) => this.send(&tx_sender, Response::Proposal(proposal)),
+                            Err(e) => tracing::error!(
+                                "Impossible to create proof of reserve proposal: {e}"
+                            ),
+                        }
+                    }
+                    Command::VerifyProof { psbt, message } => match this
+                        ._verify_proof(&psbt, message, &wallet)
+                    {
+                        Ok(spendable) => this.send(&tx_sender, Response::VerifyProof(spendable)),
+                        Err(e) => tracing::error!("Impossible to verify proof of reserve: {e}"),
                     },
                     Command::Shutdown => break,
                 }
@@ -944,7 +997,71 @@ impl Manager {
         time::timeout(timeout, async move {
             while let Ok(res) = notifications.recv().await {
                 if let Response::Proposal(proposal) = res {
-                    return Ok(proposal);
+                    if proposal.get_type() == ProposalType::Spending {
+                        return Ok(proposal);
+                    }
+                }
+            }
+            Err(Error::NotFound)
+        })
+        .await
+        .ok_or(Error::Timeout)?
+    }
+
+    pub async fn proof_of_reserve<S>(
+        &self,
+        policy_id: EventId,
+        message: S,
+        timeout: Option<Duration>,
+    ) -> Result<Proposal, Error>
+    where
+        S: Into<String>,
+    {
+        let handle = self.get_policy_handle(policy_id)?;
+        handle
+            .sender
+            .try_send(Command::ProofOfReserve {
+                message: message.into(),
+            })
+            .map_err(|_| Error::SendError)?;
+        let mut notifications = handle.receiver();
+        time::timeout(timeout, async move {
+            while let Ok(res) = notifications.recv().await {
+                if let Response::Proposal(proposal) = res {
+                    if proposal.get_type() == ProposalType::ProofOfReserve {
+                        return Ok(proposal);
+                    }
+                }
+            }
+            Err(Error::NotFound)
+        })
+        .await
+        .ok_or(Error::Timeout)?
+    }
+
+    pub async fn verify_proof<S>(
+        &self,
+        policy_id: EventId,
+        psbt: PartiallySignedTransaction,
+        message: S,
+        timeout: Option<Duration>,
+    ) -> Result<u64, Error>
+    where
+        S: Into<String>,
+    {
+        let handle = self.get_policy_handle(policy_id)?;
+        handle
+            .sender
+            .try_send(Command::VerifyProof {
+                psbt,
+                message: message.into(),
+            })
+            .map_err(|_| Error::SendError)?;
+        let mut notifications = handle.receiver();
+        time::timeout(timeout, async move {
+            while let Ok(res) = notifications.recv().await {
+                if let Response::VerifyProof(spendable) = res {
+                    return Ok(spendable);
                 }
             }
             Err(Error::NotFound)
