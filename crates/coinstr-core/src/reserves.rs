@@ -145,15 +145,13 @@ where
             .map(|utxo| {
                 if max_block_height.is_none() {
                     Ok((utxo, None))
-                } else {
-                    if let Some(tx_details) = self.get_tx(utxo.outpoint.txid, false) {
-                        match tx_details.confirmation_time {
-                            ConfirmationTime::Confirmed { height, .. } => Ok((utxo, Some(height))),
-                            ConfirmationTime::Unconfirmed { .. } => Ok((utxo, None)),
-                        }
-                    } else {
-                        Err(ProofError::MissingConfirmationInfo)
+                } else if let Some(tx_details) = self.get_tx(utxo.outpoint.txid, false) {
+                    match tx_details.confirmation_time {
+                        ConfirmationTime::Confirmed { height, .. } => Ok((utxo, Some(height))),
+                        ConfirmationTime::Unconfirmed { .. } => Ok((utxo, None)),
                     }
+                } else {
+                    Err(ProofError::MissingConfirmationInfo)
                 }
             })
             .collect::<Result<Vec<_>, ProofError>>()?;

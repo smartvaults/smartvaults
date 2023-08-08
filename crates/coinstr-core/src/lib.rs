@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+pub use bdk::miniscript;
 #[cfg(feature = "hwi")]
 pub use hwi;
 pub use keechain_core::*;
