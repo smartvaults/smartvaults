@@ -60,11 +60,8 @@ impl Coinstr {
         thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint() {
-                    Ok(endpoint) => match this.manager.sync_all(
-                        endpoint,
-                        this.config.proxy().ok(),
-                        this.sync_channel.clone(),
-                    ) {
+                    Ok(endpoint) => match this.manager.sync_all(endpoint, this.config.proxy().ok())
+                    {
                         Ok(_) => (),
                         Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                     },

@@ -12,7 +12,7 @@ use std::time::Duration;
 use bdk_electrum::electrum_client::{Client as ElectrumClient, ElectrumApi};
 use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
-use coinstr_core::bdk::{FeeRate as BdkFeeRate, Wallet};
+use coinstr_core::bdk::FeeRate as BdkFeeRate;
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
@@ -187,7 +187,11 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            manager: Manager::new(db.clone(), util::dir::timechain_db(base_path, network)?),
+            manager: Manager::new(
+                db.clone(),
+                util::dir::timechain_db(base_path, network)?,
+                sender.clone(),
+            ),
             config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
