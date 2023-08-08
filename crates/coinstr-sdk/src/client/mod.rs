@@ -17,7 +17,6 @@ use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
 use coinstr_core::miniscript::Descriptor;
-use coinstr_core::reserves::{ProofError, ProofOfReserves};
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::Serde;
@@ -96,8 +95,6 @@ pub enum Error {
     NIP46(#[from] nostr_sdk::nips::nip46::Error),
     #[error(transparent)]
     BIP32(#[from] coinstr_core::bitcoin::util::bip32::Error),
-    #[error(transparent)]
-    Proof(#[from] ProofError),
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
@@ -904,9 +901,6 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        // Get shared keys
-        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
-
         let description: &str = &description.into();
 
         // Check and calculate fee rate
@@ -945,6 +939,9 @@ impl Coinstr {
             ..
         } = &proposal
         {
+            // Get shared keys
+            let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
+
             // Compose the event
             let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
             let mut tags: Vec<Tag> = nostr_pubkeys
@@ -1268,14 +1265,16 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        /* let message: &str = &message.into();
-
-        // Get policy and shared keys
-        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
-        let shared_keys = self.db.get_shared_key(policy_id)?;
+        let message: &str = &message.into();
 
         // Build proposal
-        let proposal = policy.proof_of_reserve(wallet, message)?;
+        let proposal: Proposal = self
+            .manager
+            .proof_of_reserve(policy_id, message, Some(Duration::from_secs(30)))
+            .await?;
+
+        // Get shared keys
+        let shared_keys = self.db.get_shared_key(policy_id)?;
 
         // Compose the event
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
@@ -1303,31 +1302,23 @@ impl Coinstr {
         self.db
             .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
-        Ok((proposal_id, proposal, policy_id)) */
-
-        todo!()
+        Ok((proposal_id, proposal, policy_id))
     }
 
-    pub fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
-        /* let GetCompletedProposal {
+    pub async fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
+        let GetCompletedProposal {
             proposal,
             policy_id,
             ..
         } = self.get_completed_proposal_by_id(completed_proposal_id)?;
-        if let CompletedProposal::ProofOfReserve {
-            message,
-            descriptor,
-            psbt,
-            ..
-        } = proposal
-        {
-            let wallet = self.wallet(policy_id, descriptor.to_string())?;
-            Ok(wallet.verify_proof(&psbt, message, None)?)
+        if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
+            Ok(self
+                .manager
+                .verify_proof(policy_id, psbt, message, Some(Duration::from_secs(30)))
+                .await?)
         } else {
             Err(Error::UnexpectedProposal)
-        } */
-
-        todo!()
+        }
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
