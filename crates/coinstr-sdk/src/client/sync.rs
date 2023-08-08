@@ -2,12 +2,17 @@
 // Distributed under the MIT software license
 
 use std::collections::HashSet;
+use std::net::SocketAddr;
 use std::ops::Add;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use async_utility::thread;
+use bdk_electrum::electrum_client::{
+    Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
+};
+use bdk_electrum::ElectrumExt;
 use coinstr_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
 use coinstr_core::util::Serde;
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer};
@@ -55,7 +60,42 @@ pub enum Message {
 }
 
 impl Coinstr {
-    fn sync_with_timechain(&self) -> AbortHandle {
+    fn _block_height_syncer(&self) -> Result<(), Error> {
+        if !self.db.block_height.is_synced() {
+            let endpoint = self.config.electrum_endpoint()?;
+            let proxy: Option<SocketAddr> = self.config.proxy().ok();
+
+            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+            let config = ElectrumConfig::builder().socks5(proxy)?.build();
+            let client = ElectrumClient::from_config(&endpoint, config)?;
+
+            let (height, ..) = client.get_tip()?;
+            self.db.block_height.set_block_height(height);
+            self.db.block_height.just_synced();
+
+            let _ = self.sync_channel.send(Message::BlockHeightUpdated);
+
+            tracing::info!("Block height synced")
+        }
+
+        Ok(())
+    }
+
+    fn block_height_syncer(&self) -> AbortHandle {
+        let this = self.clone();
+        thread::abortable(async move {
+            loop {
+                if let Err(e) = this._block_height_syncer() {
+                    tracing::error!("Impossible to sync block height: {e}");
+                }
+
+                thread::sleep(Duration::from_secs(10)).await;
+            }
+        })
+    }
+
+    fn policies_syncer(&self) -> AbortHandle {
         let this = self.clone();
         thread::abortable(async move {
             loop {
@@ -68,7 +108,7 @@ impl Coinstr {
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
-                thread::sleep(Duration::from_secs(10)).await;
+                thread::sleep(Duration::from_secs(30)).await;
             }
         })
     }
@@ -189,7 +229,8 @@ impl Coinstr {
             let this = self.clone();
             thread::spawn(async move {
                 // Sync timechain
-                let timechain_sync: AbortHandle = this.sync_with_timechain();
+                let block_height_syncer: AbortHandle = this.block_height_syncer();
+                let policies_syncer: AbortHandle = this.policies_syncer();
 
                 // Pending events handler
                 let pending_event_handler = this.handle_pending_events();
@@ -244,7 +285,8 @@ impl Coinstr {
                             }
                             RelayPoolNotification::Stop | RelayPoolNotification::Shutdown => {
                                 tracing::debug!("Received stop/shutdown msg");
-                                timechain_sync.abort();
+                                block_height_syncer.abort();
+                                policies_syncer.abort();
                                 pending_event_handler.abort();
                                 metadata_sync.abort();
                                 rebroadcaster.abort();
