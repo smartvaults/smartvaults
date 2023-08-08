@@ -11,10 +11,10 @@ readme = "README.md"
 keywords.workspace = true
 
 [dependencies]
-bdk = { version = "0.28", default-features = false, features = ["std", "compiler"] }
+bdk = { version = "=1.0.0-alpha.1", default-features = false, features = ["std", "compiler"] }
 bitcoinconsensus = "0.20.2-0.5.0"
 hwi = { version = "0.6", default-features = false, features = ["use-miniscript"], optional = true }
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "2c0f6161aff7547d2439f85ccd25741dff85697d" }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "5ae0a2839ae6dfac9891fbac21c5bab00c037a87" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"

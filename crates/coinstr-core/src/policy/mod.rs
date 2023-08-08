@@ -6,12 +6,13 @@ use std::str::FromStr;
 
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, Network, OutPoint, XOnlyPublicKey};
-use bdk::database::{BatchDatabase, MemoryDatabase};
+use bdk::chain::PersistBackend;
 use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
 use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
 use bdk::miniscript::Descriptor;
+use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, Wallet};
 use keechain_core::types::psbt::{self, Psbt};
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,8 @@ use crate::Amount;
 pub enum Error {
     #[error(transparent)]
     Bdk(#[from] bdk::Error),
+    #[error(transparent)]
+    BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
@@ -63,12 +66,7 @@ impl Policy {
         S: Into<String>,
     {
         if let DescriptorType::Tr = descriptor.desc_type() {
-            Wallet::new(
-                &descriptor.to_string(),
-                None,
-                network,
-                MemoryDatabase::new(),
-            )?;
+            Wallet::new_no_persist(&descriptor.to_string(), None, network)?;
             Ok(Self {
                 name: name.into(),
                 description: description.into(),
@@ -131,8 +129,7 @@ impl Policy {
     }
 
     pub fn spending_policy(&self, network: Network) -> Result<SpendingPolicy, Error> {
-        let db = MemoryDatabase::new();
-        let wallet = Wallet::new(&self.descriptor.to_string(), None, network, db)?;
+        let wallet = Wallet::new_no_persist(&self.descriptor.to_string(), None, network)?;
         wallet
             .policies(KeychainKind::External)?
             .ok_or(Error::WalletSpendingPolicyNotFound)
@@ -172,7 +169,7 @@ impl Policy {
     #[allow(clippy::too_many_arguments)]
     pub fn spend<D, S>(
         &self,
-        wallet: Wallet<D>,
+        wallet: &mut Wallet<D>,
         address: Address,
         amount: Amount,
         description: S,
@@ -181,7 +178,7 @@ impl Policy {
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<Proposal, Error>
     where
-        D: BatchDatabase,
+        D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
         // Build the PSBT
@@ -225,9 +222,13 @@ impl Policy {
         ))
     }
 
-    pub fn proof_of_reserve<D, S>(&self, wallet: Wallet<D>, message: S) -> Result<Proposal, Error>
+    pub fn proof_of_reserve<D, S>(
+        &self,
+        wallet: &mut Wallet<D>,
+        message: S,
+    ) -> Result<Proposal, Error>
     where
-        D: BatchDatabase,
+        D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
         let message: &str = &message.into();

@@ -4,7 +4,6 @@
 use std::fmt;
 
 use bdk::bitcoin::{Network, PrivateKey};
-use bdk::database::MemoryDatabase;
 use bdk::miniscript::psbt::PsbtExt;
 use bdk::miniscript::Descriptor;
 use bdk::signer::SignerWrapper;
@@ -34,6 +33,8 @@ use crate::util::{Encryption, Serde};
 pub enum Error {
     #[error(transparent)]
     Bdk(#[from] bdk::Error),
+    #[error(transparent)]
+    BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
     #[error(transparent)]
     Psbt(#[from] PsbtError),
     #[error(transparent)]
@@ -266,8 +267,7 @@ impl Proposal {
                 ))
             }
             ProposalType::ProofOfReserve => {
-                let db = MemoryDatabase::new();
-                let wallet = Wallet::new(&self.descriptor().to_string(), None, network, db)?;
+                let wallet = Wallet::new_no_persist(&self.descriptor().to_string(), None, network)?;
                 let signopts = SignOptions {
                     trust_witness_utxo: true,
                     remove_partial_sigs: false,
