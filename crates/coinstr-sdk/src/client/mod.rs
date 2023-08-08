@@ -52,6 +52,7 @@ use crate::db::model::{
     GetSharedSignerResult, GetTransaction, GetUtxo, NostrConnectRequest,
 };
 use crate::db::store::Store;
+use crate::manager::Manager;
 use crate::types::{Notification, PolicyBackup};
 use crate::util;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
@@ -105,6 +106,8 @@ pub enum Error {
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
+    Manager(#[from] crate::manager::Error),
+    #[error(transparent)]
     Config(#[from] crate::config::Error),
     #[error(transparent)]
     Store(#[from] crate::db::Error),
@@ -152,6 +155,7 @@ pub struct Coinstr {
     network: Network,
     keechain: KeeChain,
     client: Client,
+    manager: Manager,
     config: Config,
     pub db: Store,
     syncing: Arc<AtomicBool>,
@@ -176,11 +180,7 @@ impl Coinstr {
             util::dir::user_db(base_path, network, keys.public_key())?,
             util::dir::timechain_db(base_path, network)?,
             &keys,
-            network,
         )?;
-
-        // Load wallets
-        db.load_wallets()?;
 
         let opts = Options::new()
             .wait_for_connection(false)
@@ -193,6 +193,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
+            manager: Manager::new(db.clone()),
             config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
@@ -299,6 +300,14 @@ impl Coinstr {
     }
 
     async fn init(&self) -> Result<(), Error> {
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies()?.into_iter()
+        {
+            let db = self.db.get_wallet_db(policy_id)?;
+            self.manager
+                .load_policy(policy_id, policy, db, self.network)?;
+        }
         self.restore_relays().await?;
         self.client.connect().await;
         self.sync();
@@ -495,6 +504,7 @@ impl Coinstr {
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
+        self.manager.shutdown().await?;
         Ok(self.client.shutdown().await?)
     }
 
@@ -641,6 +651,8 @@ impl Coinstr {
 
             self.db.delete_policy(policy_id)?;
 
+            self.manager.unload_policy(policy_id).await?;
+
             Ok(())
         } else {
             Err(Error::TryingToDeleteNotOwnedEvent)
@@ -761,10 +773,26 @@ impl Coinstr {
         Ok(self.db.get_policies()?)
     }
 
-    pub fn get_detailed_policies(
+    pub async fn get_detailed_policies(
         &self,
     ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
-        Ok(self.db.get_detailed_policies()?)
+        let mut policies = BTreeMap::new();
+        for GetPolicy {
+            policy_id,
+            policy,
+            last_sync,
+        } in self.get_policies()?.into_iter()
+        {
+            policies.insert(
+                policy_id,
+                GetDetailedPolicyResult {
+                    policy,
+                    balance: self.get_balance(policy_id).await,
+                    last_sync,
+                },
+            );
+        }
+        Ok(policies)
     }
 
     pub fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
@@ -967,7 +995,7 @@ impl Coinstr {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error> {
-        let address = self.get_last_unused_address(to_policy_id)?.address;
+        let address = self.get_last_unused_address(to_policy_id).await?.address;
         let description: String = format!(
             "Self transfer from policy #{} to #{}",
             util::cut_event_id(from_policy_id),
@@ -1358,52 +1386,118 @@ impl Coinstr {
         Err(Error::SignerNotFound)
     }
 
-    pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
-        self.db.get_balance(policy_id)
+    pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
+        self.manager
+            .get_balance(policy_id, Some(Duration::from_secs(30)))
+            .await
+            .ok()
     }
 
-    pub fn get_txs(&self, policy_id: EventId) -> Result<Vec<GetTransaction>, Error> {
-        Ok(self.db.get_txs(policy_id, true)?)
+    pub async fn get_txs(&self, policy_id: EventId) -> Result<Vec<GetTransaction>, Error> {
+        Ok(self
+            .manager
+            .get_txs(policy_id, true, Some(Duration::from_secs(30)))
+            .await?)
     }
 
-    pub fn get_address(
+    pub async fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
+        Ok(self
+            .manager
+            .get_tx(policy_id, txid, Some(Duration::from_secs(30)))
+            .await?)
+    }
+
+    pub async fn get_address(
         &self,
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<GetAddress, Error> {
-        Ok(self.db.get_address(policy_id, index)?)
+        Ok(self
+            .manager
+            .get_address(policy_id, index, Some(Duration::from_secs(30)))
+            .await?)
     }
 
-    pub fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
-        self.get_address(policy_id, AddressIndex::LastUnused)
+    pub async fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
+        self.get_address(policy_id, AddressIndex::LastUnused).await
     }
 
-    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
-        Ok(self.db.get_addresses(policy_id)?)
+    pub async fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
+        Ok(self
+            .manager
+            .get_addresses(policy_id, Some(Duration::from_secs(30)))
+            .await?)
     }
 
-    /// Get wallet UTXOs
-    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
-        Ok(self.db.get_utxos(policy_id)?)
-    }
-
-    pub fn get_addresses_balances(
+    pub async fn get_addresses_balances(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<Script, u64>, Error> {
-        Ok(self.db.get_addresses_balances(policy_id)?)
+        Ok(self
+            .manager
+            .get_addresses_balances(policy_id, Some(Duration::from_secs(30)))
+            .await?)
     }
 
-    pub fn get_total_balance(&self) -> Result<Balance, Error> {
-        Ok(self.db.get_total_balance()?)
+    /// Get wallet UTXOs
+    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
+        Ok(self
+            .manager
+            .get_utxos(policy_id, Some(Duration::from_secs(30)))
+            .await?)
     }
 
-    pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
-        Ok(self.db.get_all_transactions()?)
+    pub async fn get_total_balance(&self) -> Result<Balance, Error> {
+        let mut total_balance = Balance::default();
+        let mut already_seen = Vec::new();
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies()?.into_iter()
+        {
+            if !already_seen.contains(&policy.descriptor) {
+                let balance = self.get_balance(policy_id).await.unwrap_or_default();
+                total_balance = total_balance.add(balance);
+                already_seen.push(policy.descriptor);
+            }
+        }
+        Ok(total_balance)
     }
 
-    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
-        Ok(self.db.get_tx(policy_id, txid)?)
+    pub async fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
+        let mut txs = Vec::new();
+        let mut already_seen = Vec::new();
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.get_policies()?.into_iter()
+        {
+            if !already_seen.contains(&policy.descriptor) {
+                for tx in self
+                    .manager
+                    .get_txs(policy_id, false, Some(Duration::from_secs(30)))
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                {
+                    txs.push(tx)
+                }
+                already_seen.push(policy.descriptor);
+            }
+        }
+
+        txs.sort_by(|a, b| {
+            b.confirmation_time
+                .as_ref()
+                .map(|t| t.height)
+                .unwrap_or(u32::MAX)
+                .cmp(
+                    &a.confirmation_time
+                        .as_ref()
+                        .map(|t| t.height)
+                        .unwrap_or(u32::MAX),
+                )
+        });
+
+        Ok(txs)
     }
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {

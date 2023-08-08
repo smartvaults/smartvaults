@@ -44,7 +44,7 @@ impl State for PoliciesState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.get_detailed_policies().unwrap() },
+            async move { client.get_detailed_policies().await.unwrap() },
             |p| PoliciesMessage::LoadPolicies(p).into(),
         )
     }

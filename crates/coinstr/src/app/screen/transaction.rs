@@ -51,7 +51,7 @@ impl State for TransactionState {
         let policy_id = self.policy_id;
         self.loading = true;
         Command::perform(
-            async move { client.get_tx(policy_id, txid).ok() },
+            async move { client.get_tx(policy_id, txid).await.ok() },
             |res| match res {
                 Some(tx) => TransactionMessage::LoadTx(tx).into(),
                 None => Message::View(Stage::Transactions(None)),

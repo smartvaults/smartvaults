@@ -229,8 +229,8 @@ impl State for SpendState {
                         let policy = policy.policy.clone();
                         return Command::perform(
                             async move {
-                                let balance = client.get_balance(policy_id);
-                                let utxos = client.get_utxos(policy_id)?;
+                                let balance = client.get_balance(policy_id).await;
+                                let utxos = client.get_utxos(policy_id).await?;
                                 let item = policy.satisfiable_item(client.network())?;
                                 let conditions = policy.selectable_conditions(client.network())?;
                                 Ok::<
