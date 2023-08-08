@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use bdk::bitcoin::Network;
+use coinstr_core::bitcoin::Network;
 use coinstr_core::util;
 use nostr_sdk::Url;
 use parking_lot::RwLock;

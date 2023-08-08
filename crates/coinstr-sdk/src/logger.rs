@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use bdk::bitcoin::Network;
+use coinstr_core::bitcoin::Network;
 use nostr_sdk::Timestamp;
 use thiserror::Error;
 use tracing::metadata::LevelFilter;

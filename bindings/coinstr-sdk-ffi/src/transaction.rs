@@ -4,6 +4,7 @@
 use std::sync::Arc;
 
 use coinstr_sdk::core::bdk;
+use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bitcoin::{self, Address, Network};
 use coinstr_sdk::db::model::{self, GetUtxo};
 use nostr_ffi::Timestamp;
@@ -65,22 +66,17 @@ impl Utxo {
 }
 
 pub struct BlockTime {
-    inner: bdk::BlockTime,
-}
-
-impl From<bdk::BlockTime> for BlockTime {
-    fn from(inner: bdk::BlockTime) -> Self {
-        Self { inner }
-    }
+    height: u32,
+    timestamp: u64,
 }
 
 impl BlockTime {
     pub fn height(&self) -> u32 {
-        self.inner.height
+        self.height
     }
 
     pub fn timestamp(&self) -> Arc<Timestamp> {
-        Arc::new(Timestamp::from_secs(self.inner.timestamp))
+        Arc::new(Timestamp::from_secs(self.timestamp))
     }
 }
 
@@ -216,10 +212,13 @@ impl TransactionDetails {
     }
 
     pub fn confirmation_time(&self) -> Option<Arc<BlockTime>> {
-        self.inner
-            .confirmation_time
-            .clone()
-            .map(|b| Arc::new(b.into()))
+        match self.inner.confirmation_time {
+            ConfirmationTime::Confirmed { height, time } => Some(Arc::new(BlockTime {
+                height,
+                timestamp: time,
+            })),
+            ConfirmationTime::Unconfirmed { .. } => None,
+        }
     }
 
     pub fn transaction(&self) -> Option<Arc<Transaction>> {

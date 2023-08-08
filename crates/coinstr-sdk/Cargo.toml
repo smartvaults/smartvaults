@@ -17,7 +17,8 @@ blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 
 [dependencies]
 async-utility = "0.1"
-bdk = { version = "0.28", default-features = false, features = ["std", "electrum", "sqlite-bundled"] }
+bdk_electrum = "0.3"
+bdk_file_store = "0.2"
 coinstr-core = { path = "../coinstr-core" }
 futures-util = "0.3"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "678be566b22f9060734747ad0087763a0122fcba", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }

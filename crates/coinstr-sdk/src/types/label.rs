@@ -144,7 +144,7 @@ impl EncryptionWithKeys for Label {}
 mod test {
     use std::str::FromStr;
 
-    use bdk::bitcoin::Txid;
+    use coinstr_core::bitcoin::Txid;
     use nostr_sdk::secp256k1::SecretKey;
 
     use super::*;

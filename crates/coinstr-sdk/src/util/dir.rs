@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use bdk::bitcoin::{Network, XOnlyPublicKey};
+use coinstr_core::bitcoin::{Network, XOnlyPublicKey};
 use coinstr_core::util::dir;
 pub use coinstr_core::util::dir::Error;
 

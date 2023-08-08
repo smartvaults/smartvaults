@@ -3,10 +3,9 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use coinstr_sdk::core::bdk::database::MemoryDatabase;
+use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
-use coinstr_sdk::core::bdk::wallet::AddressIndex;
-use coinstr_sdk::core::bdk::{Balance, Wallet};
+use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_sdk::core::bitcoin::{Network, Script};
@@ -57,13 +56,6 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     let descriptors = keychain.descriptors(network, None)?;
     let external = descriptors.get_by_purpose(Purpose::TR, false).unwrap();
     let internal = descriptors.get_by_purpose(Purpose::TR, true).unwrap();
-    let wallet = Wallet::new(
-        external.clone(),
-        Some(internal.clone()),
-        network,
-        MemoryDatabase::new(),
-    )
-    .unwrap();
 
     println!("\nBitcoin");
     println!("  Root Private Key: {root_key}");
@@ -73,18 +65,6 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     );
     println!("  Output Descriptor: {external}");
     println!("  Change Descriptor: {internal}");
-    println!(
-        "  Ext Address 1: {}",
-        wallet.get_address(AddressIndex::New).unwrap()
-    );
-    println!(
-        "  Ext Address 2: {}",
-        wallet.get_address(AddressIndex::New).unwrap()
-    );
-    println!(
-        "  Change Address: {}",
-        wallet.get_internal_address(AddressIndex::New).unwrap()
-    );
 
     Ok(())
 }
@@ -208,9 +188,11 @@ pub fn print_txs(txs: Vec<GetTransaction>, limit: usize) {
                 format::number(total)
             ),
             label.unwrap_or_else(|| String::from("-")),
-            tx.confirmation_time
-                .map(|b| Timestamp::from(b.timestamp).to_human_datetime())
-                .unwrap_or_else(|| String::from("pending"))
+            match tx.confirmation_time {
+                ConfirmationTime::Confirmed { time, .. } =>
+                    Timestamp::from(time).to_human_datetime(),
+                ConfirmationTime::Unconfirmed { .. } => String::from("Pending"),
+            }
         ]);
     }
 

@@ -6,7 +6,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::bitcoin::{Address, OutPoint};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
@@ -543,7 +543,10 @@ impl SpendState {
         let your_balance = if self.policy.is_some() {
             Text::new(match &self.balance {
                 Some(balance) => {
-                    format!("Balance: {} sat", format::number(balance.get_spendable()))
+                    format!(
+                        "Balance: {} sat",
+                        format::number(balance.trusted_spendable())
+                    )
                 }
                 None => String::from("Loading..."),
             })

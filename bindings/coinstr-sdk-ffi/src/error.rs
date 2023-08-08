@@ -78,12 +78,6 @@ impl From<coinstr_sdk::core::bdk::Error> for FFIError {
     }
 }
 
-impl From<coinstr_sdk::core::bdk::electrum_client::Error> for FFIError {
-    fn from(e: coinstr_sdk::core::bdk::electrum_client::Error) -> Self {
-        Self::Generic { err: e.to_string() }
-    }
-}
-
 impl From<coinstr_sdk::core::bitcoin::secp256k1::Error> for FFIError {
     fn from(e: coinstr_sdk::core::bitcoin::secp256k1::Error) -> Self {
         Self::Generic { err: e.to_string() }

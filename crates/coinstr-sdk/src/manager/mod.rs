@@ -1,20 +1,23 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::ops::Add;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_utility::{thread, time};
-use bdk::bitcoin::{Address, Network, OutPoint, Script, Txid};
-use bdk::blockchain::{ElectrumBlockchain, GetHeight};
-use bdk::database::SqliteDatabase;
-use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
-use bdk::wallet::AddressIndex;
-use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
-use coinstr_core::Policy;
+use bdk_electrum::electrum_client::{
+    Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
+};
+use bdk_file_store::{IterError, Store as FileStore};
+use coinstr_core::bdk::chain::{ConfirmationTime, PersistBackend};
+use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, ChangeSet};
+use coinstr_core::bdk::{FeeRate, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
+use coinstr_core::{Amount, Policy, Proposal};
 use nostr_sdk::{EventId, Timestamp};
 use parking_lot::Mutex;
 use thiserror::Error;
@@ -22,19 +25,25 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Sender};
 
 use crate::client::Message;
-use crate::constants::WALLET_SYNC_INTERVAL;
-use crate::db::model::{GetAddress, GetTransaction, GetUtxo};
+use crate::constants::{BDK_DB_MAGIC, WALLET_SYNC_INTERVAL};
+use crate::db::model::{GetAddress, GetPolicy, GetTransaction, GetUtxo};
 use crate::db::Store;
 use crate::{Label, LabelData};
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Bdk(#[from] bdk::Error),
+    Bdk(#[from] coinstr_core::bdk::Error),
     #[error(transparent)]
-    Electrum(#[from] bdk::electrum_client::Error),
+    BdkNew(#[from] coinstr_core::bdk::wallet::NewError<IterError>),
+    #[error(transparent)]
+    BdkFileStore(#[from] bdk_file_store::FileError<'static>),
+    #[error(transparent)]
+    Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
     Address(#[from] coinstr_core::bitcoin::util::address::Error),
+    #[error(transparent)]
+    Policy(#[from] coinstr_core::policy::Error),
     #[error(transparent)]
     Store(#[from] crate::db::Error),
     #[error(transparent)]
@@ -66,6 +75,14 @@ pub enum Command {
     },
     GetTx(Txid),
     GetUtxos,
+    Spend {
+        address: Address,
+        amount: Amount,
+        description: String,
+        fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+    },
     Shutdown,
 }
 
@@ -78,6 +95,7 @@ pub enum Response {
     Txs(Vec<GetTransaction>),
     Tx(GetTransaction),
     Utxos(Vec<GetUtxo>),
+    Proposal(Proposal),
 }
 
 #[derive(Debug, Clone)]
@@ -96,13 +114,18 @@ impl PolicyHandle {
 pub struct Manager {
     policies: Arc<Mutex<HashMap<EventId, PolicyHandle>>>,
     db: Store,
+    timechain_path: PathBuf,
 }
 
 impl Manager {
-    pub fn new(db: Store) -> Self {
+    pub fn new<P>(db: Store, timechain_path: P) -> Self
+    where
+        P: AsRef<Path>,
+    {
         Self {
             policies: Arc::new(Mutex::new(HashMap::new())),
             db,
+            timechain_path: timechain_path.as_ref().to_path_buf(),
         }
     }
 
@@ -122,14 +145,15 @@ impl Manager {
         }
     }
 
-    fn sync_wallet<S>(
+    fn sync_wallet<D, S>(
         &self,
         policy_id: EventId,
-        wallet: &Wallet<SqliteDatabase>,
+        wallet: &Wallet<D>,
         endpoint: S,
         proxy: Option<SocketAddr>,
     ) -> Result<(), Error>
     where
+        D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
         let endpoint = endpoint.into();
@@ -137,7 +161,7 @@ impl Manager {
         tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
         let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
         let config = ElectrumConfig::builder().socks5(proxy)?.build();
-        let blockchain = ElectrumBlockchain::from(ElectrumClient::from_config(&endpoint, config)?);
+        /* let blockchain = ElectrumBlockchain::from(ElectrumClient::from_config(&endpoint, config)?);
 
         if !self.db.block_height.is_synced() {
             match blockchain.get_height() {
@@ -147,22 +171,25 @@ impl Manager {
                 }
                 Err(e) => tracing::error!("Impossible to sync block height: {e}"),
             }
-        }
+        } */
 
-        wallet.sync(&blockchain, SyncOptions::default())?;
+        //wallet.sync(&blockchain, SyncOptions::default())?;
 
         self.db
             .update_last_sync(policy_id, Some(Timestamp::now()))?;
         Ok(())
     }
 
-    fn _get_address(
+    fn _get_address<D>(
         &self,
         policy_id: EventId,
         index: AddressIndex,
-        wallet: &Wallet<SqliteDatabase>,
-    ) -> Result<GetAddress, Error> {
-        let address = wallet.get_address(index)?;
+        wallet: &mut Wallet<D>,
+    ) -> Result<GetAddress, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        let address: AddressInfo = wallet.get_address(index);
 
         let shared_key = self.db.get_shared_key(policy_id)?;
         let identifier: String =
@@ -178,18 +205,21 @@ impl Manager {
         })
     }
 
-    fn _get_addresses(
+    fn _get_addresses<D>(
         &self,
         policy_id: EventId,
-        wallet: &Wallet<SqliteDatabase>,
-    ) -> Result<Vec<GetAddress>, Error> {
-        let last_unused = wallet.get_address(AddressIndex::LastUnused)?;
+        wallet: &mut Wallet<D>,
+    ) -> Result<Vec<GetAddress>, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        let last_unused = wallet.get_address(AddressIndex::LastUnused);
         let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
 
         let mut addresses: Vec<GetAddress> = Vec::new();
 
         for index in 0.. {
-            let addr = wallet.get_address(AddressIndex::Peek(index))?;
+            let addr = wallet.get_address(AddressIndex::Peek(index));
             addresses.push(GetAddress {
                 address: addr.address.clone(),
                 label: script_labels
@@ -198,7 +228,7 @@ impl Manager {
             });
             if addr == last_unused {
                 for i in index + 1..index + 20 {
-                    let addr = wallet.get_address(AddressIndex::Peek(i))?;
+                    let addr = wallet.get_address(AddressIndex::Peek(i));
                     addresses.push(GetAddress {
                         address: addr.address.clone(),
                         label: script_labels
@@ -213,31 +243,48 @@ impl Manager {
         Ok(addresses)
     }
 
-    fn _get_addresses_balances(
-        &self,
-        wallet: &Wallet<SqliteDatabase>,
-    ) -> Result<HashMap<Script, u64>, Error> {
-        // Get UTXOs
-        let utxos: Vec<LocalUtxo> = wallet.list_unspent()?;
-
+    fn _get_addresses_balances<D>(&self, wallet: &Wallet<D>) -> HashMap<Script, u64>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
         let mut map: HashMap<Script, u64> = HashMap::new();
 
-        for utxo in utxos.into_iter() {
+        for utxo in wallet.list_unspent() {
             map.entry(utxo.txout.script_pubkey)
                 .and_modify(|amount| *amount += utxo.txout.value)
                 .or_insert(utxo.txout.value);
         }
 
-        Ok(map)
+        map
     }
 
-    fn _get_txs(
+    fn _get_txs<D>(
         &self,
         policy_id: EventId,
-        wallet: &Wallet<SqliteDatabase>,
+        wallet: &Wallet<D>,
         sort: bool,
-    ) -> Result<Vec<GetTransaction>, Error> {
-        let txs: Vec<TransactionDetails> = wallet.list_transactions(true)?;
+    ) -> Result<Vec<GetTransaction>, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        //let txs: Vec<TransactionDetails> = wallet.transactions();
+        let mut txs: Vec<TransactionDetails> = Vec::new();
+
+        if sort {
+            txs.sort_by(|a, b| {
+                let a = match a.confirmation_time {
+                    ConfirmationTime::Confirmed { height, .. } => height,
+                    ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+                };
+
+                let b = match b.confirmation_time {
+                    ConfirmationTime::Confirmed { height, .. } => height,
+                    ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+                };
+
+                b.cmp(&a)
+            });
+        }
 
         let descriptions: HashMap<Txid, String> = self.db.get_txs_descriptions(policy_id)?;
         let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
@@ -249,7 +296,7 @@ impl Manager {
                 let mut label = None;
                 if let Some(transaction) = tx.transaction.as_ref() {
                     for txout in transaction.output.iter() {
-                        if wallet.is_mine(&txout.script_pubkey)? {
+                        if wallet.is_mine(&txout.script_pubkey) {
                             label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
                             break;
                         }
@@ -268,31 +315,19 @@ impl Manager {
             })
         }
 
-        if sort {
-            list.sort_by(|a, b| {
-                b.confirmation_time
-                    .as_ref()
-                    .map(|t| t.height)
-                    .unwrap_or(u32::MAX)
-                    .cmp(
-                        &a.confirmation_time
-                            .as_ref()
-                            .map(|t| t.height)
-                            .unwrap_or(u32::MAX),
-                    )
-            });
-        }
-
         Ok(list)
     }
 
-    fn _get_tx(
+    fn _get_tx<D>(
         &self,
         policy_id: EventId,
         txid: Txid,
-        wallet: &Wallet<SqliteDatabase>,
-    ) -> Result<GetTransaction, Error> {
-        let tx: TransactionDetails = wallet.get_tx(&txid, true)?.ok_or(Error::NotFound)?;
+        wallet: &Wallet<D>,
+    ) -> Result<GetTransaction, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        let tx: TransactionDetails = wallet.get_tx(txid, true).ok_or(Error::NotFound)?;
 
         let label: Option<String> = if tx.received > tx.sent {
             let mut label = None;
@@ -303,7 +338,7 @@ impl Manager {
                 .output
                 .iter()
             {
-                if wallet.is_mine(&txout.script_pubkey)? {
+                if wallet.is_mine(&txout.script_pubkey) {
                     let shared_key = self.db.get_shared_key(policy_id)?;
                     let identifier: String = LabelData::Address(Address::from_script(
                         &txout.script_pubkey,
@@ -331,19 +366,17 @@ impl Manager {
         })
     }
 
-    fn _get_utxos(
-        &self,
-        policy_id: EventId,
-        wallet: &Wallet<SqliteDatabase>,
-    ) -> Result<Vec<GetUtxo>, Error> {
-        let utxos: Vec<LocalUtxo> = wallet.list_unspent()?;
-
+    fn _get_utxos<D>(&self, policy_id: EventId, wallet: &Wallet<D>) -> Result<Vec<GetUtxo>, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
         // Get labels
         let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
         let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id)?;
 
         // Compose output
-        Ok(utxos
+        Ok(wallet
+            .list_unspent()
             .into_iter()
             .map(|utxo| GetUtxo {
                 label: utxo_labels
@@ -355,19 +388,50 @@ impl Manager {
             .collect())
     }
 
+    fn _spend<D>(
+        &self,
+        policy_id: EventId,
+        address: Address,
+        amount: Amount,
+        description: String,
+        fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+        wallet: &mut Wallet<D>,
+    ) -> Result<Proposal, Error>
+    where
+        D: PersistBackend<ChangeSet>,
+    {
+        let GetPolicy { policy, .. } = self.db.get_policy(policy_id)?;
+        let proposal = policy.spend(
+            wallet,
+            address,
+            amount,
+            description,
+            fee_rate,
+            utxos,
+            policy_path,
+        )?;
+        Ok(proposal)
+    }
+
     pub fn load_policy(
         &self,
         policy_id: EventId,
         policy: Policy,
-        db: SqliteDatabase,
         network: Network,
     ) -> Result<(), Error> {
-        let wallet = Wallet::new(&policy.descriptor.to_string(), None, network, db)?;
-
         let mut policies = self.policies.lock();
         if policies.contains_key(&policy_id) {
             return Err(Error::AlreadyLoaded(policy_id));
         }
+
+        // Init wallet
+        let db: FileStore<ChangeSet> = FileStore::new_from_path(
+            BDK_DB_MAGIC.as_bytes(),
+            self.timechain_path.join(policy_id.to_hex()),
+        )?;
+        let mut wallet = Wallet::new(&policy.descriptor.to_string(), None, db, network)?;
 
         let (sender, mut receiver) = mpsc::channel::<Command>(4096);
         let (tx, mut rx) = broadcast::channel::<Response>(4096);
@@ -410,22 +474,20 @@ impl Manager {
                         }
                         Err(e) => tracing::error!("Impossible to get last policy sync: {e}"),
                     },
-                    Command::GetBalance => match wallet.get_balance() {
-                        Ok(balance) => this.send(&tx_sender, Response::Balance(balance)),
-                        Err(e) => tracing::error!("Impossible to get balance: {e}"),
-                    },
-                    Command::GetAddresses => match this._get_addresses(policy_id, &wallet) {
+                    Command::GetBalance => {
+                        let balance = wallet.get_balance();
+                        this.send(&tx_sender, Response::Balance(balance));
+                    }
+                    Command::GetAddresses => match this._get_addresses(policy_id, &mut wallet) {
                         Ok(addresses) => this.send(&tx_sender, Response::Addresses(addresses)),
                         Err(e) => tracing::error!("Impossible to get addresses: {e}"),
                     },
-                    Command::GetAddressesBalances => match this._get_addresses_balances(&wallet) {
-                        Ok(balances) => {
-                            this.send(&tx_sender, Response::AddressesBalances(balances))
-                        }
-                        Err(e) => tracing::error!("Impossible to get addresses balances: {e}"),
-                    },
+                    Command::GetAddressesBalances => {
+                        let balances = this._get_addresses_balances(&wallet);
+                        this.send(&tx_sender, Response::AddressesBalances(balances));
+                    }
                     Command::GetAddress(index) => {
-                        match this._get_address(policy_id, index, &wallet) {
+                        match this._get_address(policy_id, index, &mut wallet) {
                             Ok(address) => this.send(&tx_sender, Response::Address(address)),
                             Err(e) => tracing::error!("Impossible to get address: {e}"),
                         }
@@ -441,6 +503,26 @@ impl Manager {
                     Command::GetUtxos => match this._get_utxos(policy_id, &wallet) {
                         Ok(utxos) => this.send(&tx_sender, Response::Utxos(utxos)),
                         Err(e) => tracing::error!("Impossible to get utxos: {e}"),
+                    },
+                    Command::Spend {
+                        address,
+                        amount,
+                        description,
+                        fee_rate,
+                        utxos,
+                        policy_path,
+                    } => match this._spend(
+                        policy_id,
+                        address,
+                        amount,
+                        description,
+                        fee_rate,
+                        utxos,
+                        policy_path,
+                        &mut wallet,
+                    ) {
+                        Ok(proposal) => this.send(&tx_sender, Response::Proposal(proposal)),
+                        Err(e) => tracing::error!("Impossible to create proposal: {e}"),
                     },
                     Command::Shutdown => break,
                 }
@@ -699,6 +781,85 @@ impl Manager {
             while let Ok(res) = notifications.recv().await {
                 if let Response::Utxos(utxos) = res {
                     return Ok(utxos);
+                }
+            }
+            Err(Error::NotFound)
+        })
+        .await
+        .ok_or(Error::Timeout)?
+    }
+
+    pub async fn get_all_txs(
+        &self,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<GetTransaction>, Error> {
+        let mut txs = Vec::new();
+        let mut already_seen = Vec::new();
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.db.get_policies()?.into_iter()
+        {
+            if !already_seen.contains(&policy.descriptor) {
+                for tx in self
+                    .get_txs(policy_id, false, timeout)
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                {
+                    txs.push(tx)
+                }
+                already_seen.push(policy.descriptor);
+            }
+        }
+
+        txs.sort_by(|a, b| {
+            let a = match a.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => height,
+                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+            };
+
+            let b = match b.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => height,
+                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+            };
+
+            b.cmp(&a)
+        });
+
+        Ok(txs)
+    }
+
+    pub async fn spend<S>(
+        &self,
+        policy_id: EventId,
+        address: Address,
+        amount: Amount,
+        description: S,
+        fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+        timeout: Option<Duration>,
+    ) -> Result<Proposal, Error>
+    where
+        S: Into<String>,
+    {
+        let handle = self.get_policy_handle(policy_id)?;
+        handle
+            .sender
+            .try_send(Command::Spend {
+                address,
+                amount,
+                description: description.into(),
+                fee_rate,
+                utxos,
+                policy_path,
+            })
+            .map_err(|_| Error::SendError)?;
+        let mut notifications = handle.receiver();
+        time::timeout(timeout, async move {
+            while let Ok(res) = notifications.recv().await {
+                if let Response::Proposal(proposal) = res {
+                    return Ok(proposal);
                 }
             }
             Err(Error::NotFound)

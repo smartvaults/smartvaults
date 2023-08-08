@@ -7,9 +7,9 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use coinstr_sdk::core::bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_sdk::core::bips::bip32::Fingerprint;
 use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
+use coinstr_sdk::core::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_sdk::nostr::prelude::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Url};
 use coinstr_sdk::types::LabelData;

@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use bdk::bitcoin::{OutPoint, Script};
+use coinstr_core::bitcoin::{OutPoint, Script};
 use nostr_sdk::EventId;
 
 use super::{Error, Store};

@@ -8,14 +8,13 @@
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Add;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::Txid;
-use bdk::database::SqliteDatabase;
-use bdk::miniscript::{Descriptor, DescriptorPublicKey};
+use coinstr_core::bitcoin::Txid;
+use coinstr_core::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::util::serde::Serde;
@@ -83,7 +82,6 @@ pub struct Store {
     keys: Keys,
     pub(crate) block_height: BlockHeight,
     nostr_connect_auto_approve: Arc<Mutex<HashMap<XOnlyPublicKey, Timestamp>>>,
-    timechain_db_path: PathBuf,
 }
 
 impl Drop for Store {
@@ -92,7 +90,7 @@ impl Drop for Store {
 
 impl Store {
     /// Open new database
-    pub fn open<P>(user_db_path: P, timechain_db_path: P, keys: &Keys) -> Result<Self, Error>
+    pub fn open<P>(user_db_path: P, keys: &Keys) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
@@ -106,17 +104,7 @@ impl Store {
             keys: keys.clone(),
             nostr_connect_auto_approve: Arc::new(Mutex::new(HashMap::new())),
             block_height: BlockHeight::default(),
-            timechain_db_path: timechain_db_path.as_ref().to_path_buf(),
         })
-    }
-
-    pub(crate) fn get_wallet_db(&self, policy_id: EventId) -> Result<SqliteDatabase, Error> {
-        let path = self.timechain_db_path.clone();
-        let handle =
-            std::thread::spawn(move || SqliteDatabase::new(path.join(format!("{policy_id}.db"))));
-        handle
-            .join()
-            .map_err(|_| Error::FailedToOpenPolicyDb(policy_id))
     }
 
     /// Close db

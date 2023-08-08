@@ -3,7 +3,7 @@
 
 use std::fmt;
 
-use coinstr_sdk::core::bdk::Balance;
+use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::EventId;
@@ -372,7 +372,10 @@ impl State for SelfTransferState {
                 let your_balance = if self.from_policy.is_some() {
                     Text::new(match &self.balance {
                         Some(balance) => {
-                            format!("Balance: {} sat", format::number(balance.get_spendable()))
+                            format!(
+                                "Balance: {} sat",
+                                format::number(balance.trusted_spendable())
+                            )
                         }
                         None => String::from("Loading..."),
                     })
