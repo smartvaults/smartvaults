@@ -22,10 +22,12 @@ pub use self::types::{Amount, FeeRate, Priority};
 mod test {
     use std::str::FromStr;
 
-    use bdk::bitcoin::{Address, Network};
+    use bdk::bitcoin::hashes::Hash;
+    use bdk::bitcoin::{Address, BlockHash, Network, Transaction, TxOut};
+    use bdk::chain::{BlockId, ConfirmationTime};
     use bdk::miniscript::DescriptorPublicKey;
-    use bdk::wallet::get_funded_wallet;
-    use bdk::FeeRate;
+    use bdk::wallet::AddressIndex;
+    use bdk::{FeeRate, Wallet};
     use keechain_core::bips::bip39::Mnemonic;
     use keechain_core::types::descriptors::ToDescriptor;
     use keechain_core::types::{Purpose, Seed};
@@ -41,6 +43,40 @@ mod test {
         "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle";
     const MNEMONIC_B: &str =
         "panther tree neglect narrow drip act visit position pass assault tennis long";
+
+    pub fn get_funded_wallet(descriptor: &str) -> Result<Wallet> {
+        let mut wallet = Wallet::new_no_persist(descriptor, None, NETWORK)?;
+        let address = wallet.get_address(AddressIndex::New).address;
+
+        let tx = Transaction {
+            version: 1,
+            lock_time: bitcoin::PackedLockTime(0),
+            input: vec![],
+            output: vec![TxOut {
+                value: 50_000,
+                script_pubkey: address.script_pubkey(),
+            }],
+        };
+
+        wallet
+            .insert_checkpoint(BlockId {
+                height: 2_000,
+                hash: BlockHash::all_zeros(),
+            })
+            .unwrap();
+
+        wallet
+            .insert_tx(
+                tx.clone(),
+                ConfirmationTime::Confirmed {
+                    height: 1_000,
+                    time: 100,
+                },
+            )
+            .unwrap();
+
+        Ok(wallet)
+    }
 
     #[test]
     fn test_policy_spend() -> Result<()> {
@@ -60,9 +96,9 @@ mod test {
         let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
-        let (wallet, ..) = get_funded_wallet(&descriptor);
+        let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy.spend(
-            wallet,
+            &mut wallet,
             Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
             Amount::Custom(1120),
             "Testing",
@@ -100,8 +136,9 @@ mod test {
         let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
-        let (wallet, ..) = get_funded_wallet(&descriptor);
-        let proposal: Proposal = policy.proof_of_reserve(wallet, "Testing proof of reserve")?;
+        let mut wallet = get_funded_wallet(&descriptor).unwrap();
+        let proposal: Proposal =
+            policy.proof_of_reserve(&mut wallet, "Testing proof of reserve")?;
 
         let approved_a: ApprovedProposal = proposal.approve(&seed_a, Vec::new(), NETWORK)?;
         let approved_b: ApprovedProposal = proposal.approve(&seed_b, Vec::new(), NETWORK)?;
@@ -132,9 +169,9 @@ mod test {
         let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
-        let (wallet, ..) = get_funded_wallet(&descriptor);
+        let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy.spend(
-            wallet,
+            &mut wallet,
             Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
             Amount::Custom(1120),
             "Testing",
