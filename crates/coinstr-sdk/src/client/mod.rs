@@ -893,15 +893,16 @@ impl Coinstr {
             return Err(Error::InvalidFeeRate);
         }
 
-        let fee_rate: f32 = match fee_rate {
+        let fee_rate: BdkFeeRate = match fee_rate {
             FeeRate::Priority(priority) => {
                 let endpoint: String = self.electrum_endpoint()?;
                 let blockchain = ElectrumClient::new(&endpoint)?;
-                blockchain.estimate_fee(priority.target_blocks() as usize)? as f32
+                let btc_per_kvb: f32 =
+                    blockchain.estimate_fee(priority.target_blocks() as usize)? as f32;
+                BdkFeeRate::from_btc_per_kvb(btc_per_kvb)
             }
-            FeeRate::Rate(rate) => rate,
+            FeeRate::Rate(rate) => BdkFeeRate::from_sat_per_vb(rate),
         };
-        let fee_rate: BdkFeeRate = BdkFeeRate::from_sat_per_vb(fee_rate);
 
         // Build spending proposal
         let proposal: Proposal = self
