@@ -572,10 +572,6 @@ impl Store {
         Ok(map)
     }
 
-    pub fn schedule_for_sync(&self, policy_id: EventId) -> Result<(), Error> {
-        self.update_last_sync(policy_id, None)
-    }
-
     pub fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
         if self.policy_exists(event_id)? {
             self.delete_policy(event_id)?;

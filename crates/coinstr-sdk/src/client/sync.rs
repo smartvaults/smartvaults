@@ -373,9 +373,14 @@ impl Coinstr {
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
-                    // Schedule policy for sync if the event was created in the last 600 secs
-                    if event.created_at.add(Duration::from_secs(600)) >= Timestamp::now() {
-                        self.db.schedule_for_sync(*policy_id)?;
+                    // Force policy sync if the event was created in the last 60 secs
+                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
+                        if let Ok(endpoint) = self.config.electrum_endpoint() {
+                            let proxy = self.config.proxy().ok();
+                            if let Err(e) = self.manager.sync(*policy_id, endpoint, proxy).await {
+                                tracing::error!("Impossible to force sync policy {policy_id}: {e}");
+                            }
+                        }
                     }
 
                     if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {
