@@ -60,10 +60,10 @@ impl Coinstr {
         thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint() {
-                    Ok(endpoint) => match this.db.sync_with_timechain(
+                    Ok(endpoint) => match this.manager.sync_all(
                         endpoint,
                         this.config.proxy().ok(),
-                        &this.sync_channel,
+                        this.sync_channel.clone(),
                     ) {
                         Ok(_) => (),
                         Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
@@ -298,7 +298,11 @@ impl Coinstr {
                 if nostr_pubkeys.is_empty() {
                     tracing::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
-                    self.db.save_policy(event.id, policy, nostr_pubkeys)?;
+                    self.db
+                        .save_policy(event.id, policy.clone(), nostr_pubkeys)?;
+                    let db = self.db.get_wallet_db(event.id)?;
+                    self.manager
+                        .load_policy(event.id, policy, db, self.network)?;
                     let notification = Notification::NewPolicy(event.id);
                     self.db.save_notification(event.id, notification)?;
                     self.sync_channel

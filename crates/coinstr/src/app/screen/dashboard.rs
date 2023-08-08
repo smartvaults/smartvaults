@@ -49,8 +49,8 @@ impl State for DashboardState {
         self.loading = true;
         Command::perform(
             async move {
-                let balance = client.get_total_balance().unwrap();
-                let txs = client.get_all_transactions().unwrap();
+                let balance = client.get_total_balance().await.unwrap();
+                let txs = client.get_all_transactions().await.unwrap();
                 let proposals = client.get_proposals().unwrap();
 
                 (balance, proposals, txs)

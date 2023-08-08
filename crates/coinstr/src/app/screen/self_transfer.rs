@@ -156,7 +156,7 @@ impl State for SelfTransferState {
                 SelfTransferMessage::LoadBalance(policy_id) => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.get_balance(policy_id) },
+                        async move { client.get_balance(policy_id).await },
                         |balance| SelfTransferMessage::BalanceChanged(balance).into(),
                     );
                 }

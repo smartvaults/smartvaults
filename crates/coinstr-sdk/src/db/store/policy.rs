@@ -1,17 +1,12 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::hash_map::Entry;
-use std::collections::BTreeMap;
-
-use bdk::database::SqliteDatabase;
-use bdk::Wallet;
 use coinstr_core::Policy;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{EventId, Timestamp};
 
 use super::Store;
-use crate::db::model::{GetDetailedPolicyResult, GetPolicy};
+use crate::db::model::GetPolicy;
 use crate::db::Error;
 use crate::util::encryption::EncryptionWithKeys;
 
@@ -47,18 +42,6 @@ impl Store {
         for public_key in nostr_public_keys.into_iter() {
             stmt.execute((policy_id.to_hex(), public_key.to_string()))?;
         }
-        // Load wallet
-        let mut wallets = self.wallets.lock();
-        if let Entry::Vacant(e) = wallets.entry(policy_id) {
-            let db = SqliteDatabase::new(self.timechain_db_path.join(format!("{policy_id}.db")));
-            e.insert(Wallet::new(
-                &policy.descriptor.to_string(),
-                None,
-                self.network,
-                db,
-            )?);
-        }
-
         Ok(())
     }
 
@@ -116,28 +99,6 @@ impl Store {
         Ok(policies)
     }
 
-    pub fn get_detailed_policies(
-        &self,
-    ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
-        let mut policies = BTreeMap::new();
-        for GetPolicy {
-            policy_id,
-            policy,
-            last_sync,
-        } in self.get_policies()?.into_iter()
-        {
-            policies.insert(
-                policy_id,
-                GetDetailedPolicyResult {
-                    policy,
-                    balance: self.get_balance(policy_id),
-                    last_sync,
-                },
-            );
-        }
-        Ok(policies)
-    }
-
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn delete_policy(&self, policy_id: EventId) -> Result<(), Error> {
         let proposal_ids = self.get_proposal_ids_by_policy_id(policy_id)?;
@@ -169,8 +130,6 @@ impl Store {
             "DELETE FROM shared_keys WHERE policy_id = ?;",
             [policy_id.to_hex()],
         )?;
-        let mut wallets = self.wallets.lock();
-        wallets.remove(&policy_id);
         tracing::info!("Deleted policy {policy_id}");
         Ok(())
     }

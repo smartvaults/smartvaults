@@ -7,20 +7,15 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
-use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::{Address, Network, OutPoint, Script, Txid};
-use bdk::blockchain::{ElectrumBlockchain, GetHeight};
+use bdk::bitcoin::Txid;
 use bdk::database::SqliteDatabase;
-use bdk::electrum_client::{Client as ElectrumClient, Config as ElectrumConfig, Socks5Config};
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
-use bdk::wallet::AddressIndex;
-use bdk::{Balance, LocalUtxo, SyncOptions, TransactionDetails, Wallet};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::util::serde::Serde;
@@ -32,7 +27,6 @@ use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::config::DbConfig;
 use rusqlite::OpenFlags;
-use tokio::sync::broadcast::Sender;
 
 mod connect;
 mod contacts;
@@ -42,13 +36,12 @@ mod relays;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
-    GetAddress, GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal,
-    GetNotificationsResult, GetPolicy, GetProposal, GetSharedSignerResult, GetTransaction, GetUtxo,
+    GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal, GetNotificationsResult,
+    GetProposal, GetSharedSignerResult,
 };
 use super::Error;
-use crate::client::Message;
-use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
-use crate::types::{Label, LabelData, Notification};
+use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
+use crate::types::Notification;
 use crate::util::encryption::EncryptionWithKeys;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
@@ -88,11 +81,9 @@ impl BlockHeight {
 pub struct Store {
     pool: SqlitePool,
     keys: Keys,
-    block_height: BlockHeight,
-    wallets: Arc<Mutex<HashMap<EventId, Wallet<SqliteDatabase>>>>,
+    pub(crate) block_height: BlockHeight,
     nostr_connect_auto_approve: Arc<Mutex<HashMap<XOnlyPublicKey, Timestamp>>>,
     timechain_db_path: PathBuf,
-    network: Network,
 }
 
 impl Drop for Store {
@@ -101,12 +92,7 @@ impl Drop for Store {
 
 impl Store {
     /// Open new database
-    pub fn open<P>(
-        user_db_path: P,
-        timechain_db_path: P,
-        keys: &Keys,
-        network: Network,
-    ) -> Result<Self, Error>
+    pub fn open<P>(user_db_path: P, timechain_db_path: P, keys: &Keys) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
@@ -118,11 +104,9 @@ impl Store {
         Ok(Self {
             pool,
             keys: keys.clone(),
-            wallets: Arc::new(Mutex::new(HashMap::new())),
             nostr_connect_auto_approve: Arc::new(Mutex::new(HashMap::new())),
             block_height: BlockHeight::default(),
             timechain_db_path: timechain_db_path.as_ref().to_path_buf(),
-            network,
         })
     }
 
@@ -133,21 +117,6 @@ impl Store {
         handle
             .join()
             .map_err(|_| Error::FailedToOpenPolicyDb(policy_id))
-    }
-
-    pub fn load_wallets(&self) -> Result<(), Error> {
-        let mut wallets = self.wallets.lock();
-        for GetPolicy {
-            policy_id, policy, ..
-        } in self.get_policies()?
-        {
-            let db: SqliteDatabase = self.get_wallet_db(policy_id)?;
-            wallets.insert(
-                policy_id,
-                Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?,
-            );
-        }
-        Ok(())
     }
 
     /// Close db
@@ -573,7 +542,7 @@ impl Store {
         Ok(())
     }
 
-    fn get_description_by_txid(
+    pub(crate) fn get_description_by_txid(
         &self,
         policy_id: EventId,
         txid: Txid,
@@ -594,7 +563,10 @@ impl Store {
         Ok(None)
     }
 
-    fn get_txs_descriptions(&self, policy_id: EventId) -> Result<HashMap<Txid, String>, Error> {
+    pub(crate) fn get_txs_descriptions(
+        &self,
+        policy_id: EventId,
+    ) -> Result<HashMap<Txid, String>, Error> {
         let mut map = HashMap::new();
         for GetCompletedProposal { proposal, .. } in self
             .completed_proposals_by_policy_id(policy_id)?
@@ -612,352 +584,8 @@ impl Store {
         Ok(map)
     }
 
-    pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id)?;
-        wallet.get_balance().ok()
-    }
-
-    pub fn get_txs(&self, policy_id: EventId, sort: bool) -> Result<Vec<GetTransaction>, Error> {
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let txs: Vec<TransactionDetails> = wallet.list_transactions(true)?;
-
-        let descriptions: HashMap<Txid, String> = self.get_txs_descriptions(policy_id)?;
-        let script_labels: HashMap<Script, Label> = self.get_addresses_labels(policy_id)?;
-
-        let mut list: Vec<GetTransaction> = Vec::new();
-
-        for tx in txs.into_iter() {
-            let label: Option<String> = if tx.received > tx.sent {
-                let mut label = None;
-                for txout in tx
-                    .transaction
-                    .as_ref()
-                    .ok_or(Error::NotFound("raw tx".to_string()))?
-                    .output
-                    .iter()
-                {
-                    if wallet.is_mine(&txout.script_pubkey)? {
-                        label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
-                        break;
-                    }
-                }
-                label
-            } else {
-                // TODO: try to get UTXO label?
-                descriptions.get(&tx.txid).cloned()
-            };
-
-            list.push(GetTransaction {
-                policy_id,
-                label,
-                tx,
-            })
-        }
-
-        drop(wallets);
-
-        if sort {
-            list.sort_by(|a, b| {
-                b.confirmation_time
-                    .as_ref()
-                    .map(|t| t.height)
-                    .unwrap_or(u32::MAX)
-                    .cmp(
-                        &a.confirmation_time
-                            .as_ref()
-                            .map(|t| t.height)
-                            .unwrap_or(u32::MAX),
-                    )
-            });
-        }
-
-        Ok(list)
-    }
-
-    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let tx: TransactionDetails = wallet
-            .get_tx(&txid, true)?
-            .ok_or(Error::NotFound("tx".to_string()))?;
-
-        let label: Option<String> = if tx.received > tx.sent {
-            let mut label = None;
-            for txout in tx
-                .transaction
-                .as_ref()
-                .ok_or(Error::NotFound("raw tx".to_string()))?
-                .output
-                .iter()
-            {
-                if wallet.is_mine(&txout.script_pubkey)? {
-                    let shared_key = self.get_shared_key(policy_id)?;
-                    let identifier: String = LabelData::Address(Address::from_script(
-                        &txout.script_pubkey,
-                        self.network,
-                    )?)
-                    .generate_identifier(&shared_key)?;
-                    label = self
-                        .get_label_by_identifier(identifier)
-                        .ok()
-                        .map(|l| l.text());
-                    break;
-                }
-            }
-            label
-        } else {
-            // TODO: try to get UTXO label?
-            self.get_description_by_txid(policy_id, txid)?
-        };
-
-        Ok(GetTransaction {
-            policy_id,
-            tx,
-            label,
-        })
-    }
-
-    pub fn get_address(
-        &self,
-        policy_id: EventId,
-        index: AddressIndex,
-    ) -> Result<GetAddress, Error> {
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let address = wallet.get_address(index)?;
-        drop(wallets);
-
-        let shared_key = self.get_shared_key(policy_id)?;
-        let identifier: String =
-            LabelData::Address(address.address.clone()).generate_identifier(&shared_key)?;
-        let label = self
-            .get_label_by_identifier(identifier)
-            .ok()
-            .map(|l| l.text());
-        Ok(GetAddress {
-            address: address.address,
-            label,
-        })
-    }
-
-    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let last_unused = wallet.get_address(AddressIndex::LastUnused)?;
-        let script_labels: HashMap<Script, Label> = self.get_addresses_labels(policy_id)?;
-
-        let mut addresses = Vec::new();
-
-        for index in 0.. {
-            let addr = wallet.get_address(AddressIndex::Peek(index))?;
-            addresses.push(GetAddress {
-                address: addr.address.clone(),
-                label: script_labels
-                    .get(&addr.address.script_pubkey())
-                    .map(|l| l.text()),
-            });
-            if addr == last_unused {
-                for i in index + 1..index + 20 {
-                    let addr = wallet.get_address(AddressIndex::Peek(i))?;
-                    addresses.push(GetAddress {
-                        address: addr.address.clone(),
-                        label: script_labels
-                            .get(&addr.address.script_pubkey())
-                            .map(|l| l.text()),
-                    });
-                }
-                break;
-            }
-        }
-
-        Ok(addresses)
-    }
-
-    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
-        // Get UTXOs
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let utxos: Vec<LocalUtxo> = wallet.list_unspent()?;
-        drop(wallets);
-
-        // Get labels
-        let script_labels: HashMap<Script, Label> = self.get_addresses_labels(policy_id)?;
-        let utxo_labels: HashMap<OutPoint, Label> = self.get_utxos_labels(policy_id)?;
-
-        // Compose output
-        Ok(utxos
-            .into_iter()
-            .map(|utxo| GetUtxo {
-                label: utxo_labels
-                    .get(&utxo.outpoint)
-                    .or_else(|| script_labels.get(&utxo.txout.script_pubkey))
-                    .map(|l| l.text()),
-                utxo,
-            })
-            .collect())
-    }
-
-    pub fn get_addresses_balances(
-        &self,
-        policy_id: EventId,
-    ) -> Result<HashMap<Script, u64>, Error> {
-        // Get UTXOs
-        let wallets = self.wallets.lock();
-        let wallet = wallets.get(&policy_id).ok_or(Error::WalletNotFound)?;
-        let utxos: Vec<LocalUtxo> = wallet.list_unspent()?;
-        drop(wallets);
-
-        let mut map = HashMap::new();
-
-        for utxo in utxos.into_iter() {
-            map.entry(utxo.txout.script_pubkey)
-                .and_modify(|amount| *amount += utxo.txout.value)
-                .or_insert(utxo.txout.value);
-        }
-
-        Ok(map)
-    }
-
-    pub fn get_total_balance(&self) -> Result<Balance, Error> {
-        let mut total_balance = Balance::default();
-        let mut already_seen = Vec::new();
-        for GetPolicy {
-            policy_id, policy, ..
-        } in self.get_policies()?.into_iter()
-        {
-            if !already_seen.contains(&policy.descriptor) {
-                let balance = self.get_balance(policy_id).unwrap_or_default();
-                total_balance = total_balance.add(balance);
-                already_seen.push(policy.descriptor);
-            }
-        }
-        Ok(total_balance)
-    }
-
-    pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
-        let mut txs = Vec::new();
-        let mut already_seen = Vec::new();
-        for GetPolicy {
-            policy_id, policy, ..
-        } in self.get_policies()?.into_iter()
-        {
-            if !already_seen.contains(&policy.descriptor) {
-                for tx in self
-                    .get_txs(policy_id, false)
-                    .unwrap_or_default()
-                    .into_iter()
-                {
-                    txs.push(tx)
-                }
-                already_seen.push(policy.descriptor);
-            }
-        }
-
-        txs.sort_by(|a, b| {
-            b.confirmation_time
-                .as_ref()
-                .map(|t| t.height)
-                .unwrap_or(u32::MAX)
-                .cmp(
-                    &a.confirmation_time
-                        .as_ref()
-                        .map(|t| t.height)
-                        .unwrap_or(u32::MAX),
-                )
-        });
-
-        Ok(txs)
-    }
-
     pub fn schedule_for_sync(&self, policy_id: EventId) -> Result<(), Error> {
         self.update_last_sync(policy_id, None)
-    }
-
-    pub fn sync_with_timechain<S>(
-        &self,
-        endpoint: S,
-        proxy: Option<SocketAddr>,
-        sender: &Sender<Message>,
-    ) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
-        let mut blockchain: Option<ElectrumBlockchain> = None;
-
-        fn initialize<S>(
-            endpoint: S,
-            proxy: Option<SocketAddr>,
-        ) -> Result<ElectrumBlockchain, Error>
-        where
-            S: Into<String>,
-        {
-            let endpoint = endpoint.into();
-            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
-            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy)?.build();
-            Ok(ElectrumBlockchain::from(ElectrumClient::from_config(
-                &endpoint, config,
-            )?))
-        }
-
-        let endpoint: String = endpoint.into();
-
-        if !self.block_height.is_synced() {
-            if blockchain.is_none() {
-                blockchain = Some(initialize(&endpoint, proxy)?);
-            }
-
-            let block_height: u32 = blockchain
-                .as_ref()
-                .ok_or(Error::ElectrumClientNotInit)?
-                .get_height()?;
-            self.block_height.set_block_height(block_height);
-            self.block_height.just_synced();
-
-            let _ = sender.send(Message::BlockHeightUpdated);
-        }
-
-        let loaded_wallet_ids: Vec<EventId> = {
-            let wallets = self.wallets.lock();
-            wallets.keys().copied().collect()
-        };
-
-        for GetPolicy {
-            policy_id,
-            policy,
-            last_sync,
-        } in self.get_policies()?.into_iter()
-        {
-            let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
-            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
-                tracing::info!("Syncing policy {policy_id}");
-
-                if blockchain.is_none() {
-                    blockchain = Some(initialize(&endpoint, proxy)?);
-                }
-
-                let blockchain = blockchain.as_ref().ok_or(Error::ElectrumClientNotInit)?;
-                let db: SqliteDatabase = self.get_wallet_db(policy_id)?;
-                let wallet = Wallet::new(&policy.descriptor.to_string(), None, self.network, db)?;
-                wallet.sync(blockchain, SyncOptions::default())?;
-                self.update_last_sync(policy_id, Some(Timestamp::now()))?;
-
-                if !loaded_wallet_ids.contains(&policy_id) {
-                    // Load wallet
-                    let mut wallets = self.wallets.lock();
-                    if let Entry::Vacant(e) = wallets.entry(policy_id) {
-                        e.insert(wallet);
-                    }
-                }
-
-                let _ = sender.send(Message::WalletSyncCompleted(policy_id));
-
-                tracing::info!("Policy {policy_id} synced");
-            }
-        }
-        Ok(())
     }
 
     pub fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {

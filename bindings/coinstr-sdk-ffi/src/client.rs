@@ -492,48 +492,63 @@ impl Coinstr {
     }
 
     pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
-        self.inner
-            .get_balance(**policy_id)
-            .map(|b| Arc::new(b.into()))
+        block_on(async move {
+            self.inner
+                .get_balance(**policy_id)
+                .await
+                .map(|b| Arc::new(b.into()))
+        })
     }
 
     pub fn get_txs(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<GetTransaction>>> {
-        Ok(self
-            .inner
-            .get_txs(**policy_id)?
-            .into_iter()
-            .map(|tx| Arc::new(tx.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_txs(**policy_id)
+                .await?
+                .into_iter()
+                .map(|tx| Arc::new(tx.into()))
+                .collect())
+        })
     }
 
     pub fn get_tx(&self, policy_id: Arc<EventId>, txid: String) -> Result<Arc<GetTransaction>> {
-        let txid = Txid::from_str(&txid)?;
-        Ok(self
-            .inner
-            .get_tx(**policy_id, txid)
-            .map(|tx| Arc::new(tx.into()))?)
+        block_on(async move {
+            let txid = Txid::from_str(&txid)?;
+            Ok(self
+                .inner
+                .get_tx(**policy_id, txid)
+                .await
+                .map(|tx| Arc::new(tx.into()))?)
+        })
     }
 
     pub fn get_utxos(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<Utxo>>> {
-        Ok(self
-            .inner
-            .get_utxos(**policy_id)?
-            .into_iter()
-            .map(|u| Arc::new(u.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_utxos(**policy_id)
+                .await?
+                .into_iter()
+                .map(|u| Arc::new(u.into()))
+                .collect())
+        })
     }
 
     pub fn get_total_balance(&self) -> Result<Arc<Balance>> {
-        Ok(Arc::new(self.inner.get_total_balance()?.into()))
+        block_on(async move { Ok(Arc::new(self.inner.get_total_balance().await?.into())) })
     }
 
     pub fn get_all_txs(&self) -> Result<Vec<Arc<GetTransaction>>> {
-        Ok(self
-            .inner
-            .get_all_transactions()?
-            .into_iter()
-            .map(|tx| Arc::new(tx.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_all_transactions()
+                .await?
+                .into_iter()
+                .map(|tx| Arc::new(tx.into()))
+                .collect())
+        })
     }
 
     pub fn get_address(
@@ -541,13 +556,23 @@ impl Coinstr {
         policy_id: Arc<EventId>,
         index: AddressIndex,
     ) -> Result<Arc<GetAddress>> {
-        let address = self.inner.get_address(**policy_id, index.into())?;
-        Ok(Arc::new(address.into()))
+        block_on(async move {
+            let address = self
+                .inner
+                .get_address(**policy_id, index.into())
+                .await?;
+            Ok(Arc::new(address.into()))
+        })
     }
 
     pub fn get_last_unused_address(&self, policy_id: Arc<EventId>) -> Result<Arc<GetAddress>> {
-        let address = self.inner.get_last_unused_address(**policy_id)?;
-        Ok(Arc::new(address.into()))
+        block_on(async move {
+            let address = self
+                .inner
+                .get_last_unused_address(**policy_id)
+                .await?;
+            Ok(Arc::new(address.into()))
+        })
     }
 
     pub fn rebroadcast_all_events(&self) -> Result<()> {
