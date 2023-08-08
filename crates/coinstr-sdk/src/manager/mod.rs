@@ -490,6 +490,7 @@ impl Manager {
             .collect())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn _spend<D>(
         &self,
         policy_id: EventId,
