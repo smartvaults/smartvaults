@@ -9,7 +9,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bdk_electrum::electrum_client::{Client as ElectrumClient, ElectrumApi};
+use bdk_electrum::electrum_client::{
+    Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
+};
 use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
 use coinstr_core::bdk::FeeRate as BdkFeeRate;
@@ -895,8 +897,12 @@ impl Coinstr {
 
         let fee_rate: BdkFeeRate = match fee_rate {
             FeeRate::Priority(priority) => {
-                let endpoint: String = self.electrum_endpoint()?;
-                let blockchain = ElectrumClient::new(&endpoint)?;
+                let endpoint = self.config.electrum_endpoint()?;
+                let proxy: Option<SocketAddr> = self.config.proxy().ok();
+                let config = ElectrumConfig::builder()
+                    .socks5(proxy.map(Socks5Config::new))?
+                    .build();
+                let blockchain = ElectrumClient::from_config(&endpoint, config)?;
                 let btc_per_kvb: f32 =
                     blockchain.estimate_fee(priority.target_blocks() as usize)? as f32;
                 BdkFeeRate::from_btc_per_kvb(btc_per_kvb)
@@ -1211,9 +1217,12 @@ impl Coinstr {
         // Broadcast
         if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
             let endpoint = self.config.electrum_endpoint()?;
-            let blockchain = ElectrumClient::new(&endpoint)?;
+            let proxy: Option<SocketAddr> = self.config.proxy().ok();
+            let config = ElectrumConfig::builder()
+                .socks5(proxy.map(Socks5Config::new))?
+                .build();
+            let blockchain = ElectrumClient::from_config(&endpoint, config)?;
             blockchain.transaction_broadcast(tx)?;
-            self.db.schedule_for_sync(policy_id)?;
         }
 
         // Compose the event
