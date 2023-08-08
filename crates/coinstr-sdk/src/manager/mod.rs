@@ -5,17 +5,22 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use async_utility::{thread, time};
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
+use bdk_electrum::ElectrumExt;
 use bdk_file_store::{IterError, Store as FileStore};
+use coinstr_core::bdk::chain::keychain::LocalUpdate;
+use coinstr_core::bdk::chain::local_chain::UpdateNotConnectedError;
+use coinstr_core::bdk::chain::ConfirmationTimeAnchor;
 use coinstr_core::bdk::chain::{ConfirmationTime, PersistBackend};
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, ChangeSet};
-use coinstr_core::bdk::{FeeRate, TransactionDetails, Wallet};
+use coinstr_core::bdk::{FeeRate, KeychainKind, TransactionDetails, Wallet};
 use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
 use nostr_sdk::{EventId, Timestamp};
@@ -30,8 +35,13 @@ use crate::db::model::{GetAddress, GetPolicy, GetTransaction, GetUtxo};
 use crate::db::Store;
 use crate::{Label, LabelData};
 
+const STOP_GAP: usize = 50;
+const BATCH_SIZE: usize = 5;
+
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
     #[error(transparent)]
     Bdk(#[from] coinstr_core::bdk::Error),
     #[error(transparent)]
@@ -40,6 +50,8 @@ pub enum Error {
     BdkFileStore(#[from] bdk_file_store::FileError<'static>),
     #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),
+    #[error(transparent)]
+    UpdateNotConnected(#[from] UpdateNotConnectedError),
     #[error(transparent)]
     Address(#[from] coinstr_core::bitcoin::util::address::Error),
     #[error(transparent)]
@@ -64,7 +76,6 @@ pub enum Command {
     Sync {
         endpoint: String,
         proxy: Option<SocketAddr>,
-        sender: broadcast::Sender<Message>,
     },
     GetBalance,
     GetAddress(AddressIndex),
@@ -83,6 +94,7 @@ pub enum Command {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     },
+    ApplyUpdate(LocalUpdate<KeychainKind, ConfirmationTimeAnchor>),
     Shutdown,
 }
 
@@ -102,11 +114,22 @@ pub enum Response {
 pub struct PolicyHandle {
     sender: Sender<Command>,
     receiver: broadcast::Sender<Response>,
+    syncing: Arc<AtomicBool>,
 }
 
 impl PolicyHandle {
     pub fn receiver(&self) -> broadcast::Receiver<Response> {
         self.receiver.subscribe()
+    }
+
+    pub fn is_syncing(&self) -> bool {
+        self.syncing.load(Ordering::SeqCst)
+    }
+
+    pub fn set_syncing(&self, syncing: bool) {
+        let _ = self
+            .syncing
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(syncing));
     }
 }
 
@@ -115,10 +138,11 @@ pub struct Manager {
     policies: Arc<Mutex<HashMap<EventId, PolicyHandle>>>,
     db: Store,
     timechain_path: PathBuf,
+    sync_channel: broadcast::Sender<Message>,
 }
 
 impl Manager {
-    pub fn new<P>(db: Store, timechain_path: P) -> Self
+    pub fn new<P>(db: Store, timechain_path: P, sync_channel: broadcast::Sender<Message>) -> Self
     where
         P: AsRef<Path>,
     {
@@ -126,6 +150,7 @@ impl Manager {
             policies: Arc::new(Mutex::new(HashMap::new())),
             db,
             timechain_path: timechain_path.as_ref().to_path_buf(),
+            sync_channel,
         }
     }
 
@@ -148,33 +173,96 @@ impl Manager {
     fn sync_wallet<D, S>(
         &self,
         policy_id: EventId,
-        wallet: &Wallet<D>,
+        wallet: &mut Wallet<D>,
         endpoint: S,
         proxy: Option<SocketAddr>,
     ) -> Result<(), Error>
     where
-        D: PersistBackend<ChangeSet>,
+        D: PersistBackend<ChangeSet> + 'static,
         S: Into<String>,
     {
-        let endpoint = endpoint.into();
+        let handle: PolicyHandle = self.get_policy_handle(policy_id)?;
 
-        tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
-        let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-        let config = ElectrumConfig::builder().socks5(proxy)?.build();
-        /* let blockchain = ElectrumBlockchain::from(ElectrumClient::from_config(&endpoint, config)?);
+        if !handle.is_syncing() {
+            tracing::info!("Syncing policy {policy_id}");
 
-        if !self.db.block_height.is_synced() {
-            match blockchain.get_height() {
-                Ok(height) => {
-                    self.db.block_height.set_block_height(height);
-                    self.db.block_height.just_synced();
-                }
-                Err(e) => tracing::error!("Impossible to sync block height: {e}"),
+            handle.set_syncing(true);
+
+            let endpoint: String = endpoint.into();
+            let local_chain = wallet.checkpoints().clone();
+            let keychain_spks = wallet.spks_of_all_keychains();
+            let graph = wallet.as_ref().clone();
+
+            fn sync(
+                handle: PolicyHandle,
+                endpoint: String,
+                proxy: Option<SocketAddr>,
+                local_chain: BTreeMap<u32, coinstr_core::bitcoin::BlockHash>,
+                keychain_spks: BTreeMap<KeychainKind, impl Iterator<Item = (u32, Script)> + Clone>,
+                graph: bdk_electrum::bdk_chain::TxGraph<ConfirmationTimeAnchor>,
+            ) -> Result<(), Error> {
+                tracing::info!(
+                    "Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}"
+                );
+                let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+                let config = ElectrumConfig::builder().socks5(proxy)?.build();
+                let client = ElectrumClient::from_config(&endpoint, config)?;
+
+                let electrum_update = client.scan(
+                    &local_chain,
+                    keychain_spks,
+                    None,
+                    None,
+                    STOP_GAP,
+                    BATCH_SIZE,
+                )?;
+                let missing = electrum_update.missing_full_txs(&graph);
+                let update =
+                    electrum_update.finalize_as_confirmation_time(&client, None, missing)?;
+
+                handle.set_syncing(false);
+
+                handle
+                    .sender
+                    .try_send(Command::ApplyUpdate(update))
+                    .map_err(|_| Error::SendError)?;
+                Ok(())
             }
-        } */
 
-        //wallet.sync(&blockchain, SyncOptions::default())?;
+            thread::spawn(async move {
+                match sync(
+                    handle.clone(),
+                    endpoint,
+                    proxy,
+                    local_chain,
+                    keychain_spks,
+                    graph,
+                ) {
+                    Ok(_) => tracing::debug!("Policy {policy_id} received timechain update data"),
+                    Err(e) => {
+                        handle.set_syncing(false);
+                        tracing::error!("Impossible to receive timechain update data for policy {policy_id}: {e}")
+                    }
+                }
+            });
+        } else {
+            tracing::warn!("Policy {policy_id} is already syncing");
+        }
+        Ok(())
+    }
 
+    fn apply_update<D>(
+        &self,
+        policy_id: EventId,
+        update: LocalUpdate<KeychainKind, ConfirmationTimeAnchor>,
+        wallet: &mut Wallet<D>,
+    ) -> Result<(), Error>
+    where
+        D: PersistBackend<ChangeSet>,
+        Error: From<<D as PersistBackend<ChangeSet>>::WriteError>,
+    {
+        wallet.apply_update(update)?;
+        wallet.commit()?;
         self.db
             .update_last_sync(policy_id, Some(Timestamp::now()))?;
         Ok(())
@@ -267,8 +355,10 @@ impl Manager {
     where
         D: PersistBackend<ChangeSet>,
     {
-        //let txs: Vec<TransactionDetails> = wallet.transactions();
-        let mut txs: Vec<TransactionDetails> = Vec::new();
+        let mut txs: Vec<TransactionDetails> = wallet
+            .transactions()
+            .filter_map(|t| wallet.get_tx(t.node.txid, true))
+            .collect();
 
         if sort {
             txs.sort_by(|a, b| {
@@ -377,7 +467,6 @@ impl Manager {
         // Compose output
         Ok(wallet
             .list_unspent()
-            .into_iter()
             .map(|utxo| GetUtxo {
                 label: utxo_labels
                     .get(&utxo.outpoint)
@@ -444,26 +533,13 @@ impl Manager {
         thread::spawn(async move {
             while let Some(cmd) = receiver.recv().await {
                 match cmd {
-                    Command::Sync {
-                        endpoint,
-                        proxy,
-                        sender,
-                    } => match this.db.get_last_sync(policy_id) {
+                    Command::Sync { endpoint, proxy } => match this.db.get_last_sync(policy_id) {
                         Ok(last_sync) => {
                             let last_sync: Timestamp =
                                 last_sync.unwrap_or_else(|| Timestamp::from(0));
                             if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
-                                tracing::info!("Syncing policy {policy_id}");
-                                let now = Instant::now();
-                                match this.sync_wallet(policy_id, &wallet, endpoint, proxy) {
-                                    Ok(_) => {
-                                        let _ =
-                                            sender.send(Message::WalletSyncCompleted(policy_id));
-                                        tracing::info!(
-                                            "Policy {policy_id} synced in {} ms",
-                                            now.elapsed().as_millis()
-                                        );
-                                    }
+                                match this.sync_wallet(policy_id, &mut wallet, endpoint, proxy) {
+                                    Ok(_) => {}
                                     Err(e) => {
                                         tracing::error!(
                                             "Impossible to sync policy {policy_id}: {e}"
@@ -474,6 +550,19 @@ impl Manager {
                         }
                         Err(e) => tracing::error!("Impossible to get last policy sync: {e}"),
                     },
+                    Command::ApplyUpdate(update) => {
+                        match this.apply_update(policy_id, update, &mut wallet) {
+                            Ok(_) => {
+                                tracing::info!("Policy {policy_id} synced");
+                                let _ = this
+                                    .sync_channel
+                                    .send(Message::WalletSyncCompleted(policy_id));
+                            }
+                            Err(e) => tracing::error!(
+                                "Impossible to apply wallet update for policy {policy_id}: {e}"
+                            ),
+                        }
+                    }
                     Command::GetBalance => {
                         let balance = wallet.get_balance();
                         this.send(&tx_sender, Response::Balance(balance));
@@ -536,6 +625,7 @@ impl Manager {
             PolicyHandle {
                 sender,
                 receiver: tx,
+                syncing: Arc::new(AtomicBool::new(false)),
             },
         );
         drop(policies);
@@ -602,12 +692,7 @@ impl Manager {
         Ok(())
     } */
 
-    pub fn sync_all<S>(
-        &self,
-        endpoint: S,
-        proxy: Option<SocketAddr>,
-        sender: broadcast::Sender<Message>,
-    ) -> Result<(), Error>
+    pub fn sync_all<S>(&self, endpoint: S, proxy: Option<SocketAddr>) -> Result<(), Error>
     where
         S: Into<String>,
     {
@@ -618,7 +703,6 @@ impl Manager {
                 .try_send(Command::Sync {
                     endpoint: endpoint.clone(),
                     proxy,
-                    sender: sender.clone(),
                 })
                 .map_err(|_| Error::SendError)?;
         }
@@ -829,6 +913,7 @@ impl Manager {
         Ok(txs)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn spend<S>(
         &self,
         policy_id: EventId,
