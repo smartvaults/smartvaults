@@ -43,8 +43,8 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND,
-    CONNECT_SEND_TIMEOUT, POLICY_KIND, PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND,
-    SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    CONNECT_SEND_TIMEOUT, MAINNET_RELAYS, POLICY_KIND, PROPOSAL_KIND, SEND_TIMEOUT,
+    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, TESTNET_RELAYS,
 };
 use crate::db::model::{
     GetAddress, GetAllSigners, GetApprovedProposalResult, GetApprovedProposals,
@@ -427,22 +427,8 @@ impl Coinstr {
     /// Get default relays for current [`Network`]
     pub fn default_relays(&self) -> Vec<String> {
         match self.network {
-            Network::Bitcoin => vec![
-                "wss://relay.house".into(),
-                "wss://relay.snort.social".into(),
-                "wss://relay.nostr.bg".into(),
-                "wss://relay.nostr.ch".into(),
-                "wss://relay.nostr.info".into(),
-                "wss://nostr.rocks".into(),
-                "wss://relay.damus.io".into(),
-                "wss://nostr.bitcoiner.social".into(),
-            ],
-            _ => vec![
-                "wss://test.relay.report".into(),
-                "wss://nos.lol".into(),
-                "wss://relay.nostrich.de".into(),
-                "wss://nostr.mom".into(),
-            ],
+            Network::Bitcoin => MAINNET_RELAYS.into_iter().map(|r| r.to_string()).collect(),
+            _ => TESTNET_RELAYS.into_iter().map(|r| r.to_string()).collect(),
         }
     }
 

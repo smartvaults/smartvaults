@@ -19,6 +19,10 @@ pub const LABELS_KIND: Kind = Kind::Custom(32121);
 // Expirations
 pub const APPROVED_PROPOSAL_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7);
 
+// Default relays
+pub const MAINNET_RELAYS: [&str; 1] = ["wss://prod.relay.report"];
+pub const TESTNET_RELAYS: [&str; 1] = ["wss://test.relay.report"];
+
 // Sync intervals
 pub const BLOCK_HEIGHT_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 pub const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
