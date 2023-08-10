@@ -139,6 +139,7 @@ async fn run() -> Result<()> {
                 }
             }
 
+            println!("Shutting down...");
             coinstr.shutdown().await?;
 
             Ok(())
