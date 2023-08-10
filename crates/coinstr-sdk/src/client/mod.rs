@@ -351,6 +351,16 @@ impl Coinstr {
         }
     }
 
+    pub async fn start(&self) {
+        self.client.start().await;
+        self.sync();
+    }
+
+    pub async fn stop(&self) -> Result<(), Error> {
+        self.client.stop().await?;
+        Ok(())
+    }
+
     /// Clear cache
     pub async fn clear_cache(&self) -> Result<(), Error> {
         self.client.stop().await?;

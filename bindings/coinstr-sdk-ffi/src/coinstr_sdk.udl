@@ -329,6 +329,9 @@ interface Coinstr {
     void change_password(string new_password);
     [Throws=FFIError]
     void wipe(string password);
+    void start();
+    [Throws=FFIError]
+    void stop();
     [Throws=FFIError]
     void clear_cache();
 

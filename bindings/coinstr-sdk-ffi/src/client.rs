@@ -121,6 +121,14 @@ impl Coinstr {
         Ok(self.inner.wipe(password)?)
     }
 
+    pub fn start(&self) {
+        block_on(async move { self.inner.start().await })
+    }
+
+    pub fn stop(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.stop().await?) })
+    }
+
     pub fn clear_cache(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.clear_cache().await?) })
     }
