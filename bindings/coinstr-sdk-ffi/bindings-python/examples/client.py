@@ -1,12 +1,14 @@
 from coinstr_sdk import Coinstr, Network, SyncHandler
 import time
 
+init_logger("/home/user/.coinstr", Network.TESTNET)
+
 coinstr = Coinstr.open("/home/user/.coinstr", "test", "test", Network.TESTNET)
 
 policies = []
 
 class SyncNotifications(SyncHandler):
-    def handle(self):
+    def handle(self, msg):
         print("Refreshing...")
         global policies
         policies = coinstr.get_policies()
