@@ -5,9 +5,11 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_utility::thread;
 use coinstr_sdk::client;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
@@ -26,6 +28,27 @@ use crate::{
 
 pub struct Coinstr {
     inner: client::Coinstr,
+    dropped: AtomicBool,
+}
+
+impl Drop for Coinstr {
+    fn drop(&mut self) {
+        if self.dropped.load(Ordering::SeqCst) {
+            tracing::warn!("Coinstr already dropped");
+        } else {
+            tracing::debug!("Dropping Coinstr client...");
+            let _ = self
+                .dropped
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(true));
+            let inner = self.inner.clone();
+            thread::spawn(async move {
+                inner
+                    .shutdown()
+                    .await
+                    .expect("Impossible to drop Coinstr client")
+            });
+        }
+    }
 }
 
 impl Coinstr {
@@ -39,6 +62,7 @@ impl Coinstr {
         block_on(async move {
             Ok(Self {
                 inner: client::Coinstr::open(base_path, name, || Ok(password), network).await?,
+                dropped: AtomicBool::new(false),
             })
         })
     }
@@ -63,6 +87,7 @@ impl Coinstr {
                     network,
                 )
                 .await?,
+                dropped: AtomicBool::new(false),
             })
         })
     }
@@ -88,6 +113,7 @@ impl Coinstr {
                     network,
                 )
                 .await?,
+                dropped: AtomicBool::new(false),
             })
         })
     }
