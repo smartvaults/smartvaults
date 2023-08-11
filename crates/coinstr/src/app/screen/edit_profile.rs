@@ -12,7 +12,7 @@ use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
 pub enum EditProfileMessage {
-    LoadMetadata(Metadata),
+    LoadMetadata(Box<Metadata>),
     NameChanged(String),
     DisplayNameChanged(String),
     NIP05Changed(String),
@@ -50,7 +50,7 @@ impl State for EditProfileState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(async move { client.get_profile().unwrap() }, |metadata| {
-            EditProfileMessage::LoadMetadata(metadata).into()
+            EditProfileMessage::LoadMetadata(Box::new(metadata)).into()
         })
     }
 
@@ -62,7 +62,7 @@ impl State for EditProfileState {
         if let Message::EditProfile(msg) = message {
             match msg {
                 EditProfileMessage::LoadMetadata(metadata) => {
-                    self.current_metadata = metadata.clone();
+                    self.current_metadata = *metadata.clone();
                     if let Some(name) = metadata.name {
                         self.name = name;
                     }
