@@ -64,6 +64,6 @@ mod ffi {
     };
 
     // UDL
-    uniffi_macros::include_scaffolding!("coinstr_sdk");
+    uniffi::include_scaffolding!("coinstr_sdk");
 }
 pub use ffi::*;
