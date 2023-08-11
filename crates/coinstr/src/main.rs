@@ -10,7 +10,11 @@ use std::str::FromStr;
 use coinstr_sdk::core::bitcoin::Network;
 use coinstr_sdk::logger;
 use constants::DEFAULT_FONT_SIZE;
-use iced::{executor, font, Application, Command, Element, Settings, Subscription, Theme};
+use iced::window::Event as WindowEvent;
+use iced::{
+    executor, font, subscription, Application, Command, Element, Event, Settings, Subscription,
+    Theme,
+};
 use once_cell::sync::Lazy;
 use theme::font::{
     BOOTSTRAP_ICONS_BYTES, REGULAR, ROBOTO_MONO_BOLD_BYTES, ROBOTO_MONO_LIGHT_BYTES,
@@ -43,6 +47,7 @@ pub fn main() -> iced::Result {
     let mut settings = Settings::with_flags(network);
     settings.id = Some(String::from("io.coinstr.desktop"));
     settings.window.min_size = Some((1000, 700));
+    settings.exit_on_close_request = false;
     settings.antialiasing = false;
     settings.default_text_size = DEFAULT_FONT_SIZE as f32;
     settings.default_font = REGULAR;
@@ -65,6 +70,7 @@ pub enum Message {
     Start(Box<start::Message>),
     App(Box<app::Message>),
     FontLoaded(Result<(), font::Error>),
+    EventOccurred(Event),
 }
 
 impl Application for CoinstrApp {
@@ -116,10 +122,14 @@ impl Application for CoinstrApp {
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
-        match &self.state {
+        let stage_sub = match &self.state {
             State::Start(start) => start.subscription().map(|m| m.into()),
             State::App(app) => app.subscription().map(|m| m.into()),
-        }
+        };
+        Subscription::batch(vec![
+            subscription::events().map(Message::EventOccurred),
+            stage_sub,
+        ])
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
@@ -148,6 +158,10 @@ impl Application for CoinstrApp {
                 }
                 _ => app.update(*msg).map(|m| m.into()),
             },
+            (_, Message::EventOccurred(Event::Window(WindowEvent::CloseRequested))) => {
+                tracing::debug!("Pressed close button");
+                std::process::exit(0x00)
+            }
             _ => Command::none(),
         }
     }
