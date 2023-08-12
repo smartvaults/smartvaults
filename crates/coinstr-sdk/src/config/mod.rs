@@ -132,6 +132,7 @@ impl Config {
         })
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn save(&self) -> Result<(), Error> {
         let config_file: ConfigFile = self.into();
         let data: Vec<u8> = util::serde::serialize(config_file)?;

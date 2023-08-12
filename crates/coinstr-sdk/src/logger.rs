@@ -9,6 +9,7 @@ use thiserror::Error;
 use tracing::metadata::LevelFilter;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
+use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::reload::Layer as ReloadLayer;
@@ -59,17 +60,19 @@ where
     let target_filter = Targets::new()
         .with_default(Level::WARN)
         .with_target("bdk", Level::INFO)
+        .with_target("bdk::database::sqlite", Level::WARN)
         .with_target("keechain_core", Level::INFO)
         .with_target("nostr_sdk", Level::DEBUG)
         .with_target("coinstr_core", Level::DEBUG)
-        .with_target("coinstr_sdk", Level::DEBUG)
+        .with_target("coinstr_sdk", Level::TRACE)
         .with_target("coinstr", Level::DEBUG)
         .with_target("coinstr_sdk_ffi", LevelFilter::OFF);
 
     if stdout {
         let stdout_log = tracing_subscriber::fmt::layer()
             .with_ansi(!cfg!(any(target_os = "android", target_os = "ios")))
-            .with_file(false);
+            .with_file(false)
+            .with_span_events(FmtSpan::CLOSE);
         tracing_subscriber::registry()
             .with(stdout_log.and_then(file_log).with_filter(target_filter))
             .try_init()?;

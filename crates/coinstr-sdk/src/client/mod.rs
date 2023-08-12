@@ -291,6 +291,7 @@ impl Coinstr {
         Self::new(base_path, keechain, network).await
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn list_keychains<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
     where
         P: AsRef<Path>,
@@ -298,6 +299,7 @@ impl Coinstr {
         Ok(util::dir::get_keychains_list(base_path, network)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     async fn init(&self) -> Result<(), Error> {
         self.restore_relays().await?;
         self.client.connect().await;
@@ -440,6 +442,7 @@ impl Coinstr {
     }
 
     /// Restore relays
+    #[tracing::instrument(skip_all, level = "trace")]
     async fn restore_relays(&self) -> Result<(), Error> {
         let relays = self.db.get_relays(true)?;
         for (url, proxy) in relays.into_iter() {
@@ -558,10 +561,12 @@ impl Coinstr {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_profile(&self) -> Result<Metadata, Error> {
         Ok(self.db.get_metadata(self.keys().public_key())?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
         Ok(self.db.get_contacts_with_metadata()?)
     }
@@ -597,14 +602,17 @@ impl Coinstr {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
         Ok(self.db.get_policy(policy_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
         Ok(self.db.get_proposal(proposal_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: EventId,
@@ -612,6 +620,7 @@ impl Coinstr {
         Ok(self.db.get_completed_proposal(completed_proposal_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
         Ok(self.db.get_signer_by_id(signer_id)?)
     }
@@ -757,20 +766,24 @@ impl Coinstr {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
         Ok(self.db.get_policies()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_detailed_policies(
         &self,
     ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
         Ok(self.db.get_detailed_policies()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
         Ok(self.db.get_proposals()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_proposals_by_policy_id(
         &self,
         policy_id: EventId,
@@ -778,6 +791,7 @@ impl Coinstr {
         Ok(self.db.get_proposals_by_policy_id(policy_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
@@ -785,6 +799,7 @@ impl Coinstr {
         Ok(self.db.get_approvals_by_proposal_id(proposal_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
         Ok(self.db.completed_proposals()?)
     }
@@ -1340,10 +1355,12 @@ impl Coinstr {
         })
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
         Ok(self.db.get_signers()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn search_signer_by_descriptor(
         &self,
         descriptor: Descriptor<String>,
@@ -1358,14 +1375,17 @@ impl Coinstr {
         Err(Error::SignerNotFound)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
         self.db.get_balance(policy_id)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_txs(&self, policy_id: EventId) -> Result<Vec<GetTransaction>, Error> {
         Ok(self.db.get_txs(policy_id, true)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_address(
         &self,
         policy_id: EventId,
@@ -1374,19 +1394,23 @@ impl Coinstr {
         Ok(self.db.get_address(policy_id, index)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
         self.get_address(policy_id, AddressIndex::LastUnused)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
         Ok(self.db.get_addresses(policy_id)?)
     }
 
     /// Get wallet UTXOs
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         Ok(self.db.get_utxos(policy_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_addresses_balances(
         &self,
         policy_id: EventId,
@@ -1394,14 +1418,17 @@ impl Coinstr {
         Ok(self.db.get_addresses_balances(policy_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_total_balance(&self) -> Result<Balance, Error> {
         Ok(self.db.get_total_balance()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
         Ok(self.db.get_all_transactions()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
         Ok(self.db.get_tx(policy_id, txid)?)
     }
@@ -1454,6 +1481,7 @@ impl Coinstr {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
         let GetPolicy { policy, .. } = self.db.get_policy(policy_id)?;
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
@@ -1465,6 +1493,7 @@ impl Coinstr {
         ))
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn save_policy_backup<P>(&self, policy_id: EventId, path: P) -> Result<(), Error>
     where
         P: AsRef<Path>,
@@ -1569,6 +1598,7 @@ impl Coinstr {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_my_shared_signers_by_signer_id(
         &self,
         signer_id: EventId,
@@ -1576,10 +1606,12 @@ impl Coinstr {
         Ok(self.db.get_my_shared_signers_by_signer_id(signer_id)?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSignerResult>, Error> {
         Ok(self.db.get_shared_signers()?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
         Ok(self.db.get_notifications()?)
     }
@@ -1634,6 +1666,7 @@ impl Coinstr {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_nostr_connect_sessions(&self) -> Result<Vec<(NostrConnectURI, Timestamp)>, Error> {
         Ok(self.db.get_nostr_connect_sessions()?)
     }
@@ -1662,6 +1695,7 @@ impl Coinstr {
             .await
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_nostr_connect_requests(
         &self,
         approved: bool,

@@ -28,6 +28,7 @@ impl Store {
         Ok(exists == 1)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn save_policy(
         &self,
         policy_id: EventId,
@@ -57,6 +58,7 @@ impl Store {
                 db,
             )?);
         }
+
         Ok(())
     }
 
@@ -136,6 +138,7 @@ impl Store {
         Ok(policies)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn delete_policy(&self, policy_id: EventId) -> Result<(), Error> {
         let proposal_ids = self.get_proposal_ids_by_policy_id(policy_id)?;
         for proposal_id in proposal_ids.into_iter() {

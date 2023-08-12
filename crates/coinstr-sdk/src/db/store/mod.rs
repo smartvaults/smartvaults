@@ -988,6 +988,7 @@ impl Store {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_events(&self) -> Result<Vec<Event>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT event FROM events;")?;
@@ -1001,6 +1002,7 @@ impl Store {
         Ok(events)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_event_by_id(&self, event_id: EventId) -> Result<Event, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare("SELECT event FROM events WHERE event_id = ? LIMIT 1;")?;
