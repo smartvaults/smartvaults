@@ -56,15 +56,13 @@ where
     let (file_log, ..) = ReloadLayer::new(file_log);
 
     let target_filter = Targets::new()
-        .with_default(Level::DEBUG)
+        .with_default(Level::WARN)
         .with_target("bdk", Level::INFO)
-        .with_target("bdk::blockchain::script_sync", Level::INFO)
-        .with_target("rustls", Level::WARN)
-        .with_target("wgpu_core", Level::WARN)
-        .with_target("iced_wgpu", Level::WARN)
-        .with_target("cosmic_text", Level::WARN)
-        .with_target("naga", Level::WARN)
-        .with_target("wgpu_hal", Level::WARN);
+        .with_target("keechain_core", Level::INFO)
+        .with_target("nostr_sdk", Level::DEBUG)
+        .with_target("coinstr_core", Level::DEBUG)
+        .with_target("coinstr_sdk", Level::DEBUG)
+        .with_target("coinstr", Level::DEBUG);
 
     if stdout {
         let stdout_log = tracing_subscriber::fmt::layer().with_file(false);
