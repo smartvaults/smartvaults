@@ -23,7 +23,31 @@ impl Metadata {
         self.inner.display_name.clone()
     }
 
+    pub fn about(&self) -> Option<String> {
+        self.inner.about.clone()
+    }
+
+    pub fn website(&self) -> Option<String> {
+        self.inner.website.clone()
+    }
+
+    pub fn picture(&self) -> Option<String> {
+        self.inner.picture.clone()
+    }
+
+    pub fn banner(&self) -> Option<String> {
+        self.inner.banner.clone()
+    }
+
     pub fn nip05(&self) -> Option<String> {
         self.inner.nip05.clone()
+    }
+
+    pub fn lud06(&self) -> Option<String> {
+        self.inner.lud06.clone()
+    }
+
+    pub fn lud16(&self) -> Option<String> {
+        self.inner.lud16.clone()
     }
 }
