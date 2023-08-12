@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use bdk::bitcoin::Network;
 use nostr_sdk::Timestamp;
 use thiserror::Error;
+use tracing::metadata::LevelFilter;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::fmt::writer::BoxMakeWriter;
@@ -62,10 +63,13 @@ where
         .with_target("nostr_sdk", Level::DEBUG)
         .with_target("coinstr_core", Level::DEBUG)
         .with_target("coinstr_sdk", Level::DEBUG)
-        .with_target("coinstr", Level::DEBUG);
+        .with_target("coinstr", Level::DEBUG)
+        .with_target("coinstr_sdk_ffi", LevelFilter::OFF);
 
     if stdout {
-        let stdout_log = tracing_subscriber::fmt::layer().with_file(false);
+        let stdout_log = tracing_subscriber::fmt::layer()
+            .with_ansi(!cfg!(any(target_os = "android", target_os = "ios")))
+            .with_file(false);
         tracing_subscriber::registry()
             .with(stdout_log.and_then(file_log).with_filter(target_filter))
             .try_init()?;
