@@ -153,7 +153,7 @@ impl Coinstr {
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
-                thread::sleep(Duration::from_secs(30)).await;
+                thread::sleep(Duration::from_secs(10)).await;
             }
         })
     }
