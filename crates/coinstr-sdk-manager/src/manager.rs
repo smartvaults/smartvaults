@@ -1,17 +1,19 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::Arc;
 
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
 use coinstr_core::bdk::{FeeRate, LocalUtxo, TransactionDetails, Wallet};
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
-use dashmap::DashMap;
 use nostr::EventId;
+use parking_lot::RwLock;
 use sled::Db;
 use thiserror::Error;
 
@@ -37,7 +39,7 @@ pub enum Error {
 pub struct Manager {
     db: Db,
     network: Network,
-    wallets: DashMap<EventId, CoinstrWallet>,
+    wallets: Arc<RwLock<HashMap<EventId, CoinstrWallet>>>,
 }
 
 impl Manager {
@@ -48,17 +50,19 @@ impl Manager {
         Ok(Self {
             db: sled::open(path)?,
             network,
-            wallets: DashMap::new(),
+            wallets: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
     pub fn load_policy(&self, policy_id: EventId, policy: Policy) -> Result<(), Error> {
-        if !self.wallets.contains_key(&policy_id) {
+        let mut wallets = self.wallets.write();
+        if let Entry::Vacant(e) = wallets.entry(policy_id) {
             let tree = self.db.open_tree(policy_id)?;
             let db = CoinstrWalletStorage::new(tree);
             let wallet = Wallet::new(&policy.descriptor.to_string(), None, db, self.network)?;
             let wallet = CoinstrWallet::new(policy, wallet);
-            self.wallets.insert(policy_id, wallet);
+            e.insert(wallet);
+            tracing::info!("Loaded policy {policy_id}");
             Ok(())
         } else {
             Err(Error::AlreadyLoaded(policy_id))
@@ -66,26 +70,23 @@ impl Manager {
     }
 
     pub fn unload_policy(&self, policy_id: EventId) -> Result<(), Error> {
-        match self.wallets.remove(&policy_id) {
+        let mut wallets = self.wallets.write();
+        match wallets.remove(&policy_id) {
             Some(_) => Ok(()),
             None => Err(Error::NotLoaded(policy_id)),
         }
     }
 
     pub fn wallet(&self, policy_id: EventId) -> Result<CoinstrWallet, Error> {
-        Ok(self
-            .wallets
+        let wallets = self.wallets.read();
+        Ok(wallets
             .get(&policy_id)
             .ok_or(Error::NotLoaded(policy_id))?
             .clone())
     }
 
     pub fn get_balance(&self, policy_id: EventId) -> Result<Balance, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_balance())
+        Ok(self.wallet(policy_id)?.get_balance())
     }
 
     pub fn get_address(
@@ -93,54 +94,30 @@ impl Manager {
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<AddressInfo, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_address(index))
+        Ok(self.wallet(policy_id)?.get_address(index))
     }
 
     pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<Address>, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_addresses()?)
+        Ok(self.wallet(policy_id)?.get_addresses()?)
     }
 
     pub fn get_addresses_balances(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<Script, u64>, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_addresses_balances())
+        Ok(self.wallet(policy_id)?.get_addresses_balances())
     }
 
     pub fn get_txs(&self, policy_id: EventId) -> Result<Vec<TransactionDetails>, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_txs())
+        Ok(self.wallet(policy_id)?.get_txs())
     }
 
     pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<TransactionDetails, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_tx(txid)?)
+        Ok(self.wallet(policy_id)?.get_tx(txid)?)
     }
 
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .get_utxos())
+        Ok(self.wallet(policy_id)?.get_utxos())
     }
 
     pub fn sync<S>(
@@ -152,11 +129,7 @@ impl Manager {
     where
         S: Into<String>,
     {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .sync(endpoint, proxy)?)
+        Ok(self.wallet(policy_id)?.sync(endpoint, proxy)?)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -173,22 +146,21 @@ impl Manager {
     where
         S: Into<String>,
     {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .spend(address, amount, description, fee_rate, utxos, policy_path)?)
+        Ok(self.wallet(policy_id)?.spend(
+            address,
+            amount,
+            description,
+            fee_rate,
+            utxos,
+            policy_path,
+        )?)
     }
 
     pub fn proof_of_reserve<S>(&self, policy_id: EventId, message: S) -> Result<Proposal, Error>
     where
         S: Into<String>,
     {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .proof_of_reserve(message)?)
+        Ok(self.wallet(policy_id)?.proof_of_reserve(message)?)
     }
 
     pub fn verify_proof<S>(
@@ -200,10 +172,6 @@ impl Manager {
     where
         S: Into<String>,
     {
-        Ok(self
-            .wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
-            .verify_proof(psbt, message)?)
+        Ok(self.wallet(policy_id)?.verify_proof(psbt, message)?)
     }
 }

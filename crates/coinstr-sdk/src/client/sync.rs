@@ -120,7 +120,7 @@ impl Coinstr {
                                     let sync_channel = this.sync_channel.clone();
                                     let endpoint = endpoint.clone();
                                     thread::spawn(async move {
-                                        tracing::info!("Syncing policy {policy_id}");
+                                        tracing::debug!("Syncing policy {policy_id}");
                                         match manager.sync(policy_id, endpoint, proxy) {
                                             Ok(_) => {
                                                 tracing::info!("Policy {policy_id} synced");

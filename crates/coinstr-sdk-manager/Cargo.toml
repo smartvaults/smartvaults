@@ -12,7 +12,6 @@ keywords.workspace = true
 [dependencies]
 bdk_electrum = "0.3"
 coinstr-core = { path = "../coinstr-core" }
-dashmap = "5.5"
 nostr = { git = "https://github.com/rust-nostr/nostr", rev = "43e03513007ed799ba0335b4c897cb23f1259e39", default-features = false }
 parking_lot = "0.12"
 serde = "1.0"
