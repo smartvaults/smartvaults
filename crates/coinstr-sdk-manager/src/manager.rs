@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::path::Path;
 
+use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, OutPoint, Script, Txid};
 use bdk::wallet::{AddressIndex, AddressInfo, Balance};
 use bdk::{bitcoin::Network, wallet::NewError, Wallet};
@@ -178,5 +179,32 @@ impl Manager {
             .get(&policy_id)
             .ok_or(Error::NotLoaded(policy_id))?
             .spend(address, amount, description, fee_rate, utxos, policy_path)?)
+    }
+
+    pub fn proof_of_reserve<S>(&self, policy_id: EventId, message: S) -> Result<Proposal, Error>
+    where
+        S: Into<String>,
+    {
+        Ok(self
+            .wallets
+            .get(&policy_id)
+            .ok_or(Error::NotLoaded(policy_id))?
+            .proof_of_reserve(message)?)
+    }
+
+    pub fn verify_proof<S>(
+        &self,
+        policy_id: EventId,
+        psbt: &PartiallySignedTransaction,
+        message: S,
+    ) -> Result<u64, Error>
+    where
+        S: Into<String>,
+    {
+        Ok(self
+            .wallets
+            .get(&policy_id)
+            .ok_or(Error::NotLoaded(policy_id))?
+            .verify_proof(psbt, message)?)
     }
 }

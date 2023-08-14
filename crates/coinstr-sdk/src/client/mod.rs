@@ -1275,13 +1275,10 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        /* let message: &str = &message.into();
+        let message: &str = &message.into();
 
         // Build proposal
-        let proposal: Proposal = self
-            .manager
-            .proof_of_reserve(policy_id, message, Some(Duration::from_secs(30)))
-            .await?;
+        let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message)?;
 
         // Get shared keys
         let shared_keys = self.db.get_shared_key(policy_id)?;
@@ -1312,27 +1309,20 @@ impl Coinstr {
         self.db
             .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
-        Ok((proposal_id, proposal, policy_id)) */
-
-        todo!()
+        Ok((proposal_id, proposal, policy_id))
     }
 
     pub async fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
-        /* let GetCompletedProposal {
+        let GetCompletedProposal {
             proposal,
             policy_id,
             ..
         } = self.get_completed_proposal_by_id(completed_proposal_id)?;
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
-            Ok(self
-                .manager
-                .verify_proof(policy_id, psbt, message, Some(Duration::from_secs(30)))
-                .await?)
+            Ok(self.manager.verify_proof(policy_id, &psbt, message)?)
         } else {
             Err(Error::UnexpectedProposal)
-        } */
-
-        todo!()
+        }
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {

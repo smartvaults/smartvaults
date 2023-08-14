@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::{Address, BlockHash, OutPoint, Script, Txid};
 use bdk::chain::keychain::LocalUpdate;
 use bdk::chain::local_chain::UpdateNotConnectedError;
@@ -16,6 +17,7 @@ use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::ElectrumExt;
+use coinstr_core::reserves::ProofOfReserves;
 use coinstr_core::{Amount, Policy, Proposal};
 use parking_lot::RwLock;
 use thiserror::Error;
@@ -29,6 +31,8 @@ const BATCH_SIZE: usize = 5;
 pub enum Error {
     #[error(transparent)]
     Policy(#[from] coinstr_core::policy::Error),
+    #[error(transparent)]
+    Proof(#[from] coinstr_core::reserves::ProofError),
     #[error(transparent)]
     Address(#[from] coinstr_core::bitcoin::util::address::Error),
     #[error(transparent)]
@@ -252,5 +256,25 @@ impl CoinstrWallet {
             policy_path,
         )?;
         Ok(proposal)
+    }
+
+    pub fn proof_of_reserve<S>(&self, message: S) -> Result<Proposal, Error>
+    where
+        S: Into<String>,
+    {
+        let mut wallet = self.wallet.write();
+        let proposal = self.policy.proof_of_reserve(&mut wallet, message)?;
+        Ok(proposal)
+    }
+
+    pub fn verify_proof<S>(
+        &self,
+        psbt: &PartiallySignedTransaction,
+        message: S,
+    ) -> Result<u64, Error>
+    where
+        S: Into<String>,
+    {
+        Ok(self.wallet.read().verify_proof(psbt, message, None)?)
     }
 }
