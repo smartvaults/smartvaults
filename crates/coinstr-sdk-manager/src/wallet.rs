@@ -75,12 +75,10 @@ impl CoinstrWallet {
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(syncing));
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn checkpoints(&self) -> BTreeMap<u32, BlockHash> {
         self.wallet.read().checkpoints().clone()
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn graph(&self) -> TxGraph<ConfirmationTimeAnchor> {
         self.wallet.read().as_ref().clone()
     }
@@ -102,12 +100,10 @@ impl CoinstrWallet {
         self.wallet.read().is_mine(script)
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_balance(&self) -> Balance {
         self.wallet.read().get_balance()
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_address(&self, index: AddressIndex) -> AddressInfo {
         let mut wallet = self.wallet.write();
         wallet.get_address(index)
@@ -160,7 +156,6 @@ impl CoinstrWallet {
         map
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_txs(&self) -> Vec<TransactionDetails> {
         let wallet = self.wallet.read();
         wallet
@@ -169,12 +164,10 @@ impl CoinstrWallet {
             .collect()
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_tx(&self, txid: Txid) -> Result<TransactionDetails, Error> {
         self.wallet.read().get_tx(txid, true).ok_or(Error::NotFound)
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_utxos(&self) -> Vec<LocalUtxo> {
         let wallet = self.wallet.read();
         wallet.list_unspent().collect()
@@ -230,7 +223,6 @@ impl CoinstrWallet {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn spend<S>(
         &self,
         address: Address,
