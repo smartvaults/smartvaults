@@ -14,7 +14,7 @@ keywords.workspace = true
 bdk = { version = "=1.0.0-alpha.1", default-features = false, features = ["std", "compiler"] }
 bitcoinconsensus = "0.20.2-0.5.0"
 hwi = { version = "0.6", default-features = false, features = ["use-miniscript"], optional = true }
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "5ae0a2839ae6dfac9891fbac21c5bab00c037a87" }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "a1e466b4e60042315355759014176f1c49858757" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
