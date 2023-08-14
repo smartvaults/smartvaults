@@ -105,7 +105,7 @@ impl Manager {
             .wallets
             .get(&policy_id)
             .ok_or(Error::NotLoaded(policy_id))?
-            .get_addresses())
+            .get_addresses()?)
     }
 
     pub fn get_addresses_balances(

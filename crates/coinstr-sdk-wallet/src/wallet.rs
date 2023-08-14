@@ -30,6 +30,8 @@ pub enum Error {
     #[error(transparent)]
     Policy(#[from] coinstr_core::policy::Error),
     #[error(transparent)]
+    Address(#[from] coinstr_core::bitcoin::util::address::Error),
+    #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
     UpdateNotConnected(#[from] UpdateNotConnectedError),
@@ -82,6 +84,14 @@ impl CoinstrWallet {
         self.wallet.read().spks_of_all_keychains()
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub fn spks_of_keychain(
+        &self,
+        keychain: KeychainKind,
+    ) -> impl Iterator<Item = (u32, Script)> + Clone {
+        self.wallet.read().spks_of_keychain(keychain)
+    }
+
     pub fn is_mine(&self, script: &Script) -> bool {
         self.wallet.read().is_mine(script)
     }
@@ -98,26 +108,37 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses(&self) -> Vec<Address> {
-        let mut wallet = self.wallet.write();
+    pub fn get_addresses(&self) -> Result<Vec<Address>, Error> {
+        // Get spks
+        let spks = self.spks_of_keychain(KeychainKind::External);
 
-        let last_unused = wallet.get_address(AddressIndex::LastUnused);
+        // Get last unused address
+        let last_unused = self.get_address(AddressIndex::LastUnused);
+
+        // Get network
+        let wallet = self.wallet.read();
+        let network = wallet.network();
+        drop(wallet);
 
         let mut addresses: Vec<Address> = Vec::new();
+        let mut counter: Option<u8> = None;
 
-        for index in 0.. {
-            let addr = wallet.get_address(AddressIndex::Peek(index));
-            addresses.push(addr.address.clone());
-            if addr == last_unused {
-                for i in index + 1..index + 20 {
-                    let addr = wallet.get_address(AddressIndex::Peek(i));
-                    addresses.push(addr.address);
+        for (_index, script) in spks {
+            let addr = Address::from_script(&script, network)?;
+            addresses.push(addr.clone());
+            if addr == last_unused.address {
+                counter = Some(0);
+            }
+            if let Some(counter) = counter.as_mut() {
+                *counter += 1;
+
+                if *counter >= 20 {
+                    break;
                 }
-                break;
             }
         }
 
-        addresses
+        Ok(addresses)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
