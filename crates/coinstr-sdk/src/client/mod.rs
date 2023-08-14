@@ -9,12 +9,13 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bdk_electrum::bdk_chain::ConfirmationTime;
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
 use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
-use coinstr_core::bdk::FeeRate as BdkFeeRate;
+use coinstr_core::bdk::{FeeRate as BdkFeeRate, KeychainKind};
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
@@ -24,6 +25,7 @@ use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::Serde;
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, Proposal};
 
+use coinstr_sdk_wallet::Manager;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -50,10 +52,9 @@ use crate::db::model::{
     GetSharedSignerResult, GetTransaction, GetUtxo, NostrConnectRequest,
 };
 use crate::db::store::Store;
-use crate::manager::Manager;
 use crate::types::{Notification, PolicyBackup};
-use crate::util;
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
+use crate::{util, Label, LabelData};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -88,6 +89,8 @@ pub enum Error {
     #[error(transparent)]
     Secp256k1(#[from] coinstr_core::bitcoin::secp256k1::Error),
     #[error(transparent)]
+    Address(#[from] coinstr_core::bitcoin::util::address::Error),
+    #[error(transparent)]
     EncryptionWithKeys(#[from] EncryptionWithKeysError),
     #[error(transparent)]
     NIP04(#[from] nostr_sdk::nips::nip04::Error),
@@ -100,7 +103,9 @@ pub enum Error {
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
-    Manager(#[from] crate::manager::Error),
+    Manager(#[from] coinstr_sdk_wallet::manager::Error),
+    #[error(transparent)]
+    Wallet(#[from] coinstr_sdk_wallet::wallet::Error),
     #[error(transparent)]
     Config(#[from] crate::config::Error),
     #[error(transparent)]
@@ -139,6 +144,8 @@ pub enum Error {
     InvalidFeeRate,
     #[error("impossible to delete a not owned event")]
     TryingToDeleteNotOwnedEvent,
+    #[error("not found")]
+    NotFound,
     #[error("{0}")]
     Generic(String),
 }
@@ -186,11 +193,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            manager: Manager::new(
-                db.clone(),
-                util::dir::timechain_db(base_path, network)?,
-                sender.clone(),
-            ),
+            manager: Manager::new(util::dir::timechain_db(base_path, network)?, network)?,
             config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
@@ -303,7 +306,7 @@ impl Coinstr {
             policy_id, policy, ..
         } in self.get_policies()?.into_iter()
         {
-            self.manager.load_policy(policy_id, policy, self.network)?;
+            self.manager.load_policy(policy_id, policy)?;
         }
         self.restore_relays().await?;
         self.client.connect().await;
@@ -502,7 +505,6 @@ impl Coinstr {
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
-        self.manager.shutdown().await?;
         Ok(self.client.shutdown().await?)
     }
 
@@ -655,7 +657,7 @@ impl Coinstr {
 
             self.db.delete_policy(policy_id)?;
 
-            self.manager.unload_policy(policy_id).await?;
+            self.manager.unload_policy(policy_id)?;
 
             Ok(())
         } else {
@@ -779,7 +781,7 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_detailed_policies(
+    pub fn get_detailed_policies(
         &self,
     ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
         let mut policies = BTreeMap::new();
@@ -793,7 +795,7 @@ impl Coinstr {
                 policy_id,
                 GetDetailedPolicyResult {
                     policy,
-                    balance: self.get_balance(policy_id).await,
+                    balance: self.get_balance(policy_id),
                     last_sync,
                 },
             );
@@ -926,19 +928,15 @@ impl Coinstr {
         };
 
         // Build spending proposal
-        let proposal: Proposal = self
-            .manager
-            .spend(
-                policy_id,
-                address,
-                amount,
-                description,
-                fee_rate,
-                utxos,
-                policy_path,
-                Some(Duration::from_secs(30)),
-            )
-            .await?;
+        let proposal: Proposal = self.manager.spend(
+            policy_id,
+            address,
+            amount,
+            description,
+            fee_rate,
+            utxos,
+            policy_path,
+        )?;
 
         if let Proposal::Spending {
             amount,
@@ -999,7 +997,7 @@ impl Coinstr {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error> {
-        let address = self.get_last_unused_address(to_policy_id).await?.address;
+        let address = self.get_last_unused_address(to_policy_id)?.address;
         let description: String = format!(
             "Self transfer from policy #{} to #{}",
             util::cut_event_id(from_policy_id),
@@ -1239,7 +1237,7 @@ impl Coinstr {
             let blockchain = ElectrumClient::from_config(&endpoint, config)?;
             blockchain.transaction_broadcast(tx)?;
             // Force sync
-            self.manager.sync(policy_id, endpoint, proxy).await?;
+            //TODO: self.manager.sync(policy_id, endpoint, proxy).await?;
         }
 
         // Compose the event
@@ -1277,7 +1275,7 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        let message: &str = &message.into();
+        /* let message: &str = &message.into();
 
         // Build proposal
         let proposal: Proposal = self
@@ -1314,11 +1312,13 @@ impl Coinstr {
         self.db
             .save_proposal(proposal_id, policy_id, proposal.clone())?;
 
-        Ok((proposal_id, proposal, policy_id))
+        Ok((proposal_id, proposal, policy_id)) */
+
+        todo!()
     }
 
     pub async fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
-        let GetCompletedProposal {
+        /* let GetCompletedProposal {
             proposal,
             policy_id,
             ..
@@ -1330,7 +1330,9 @@ impl Coinstr {
                 .await?)
         } else {
             Err(Error::UnexpectedProposal)
-        }
+        } */
+
+        todo!()
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
@@ -1394,76 +1396,180 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
-        self.manager
-            .get_balance(policy_id, Some(Duration::from_secs(30)))
-            .await
-            .ok()
+    pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
+        self.manager.get_balance(policy_id).ok()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_txs(&self, policy_id: EventId) -> Result<Vec<GetTransaction>, Error> {
-        Ok(self
-            .manager
-            .get_txs(policy_id, true, Some(Duration::from_secs(30)))
-            .await?)
+    pub fn get_txs(&self, policy_id: EventId, sort: bool) -> Result<Vec<GetTransaction>, Error> {
+        let wallet = self.manager.wallet(policy_id)?;
+        let mut txs = wallet.get_txs();
+
+        if sort {
+            txs.sort_by(|a, b| {
+                let a = match a.confirmation_time {
+                    ConfirmationTime::Confirmed { height, .. } => height,
+                    ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+                };
+
+                let b = match b.confirmation_time {
+                    ConfirmationTime::Confirmed { height, .. } => height,
+                    ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+                };
+
+                b.cmp(&a)
+            });
+        }
+
+        let descriptions: HashMap<Txid, String> = self.db.get_txs_descriptions(policy_id)?;
+        let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
+
+        let mut list: Vec<GetTransaction> = Vec::new();
+
+        for tx in txs.into_iter() {
+            let label: Option<String> = if tx.received > tx.sent {
+                let mut label = None;
+                if let Some(transaction) = tx.transaction.as_ref() {
+                    for txout in transaction.output.iter() {
+                        if wallet.is_mine(&txout.script_pubkey) {
+                            label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
+                            break;
+                        }
+                    }
+                }
+                label
+            } else {
+                // TODO: try to get UTXO label?
+                descriptions.get(&tx.txid).cloned()
+            };
+
+            list.push(GetTransaction {
+                policy_id,
+                label,
+                tx,
+            })
+        }
+
+        Ok(list)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
-        Ok(self
-            .manager
-            .get_tx(policy_id, txid, Some(Duration::from_secs(30)))
-            .await?)
+    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
+        let wallet = self.manager.wallet(policy_id)?;
+        let tx = wallet.get_tx(txid)?;
+
+        let label: Option<String> = if tx.received > tx.sent {
+            let mut label = None;
+            for txout in tx
+                .transaction
+                .as_ref()
+                .ok_or(Error::NotFound)?
+                .output
+                .iter()
+            {
+                if wallet.is_mine(&txout.script_pubkey) {
+                    let shared_key = self.db.get_shared_key(policy_id)?;
+                    let identifier: String = LabelData::Address(Address::from_script(
+                        &txout.script_pubkey,
+                        self.network,
+                    )?)
+                    .generate_identifier(&shared_key)?;
+                    label = self
+                        .db
+                        .get_label_by_identifier(identifier)
+                        .ok()
+                        .map(|l| l.text());
+                    break;
+                }
+            }
+            label
+        } else {
+            // TODO: try to get UTXO label?
+            self.db.get_description_by_txid(policy_id, txid)?
+        };
+
+        Ok(GetTransaction {
+            policy_id,
+            tx,
+            label,
+        })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_address(
+    pub fn get_address(
         &self,
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<GetAddress, Error> {
+        let address = self.manager.get_address(policy_id, index)?;
+
+        let shared_key = self.db.get_shared_key(policy_id)?;
+        let identifier: String =
+            LabelData::Address(address.address.clone()).generate_identifier(&shared_key)?;
+        let label = self
+            .db
+            .get_label_by_identifier(identifier)
+            .ok()
+            .map(|l| l.text());
+        Ok(GetAddress {
+            address: address.address,
+            label,
+        })
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
+        self.get_address(policy_id, AddressIndex::LastUnused)
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
+        let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
         Ok(self
             .manager
-            .get_address(policy_id, index, Some(Duration::from_secs(30)))
-            .await?)
+            .get_addresses(policy_id)?
+            .into_iter()
+            .map(|address| GetAddress {
+                label: script_labels
+                    .get(&address.script_pubkey())
+                    .map(|l| l.text()),
+                address,
+            })
+            .collect())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
-        self.get_address(policy_id, AddressIndex::LastUnused).await
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
-        Ok(self
-            .manager
-            .get_addresses(policy_id, Some(Duration::from_secs(30)))
-            .await?)
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_addresses_balances(
+    pub fn get_addresses_balances(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<Script, u64>, Error> {
-        Ok(self
-            .manager
-            .get_addresses_balances(policy_id, Some(Duration::from_secs(30)))
-            .await?)
+        Ok(self.manager.get_addresses_balances(policy_id)?)
     }
 
     /// Get wallet UTXOs
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
+    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
+        // Get labels
+        let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
+        let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id)?;
+
+        // Compose output
         Ok(self
             .manager
-            .get_utxos(policy_id, Some(Duration::from_secs(30)))
-            .await?)
+            .get_utxos(policy_id)?
+            .into_iter()
+            .map(|utxo| GetUtxo {
+                label: utxo_labels
+                    .get(&utxo.outpoint)
+                    .or_else(|| script_labels.get(&utxo.txout.script_pubkey))
+                    .map(|l| l.text()),
+                utxo,
+            })
+            .collect())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_total_balance(&self) -> Result<Balance, Error> {
+    pub fn get_total_balance(&self) -> Result<Balance, Error> {
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
         for GetPolicy {
@@ -1471,7 +1577,7 @@ impl Coinstr {
         } in self.get_policies()?.into_iter()
         {
             if !already_seen.contains(&policy.descriptor) {
-                let balance = self.get_balance(policy_id).await.unwrap_or_default();
+                let balance = self.get_balance(policy_id).unwrap_or_default();
                 total_balance = total_balance.add(balance);
                 already_seen.push(policy.descriptor);
             }
@@ -1480,11 +1586,40 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
-        Ok(self
-            .manager
-            .get_all_txs(Some(Duration::from_secs(30)))
-            .await?)
+    pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
+        let mut txs = Vec::new();
+        let mut already_seen = Vec::new();
+        for GetPolicy {
+            policy_id, policy, ..
+        } in self.db.get_policies()?.into_iter()
+        {
+            if !already_seen.contains(&policy.descriptor) {
+                for tx in self
+                    .get_txs(policy_id, false)
+                    .unwrap_or_default()
+                    .into_iter()
+                {
+                    txs.push(tx)
+                }
+                already_seen.push(policy.descriptor);
+            }
+        }
+
+        txs.sort_by(|a, b| {
+            let a = match a.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => height,
+                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+            };
+
+            let b = match b.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => height,
+                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+            };
+
+            b.cmp(&a)
+        });
+
+        Ok(txs)
     }
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {

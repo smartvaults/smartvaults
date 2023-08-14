@@ -20,6 +20,7 @@ async-utility = "0.1"
 bdk_electrum = "0.3"
 bdk_file_store = "0.2"
 coinstr-core = { path = "../coinstr-core" }
+coinstr-sdk-wallet = { path = "../coinstr-sdk-wallet" }
 futures-util = "0.3"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "678be566b22f9060734747ad0087763a0122fcba", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
 parking_lot = "0.12"

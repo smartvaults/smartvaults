@@ -93,8 +93,8 @@ impl State for PolicyState {
                 let GetPolicy {
                     policy, last_sync, ..
                 } = client.get_policy_by_id(policy_id).ok()?;
-                let balance = client.get_balance(policy_id).await;
-                let list = client.get_txs(policy_id).await.ok()?;
+                let balance = client.get_balance(policy_id);
+                let list = client.get_txs(policy_id, true).ok()?;
                 let proposals = client.get_proposals_by_policy_id(policy_id).ok()?;
                 let signer = client
                     .search_signer_by_descriptor(policy.descriptor.clone())

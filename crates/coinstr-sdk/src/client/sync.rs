@@ -28,8 +28,9 @@ use tokio::sync::broadcast::Receiver;
 use super::{Coinstr, Error};
 use crate::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, WALLET_SYNC_INTERVAL,
 };
+use crate::db::model::GetPolicy;
 use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 use crate::{util, Notification};
@@ -100,10 +101,42 @@ impl Coinstr {
         thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint() {
-                    Ok(endpoint) => match this.manager.sync_all(endpoint, this.config.proxy().ok())
-                    {
-                        Ok(_) => (),
-                        Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
+                    Ok(endpoint) => match this.get_policies() {
+                        Ok(policies) => {
+                            let proxy = this.config.proxy().ok();
+                            for GetPolicy {
+                                policy_id,
+                                last_sync,
+                                ..
+                            } in policies.into_iter()
+                            {
+                                let last_sync: Timestamp =
+                                    last_sync.unwrap_or_else(|| Timestamp::from(0));
+                                if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+                                    let manager = this.manager.clone();
+                                    let db = this.db.clone();
+                                    let endpoint = endpoint.clone();
+                                    thread::spawn(async move {
+                                        match manager.sync(policy_id, endpoint, proxy) {
+                                            Ok(_) => {
+                                                if let Err(e) = db.update_last_sync(
+                                                    policy_id,
+                                                    Some(Timestamp::now()),
+                                                ) {
+                                                    tracing::error!(
+                                                        "Impossible to save last policy sync: {e}"
+                                                    );
+                                                }
+                                            }
+                                            Err(e) => tracing::error!(
+                                                "Impossible to sync policy {policy_id}: {e}"
+                                            ),
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                        Err(e) => tracing::error!("Impossible to get policies: {e}"),
                     },
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
@@ -339,7 +372,7 @@ impl Coinstr {
                 } else {
                     self.db
                         .save_policy(event.id, policy.clone(), nostr_pubkeys)?;
-                    self.manager.load_policy(event.id, policy, self.network)?;
+                    self.manager.load_policy(event.id, policy)?;
                     let notification = Notification::NewPolicy(event.id);
                     self.db.save_notification(event.id, notification)?;
                     self.sync_channel
@@ -416,14 +449,14 @@ impl Coinstr {
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
                     // Force policy sync if the event was created in the last 60 secs
-                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
+                    /* if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
                         if let Ok(endpoint) = self.config.electrum_endpoint() {
                             let proxy = self.config.proxy().ok();
                             if let Err(e) = self.manager.sync(*policy_id, endpoint, proxy).await {
                                 tracing::error!("Impossible to force sync policy {policy_id}: {e}");
                             }
                         }
-                    }
+                    } */
 
                     if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {
                         let completed_proposal =
