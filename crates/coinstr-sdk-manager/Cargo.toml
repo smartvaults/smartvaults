@@ -1,8 +1,8 @@
 [package]
-name = "coinstr-sdk-wallet"
+name = "coinstr-sdk-manager"
 edition = "2021"
 version.workspace = true
-description = "Coinstr SDK Wallet"
+description = "Coinstr SDK Manager"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true

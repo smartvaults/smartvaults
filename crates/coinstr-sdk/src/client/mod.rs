@@ -15,7 +15,7 @@ use bdk_electrum::electrum_client::{
 };
 use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
-use coinstr_core::bdk::{FeeRate as BdkFeeRate, KeychainKind};
+use coinstr_core::bdk::FeeRate as BdkFeeRate;
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
@@ -25,7 +25,7 @@ use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::Serde;
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, Proposal};
 
-use coinstr_sdk_wallet::Manager;
+use coinstr_sdk_manager::Manager;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -103,9 +103,9 @@ pub enum Error {
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
-    Manager(#[from] coinstr_sdk_wallet::manager::Error),
+    Manager(#[from] coinstr_sdk_manager::manager::Error),
     #[error(transparent)]
-    Wallet(#[from] coinstr_sdk_wallet::wallet::Error),
+    Wallet(#[from] coinstr_sdk_manager::wallet::Error),
     #[error(transparent)]
     Config(#[from] crate::config::Error),
     #[error(transparent)]
