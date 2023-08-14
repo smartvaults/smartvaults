@@ -117,6 +117,7 @@ impl Coinstr {
                                 if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
                                     let manager = this.manager.clone();
                                     let db = this.db.clone();
+                                    let sync_channel = this.sync_channel.clone();
                                     let endpoint = endpoint.clone();
                                     thread::spawn(async move {
                                         tracing::info!("Syncing policy {policy_id}");
@@ -131,6 +132,8 @@ impl Coinstr {
                                                         "Impossible to save last policy sync: {e}"
                                                     );
                                                 }
+                                                let _ = sync_channel
+                                                    .send(Message::WalletSyncCompleted(policy_id));
                                             }
                                             Err(ManagerError::Wallet(
                                                 WalletError::AlreadySyncing,
