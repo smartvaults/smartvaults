@@ -16,6 +16,8 @@ use coinstr_sdk_manager::electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use coinstr_sdk_manager::electrum::ElectrumExt;
+use coinstr_sdk_manager::manager::Error as ManagerError;
+use coinstr_sdk_manager::wallet::Error as WalletError;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -117,8 +119,10 @@ impl Coinstr {
                                     let db = this.db.clone();
                                     let endpoint = endpoint.clone();
                                     thread::spawn(async move {
+                                        tracing::info!("Syncing policy {policy_id}");
                                         match manager.sync(policy_id, endpoint, proxy) {
                                             Ok(_) => {
+                                                tracing::info!("Policy {policy_id} synced");
                                                 if let Err(e) = db.update_last_sync(
                                                     policy_id,
                                                     Some(Timestamp::now()),
@@ -128,6 +132,11 @@ impl Coinstr {
                                                     );
                                                 }
                                             }
+                                            Err(ManagerError::Wallet(
+                                                WalletError::AlreadySyncing,
+                                            )) => tracing::warn!(
+                                                "Policy {policy_id} is already syncing"
+                                            ),
                                             Err(e) => tracing::error!(
                                                 "Impossible to sync policy {policy_id}: {e}"
                                             ),

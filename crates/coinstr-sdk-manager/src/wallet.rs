@@ -45,6 +45,8 @@ pub enum Error {
     ImpossibleToReadWallet,
     #[error("not found")]
     NotFound,
+    #[error("already syncing")]
+    AlreadySyncing,
 }
 
 #[derive(Debug, Clone)]
@@ -178,14 +180,11 @@ impl CoinstrWallet {
         wallet.list_unspent().collect()
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
     pub fn sync<S>(&self, endpoint: S, proxy: Option<SocketAddr>) -> Result<(), Error>
     where
         S: Into<String>,
     {
         if !self.is_syncing() {
-            tracing::info!("Syncing policy {}", "TODO");
-
             self.set_syncing(true);
 
             let endpoint: String = endpoint.into();
@@ -213,11 +212,10 @@ impl CoinstrWallet {
 
             self.set_syncing(false);
 
-            tracing::info!("Policy TODO synced")
+            Ok(())
         } else {
-            tracing::warn!("Policy TODO is already syncing");
+            Err(Error::AlreadySyncing)
         }
-        Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
