@@ -6,17 +6,17 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, BlockHash, OutPoint, Script, Txid};
-use bdk::chain::keychain::LocalUpdate;
-use bdk::chain::local_chain::UpdateNotConnectedError;
-use bdk::chain::{ConfirmationTimeAnchor, TxGraph};
-use bdk::wallet::{AddressIndex, AddressInfo, Balance};
-use bdk::{FeeRate, KeychainKind, LocalUtxo, TransactionDetails, Wallet};
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::ElectrumExt;
+use coinstr_core::bdk::chain::keychain::LocalUpdate;
+use coinstr_core::bdk::chain::local_chain::UpdateNotConnectedError;
+use coinstr_core::bdk::chain::{ConfirmationTimeAnchor, TxGraph};
+use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance};
+use coinstr_core::bdk::{FeeRate, KeychainKind, LocalUtxo, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
+use coinstr_core::bitcoin::{Address, BlockHash, OutPoint, Script, Txid};
 use coinstr_core::reserves::ProofOfReserves;
 use coinstr_core::{Amount, Policy, Proposal};
 use parking_lot::RwLock;

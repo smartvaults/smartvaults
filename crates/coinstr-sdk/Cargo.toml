@@ -17,8 +17,6 @@ blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 
 [dependencies]
 async-utility = "0.1"
-bdk_electrum = "0.3"
-bdk_file_store = "0.2"
 coinstr-core = { path = "../coinstr-core" }
 coinstr-sdk-manager = { path = "../coinstr-sdk-manager" }
 futures-util = "0.3"

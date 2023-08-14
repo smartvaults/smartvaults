@@ -5,11 +5,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::path::Path;
 
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, OutPoint, Script, Txid};
-use bdk::wallet::{AddressIndex, AddressInfo, Balance};
-use bdk::{bitcoin::Network, wallet::NewError, Wallet};
-use bdk::{FeeRate, LocalUtxo, TransactionDetails};
+use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
+use coinstr_core::bdk::{FeeRate, LocalUtxo, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
+use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
 use dashmap::DashMap;
 use nostr::EventId;

@@ -10,7 +10,6 @@ license.workspace = true
 keywords.workspace = true
 
 [dependencies]
-bdk = { version = "=1.0.0-alpha.1", default-features = false, features = ["std"] }
 bdk_electrum = "0.3"
 coinstr-core = { path = "../coinstr-core" }
 dashmap = "5.5"

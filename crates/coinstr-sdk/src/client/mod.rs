@@ -9,10 +9,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bdk_electrum::bdk_chain::ConfirmationTime;
-use bdk_electrum::electrum_client::{
-    Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
-};
+use coinstr_core::bdk::chain::ConfirmationTime;
 use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
 use coinstr_core::bdk::FeeRate as BdkFeeRate;
@@ -24,7 +21,9 @@ use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::Serde;
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, Proposal};
-
+use coinstr_sdk_manager::electrum::electrum_client::{
+    Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
+};
 use coinstr_sdk_manager::Manager;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
@@ -67,7 +66,7 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
-    Electrum(#[from] bdk_electrum::electrum_client::Error),
+    Electrum(#[from] coinstr_sdk_manager::electrum::electrum_client::Error),
     #[error(transparent)]
     Url(#[from] nostr_sdk::url::ParseError),
     #[error(transparent)]

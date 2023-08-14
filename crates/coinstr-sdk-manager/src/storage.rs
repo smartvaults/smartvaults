@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::chain::{Append, PersistBackend};
+use coinstr_core::bdk::chain::{Append, PersistBackend};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sled::Tree;
