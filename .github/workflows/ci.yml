@@ -25,9 +25,8 @@ jobs:
         build-args:
           [
             "-p coinstr-core",
-            "-p coinstr-core --features hwi",
+            "-p coinstr-sdk-manager",
             "-p coinstr-sdk",
-            "-p coinstr-sdk --features hwi",
             "-p coinstr-cli",
             "-p coinstr",
             "-p coinstr-sdk-ffi",
