@@ -5,13 +5,13 @@ use coinstr_core::bdk::chain::{Append, PersistBackend};
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use thiserror::Error;
 
-use crate::db::Store;
+use crate::db::{Error as DbError, Store};
 use crate::util::encryption::EncryptionWithKeys;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Store(#[from] crate::db::Error),
+    Store(#[from] DbError),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
 }
@@ -58,6 +58,10 @@ where
     fn load_from_persistence(&mut self) -> Result<K, Self::LoadError> {
         match self.db.get_changeset::<K>(self.descriptor_hash) {
             Ok(k) => Ok(k),
+            Err(DbError::NotFound(_)) => {
+                tracing::warn!("Change set not found, using the default one");
+                Ok(K::default())
+            }
             Err(e) => {
                 tracing::error!("Impossible to load changeset: {e}");
                 Ok(K::default())
