@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use bdk::bitcoin::secp256k1::SecretKey;
+use bdk::wallet::ChangeSet;
 use keechain_core::crypto::aes;
 use keechain_core::util::serde::deserialize;
 
@@ -33,3 +34,6 @@ pub trait Encryption: Serde {
 
 impl Serde for SecretKey {}
 impl Encryption for SecretKey {}
+
+impl Serde for ChangeSet {}
+impl Encryption for ChangeSet {}
