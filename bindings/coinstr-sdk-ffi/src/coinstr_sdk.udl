@@ -75,7 +75,7 @@ interface Keys {
 interface EventId {
     [Throws=FFIError]
     constructor(PublicKey pubkey, Timestamp created_at, u64 kind, sequence<sequence<string>> tags, string content);
-    [Throws=FFIError, Name=from_slice]
+    [Throws=FFIError, Name=from_bytes]
     constructor(sequence<u8> bytes);
     [Throws=FFIError, Name=from_hex]
     constructor(string hex);
