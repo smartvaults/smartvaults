@@ -17,11 +17,9 @@ use nostr_sdk::EventId;
 use parking_lot::RwLock;
 use thiserror::Error;
 
-pub mod storage;
 pub mod wallet;
 
-pub use self::storage::{CoinstrWalletStorage, Error as StorageError};
-pub use self::wallet::{CoinstrWallet, Error as WalletError};
+pub use self::wallet::{CoinstrWallet, CoinstrWalletStorage, Error as WalletError, StorageError};
 use crate::db::Store;
 
 #[derive(Debug, Error)]

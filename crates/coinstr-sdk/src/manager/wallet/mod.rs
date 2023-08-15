@@ -22,7 +22,9 @@ use coinstr_core::{Amount, Policy, Proposal};
 use parking_lot::RwLock;
 use thiserror::Error;
 
-use super::storage::{CoinstrWalletStorage, Error as StorageError};
+mod storage;
+
+pub use self::storage::{CoinstrWalletStorage, Error as StorageError};
 
 const STOP_GAP: usize = 50;
 const BATCH_SIZE: usize = 5;
