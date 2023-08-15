@@ -4,7 +4,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
-use std::path::Path;
 use std::sync::Arc;
 
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
@@ -12,23 +11,25 @@ use coinstr_core::bdk::{FeeRate, LocalUtxo, TransactionDetails, Wallet};
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
-use nostr::EventId;
+use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
+use nostr_sdk::hashes::Hash;
+use nostr_sdk::EventId;
 use parking_lot::RwLock;
-use sled::Db;
 use thiserror::Error;
 
-use crate::storage::CoinstrWalletStorage;
-use crate::storage::Error as StorageError;
-use crate::wallet::CoinstrWallet;
+pub mod storage;
+pub mod wallet;
+
+pub use self::storage::{CoinstrWalletStorage, Error as StorageError};
+pub use self::wallet::{CoinstrWallet, Error as WalletError};
+use crate::db::Store;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Sled(#[from] sled::Error),
-    #[error(transparent)]
     BdkStore(#[from] NewError<StorageError>),
     #[error(transparent)]
-    Wallet(#[from] crate::wallet::Error),
+    Wallet(#[from] WalletError),
     #[error("policy {0} already loaded")]
     AlreadyLoaded(EventId),
     #[error("policy {0} not loaded")]
@@ -37,28 +38,25 @@ pub enum Error {
 
 #[derive(Debug, Clone)]
 pub struct Manager {
-    db: Db,
+    db: Store,
     network: Network,
     wallets: Arc<RwLock<HashMap<EventId, CoinstrWallet>>>,
 }
 
 impl Manager {
-    pub fn new<P>(path: P, network: Network) -> Result<Self, Error>
-    where
-        P: AsRef<Path>,
-    {
-        Ok(Self {
-            db: sled::open(path)?,
+    pub fn new(db: Store, network: Network) -> Self {
+        Self {
+            db,
             network,
             wallets: Arc::new(RwLock::new(HashMap::new())),
-        })
+        }
     }
 
     pub fn load_policy(&self, policy_id: EventId, policy: Policy) -> Result<(), Error> {
         let mut wallets = self.wallets.write();
         if let Entry::Vacant(e) = wallets.entry(policy_id) {
-            let tree = self.db.open_tree(policy_id)?;
-            let db = CoinstrWalletStorage::new(tree);
+            let descriptor_hash = Sha256Hash::hash(policy.descriptor.to_string().as_bytes());
+            let db = CoinstrWalletStorage::new(descriptor_hash, self.db.clone());
             let wallet = Wallet::new(&policy.descriptor.to_string(), None, db, self.network)?;
             let wallet = CoinstrWallet::new(policy, wallet);
             e.insert(wallet);

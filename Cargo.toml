@@ -6,7 +6,6 @@ members = [
     "crates/coinstr-common",
     "crates/coinstr-core",
     "crates/coinstr-sdk",
-    "crates/coinstr-sdk-manager",
 ]
 default-members = ["crates/coinstr", "crates/coinstr-cli"]
 resolver = "2"

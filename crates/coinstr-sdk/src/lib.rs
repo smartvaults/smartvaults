@@ -9,6 +9,7 @@ pub mod config;
 pub mod constants;
 pub mod db;
 pub mod logger;
+pub mod manager;
 pub mod types;
 pub mod util;
 

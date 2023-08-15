@@ -9,6 +9,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bdk_electrum::electrum_client::{
+    Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
+};
 use coinstr_core::bdk::chain::ConfirmationTime;
 use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
@@ -21,10 +24,6 @@ use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::util::Serde;
 use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, Proposal};
-use coinstr_sdk_manager::electrum::electrum_client::{
-    Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
-};
-use coinstr_sdk_manager::Manager;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -51,6 +50,7 @@ use crate::db::model::{
     GetSharedSignerResult, GetTransaction, GetUtxo, NostrConnectRequest,
 };
 use crate::db::store::Store;
+use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::{Notification, PolicyBackup};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 use crate::{util, Label, LabelData};
@@ -66,7 +66,7 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
-    Electrum(#[from] coinstr_sdk_manager::electrum::electrum_client::Error),
+    Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
     Url(#[from] nostr_sdk::url::ParseError),
     #[error(transparent)]
@@ -102,9 +102,9 @@ pub enum Error {
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
-    Manager(#[from] coinstr_sdk_manager::manager::Error),
+    Manager(#[from] ManagerError),
     #[error(transparent)]
-    Wallet(#[from] coinstr_sdk_manager::wallet::Error),
+    Wallet(#[from] WalletError),
     #[error(transparent)]
     Config(#[from] crate::config::Error),
     #[error(transparent)]
@@ -192,7 +192,7 @@ impl Coinstr {
             network,
             keechain,
             client: Client::with_opts(&keys, opts),
-            manager: Manager::new(util::dir::timechain_db(base_path, network)?, network)?,
+            manager: Manager::new(db.clone(), network),
             config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),

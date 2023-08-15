@@ -32,6 +32,7 @@ mod contacts;
 mod label;
 mod policy;
 mod relays;
+mod timechain;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{

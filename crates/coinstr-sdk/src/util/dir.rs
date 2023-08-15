@@ -63,15 +63,6 @@ where
     Ok(path.join(format!("{public_key}.db")))
 }
 
-pub(crate) fn timechain_db<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
-where
-    P: AsRef<Path>,
-{
-    let path = cache_path(base_path, network)?.join("timechain");
-    std::fs::create_dir_all(path.as_path())?;
-    Ok(path)
-}
-
 pub(crate) fn get_keychains_list<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
 where
     P: AsRef<Path>,

@@ -9,7 +9,7 @@ use super::store::PooledConnection;
 use super::Error;
 
 /// Latest database version
-pub const DB_VERSION: usize = 5;
+pub const DB_VERSION: usize = 6;
 
 /// Startup DB Pragmas
 pub const STARTUP_SQL: &str = r##"
@@ -68,6 +68,10 @@ pub fn run(conn: &mut PooledConnection) -> Result<(), Error> {
                 curr_version = mig_4_to_5(conn)?;
             }
 
+            if curr_version == 5 {
+                curr_version = mig_5_to_6(conn)?;
+            }
+
             if curr_version == DB_VERSION {
                 tracing::info!("All migration scripts completed successfully (v{DB_VERSION})");
             }
@@ -118,4 +122,10 @@ fn mig_4_to_5(conn: &mut PooledConnection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/005_labels.sql"))?;
     tracing::info!("database schema upgraded v4 -> v5");
     Ok(5)
+}
+
+fn mig_5_to_6(conn: &mut PooledConnection) -> Result<usize, Error> {
+    conn.execute_batch(include_str!("../../migrations/006_timechain.sql"))?;
+    tracing::info!("database schema upgraded v5 -> v6");
+    Ok(6)
 }

@@ -9,15 +9,13 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use async_utility::thread;
+use bdk_electrum::electrum_client::{
+    Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
+};
+use bdk_electrum::ElectrumExt;
 use coinstr_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
 use coinstr_core::util::Serde;
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer};
-use coinstr_sdk_manager::electrum::electrum_client::{
-    Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
-};
-use coinstr_sdk_manager::electrum::ElectrumExt;
-use coinstr_sdk_manager::manager::Error as ManagerError;
-use coinstr_sdk_manager::wallet::Error as WalletError;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -33,6 +31,7 @@ use crate::constants::{
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, WALLET_SYNC_INTERVAL,
 };
 use crate::db::model::GetPolicy;
+use crate::manager::{Error as ManagerError, WalletError};
 use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 use crate::{util, Notification};

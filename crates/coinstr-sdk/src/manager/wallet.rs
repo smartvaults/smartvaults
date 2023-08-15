@@ -22,7 +22,7 @@ use coinstr_core::{Amount, Policy, Proposal};
 use parking_lot::RwLock;
 use thiserror::Error;
 
-use crate::storage::CoinstrWalletStorage;
+use super::storage::{CoinstrWalletStorage, Error as StorageError};
 
 const STOP_GAP: usize = 50;
 const BATCH_SIZE: usize = 5;
@@ -40,7 +40,7 @@ pub enum Error {
     #[error(transparent)]
     UpdateNotConnected(#[from] UpdateNotConnectedError),
     #[error(transparent)]
-    Storage(#[from] crate::storage::Error),
+    Storage(#[from] StorageError),
     #[error("impossible to read wallet")]
     ImpossibleToReadWallet,
     #[error("not found")]
