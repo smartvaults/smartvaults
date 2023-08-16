@@ -607,7 +607,20 @@ impl Coinstr {
         })
     }
 
-    // TODO: add share_signer
+    pub fn share_signer(
+        &self,
+        signer_id: Arc<EventId>,
+        public_key: Arc<PublicKey>,
+    ) -> Result<Arc<EventId>> {
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner
+                    .share_signer(signer_id.as_ref().into(), **public_key)
+                    .await?
+                    .into(),
+            ))
+        })
+    }
 
     // TODO: add share_signer_to_multiple_public_keys
 

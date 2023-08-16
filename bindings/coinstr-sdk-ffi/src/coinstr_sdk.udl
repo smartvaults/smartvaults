@@ -444,6 +444,9 @@ interface Coinstr {
     void rebroadcast_all_events();
     [Throws=FFIError]
     void republish_shared_key_for_policy(EventId policy_id);
+
+    [Throws=FFIError]
+    EventId share_signer(EventId signer_id, PublicKey public_key);
     
     [Throws=FFIError]
     void new_nostr_connect_session(NostrConnectURI uri);
