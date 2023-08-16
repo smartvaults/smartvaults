@@ -622,7 +622,20 @@ impl Coinstr {
         })
     }
 
-    // TODO: add share_signer_to_multiple_public_keys
+    pub fn share_signer_to_multiple_public_keys(
+        &self,
+        signer_id: Arc<EventId>,
+        public_keys: Vec<Arc<PublicKey>>,
+    ) -> Result<()> {
+        block_on(async move {
+            let public_keys: Vec<XOnlyPublicKey> =
+                public_keys.into_iter().map(|p| p.as_ref().into()).collect();
+            Ok(self
+                .inner
+                .share_signer_to_multiple_public_keys(signer_id.as_ref().into(), public_keys)
+                .await?)
+        })
+    }
 
     // TODO: add revoke_all_shared_signers
 
