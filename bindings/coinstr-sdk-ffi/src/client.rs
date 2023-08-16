@@ -596,6 +596,10 @@ impl Coinstr {
         block_on(async move { Ok(self.inner.revoke_all_shared_signers().await?) })
     }
 
+    pub fn revoke_shared_signer(&self, shared_signer_id: Arc<EventId>) -> Result<()> {
+        block_on(async move { Ok(self.inner.revoke_shared_signer(**shared_signer_id).await?) })
+    }
+
     // TODO: add notifications methods
 
     pub fn new_nostr_connect_session(&self, uri: Arc<NostrConnectURI>) -> Result<()> {
