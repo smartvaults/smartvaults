@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use coinstr_sdk::db::model::GetDetailedPolicyResult;
 use coinstr_sdk::nostr::EventId;
@@ -12,7 +13,7 @@ use rfd::FileDialog;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, Text};
+use crate::component::{rule, Button, ButtonStyle, SpinnerLinear, Text};
 use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
@@ -156,15 +157,20 @@ impl State for PoliciesState {
                     },
                 ) in self.policies.iter()
                 {
-                    let balance: String = if last_sync.is_some() {
-                        match balance {
+                    let balance = if last_sync.is_some() {
+                        let balance: String = match balance {
                             Some(balance) => {
                                 format!("{} sat", util::format::big_number(balance.get_total()))
                             }
                             None => String::from("Unavailabe"),
-                        }
+                        };
+                        Column::new().push(Text::new(balance).width(Length::Fixed(125.0)).view())
                     } else {
-                        String::from("Loading...")
+                        Column::new().push(
+                            SpinnerLinear::new()
+                                .width(Length::Fixed(125.0))
+                                .cycle_duration(Duration::from_secs(2)),
+                        )
                     };
 
                     let row = Row::new()
@@ -175,7 +181,7 @@ impl State for PoliciesState {
                         )
                         .push(Text::new(&policy.name).width(Length::Fill).view())
                         .push(Text::new(&policy.description).width(Length::Fill).view())
-                        .push(Text::new(balance).width(Length::Fixed(125.0)).view())
+                        .push(balance)
                         .push(
                             Button::new()
                                 .style(ButtonStyle::Bordered)

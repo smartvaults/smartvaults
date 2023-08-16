@@ -1,11 +1,13 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::time::Duration;
+
 use iced::widget::{Column, Container, Row, Rule, Scrollable};
 use iced::{Element, Length};
 
 use crate::app::{Context, Message};
-use crate::component::Text;
+use crate::component::SpinnerCircular;
 
 mod navbar;
 mod sidebar;
@@ -66,11 +68,15 @@ impl Dashboard {
                             .push(if self.loaded {
                                 content
                             } else {
-                                Container::new(Text::new("Loading...").view())
-                                    .width(Length::Fill)
-                                    .height(Length::Fill)
-                                    .center_x()
-                                    .center_y()
+                                Container::new(
+                                    SpinnerCircular::new()
+                                        .size(60.0)
+                                        .cycle_duration(Duration::from_secs(2)),
+                                )
+                                .width(Length::Fill)
+                                .height(Length::Fill)
+                                .center_x()
+                                .center_y()
                             }),
                     ),
             )
