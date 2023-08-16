@@ -22,6 +22,10 @@ mod transaction;
 
 use self::error::Result;
 
+pub fn git_hash_version() -> String {
+    env!("GIT_HASH").to_string()
+}
+
 pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<String>> {
     Ok(coinstr_sdk::Coinstr::list_keychains(base_path, network)?)
 }
@@ -38,8 +42,8 @@ mod ffi {
     pub use nostr_ffi::{EventId, Keys, NostrConnectURI, PublicKey, SecretKey, Timestamp};
 
     // Namespace
-    pub use crate::get_keychains_list;
     pub use crate::logger::init_logger;
+    pub use crate::{get_keychains_list, git_hash_version};
 
     // Coinstr
     pub use crate::abortable::AbortHandle;
