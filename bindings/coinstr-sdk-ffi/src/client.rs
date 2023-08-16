@@ -637,7 +637,9 @@ impl Coinstr {
         })
     }
 
-    // TODO: add revoke_all_shared_signers
+    pub fn revoke_all_shared_signers(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.revoke_all_shared_signers().await?) })
+    }
 
     // TODO: add notifications methods
 

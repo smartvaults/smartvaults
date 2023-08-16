@@ -449,6 +449,8 @@ interface Coinstr {
     EventId share_signer(EventId signer_id, PublicKey public_key);
     [Throws=FFIError]
     void share_signer_to_multiple_public_keys(EventId signer_id, sequence<PublicKey> public_keys);
+    [Throws=FFIError]
+    void revoke_all_shared_signers();
     
     [Throws=FFIError]
     void new_nostr_connect_session(NostrConnectURI uri);
