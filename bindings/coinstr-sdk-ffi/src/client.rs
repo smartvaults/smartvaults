@@ -541,16 +541,12 @@ impl Coinstr {
         policy_id: Arc<EventId>,
         index: AddressIndex,
     ) -> Result<Arc<GetAddress>> {
-        let address = self
-            .inner
-            .get_address(**policy_id, index.into())?;
+        let address = self.inner.get_address(**policy_id, index.into())?;
         Ok(Arc::new(address.into()))
     }
 
     pub fn get_last_unused_address(&self, policy_id: Arc<EventId>) -> Result<Arc<GetAddress>> {
-        let address = self
-            .inner
-            .get_last_unused_address(**policy_id)?;
+        let address = self.inner.get_last_unused_address(**policy_id)?;
         Ok(Arc::new(address.into()))
     }
 
