@@ -5,7 +5,7 @@ use coinstr_core::bitcoin::XOnlyPublicKey;
 use nostr_sdk::{Event, EventBuilder, EventId, Keys, Tag};
 
 use super::{Coinstr, Error};
-use crate::constants::{LABELS_KIND, SEND_TIMEOUT};
+use crate::constants::LABELS_KIND;
 use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 
@@ -28,7 +28,7 @@ impl Coinstr {
         let event: Event = EventBuilder::new(LABELS_KIND, content, &tags).to_event(&shared_key)?;
 
         // Publish event
-        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let event_id = self.send_event(event).await?;
 
         // Save to db
         self.db.save_label(identifier, policy_id, label)?;

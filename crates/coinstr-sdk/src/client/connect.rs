@@ -7,10 +7,9 @@ use std::time::Duration;
 use coinstr_core::bitcoin::XOnlyPublicKey;
 use nostr_sdk::nips::nip46::NostrConnectURI;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
-use nostr_sdk::{EventBuilder, EventId, Timestamp, Url};
+use nostr_sdk::{EventBuilder, EventId, RelaySendOptions, Timestamp, Url};
 
 use super::{Coinstr, Error};
-use crate::constants::CONNECT_SEND_TIMEOUT;
 use crate::db::model::NostrConnectRequest;
 
 impl Coinstr {
@@ -36,8 +35,7 @@ impl Coinstr {
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(relay_url, nip46_event, Some(CONNECT_SEND_TIMEOUT), false)
-            .await?;
+        self.client.send_event_to(relay_url, nip46_event).await?;
 
         self.db.save_nostr_connect_uri(uri)?;
 
@@ -52,15 +50,23 @@ impl Coinstr {
     pub(crate) async fn _disconnect_nostr_connect_session(
         &self,
         app_public_key: XOnlyPublicKey,
-        wait: Option<Duration>,
+        wait: bool,
     ) -> Result<(), Error> {
         let uri = self.db.get_nostr_connect_session(app_public_key)?;
         let keys = self.client.keys();
         let msg = NIP46Message::request(NIP46Request::Disconnect);
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-        self.send_event_to(uri.relay_url, nip46_event, wait, false)
-            .await?;
+        if wait {
+            self.client
+                .send_event_to(uri.relay_url, nip46_event)
+                .await?;
+        } else {
+            self.client
+                .pool()
+                .send_event_to(uri.relay_url, nip46_event, RelaySendOptions::default())
+                .await?;
+        }
         self.db.delete_nostr_connect_session(app_public_key)?;
         Ok(())
     }
@@ -69,7 +75,7 @@ impl Coinstr {
         &self,
         app_public_key: XOnlyPublicKey,
     ) -> Result<(), Error> {
-        self._disconnect_nostr_connect_session(app_public_key, Some(CONNECT_SEND_TIMEOUT))
+        self._disconnect_nostr_connect_session(app_public_key, true)
             .await
     }
 
@@ -96,13 +102,9 @@ impl Coinstr {
                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
             let nip46_event =
                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-            self.send_event_to(
-                uri.relay_url,
-                nip46_event,
-                Some(CONNECT_SEND_TIMEOUT),
-                false,
-            )
-            .await?;
+            self.client
+                .send_event_to(uri.relay_url, nip46_event)
+                .await?;
             self.db.set_nostr_connect_request_as_approved(event_id)?;
             Ok(())
         } else {
@@ -123,13 +125,9 @@ impl Coinstr {
             let msg = message.generate_error_response("Request rejected")?; // TODO: better error msg
             let nip46_event =
                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
-            self.send_event_to(
-                uri.relay_url,
-                nip46_event,
-                Some(CONNECT_SEND_TIMEOUT),
-                false,
-            )
-            .await?;
+            self.client
+                .send_event_to(uri.relay_url, nip46_event)
+                .await?;
             self.db.delete_nostr_connect_request(event_id)?;
             Ok(())
         } else {

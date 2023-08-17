@@ -21,7 +21,7 @@ use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::{
     Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, RelayMessage,
-    RelayPoolNotification, Result, Tag, TagKind, Timestamp,
+    RelayPoolNotification, RelaySendOptions, Result, Tag, TagKind, Timestamp,
 };
 use tokio::sync::broadcast::Receiver;
 
@@ -586,7 +586,7 @@ impl Coinstr {
             if let Ok(request) = msg.to_request() {
                 match request {
                     NIP46Request::Disconnect => {
-                        self._disconnect_nostr_connect_session(event.pubkey, None)
+                        self._disconnect_nostr_connect_session(event.pubkey, false)
                             .await?;
                     }
                     NIP46Request::GetPublicKey => {
@@ -596,7 +596,9 @@ impl Coinstr {
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
                         let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                             .to_event(&keys)?;
-                        self.send_event_to(uri.relay_url, nip46_event, None, false)
+                        self.client
+                            .pool()
+                            .send_event_to(uri.relay_url, nip46_event, RelaySendOptions::default())
                             .await?;
                     }
                     _ => {
@@ -613,7 +615,13 @@ impl Coinstr {
                             let nip46_event =
                                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                                     .to_event(&keys)?;
-                            self.send_event_to(uri.relay_url, nip46_event, None, false)
+                            self.client
+                                .pool()
+                                .send_event_to(
+                                    uri.relay_url,
+                                    nip46_event,
+                                    RelaySendOptions::default(),
+                                )
                                 .await?;
                             self.db.save_nostr_connect_request(
                                 event.id,

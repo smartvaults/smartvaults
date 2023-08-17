@@ -7,7 +7,6 @@ use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use std::time::Duration;
 
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
@@ -27,8 +26,8 @@ use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy,
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
-    nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Keys, Kind, Metadata,
-    Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
+    nips, Client, Contact, Event, EventBuilder, EventId, Keys, Kind, Metadata, Options, Relay,
+    RelayPoolNotification, RelaySendOptions, Result, Tag, TagKind, Timestamp, Url,
 };
 use tokio::sync::broadcast::{self, Sender};
 
@@ -182,8 +181,10 @@ impl Coinstr {
 
         let opts = Options::new()
             .wait_for_connection(false)
-            .wait_for_send(false)
-            .wait_for_subscription(false);
+            .wait_for_send(true)
+            .wait_for_ok(false)
+            .wait_for_subscription(false)
+            .send_timeout(Some(SEND_TIMEOUT));
 
         let (sender, _) = broadcast::channel::<Message>(2048);
 
@@ -506,32 +507,9 @@ impl Coinstr {
         Ok(self.client.shutdown().await?)
     }
 
-    async fn send_event(&self, event: Event, wait: Option<Duration>) -> Result<EventId, Error> {
+    async fn send_event(&self, event: Event) -> Result<EventId, Error> {
         self.db.save_event(&event)?;
-        let event_id = event.id;
-        let msg = ClientMessage::new_event(event);
-        self.client.pool().send_msg(msg, wait).await?;
-        Ok(event_id)
-    }
-
-    async fn send_event_to<S>(
-        &self,
-        url: S,
-        event: Event,
-        wait: Option<Duration>,
-        save_to_db: bool,
-    ) -> Result<EventId, Error>
-    where
-        S: Into<String>,
-    {
-        if save_to_db {
-            self.db.save_event(&event)?;
-        }
-        let event_id = event.id;
-        let msg = ClientMessage::new_event(event);
-        let url = Url::parse(&url.into())?;
-        self.client.pool().send_msg_to(url, msg, wait).await?;
-        Ok(event_id)
+        Ok(self.client.send_event(event).await?)
     }
 
     /// Get config
@@ -561,7 +539,7 @@ impl Coinstr {
     pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {
         let keys = self.keys();
         let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        self.send_event(event).await?;
         self.db.set_metadata(keys.public_key(), metadata)?;
         Ok(())
     }
@@ -586,7 +564,7 @@ impl Coinstr {
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
             let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
-            self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            self.send_event(event).await?;
             self.db.save_contact(public_key)?;
         }
 
@@ -602,7 +580,7 @@ impl Coinstr {
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
         let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        self.send_event(event).await?;
         self.db.delete_contact(public_key)?;
         Ok(())
     }
@@ -651,7 +629,7 @@ impl Coinstr {
                 .for_each(|id| tags.push(Tag::Event(id, None, None)));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-            self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            self.send_event(event).await?;
 
             self.db.delete_policy(policy_id)?;
 
@@ -697,7 +675,7 @@ impl Coinstr {
             } */
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-            self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            self.send_event(event).await?;
 
             self.db.delete_proposal(proposal_id)?;
 
@@ -742,7 +720,7 @@ impl Coinstr {
             tags.push(Tag::Event(completed_proposal_id, None, None));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-            self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            self.send_event(event).await?;
 
             self.db.delete_completed_proposal(completed_proposal_id)?;
 
@@ -766,7 +744,7 @@ impl Coinstr {
         }
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        self.send_event(event).await?;
 
         self.db.delete_signer(signer_id)?;
 
@@ -874,12 +852,19 @@ impl Coinstr {
                 ],
             )
             .to_event(&keys)?;
-            let event_id: EventId = self.send_event(event, None).await?;
+
+            // TODO: use send_batch_event method from nostr-sdk
+            self.db.save_event(&event)?;
+            let event_id: EventId = self
+                .client
+                .pool()
+                .send_event(event, RelaySendOptions::default())
+                .await?;
             tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
 
         // Publish the event
-        self.send_event(policy_event, Some(SEND_TIMEOUT)).await?;
+        self.send_event(policy_event).await?;
 
         // Cache policy
         self.db.save_shared_key(policy_id, shared_key)?;
@@ -955,7 +940,7 @@ impl Coinstr {
             let content: String = proposal.encrypt_with_keys(&shared_keys)?;
             // Publish proposal with `shared_key` so every owner can delete it
             let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-            let proposal_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            let proposal_id = self.send_event(event).await?;
 
             // Send DM msg
             let sender = self.client.keys().public_key();
@@ -1069,7 +1054,7 @@ impl Coinstr {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let event_id = self.send_event(event).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1119,7 +1104,7 @@ impl Coinstr {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let event_id = self.send_event(event).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1170,7 +1155,7 @@ impl Coinstr {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let event_id = self.send_event(event).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1200,7 +1185,7 @@ impl Coinstr {
             tags.push(Tag::Event(approval_id, None, None));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
-            self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            self.send_event(event).await?;
 
             self.db.delete_approval(approval_id)?;
 
@@ -1250,7 +1235,7 @@ impl Coinstr {
             EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
 
         // Publish the event
-        let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let event_id = self.send_event(event).await?;
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id).await {
@@ -1291,7 +1276,7 @@ impl Coinstr {
         let content = proposal.encrypt_with_keys(&shared_keys)?;
         // Publish proposal with `shared_key` so every owner can delete it
         let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-        let proposal_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let proposal_id = self.send_event(event).await?;
 
         // Send DM msg
         let sender = self.client.keys().public_key();
@@ -1337,7 +1322,7 @@ impl Coinstr {
         let event = EventBuilder::new(SIGNERS_KIND, content, &[]).to_event(&keys)?;
 
         // Publish the event
-        let signer_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        let signer_id = self.send_event(event).await?;
 
         // Save signer in db
         self.db.save_signer(signer_id, signer)?;
@@ -1611,9 +1596,11 @@ impl Coinstr {
     }
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {
+        let pool = self.client.pool();
+        let opts = RelaySendOptions::default();
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
-            self.client.send_event(event).await?;
+            pool.send_event(event, opts).await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1623,10 +1610,12 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        let url: String = url.into();
+        let url: Url = Url::parse(&url.into())?;
+        let pool = self.client.pool();
+        let opts = RelaySendOptions::default();
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
-            self.client.send_event_to(url.as_str(), event).await?;
+            pool.send_event_to(url.clone(), event, opts).await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1652,7 +1641,14 @@ impl Coinstr {
                 ],
             )
             .to_event(&keys)?;
-            let event_id: EventId = self.send_event(event, None).await?;
+
+            // TODO: use send_batch_event method from nostr-sdk
+            self.db.save_event(&event)?;
+            let event_id: EventId = self
+                .client
+                .pool()
+                .send_event(event, RelaySendOptions::default())
+                .await?;
             tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
         Ok(())
@@ -1700,7 +1696,7 @@ impl Coinstr {
             ];
             let event: Event =
                 EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-            let event_id = self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            let event_id = self.send_event(event).await?;
             self.db
                 .save_my_shared_signer(signer_id, event_id, public_key)?;
             Ok(event_id)
@@ -1737,7 +1733,15 @@ impl Coinstr {
                 ];
                 let event: Event =
                     EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-                let event_id = self.send_event(event, None).await?;
+
+                // TODO: use send_batch_event method from nostr-sdk
+                self.db.save_event(&event)?;
+                let event_id = self
+                    .client
+                    .pool()
+                    .send_event(event, RelaySendOptions::default())
+                    .await?;
+
                 self.db
                     .save_my_shared_signer(signer_id, event_id, public_key)?;
             }
@@ -1754,7 +1758,7 @@ impl Coinstr {
                 Tag::Event(shared_signer_id, None, None),
             ];
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-            self.send_event(event, Some(SEND_TIMEOUT)).await?;
+            self.send_event(event).await?;
             self.db.delete_shared_signer(shared_signer_id)?;
         }
         Ok(())
@@ -1770,7 +1774,7 @@ impl Coinstr {
             Tag::Event(shared_signer_id, None, None),
         ];
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-        self.send_event(event, Some(SEND_TIMEOUT)).await?;
+        self.send_event(event).await?;
         self.db.delete_shared_signer(shared_signer_id)?;
         Ok(())
     }
