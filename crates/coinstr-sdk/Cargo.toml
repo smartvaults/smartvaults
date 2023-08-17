@@ -20,7 +20,7 @@ async-utility = "0.1"
 bdk_electrum = "0.3"
 coinstr-core = { path = "../coinstr-core" }
 futures-util = "0.3"
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "678be566b22f9060734747ad0087763a0122fcba", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "a29dab59d3bb402b5a9df22de0d3140c64f66803", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
 parking_lot = "0.12"
 r2d2 = "0.8"
 r2d2_sqlite = "0.22"
