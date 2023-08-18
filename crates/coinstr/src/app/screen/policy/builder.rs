@@ -3,7 +3,7 @@
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
-use coinstr_sdk::db::model::{GetAllSigners, GetSharedSigner};
+use coinstr_sdk::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -388,7 +388,7 @@ fn view_signer_selector<'a>(
         .push(rule::horizontal_bold());
 
     let public_key = ctx.client.keys().public_key();
-    for (signer_id, signer) in state.signers.my.iter() {
+    for GetSigner { signer_id, signer } in state.signers.my.iter() {
         if let Ok(descriptor) = signer.descriptor_public_key() {
             let row = Row::new()
                 .push(
@@ -469,13 +469,11 @@ fn view_signer_selector<'a>(
         )
         .push(rule::horizontal_bold());
 
-    for (
+    for GetSharedSigner {
         shared_signer_id,
-        GetSharedSigner {
-            owner_public_key,
-            shared_signer,
-        },
-    ) in state.signers.contacts.iter()
+        owner_public_key,
+        shared_signer,
+    } in state.signers.contacts.iter()
     {
         if let Ok(descriptor) = shared_signer.descriptor_public_key() {
             let row = Row::new()

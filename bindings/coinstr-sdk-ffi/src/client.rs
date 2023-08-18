@@ -22,8 +22,9 @@ use nostr_ffi::{EventId, Keys, PublicKey};
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
-    GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, KeychainSeed, Message, Metadata,
-    NostrConnectRequest, NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer, Utxo,
+    GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, KeychainSeed, Message,
+    Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer,
+    Utxo,
 };
 
 pub struct Coinstr {
@@ -481,13 +482,12 @@ impl Coinstr {
 
     // TODO: add get_all_signers
 
-    // TODO: replace String with EventId
-    pub fn get_signers(&self) -> Result<HashMap<String, Arc<Signer>>> {
+    pub fn get_signers(&self) -> Result<Vec<Arc<GetSigner>>> {
         Ok(self
             .inner
             .get_signers()?
             .into_iter()
-            .map(|(id, s)| (id.to_hex(), Arc::new(s.into())))
+            .map(|s| Arc::new(s.into()))
             .collect())
     }
 

@@ -1,11 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
-use coinstr_sdk::core::signer::Signer;
-use coinstr_sdk::db::model::GetSharedSigner;
-use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::db::model::{GetSharedSigner, GetSigner};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -17,12 +13,7 @@ use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
-    LoadSigners(
-        (
-            BTreeMap<EventId, Signer>,
-            BTreeMap<EventId, GetSharedSigner>,
-        ),
-    ),
+    LoadSigners((Vec<GetSigner>, Vec<GetSharedSigner>)),
     Reload,
 }
 
@@ -30,8 +21,8 @@ pub enum SignersMessage {
 pub struct SignersState {
     loading: bool,
     loaded: bool,
-    signers: BTreeMap<EventId, Signer>,
-    shared_signers: BTreeMap<EventId, GetSharedSigner>,
+    signers: Vec<GetSigner>,
+    shared_signers: Vec<GetSharedSigner>,
 }
 
 impl SignersState {
@@ -164,7 +155,7 @@ impl State for SignersState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (signer_id, signer) in self.signers.iter() {
+                for GetSigner { signer_id, signer } in self.signers.iter() {
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*signer_id))
@@ -246,13 +237,11 @@ impl State for SignersState {
                         )
                         .push(rule::horizontal_bold());
 
-                    for (
+                    for GetSharedSigner {
                         shared_signer_id,
-                        GetSharedSigner {
-                            owner_public_key,
-                            shared_signer,
-                        },
-                    ) in self.shared_signers.iter()
+                        owner_public_key,
+                        shared_signer,
+                    } in self.shared_signers.iter()
                     {
                         let row = Row::new()
                             .push(

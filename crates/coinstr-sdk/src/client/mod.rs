@@ -44,8 +44,8 @@ use crate::constants::{
 };
 use crate::db::model::{
     GetAddress, GetAllSigners, GetApprovedProposal, GetApprovedProposals, GetCompletedProposal,
-    GetDetailedPolicy, GetNotifications, GetPolicy, GetProposal, GetSharedSigner, GetTransaction,
-    GetUtxo,
+    GetDetailedPolicy, GetNotifications, GetPolicy, GetProposal, GetSharedSigner, GetSigner,
+    GetTransaction, GetUtxo,
 };
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
@@ -1347,7 +1347,7 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
+    pub fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
         Ok(self.db.get_signers()?)
     }
 
@@ -1357,7 +1357,7 @@ impl Coinstr {
         descriptor: Descriptor<String>,
     ) -> Result<Signer, Error> {
         let descriptor: String = descriptor.to_string();
-        for signer in self.db.get_signers()?.into_values() {
+        for GetSigner { signer, .. } in self.db.get_signers()?.into_iter() {
             let signer_descriptor = signer.descriptor_public_key()?.to_string();
             if descriptor.contains(&signer_descriptor) {
                 return Ok(signer);
@@ -1786,7 +1786,7 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSigner>, Error> {
+    pub fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         Ok(self.db.get_shared_signers()?)
     }
 

@@ -62,7 +62,7 @@ mod ffi {
     };
     pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;
-    pub use crate::signer::Signer;
+    pub use crate::signer::{GetSigner, Signer};
     pub use crate::transaction::{
         BlockTime, GetTransaction, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
     };

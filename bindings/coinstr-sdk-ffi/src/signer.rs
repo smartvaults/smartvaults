@@ -1,7 +1,31 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::sync::Arc;
+
 use coinstr_sdk::core::signer::{self, SignerType};
+use coinstr_sdk::db::model;
+use nostr_ffi::EventId;
+
+pub struct GetSigner {
+    inner: model::GetSigner,
+}
+
+impl From<model::GetSigner> for GetSigner {
+    fn from(inner: model::GetSigner) -> Self {
+        Self { inner }
+    }
+}
+
+impl GetSigner {
+    pub fn signer_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.signer_id.into())
+    }
+
+    pub fn signer(&self) -> Arc<Signer> {
+        Arc::new(self.inner.signer.clone().into())
+    }
+}
 
 pub struct Signer {
     inner: signer::Signer,

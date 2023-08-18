@@ -240,6 +240,11 @@ interface Signer {
     string display();
 };
 
+interface GetSigner {
+    EventId signer_id();
+    Signer signer();
+};
+
 interface Amount {
     [Name=custom]
     constructor(u64 amount);
@@ -421,7 +426,7 @@ interface Coinstr {
     [Throws=FFIError]
     EventId save_coinstr_signer();
     [Throws=FFIError]
-    record<DOMString, Signer> get_signers();
+    sequence<GetSigner> get_signers();
 
     Balance? get_balance(EventId policy_id);
     [Throws=FFIError]

@@ -10,7 +10,7 @@ use coinstr_core::{SharedSigner, Signer};
 use nostr_sdk::EventId;
 
 use super::{Error, Store};
-use crate::db::model::GetSharedSigner;
+use crate::db::model::{GetSharedSigner, GetSigner};
 use crate::util::encryption::EncryptionWithKeys;
 
 impl Store {
@@ -35,20 +35,20 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) fn get_signers(&self) -> Result<BTreeMap<EventId, Signer>, Error> {
+    pub(crate) fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("SELECT signer_id, signer FROM signers;")?;
         let mut rows = stmt.query([])?;
-        let mut signers = BTreeMap::new();
+        let mut list = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let signer_id: String = row.get(0)?;
             let signer: String = row.get(1)?;
-            signers.insert(
-                EventId::from_hex(signer_id)?,
-                Signer::decrypt_with_keys(&self.keys, signer)?,
-            );
+            list.push(GetSigner {
+                signer_id: EventId::from_hex(signer_id)?,
+                signer: Signer::decrypt_with_keys(&self.keys, signer)?,
+            });
         }
-        Ok(signers)
+        Ok(list)
     }
 
     pub(crate) fn signer_descriptor_exists(
@@ -56,7 +56,7 @@ impl Store {
         descriptor: Descriptor<DescriptorPublicKey>,
     ) -> Result<bool, Error> {
         let signers = self.get_signers()?;
-        for signer in signers.into_values() {
+        for GetSigner { signer, .. } in signers.into_iter() {
             if signer.descriptor() == descriptor {
                 return Ok(true);
             }
@@ -263,25 +263,23 @@ impl Store {
         Ok(XOnlyPublicKey::from_str(&public_key)?)
     }
 
-    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSigner>, Error> {
+    pub fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare(
             "SELECT shared_signer_id, owner_public_key, shared_signer FROM shared_signers;",
         )?;
         let mut rows = stmt.query([])?;
-        let mut map = BTreeMap::new();
+        let mut list = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let shared_signer_id: String = row.get(0)?;
             let public_key: String = row.get(1)?;
             let shared_signer: String = row.get(2)?;
-            map.insert(
-                EventId::from_hex(shared_signer_id)?,
-                GetSharedSigner {
-                    owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
-                    shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
-                },
-            );
+            list.push(GetSharedSigner {
+                shared_signer_id: EventId::from_hex(shared_signer_id)?,
+                owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
+                shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
+            });
         }
-        Ok(map)
+        Ok(list)
     }
 }

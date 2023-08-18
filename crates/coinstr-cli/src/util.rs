@@ -11,11 +11,10 @@ use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
 use coinstr_sdk::core::bitcoin::{Network, Script};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
-use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result};
 use coinstr_sdk::db::model::{
-    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, GetUtxo,
     NostrConnectRequest,
 };
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
@@ -447,12 +446,12 @@ pub fn print_completed_proposals(proposals: Vec<GetCompletedProposal>) {
     table.printstd();
 }
 
-pub fn print_signers(signers: BTreeMap<EventId, Signer>) {
+pub fn print_signers(signers: Vec<GetSigner>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Name", "Fingerprint", "Type",]);
 
-    for (index, (signer_id, signer)) in signers.into_iter().enumerate() {
+    for (index, GetSigner { signer_id, signer }) in signers.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
             signer_id,

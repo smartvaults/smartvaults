@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use coinstr_core::bdk::wallet::Balance;
@@ -49,15 +48,22 @@ pub struct GetApprovedProposal {
 }
 
 #[derive(Debug, Clone)]
+pub struct GetSigner {
+    pub signer_id: EventId,
+    pub signer: Signer,
+}
+
+#[derive(Debug, Clone)]
 pub struct GetSharedSigner {
+    pub shared_signer_id: EventId,
     pub owner_public_key: XOnlyPublicKey,
     pub shared_signer: SharedSigner,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct GetAllSigners {
-    pub my: BTreeMap<EventId, Signer>,
-    pub contacts: BTreeMap<EventId, GetSharedSigner>,
+    pub my: Vec<GetSigner>,
+    pub contacts: Vec<GetSharedSigner>,
 }
 
 #[derive(Debug, Clone)]
