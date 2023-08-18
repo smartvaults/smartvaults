@@ -19,7 +19,9 @@ use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
-use coinstr_core::{Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, Proposal};
+use coinstr_core::{
+    Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, PolicyTemplate, Proposal,
+};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
     nips, Client, Contact, Event, EventBuilder, EventId, Keys, Kind, Metadata, Options, Relay,
@@ -838,6 +840,26 @@ impl Coinstr {
         self.db.save_policy(policy_id, policy, nostr_pubkeys)?;
 
         Ok(policy_id)
+    }
+
+    pub async fn save_policy_from_template<S>(
+        &self,
+        name: S,
+        description: S,
+        template: PolicyTemplate,
+        nostr_pubkeys: Vec<XOnlyPublicKey>,
+    ) -> Result<EventId, Error>
+    where
+        S: Into<String>,
+    {
+        let policy: Policy = Policy::from_template(name, description, template, self.network)?;
+        self.save_policy(
+            policy.name,
+            policy.description,
+            policy.descriptor.to_string(),
+            nostr_pubkeys,
+        )
+        .await
     }
 
     /// Make a spending proposal
