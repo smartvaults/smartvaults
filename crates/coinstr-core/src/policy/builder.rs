@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::XOnlyPublicKey;
 use bdk::miniscript::policy::concrete::Policy;
 use bdk::miniscript::DescriptorPublicKey;
 use thiserror::Error;
@@ -12,19 +11,6 @@ pub enum Error {
     InvalidThreshold,
     #[error("not keys")]
     NoKeys,
-}
-
-pub fn n_of_m_multisig(required_sig: usize, keys: Vec<XOnlyPublicKey>) -> Result<String, Error> {
-    if required_sig == 0 {
-        return Err(Error::InvalidThreshold);
-    }
-
-    if keys.is_empty() {
-        return Err(Error::NoKeys);
-    }
-
-    let keys: Vec<Policy<XOnlyPublicKey>> = keys.into_iter().map(Policy::Key).collect();
-    Ok(Policy::Threshold(required_sig, keys).to_string())
 }
 
 pub fn n_of_m_ext_multisig(

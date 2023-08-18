@@ -11,18 +11,21 @@ use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
 use bdk::miniscript::descriptor::DescriptorType;
 use bdk::miniscript::policy::Concrete;
-use bdk::miniscript::Descriptor;
+use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, Wallet};
 use keechain_core::types::psbt::{self, Psbt};
 use serde::{Deserialize, Serialize};
 
 pub mod builder;
+pub mod template;
 
 use crate::proposal::Proposal;
 use crate::reserves::ProofOfReserves;
 use crate::util::{Encryption, Serde, Unspendable};
 use crate::Amount;
+
+use self::template::PolicyTemplate;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -40,6 +43,8 @@ pub enum Error {
     ProofOfReserves(#[from] crate::reserves::ProofError),
     #[error(transparent)]
     Policy(#[from] bdk::miniscript::policy::compiler::CompilerError),
+    #[error(transparent)]
+    Template(#[from] template::Error),
     #[error("{0}, {1}")]
     DescOrPolicy(Box<Self>, Box<Self>),
     #[error("must be a taproot descriptor")]
@@ -86,7 +91,7 @@ impl Policy {
     where
         S: Into<String>,
     {
-        let descriptor = Descriptor::from_str(&descriptor.into())?;
+        let descriptor: Descriptor<String> = Descriptor::from_str(&descriptor.into())?;
         Self::new(name, description, descriptor, network)
     }
 
@@ -99,9 +104,9 @@ impl Policy {
     where
         S: Into<String>,
     {
-        let policy = Concrete::<String>::from_str(&policy.into())?;
-        let unspendable_pk = XOnlyPublicKey::unspendable();
-        let descriptor = policy.compile_tr(Some(unspendable_pk.to_string()))?;
+        let policy: Concrete<String> = Concrete::<String>::from_str(&policy.into())?;
+        let unspendable_pk: XOnlyPublicKey = XOnlyPublicKey::unspendable();
+        let descriptor: Descriptor<String> = policy.compile_tr(Some(unspendable_pk.to_string()))?;
         Self::new(name, description, descriptor, network)
     }
 
@@ -116,9 +121,9 @@ impl Policy {
         D: Into<String>,
         P: Into<String>,
     {
-        let name = &name.into();
-        let description = &description.into();
-        let desc_or_policy = &desc_or_policy.into();
+        let name: &str = &name.into();
+        let description: &str = &description.into();
+        let desc_or_policy: &str = &desc_or_policy.into();
         match Self::from_descriptor(name, description, desc_or_policy, network) {
             Ok(policy) => Ok(policy),
             Err(desc_e) => match Self::from_policy(name, description, desc_or_policy, network) {
@@ -126,6 +131,19 @@ impl Policy {
                 Err(policy_e) => Err(Error::DescOrPolicy(Box::new(desc_e), Box::new(policy_e))),
             },
         }
+    }
+
+    pub fn from_template<S>(
+        name: S,
+        description: S,
+        template: PolicyTemplate,
+        network: Network,
+    ) -> Result<Self, Error>
+    where
+        S: Into<String>,
+    {
+        let policy: Concrete<DescriptorPublicKey> = template.build()?;
+        Self::from_policy(name.into(), description.into(), policy.to_string(), network)
     }
 
     pub fn spending_policy(&self, network: Network) -> Result<SpendingPolicy, Error> {
