@@ -261,7 +261,7 @@ interface GetSharedSigner {
 interface Descriptor {
     [Throws=FFIError, Name=from_str]
     constructor(string str);
-    string to_string();
+    string to_str();
 };
 
 interface RecoveryTemplate {

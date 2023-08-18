@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 #![allow(clippy::should_implement_trait)]
-#![allow(clippy::inherent_to_string)]
 
 use std::ops::Deref;
 use std::str::FromStr;
@@ -35,7 +34,7 @@ impl Descriptor {
         })
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_str(&self) -> String {
         self.inner.to_string()
     }
 }
