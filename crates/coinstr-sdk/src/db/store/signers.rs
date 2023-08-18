@@ -10,7 +10,7 @@ use coinstr_core::{SharedSigner, Signer};
 use nostr_sdk::EventId;
 
 use super::{Error, Store};
-use crate::db::model::GetSharedSignerResult;
+use crate::db::model::GetSharedSigner;
 use crate::util::encryption::EncryptionWithKeys;
 
 impl Store {
@@ -263,7 +263,7 @@ impl Store {
         Ok(XOnlyPublicKey::from_str(&public_key)?)
     }
 
-    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSignerResult>, Error> {
+    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSigner>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare(
             "SELECT shared_signer_id, owner_public_key, shared_signer FROM shared_signers;",
@@ -276,7 +276,7 @@ impl Store {
             let shared_signer: String = row.get(2)?;
             map.insert(
                 EventId::from_hex(shared_signer_id)?,
-                GetSharedSignerResult {
+                GetSharedSigner {
                     owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
                     shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
                 },

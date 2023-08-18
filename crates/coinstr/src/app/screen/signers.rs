@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use coinstr_sdk::core::signer::Signer;
-use coinstr_sdk::db::model::GetSharedSignerResult;
+use coinstr_sdk::db::model::GetSharedSigner;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -20,7 +20,7 @@ pub enum SignersMessage {
     LoadSigners(
         (
             BTreeMap<EventId, Signer>,
-            BTreeMap<EventId, GetSharedSignerResult>,
+            BTreeMap<EventId, GetSharedSigner>,
         ),
     ),
     Reload,
@@ -31,7 +31,7 @@ pub struct SignersState {
     loading: bool,
     loaded: bool,
     signers: BTreeMap<EventId, Signer>,
-    shared_signers: BTreeMap<EventId, GetSharedSignerResult>,
+    shared_signers: BTreeMap<EventId, GetSharedSigner>,
 }
 
 impl SignersState {
@@ -248,7 +248,7 @@ impl State for SignersState {
 
                     for (
                         shared_signer_id,
-                        GetSharedSignerResult {
+                        GetSharedSigner {
                             owner_public_key,
                             shared_signer,
                         },

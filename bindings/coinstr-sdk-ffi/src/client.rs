@@ -15,7 +15,7 @@ use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
-use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal as GetProposalSdk};
+use coinstr_sdk::db::model::{GetApprovedProposal, GetProposal as GetProposalSdk};
 use coinstr_sdk::nostr::{self, block_on};
 use nostr_ffi::{EventId, Keys, PublicKey};
 
@@ -315,7 +315,7 @@ impl Coinstr {
             .map(
                 |(
                     _,
-                    GetApprovedProposalResult {
+                    GetApprovedProposal {
                         approved_proposal, ..
                     },
                 )| { approved_proposal.clone() },

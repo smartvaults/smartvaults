@@ -22,7 +22,7 @@ pub struct GetPolicy {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetDetailedPolicyResult {
+pub struct GetDetailedPolicy {
     pub policy: Policy,
     pub balance: Option<Balance>,
     pub last_sync: Option<Timestamp>,
@@ -35,21 +35,21 @@ pub struct GetApprovedProposals {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetNotificationsResult {
+pub struct GetNotifications {
     pub notification: Notification,
     pub timestamp: Timestamp,
     pub seen: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct GetApprovedProposalResult {
+pub struct GetApprovedProposal {
     pub public_key: XOnlyPublicKey,
     pub approved_proposal: ApprovedProposal,
     pub timestamp: Timestamp,
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSharedSignerResult {
+pub struct GetSharedSigner {
     pub owner_public_key: XOnlyPublicKey,
     pub shared_signer: SharedSigner,
 }
@@ -57,7 +57,7 @@ pub struct GetSharedSignerResult {
 #[derive(Debug, Clone, Default)]
 pub struct GetAllSigners {
     pub my: BTreeMap<EventId, Signer>,
-    pub contacts: BTreeMap<EventId, GetSharedSignerResult>,
+    pub contacts: BTreeMap<EventId, GetSharedSigner>,
 }
 
 #[derive(Debug, Clone)]

@@ -35,8 +35,7 @@ mod timechain;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
-    GetApprovedProposalResult, GetApprovedProposals, GetCompletedProposal, GetNotificationsResult,
-    GetProposal,
+    GetApprovedProposal, GetApprovedProposals, GetCompletedProposal, GetNotifications, GetProposal,
 };
 use super::Error;
 use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
@@ -306,7 +305,7 @@ impl Store {
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
-    ) -> Result<BTreeMap<EventId, GetApprovedProposalResult>, Error> {
+    ) -> Result<BTreeMap<EventId, GetApprovedProposal>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
         let mut rows = stmt.query([proposal_id.to_hex()])?;
@@ -318,7 +317,7 @@ impl Store {
             let timestamp: u64 = row.get(3)?;
             approvals.insert(
                 EventId::from_hex(approval_id)?,
-                GetApprovedProposalResult {
+                GetApprovedProposal {
                     public_key: XOnlyPublicKey::from_str(&public_key)?,
                     approved_proposal: ApprovedProposal::decrypt_with_keys(&self.keys, json)?,
                     timestamp: Timestamp::from(timestamp),
@@ -362,7 +361,7 @@ impl Store {
                 .map(
                     |(
                         _,
-                        GetApprovedProposalResult {
+                        GetApprovedProposal {
                             approved_proposal, ..
                         },
                     )| approved_proposal.clone(),
@@ -683,20 +682,20 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
+    pub fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare(
             "SELECT notification, timestamp, seen FROM notifications ORDER BY timestamp DESC;",
         )?;
         let mut rows = stmt.query([])?;
-        let mut notifications: Vec<GetNotificationsResult> = Vec::new();
+        let mut notifications: Vec<GetNotifications> = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let json: String = row.get(0)?;
             let notification: Notification = Notification::from_json(json)?;
             let timestamp: u64 = row.get(1)?;
             let timestamp = Timestamp::from(timestamp);
             let seen: bool = row.get(2)?;
-            notifications.push(GetNotificationsResult {
+            notifications.push(GetNotifications {
                 notification,
                 timestamp,
                 seen,

@@ -7,7 +7,7 @@ use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Psbt;
 use coinstr_sdk::core::CompletedProposal;
-use coinstr_sdk::db::model::{GetApprovedProposalResult, GetProposal};
+use coinstr_sdk::db::model::{GetApprovedProposal, GetProposal};
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
@@ -27,7 +27,7 @@ pub enum ProposalMessage {
     LoadProposal(
         Proposal,
         EventId,
-        BTreeMap<EventId, GetApprovedProposalResult>,
+        BTreeMap<EventId, GetApprovedProposal>,
         Option<Signer>,
     ),
     Approve,
@@ -52,7 +52,7 @@ pub struct ProposalState {
     proposal_id: EventId,
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
-    approved_proposals: BTreeMap<EventId, GetApprovedProposalResult>,
+    approved_proposals: BTreeMap<EventId, GetApprovedProposal>,
     signer: Option<Signer>,
     error: Option<String>,
 }
@@ -225,7 +225,7 @@ impl State for ProposalState {
                             .map(
                                 |(
                                     _,
-                                    GetApprovedProposalResult {
+                                    GetApprovedProposal {
                                         approved_proposal, ..
                                     },
                                 )| { approved_proposal.clone() },
@@ -385,7 +385,7 @@ impl State for ProposalState {
                     );
 
                     let (approve_btn, mut finalize_btn) = match self.approved_proposals.iter().find(
-                        |(_, GetApprovedProposalResult { public_key, .. })| {
+                        |(_, GetApprovedProposal { public_key, .. })| {
                             public_key == &ctx.client.keys().public_key()
                         },
                     ) {
@@ -481,7 +481,7 @@ impl State for ProposalState {
                         let my_public_key = ctx.client.keys().public_key();
                         for (
                             approval_id,
-                            GetApprovedProposalResult {
+                            GetApprovedProposal {
                                 public_key,
                                 timestamp,
                                 ..

@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_sdk::db::model::GetDetailedPolicyResult;
+use coinstr_sdk::db::model::GetDetailedPolicy;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -18,7 +18,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(BTreeMap<EventId, GetDetailedPolicyResult>),
+    LoadPolicies(BTreeMap<EventId, GetDetailedPolicy>),
     SavePolicyBackup(EventId),
     Reload,
 }
@@ -27,7 +27,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: BTreeMap<EventId, GetDetailedPolicyResult>,
+    policies: BTreeMap<EventId, GetDetailedPolicy>,
 }
 
 impl PoliciesState {
@@ -150,7 +150,7 @@ impl State for PoliciesState {
 
                 for (
                     policy_id,
-                    GetDetailedPolicyResult {
+                    GetDetailedPolicy {
                         policy,
                         balance,
                         last_sync,

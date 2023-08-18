@@ -3,7 +3,7 @@
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
-use coinstr_sdk::db::model::{GetAllSigners, GetSharedSignerResult};
+use coinstr_sdk::db::model::{GetAllSigners, GetSharedSigner};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -471,7 +471,7 @@ fn view_signer_selector<'a>(
 
     for (
         shared_signer_id,
-        GetSharedSignerResult {
+        GetSharedSigner {
             owner_public_key,
             shared_signer,
         },

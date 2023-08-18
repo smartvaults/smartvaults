@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::db::model::GetNotificationsResult;
+use coinstr_sdk::db::model::GetNotifications;
 use coinstr_sdk::Notification;
 use iced::widget::{Column, Row};
 use iced::{Alignment, Command, Element, Length};
@@ -13,7 +13,7 @@ use crate::theme::color::GREY;
 
 #[derive(Debug, Clone)]
 pub enum NotificationsMessage {
-    LoadNotifications(Vec<GetNotificationsResult>),
+    LoadNotifications(Vec<GetNotifications>),
     OpenNotification(Notification),
     MarkAllAsSeen,
     DeleteAll,
@@ -24,7 +24,7 @@ pub enum NotificationsMessage {
 pub struct NotificationsState {
     loading: bool,
     loaded: bool,
-    notifications: Vec<GetNotificationsResult>,
+    notifications: Vec<GetNotifications>,
 }
 
 impl NotificationsState {
@@ -157,7 +157,7 @@ impl State for NotificationsState {
             if self.notifications.is_empty() {
                 content = content.push(Text::new("No notifications").extra_light().view());
             } else {
-                for GetNotificationsResult {
+                for GetNotifications {
                     notification,
                     timestamp,
                     seen,

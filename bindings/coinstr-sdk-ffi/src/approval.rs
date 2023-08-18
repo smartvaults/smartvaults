@@ -3,15 +3,15 @@
 
 use std::sync::Arc;
 
-use coinstr_sdk::db::model::GetApprovedProposalResult;
+use coinstr_sdk::db::model::GetApprovedProposal;
 use nostr_ffi::{PublicKey, Timestamp};
 
 pub struct Approval {
-    inner: GetApprovedProposalResult,
+    inner: GetApprovedProposal,
 }
 
-impl From<GetApprovedProposalResult> for Approval {
-    fn from(inner: GetApprovedProposalResult) -> Self {
+impl From<GetApprovedProposal> for Approval {
+    fn from(inner: GetApprovedProposal) -> Self {
         Self { inner }
     }
 }

@@ -43,9 +43,9 @@ use crate::constants::{
     TESTNET_RELAYS,
 };
 use crate::db::model::{
-    GetAddress, GetAllSigners, GetApprovedProposalResult, GetApprovedProposals,
-    GetCompletedProposal, GetDetailedPolicyResult, GetNotificationsResult, GetPolicy, GetProposal,
-    GetSharedSignerResult, GetTransaction, GetUtxo,
+    GetAddress, GetAllSigners, GetApprovedProposal, GetApprovedProposals, GetCompletedProposal,
+    GetDetailedPolicy, GetNotifications, GetPolicy, GetProposal, GetSharedSigner, GetTransaction,
+    GetUtxo,
 };
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
@@ -757,9 +757,7 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_detailed_policies(
-        &self,
-    ) -> Result<BTreeMap<EventId, GetDetailedPolicyResult>, Error> {
+    pub fn get_detailed_policies(&self) -> Result<BTreeMap<EventId, GetDetailedPolicy>, Error> {
         let mut policies = BTreeMap::new();
         for GetPolicy {
             policy_id,
@@ -769,7 +767,7 @@ impl Coinstr {
         {
             policies.insert(
                 policy_id,
-                GetDetailedPolicyResult {
+                GetDetailedPolicy {
                     policy,
                     balance: self.get_balance(policy_id),
                     last_sync,
@@ -796,7 +794,7 @@ impl Coinstr {
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
-    ) -> Result<BTreeMap<EventId, GetApprovedProposalResult>, Error> {
+    ) -> Result<BTreeMap<EventId, GetApprovedProposal>, Error> {
         Ok(self.db.get_approvals_by_proposal_id(proposal_id)?)
     }
 
@@ -1788,12 +1786,12 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSignerResult>, Error> {
+    pub fn get_shared_signers(&self) -> Result<BTreeMap<EventId, GetSharedSigner>, Error> {
         Ok(self.db.get_shared_signers()?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_notifications(&self) -> Result<Vec<GetNotificationsResult>, Error> {
+    pub fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
         Ok(self.db.get_notifications()?)
     }
 
