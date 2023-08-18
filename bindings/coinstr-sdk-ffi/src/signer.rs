@@ -48,8 +48,8 @@ impl Signer {
         self.inner.fingerprint().to_string()
     }
 
-    pub fn descriptor(&self) -> String {
-        self.inner.descriptor().to_string()
+    pub fn descriptor(&self) -> Result<String> {
+        Ok(self.inner.descriptor_public_key()?.to_string())
     }
 
     pub fn signer_type(&self) -> SignerType {
@@ -100,11 +100,7 @@ impl SharedSigner {
         self.inner.fingerprint().to_string()
     }
 
-    pub fn descriptor(&self) -> String {
-        self.inner.descriptor().to_string()
-    }
-
-    pub fn descriptor_public_key(&self) -> Result<String> {
+    pub fn descriptor(&self) -> Result<String> {
         Ok(self.inner.descriptor_public_key()?.to_string())
     }
 }

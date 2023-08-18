@@ -235,6 +235,7 @@ enum SignerType {
 interface Signer {
     string name();
     string fingerprint();
+    [Throws=FFIError]
     string descriptor();
     SignerType signer_type();
     string display();
@@ -247,9 +248,8 @@ interface GetSigner {
 
 interface SharedSigner {
     string fingerprint();
-    string descriptor();
     [Throws=FFIError]
-    string descriptor_public_key();
+    string descriptor();
 };
 
 interface GetSharedSigner {
