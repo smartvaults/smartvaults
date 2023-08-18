@@ -491,6 +491,43 @@ impl Coinstr {
             .collect())
     }
 
+    pub fn share_signer(
+        &self,
+        signer_id: Arc<EventId>,
+        public_key: Arc<PublicKey>,
+    ) -> Result<Arc<EventId>> {
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner
+                    .share_signer(**signer_id, **public_key)
+                    .await?
+                    .into(),
+            ))
+        })
+    }
+
+    pub fn share_signer_to_multiple_public_keys(
+        &self,
+        signer_id: Arc<EventId>,
+        public_keys: Vec<Arc<PublicKey>>,
+    ) -> Result<()> {
+        block_on(async move {
+            let public_keys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| **p).collect();
+            Ok(self
+                .inner
+                .share_signer_to_multiple_public_keys(**signer_id, public_keys)
+                .await?)
+        })
+    }
+
+    pub fn revoke_all_shared_signers(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.revoke_all_shared_signers().await?) })
+    }
+
+    pub fn revoke_shared_signer(&self, shared_signer_id: Arc<EventId>) -> Result<()> {
+        block_on(async move { Ok(self.inner.revoke_shared_signer(**shared_signer_id).await?) })
+    }
+
     pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
         self.inner
             .get_balance(**policy_id)
@@ -561,43 +598,6 @@ impl Coinstr {
                 .republish_shared_key_for_policy(**policy_id)
                 .await?)
         })
-    }
-
-    pub fn share_signer(
-        &self,
-        signer_id: Arc<EventId>,
-        public_key: Arc<PublicKey>,
-    ) -> Result<Arc<EventId>> {
-        block_on(async move {
-            Ok(Arc::new(
-                self.inner
-                    .share_signer(**signer_id, **public_key)
-                    .await?
-                    .into(),
-            ))
-        })
-    }
-
-    pub fn share_signer_to_multiple_public_keys(
-        &self,
-        signer_id: Arc<EventId>,
-        public_keys: Vec<Arc<PublicKey>>,
-    ) -> Result<()> {
-        block_on(async move {
-            let public_keys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| **p).collect();
-            Ok(self
-                .inner
-                .share_signer_to_multiple_public_keys(**signer_id, public_keys)
-                .await?)
-        })
-    }
-
-    pub fn revoke_all_shared_signers(&self) -> Result<()> {
-        block_on(async move { Ok(self.inner.revoke_all_shared_signers().await?) })
-    }
-
-    pub fn revoke_shared_signer(&self, shared_signer_id: Arc<EventId>) -> Result<()> {
-        block_on(async move { Ok(self.inner.revoke_shared_signer(**shared_signer_id).await?) })
     }
 
     // TODO: add notifications methods

@@ -245,6 +245,19 @@ interface GetSigner {
     Signer signer();
 };
 
+interface SharedSigner {
+    string fingerprint();
+    string descriptor();
+    [Throws=FFIError]
+    string descriptor_public_key();
+};
+
+interface GetSharedSigner {
+    EventId shared_signer_id();
+    PublicKey owner_public_key();
+    SharedSigner shared_signer();
+};
+
 interface Amount {
     [Name=custom]
     constructor(u64 amount);
@@ -427,6 +440,14 @@ interface Coinstr {
     EventId save_coinstr_signer();
     [Throws=FFIError]
     sequence<GetSigner> get_signers();
+    [Throws=FFIError]
+    EventId share_signer(EventId signer_id, PublicKey public_key);
+    [Throws=FFIError]
+    void share_signer_to_multiple_public_keys(EventId signer_id, sequence<PublicKey> public_keys);
+    [Throws=FFIError]
+    void revoke_all_shared_signers();
+    [Throws=FFIError]
+    void revoke_shared_signer(EventId shared_signer_id);
 
     Balance? get_balance(EventId policy_id);
     [Throws=FFIError]
@@ -448,15 +469,6 @@ interface Coinstr {
     void rebroadcast_all_events();
     [Throws=FFIError]
     void republish_shared_key_for_policy(EventId policy_id);
-
-    [Throws=FFIError]
-    EventId share_signer(EventId signer_id, PublicKey public_key);
-    [Throws=FFIError]
-    void share_signer_to_multiple_public_keys(EventId signer_id, sequence<PublicKey> public_keys);
-    [Throws=FFIError]
-    void revoke_all_shared_signers();
-    [Throws=FFIError]
-    void revoke_shared_signer(EventId shared_signer_id);
     
     [Throws=FFIError]
     void new_nostr_connect_session(NostrConnectURI uri);
