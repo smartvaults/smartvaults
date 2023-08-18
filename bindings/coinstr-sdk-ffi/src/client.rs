@@ -24,7 +24,7 @@ use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
     KeychainSeed, Message, Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
-    OutPoint, Relay, Signer, Utxo,
+    OutPoint, PolicyTemplate, Relay, Signer, Utxo,
 };
 
 pub struct Coinstr {
@@ -358,6 +358,29 @@ impl Coinstr {
             Ok(Arc::new(
                 self.inner
                     .save_policy(name, description, descriptor, nostr_pubkeys)
+                    .await?
+                    .into(),
+            ))
+        })
+    }
+
+    pub fn save_policy_from_template(
+        &self,
+        name: String,
+        description: String,
+        template: Arc<PolicyTemplate>,
+        public_keys: Vec<Arc<PublicKey>>,
+    ) -> Result<Arc<EventId>> {
+        block_on(async move {
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| **p).collect();
+            Ok(Arc::new(
+                self.inner
+                    .save_policy_from_template(
+                        name,
+                        description,
+                        template.as_ref().deref().clone(),
+                        nostr_pubkeys,
+                    )
                     .await?
                     .into(),
             ))

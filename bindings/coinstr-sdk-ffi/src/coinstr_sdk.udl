@@ -264,6 +264,22 @@ interface Descriptor {
     string to_string();
 };
 
+interface RecoveryTemplate {
+    [Name=social_recovery]
+    constructor(u64 threshold, sequence<Descriptor> keys, u32 after);
+    [Name=inheritance]
+    constructor(u64 threshold, sequence<Descriptor> keys, u32 older);
+};
+
+interface PolicyTemplate {
+    [Name=multisig]
+    constructor(u64 threshold, sequence<Descriptor> keys);
+    [Name=recovery]
+    constructor(Descriptor my_key, RecoveryTemplate recovery);
+    [Name=hold]
+    constructor(Descriptor my_key, u32 after);
+};
+
 interface Amount {
     [Name=custom]
     constructor(u64 amount);
@@ -425,6 +441,8 @@ interface Coinstr {
 
     [Throws=FFIError]
     EventId save_policy(string name, string description, string descriptor, sequence<PublicKey> public_keys);
+    [Throws=FFIError]
+    EventId save_policy_from_template(string name, string description, PolicyTemplate template, sequence<PublicKey> public_keys);
     [Throws=FFIError]
     GetProposal spend(EventId policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos);
     [Throws=FFIError]

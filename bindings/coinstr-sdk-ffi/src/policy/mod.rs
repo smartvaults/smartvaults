@@ -8,6 +8,10 @@ use coinstr_sdk::core::policy;
 use coinstr_sdk::db::model;
 use nostr_ffi::{EventId, Timestamp};
 
+mod template;
+
+pub use self::template::{PolicyTemplate, RecoveryTemplate};
+
 #[derive(Clone)]
 pub struct Policy {
     inner: policy::Policy,

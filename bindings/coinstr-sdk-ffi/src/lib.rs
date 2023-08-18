@@ -58,7 +58,7 @@ mod ffi {
     pub use crate::message::{EventHandled, Message};
     pub use crate::metadata::Metadata;
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
-    pub use crate::policy::{GetPolicy, Policy};
+    pub use crate::policy::{GetPolicy, Policy, PolicyTemplate, RecoveryTemplate};
     pub use crate::proposal::{
         ApprovedProposal, CompletedProposal, GetCompletedProposal, GetProposal, Proposal,
     };

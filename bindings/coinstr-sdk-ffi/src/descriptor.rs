@@ -4,6 +4,7 @@
 #![allow(clippy::should_implement_trait)]
 #![allow(clippy::inherent_to_string)]
 
+use std::ops::Deref;
 use std::str::FromStr;
 
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
@@ -12,6 +13,13 @@ use crate::error::Result;
 
 pub struct Descriptor {
     inner: DescriptorPublicKey,
+}
+
+impl Deref for Descriptor {
+    type Target = DescriptorPublicKey;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl From<DescriptorPublicKey> for Descriptor {
