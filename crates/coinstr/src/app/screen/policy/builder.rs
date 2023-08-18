@@ -3,6 +3,7 @@
 
 use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
+use coinstr_sdk::core::PolicyTemplate;
 use coinstr_sdk::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -150,13 +151,11 @@ impl State for PolicyBuilderState {
                         self.policy.iter().flatten().map(|(pk, ..)| *pk).collect();
                     return Command::perform(
                         async move {
-                            let descriptor =
-                                coinstr_sdk::core::policy::builder::n_of_m_ext_multisig(
-                                    threshold,
-                                    descriptors,
-                                )?;
+                            let template: PolicyTemplate =
+                                PolicyTemplate::multisig(threshold, descriptors);
+                            let policy: String = template.build()?.to_string();
                             client
-                                .save_policy(name, description, descriptor, public_keys)
+                                .save_policy(name, description, policy, public_keys)
                                 .await?;
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },

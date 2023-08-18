@@ -17,15 +17,13 @@ use bdk::{FeeRate, KeychainKind, Wallet};
 use keechain_core::types::psbt::{self, Psbt};
 use serde::{Deserialize, Serialize};
 
-pub mod builder;
 pub mod template;
 
+pub use self::template::PolicyTemplate;
 use crate::proposal::Proposal;
 use crate::reserves::ProofOfReserves;
 use crate::util::{Encryption, Serde, Unspendable};
 use crate::Amount;
-
-use self::template::PolicyTemplate;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

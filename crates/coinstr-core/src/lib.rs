@@ -14,7 +14,7 @@ pub mod signer;
 pub mod types;
 pub mod util;
 
-pub use self::policy::Policy;
+pub use self::policy::{Policy, PolicyTemplate};
 pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 pub use self::signer::{SharedSigner, Signer, SignerType};
 pub use self::types::{Amount, FeeRate, Priority};
@@ -93,8 +93,8 @@ mod test {
         let desc_b: DescriptorPublicKey =
             seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
 
-        let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b])?;
-        let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
+        let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
+        let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
@@ -133,8 +133,8 @@ mod test {
         let desc_b: DescriptorPublicKey =
             seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
 
-        let policy: String = policy::builder::n_of_m_ext_multisig(2, vec![desc_a, desc_b])?;
-        let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
+        let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
+        let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
@@ -166,8 +166,8 @@ mod test {
         let desc_b: DescriptorPublicKey =
             seed_b.to_descriptor(Purpose::TR, Some(COINSTR_ACCOUNT_INDEX), false, NETWORK)?;
 
-        let policy: String = policy::builder::n_of_m_ext_multisig(1, vec![desc_a, desc_b])?;
-        let policy: Policy = Policy::from_policy("Name", "Description", &policy, NETWORK)?;
+        let template = PolicyTemplate::multisig(1, vec![desc_a, desc_b]);
+        let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
         let descriptor: String = policy.descriptor.to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
