@@ -282,4 +282,26 @@ impl Store {
         }
         Ok(list)
     }
+
+    pub fn get_shared_signers_by_public_key(
+        &self,
+        public_key: XOnlyPublicKey,
+    ) -> Result<Vec<GetSharedSigner>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT shared_signer_id, shared_signer FROM shared_signers WHERE owner_public_key = ?;",
+        )?;
+        let mut rows = stmt.query([public_key.to_string()])?;
+        let mut list = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let shared_signer_id: String = row.get(0)?;
+            let shared_signer: String = row.get(1)?;
+            list.push(GetSharedSigner {
+                shared_signer_id: EventId::from_hex(shared_signer_id)?,
+                owner_public_key: public_key,
+                shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
+            });
+        }
+        Ok(list)
+    }
 }

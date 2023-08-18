@@ -448,6 +448,10 @@ interface Coinstr {
     void revoke_all_shared_signers();
     [Throws=FFIError]
     void revoke_shared_signer(EventId shared_signer_id);
+    [Throws=FFIError]
+    sequence<GetSharedSigner> get_shared_signers();
+    [Throws=FFIError]
+    sequence<GetSharedSigner> get_shared_signers_by_public_key(PublicKey public_key);
 
     Balance? get_balance(EventId policy_id);
     [Throws=FFIError]

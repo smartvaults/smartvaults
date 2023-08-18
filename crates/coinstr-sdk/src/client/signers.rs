@@ -217,4 +217,12 @@ impl Coinstr {
     pub fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         Ok(self.db.get_shared_signers()?)
     }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub fn get_shared_signers_by_public_key(
+        &self,
+        public_key: XOnlyPublicKey,
+    ) -> Result<Vec<GetSharedSigner>, Error> {
+        Ok(self.db.get_shared_signers_by_public_key(public_key)?)
+    }
 }

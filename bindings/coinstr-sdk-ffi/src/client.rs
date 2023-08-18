@@ -22,9 +22,9 @@ use nostr_ffi::{EventId, Keys, PublicKey};
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
-    GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, KeychainSeed, Message,
-    Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI, OutPoint, Relay, Signer,
-    Utxo,
+    GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
+    KeychainSeed, Message, Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
+    OutPoint, Relay, Signer, Utxo,
 };
 
 pub struct Coinstr {
@@ -526,6 +526,27 @@ impl Coinstr {
 
     pub fn revoke_shared_signer(&self, shared_signer_id: Arc<EventId>) -> Result<()> {
         block_on(async move { Ok(self.inner.revoke_shared_signer(**shared_signer_id).await?) })
+    }
+
+    pub fn get_shared_signers(&self) -> Result<Vec<Arc<GetSharedSigner>>> {
+        Ok(self
+            .inner
+            .get_shared_signers()?
+            .into_iter()
+            .map(|s| Arc::new(s.into()))
+            .collect())
+    }
+
+    pub fn get_shared_signers_by_public_key(
+        &self,
+        public_key: Arc<PublicKey>,
+    ) -> Result<Vec<Arc<GetSharedSigner>>> {
+        Ok(self
+            .inner
+            .get_shared_signers_by_public_key(**public_key)?
+            .into_iter()
+            .map(|s| Arc::new(s.into()))
+            .collect())
     }
 
     pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
