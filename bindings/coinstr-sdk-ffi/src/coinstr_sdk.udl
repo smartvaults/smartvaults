@@ -236,7 +236,7 @@ interface Signer {
     string name();
     string fingerprint();
     [Throws=FFIError]
-    string descriptor();
+    Descriptor descriptor();
     SignerType signer_type();
     string display();
 };
@@ -249,13 +249,19 @@ interface GetSigner {
 interface SharedSigner {
     string fingerprint();
     [Throws=FFIError]
-    string descriptor();
+    Descriptor descriptor();
 };
 
 interface GetSharedSigner {
     EventId shared_signer_id();
     PublicKey owner_public_key();
     SharedSigner shared_signer();
+};
+
+interface Descriptor {
+    [Throws=FFIError, Name=from_str]
+    constructor(string str);
+    string to_string();
 };
 
 interface Amount {

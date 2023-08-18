@@ -3,6 +3,8 @@
 
 use std::fmt;
 
+use coinstr_sdk::core::miniscript::descriptor::DescriptorKeyParseError;
+
 pub type Result<T, E = FFIError> = std::result::Result<T, E>;
 
 #[derive(Debug)]
@@ -122,6 +124,12 @@ impl From<coinstr_sdk::core::util::dir::Error> for FFIError {
 
 impl From<coinstr_sdk::core::signer::Error> for FFIError {
     fn from(e: coinstr_sdk::core::signer::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
+impl From<DescriptorKeyParseError> for FFIError {
+    fn from(e: DescriptorKeyParseError) -> FFIError {
         Self::Generic { err: e.to_string() }
     }
 }

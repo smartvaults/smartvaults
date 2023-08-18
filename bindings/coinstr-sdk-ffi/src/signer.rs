@@ -8,6 +8,7 @@ use coinstr_sdk::db::model;
 use nostr_ffi::{EventId, PublicKey};
 
 use crate::error::Result;
+use crate::Descriptor;
 
 pub struct GetSigner {
     inner: model::GetSigner,
@@ -48,8 +49,8 @@ impl Signer {
         self.inner.fingerprint().to_string()
     }
 
-    pub fn descriptor(&self) -> Result<String> {
-        Ok(self.inner.descriptor_public_key()?.to_string())
+    pub fn descriptor(&self) -> Result<Arc<Descriptor>> {
+        Ok(Arc::new(self.inner.descriptor_public_key()?.into()))
     }
 
     pub fn signer_type(&self) -> SignerType {
@@ -100,7 +101,7 @@ impl SharedSigner {
         self.inner.fingerprint().to_string()
     }
 
-    pub fn descriptor(&self) -> Result<String> {
-        Ok(self.inner.descriptor_public_key()?.to_string())
+    pub fn descriptor(&self) -> Result<Arc<Descriptor>> {
+        Ok(Arc::new(self.inner.descriptor_public_key()?.into()))
     }
 }
