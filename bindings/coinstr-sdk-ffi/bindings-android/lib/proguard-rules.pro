@@ -24,7 +24,5 @@
 -dontwarn java.awt.*
 -keep class com.sun.jna.* { *; }
 -keep class io.coinstr.sdk.* { *; }
--keep class coinstr_sdk.** { *; }
 -keepclassmembers class * extends io.coinstr.sdk.* { public *; }
--keepclassmembers class * extends coinstr_sdk.** { public *; }
 -keepclassmembers class * extends com.sun.jna.* { public *; }

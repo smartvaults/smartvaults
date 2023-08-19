@@ -23,7 +23,11 @@ sdk-root:
 		exit 1 ; \
 	fi
 
-kotlin: android
+clean-android:
+	rm -rf ffi/android
+	rm -rf ffi/kotlin
+
+kotlin: clean-android android
 	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr_sdk.udl --language kotlin --no-format -o ffi/kotlin
 
 android: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
@@ -44,7 +48,7 @@ bindings-android: sdk-root kotlin
 	rm -rf bindings-android/lib/src/main/jniLibs
 	rm -rf bindings-android/lib/src/main/kotlin
 	cp -r ffi/kotlin/jniLibs bindings-android/lib/src/main
-	cp -r ffi/kotlin/coinstr_sdk bindings-android/lib/src/main/kotlin/
+	cp -r ffi/kotlin/io bindings-android/lib/src/main/kotlin/
 	cd bindings-android && ./gradlew assemble
 	mkdir -p ffi/android
 	cp bindings-android/lib/build/outputs/aar/lib-release.aar ffi/android

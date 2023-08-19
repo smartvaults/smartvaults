@@ -1,5 +1,5 @@
 [bindings.kotlin]
-package_name = "coinstr_sdk"
+package_name = "io.coinstr.sdk"
 cdylib_name = "coinstr_sdk_ffi"
 
 [bindings.swift]
