@@ -19,7 +19,7 @@ make init
 ### Libraries and Bindings
 
 This command will build libraries for different platforms in `target/` folder and copy them to `ffi/kotlin/jniLibs`.
-In addition it will generate Kotlin bindings in `ffi/kotlin/coinstr_sdk`.
+In addition it will generate Kotlin bindings in `ffi/kotlin/`.
 
 ```
 make kotlin
