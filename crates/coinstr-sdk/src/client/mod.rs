@@ -787,7 +787,7 @@ impl Coinstr {
         let keys = self.client.keys();
         let descriptor = descriptor.into();
 
-        if nostr_pubkeys.len() < 2 {
+        if nostr_pubkeys.is_empty() {
             return Err(Error::NotEnoughPublicKeys);
         }
 
