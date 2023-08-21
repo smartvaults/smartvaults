@@ -19,6 +19,9 @@ repository = "https://github.com/coinstr/coinstr.git"
 license = "MIT"
 keywords = ["coinstr", "bitcoin", "nostr"]
 
+[workspace.dependencies]
+serde = "=1.0.171"
+
 [profile.release]
 lto = true
 codegen-units = 1
