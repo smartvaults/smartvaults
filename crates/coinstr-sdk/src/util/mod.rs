@@ -1,7 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bitcoin::{Txid, XOnlyPublicKey};
+use coinstr_core::bitcoin::Txid;
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{Event, EventId, Tag, TagKind};
 
 pub(crate) mod dir;

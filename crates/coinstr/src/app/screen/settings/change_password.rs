@@ -57,7 +57,7 @@ impl State for ChangePasswordState {
                     let password = self.password.clone();
                     let new_password = self.new_password.clone();
 
-                    if client.check_password(password) {
+                    if client.check_password(password).unwrap_or_default() {
                         if new_password == self.confirm_new_password {
                             self.loading = true;
                             return Command::perform(

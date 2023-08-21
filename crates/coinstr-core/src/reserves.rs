@@ -1,18 +1,19 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::blockdata::opcodes;
-use bdk::bitcoin::blockdata::script::{Builder, Script};
-use bdk::bitcoin::blockdata::transaction::{EcdsaSighashType, OutPoint, TxIn, TxOut};
-use bdk::bitcoin::consensus::encode::serialize;
-use bdk::bitcoin::hash_types::{PubkeyHash, Txid};
-use bdk::bitcoin::hashes::{hash160, sha256d, Hash};
-use bdk::bitcoin::util::address::Payload;
-use bdk::bitcoin::util::psbt::{Input, PartiallySignedTransaction};
-use bdk::bitcoin::{Address, Network, Sequence};
-use bdk::chain::{ConfirmationTime, PersistBackend};
-use bdk::wallet::tx_builder::TxOrdering;
-use bdk::wallet::{ChangeSet, Wallet};
+use keechain_core::bdk::chain::{ConfirmationTime, PersistBackend};
+use keechain_core::bdk::wallet::tx_builder::TxOrdering;
+use keechain_core::bdk::wallet::{ChangeSet, Wallet};
+use keechain_core::bitcoin::address::Payload;
+use keechain_core::bitcoin::blockdata::opcodes;
+use keechain_core::bitcoin::blockdata::script::{Builder, Script};
+use keechain_core::bitcoin::blockdata::transaction::{OutPoint, TxIn, TxOut};
+use keechain_core::bitcoin::consensus::encode::serialize;
+use keechain_core::bitcoin::hash_types::{PubkeyHash, Txid};
+use keechain_core::bitcoin::hashes::{hash160, sha256d, Hash};
+use keechain_core::bitcoin::psbt::{Input, PartiallySignedTransaction};
+use keechain_core::bitcoin::sighash::EcdsaSighashType;
+use keechain_core::bitcoin::{Address, Network, Sequence};
 
 /// Proof error
 #[derive(Debug, thiserror::Error)]
@@ -55,7 +56,7 @@ pub enum ProofError {
     MissingConfirmationInfo,
     /// BDK Error
     #[error(transparent)]
-    Bdk(#[from] bdk::Error),
+    Bdk(#[from] keechain_core::bdk::Error),
 }
 
 /// The API for proof of reserves
@@ -102,16 +103,13 @@ where
                 value: 0,
                 script_pubkey: Builder::new().push_opcode(opcodes::OP_TRUE).into_script(),
             }),
-            final_script_sig: Some(Script::default()), /* "finalize" the input with an empty scriptSig */
+            final_script_sig: Some(Script::builder().into_script()), /* "finalize" the input with an empty scriptSig */
             ..Default::default()
         };
 
-        let pkh = PubkeyHash::from_hash(hash160::Hash::hash(&[0]));
-        let out_script_unspendable = Address {
-            payload: Payload::PubkeyHash(pkh),
-            network: self.network(),
-        }
-        .script_pubkey();
+        let pkh = PubkeyHash::from_raw_hash(hash160::Hash::hash(&[0]));
+        let out_script_unspendable =
+            Address::new(self.network(), Payload::PubkeyHash(pkh)).script_pubkey();
 
         let (psbt, _details) = {
             let mut builder = self.build_tx();
@@ -292,12 +290,8 @@ where
         .sum();
 
     // verify the unspendable output
-    let pkh = PubkeyHash::from_hash(hash160::Hash::hash(&[0]));
-    let out_script_unspendable = Address {
-        payload: Payload::PubkeyHash(pkh),
-        network,
-    }
-    .script_pubkey();
+    let pkh = PubkeyHash::from_raw_hash(hash160::Hash::hash(&[0]));
+    let out_script_unspendable = Address::new(network, Payload::PubkeyHash(pkh)).script_pubkey();
     if tx.output[0].script_pubkey != out_script_unspendable {
         return Err(ProofError::InvalidOutput);
     }
@@ -318,7 +312,7 @@ where
     let message = "Proof-of-Reserves: ".to_string() + &message.into();
     let message = sha256d::Hash::hash(message.as_bytes());
     TxIn {
-        previous_output: OutPoint::new(Txid::from_hash(message), 0),
+        previous_output: OutPoint::new(Txid::from_raw_hash(message), 0),
         sequence: Sequence(0xFFFFFFFF),
         ..Default::default()
     }
@@ -326,9 +320,6 @@ where
 
 #[cfg(test)]
 mod test {
-    //use bdk::bitcoin::{Address, Network};
-    use keechain_core::util::base64;
-
     use super::*;
     use crate::test::get_funded_wallet;
 
@@ -340,9 +331,7 @@ mod test {
     fn test_proof() {
         let mut wallet = get_funded_wallet(DESCRIPTOR).unwrap();
         let psbt = wallet.create_proof(MESSAGE).unwrap();
-        let psbt_ser = serialize(&psbt);
-        let psbt_b64 = base64::encode(&psbt_ser);
-        assert_eq!(psbt_b64, PSBT_BASE64);
+        assert_eq!(psbt.to_string(), PSBT_BASE64);
     }
 
     #[test]

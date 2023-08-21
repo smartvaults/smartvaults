@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use coinstr_sdk::nostr::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::nostr::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::nostr::{EventId, Metadata};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};

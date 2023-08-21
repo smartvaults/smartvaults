@@ -8,8 +8,9 @@ use std::sync::Arc;
 
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
 use coinstr_core::bdk::{FeeRate, LocalUtxo, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Address, Network, OutPoint, Script, Txid};
+use coinstr_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
@@ -93,14 +94,17 @@ impl Manager {
         Ok(self.wallet(policy_id)?.get_address(index))
     }
 
-    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<Address>, Error> {
+    pub fn get_addresses(
+        &self,
+        policy_id: EventId,
+    ) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
         Ok(self.wallet(policy_id)?.get_addresses()?)
     }
 
     pub fn get_addresses_balances(
         &self,
         policy_id: EventId,
-    ) -> Result<HashMap<Script, u64>, Error> {
+    ) -> Result<HashMap<ScriptBuf, u64>, Error> {
         Ok(self.wallet(policy_id)?.get_addresses_balances())
     }
 
@@ -132,7 +136,7 @@ impl Manager {
     pub fn spend<S>(
         &self,
         policy_id: EventId,
-        address: Address,
+        address: Address<NetworkUnchecked>,
         amount: Amount,
         description: S,
         fee_rate: FeeRate,

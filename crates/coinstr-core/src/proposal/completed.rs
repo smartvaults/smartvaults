@@ -1,9 +1,9 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::Transaction;
-use bdk::miniscript::Descriptor;
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
+use keechain_core::bitcoin::Transaction;
+use keechain_core::miniscript::Descriptor;
 use serde::{Deserialize, Serialize};
 
 use crate::util::serde::{deserialize_psbt, serialize_psbt};

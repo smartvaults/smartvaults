@@ -325,7 +325,13 @@ impl State for ProposalState {
                         } => {
                             content = content
                                 .push(Text::new("Type: spending").view())
-                                .push(Text::new(format!("Address: {to_address}")).view())
+                                .push(
+                                    Text::new(format!(
+                                        "Address: {}",
+                                        to_address.clone().assume_checked()
+                                    ))
+                                    .view(),
+                                )
                                 .push(
                                     Text::new(format!(
                                         "Amount: {} sat",
@@ -339,7 +345,7 @@ impl State for ProposalState {
                                     content = content.push(
                                         Text::new(format!(
                                             "Fee: {} sat",
-                                            util::format::number(fee)
+                                            util::format::number(fee.to_sat())
                                         ))
                                         .view(),
                                     )

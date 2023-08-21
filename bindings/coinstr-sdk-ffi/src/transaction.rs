@@ -5,11 +5,12 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
-use coinstr_sdk::core::bitcoin::{self, Address, Network};
+use coinstr_sdk::core::bitcoin::{self, Address};
 use coinstr_sdk::db::model::{self, GetUtxo};
 use nostr_ffi::Timestamp;
 
 use crate::error::Result;
+use crate::Network;
 
 pub struct OutPoint {
     inner: bdk::bitcoin::OutPoint,
@@ -112,7 +113,7 @@ impl TxOut {
     }
 
     pub fn address(&self, network: Network) -> Result<String> {
-        Ok(Address::from_script(&self.inner.script_pubkey, network)?.to_string())
+        Ok(Address::from_script(&self.inner.script_pubkey, network.into())?.to_string())
     }
 }
 
@@ -132,7 +133,7 @@ impl Transaction {
     }
 
     pub fn weight(&self) -> u64 {
-        self.inner.weight() as u64
+        self.inner.weight().to_wu()
     }
 
     pub fn size(&self) -> u64 {
@@ -156,7 +157,7 @@ impl Transaction {
     }
 
     pub fn lock_time(&self) -> u32 {
-        self.inner.lock_time.to_u32()
+        self.inner.lock_time.to_consensus_u32()
     }
 
     pub fn inputs(&self) -> Vec<Arc<TxIn>> {

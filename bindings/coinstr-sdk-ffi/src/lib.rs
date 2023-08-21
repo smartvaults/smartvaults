@@ -13,6 +13,7 @@ mod error;
 mod logger;
 mod message;
 mod metadata;
+mod network;
 mod nip46;
 mod policy;
 mod proposal;
@@ -28,7 +29,10 @@ pub fn git_hash_version() -> String {
 }
 
 pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<String>> {
-    Ok(coinstr_sdk::Coinstr::list_keychains(base_path, network)?)
+    Ok(coinstr_sdk::Coinstr::list_keychains(
+        base_path,
+        network.into(),
+    )?)
 }
 
 mod ffi {
@@ -36,7 +40,6 @@ mod ffi {
     pub use crate::error::FFIError;
 
     // External
-    pub use coinstr_sdk::core::bitcoin::Network;
     pub use coinstr_sdk::core::signer::SignerType;
     pub use coinstr_sdk::core::types::WordCount;
     pub use coinstr_sdk::nostr::RelayStatus;
@@ -57,6 +60,7 @@ mod ffi {
     pub use crate::descriptor::Descriptor;
     pub use crate::message::{EventHandled, Message};
     pub use crate::metadata::Metadata;
+    pub use crate::network::Network;
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
     pub use crate::policy::{GetPolicy, Policy, PolicyTemplate, RecoveryTemplate};
     pub use crate::proposal::{

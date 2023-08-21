@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_core::bitcoin::XOnlyPublicKey;
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nips::nip46::NostrConnectURI;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::{EventBuilder, EventId, RelaySendOptions, Timestamp, Url};

@@ -146,8 +146,10 @@ impl State for ReceiveState {
                 ReceiveMessage::AddressChanged(value) => {
                     self.label = value.label.clone().unwrap_or_default();
                     self.address = Some(value);
-                    if let Some(address) = self.address.as_ref() {
-                        self.qr_code = qr_code::State::new(address.to_qr_uri()).ok();
+                    if let Some(address) = self.address.clone() {
+                        let address = address.address.clone();
+                        self.qr_code =
+                            qr_code::State::new(address.assume_checked().to_qr_uri()).ok();
                     }
                 }
                 ReceiveMessage::LabelChanged(label) => self.label = label,
@@ -218,7 +220,7 @@ impl State for ReceiveState {
                         .spacing(5),
                 );
 
-            if let Some(address) = self.address.as_ref() {
+            if let Some(address) = self.address.clone() {
                 content = content
                     .push(
                         TextInput::new("Label", &self.label)
@@ -256,6 +258,8 @@ impl State for ReceiveState {
                         .push(QRCode::new(qr_code).cell_size(5))
                         .push(Space::with_height(Length::Fixed(10.0)));
                 };
+
+                let address = address.address.clone().assume_checked();
 
                 let mut address_splitted = String::new();
                 for (index, char) in address.to_string().char_indices() {

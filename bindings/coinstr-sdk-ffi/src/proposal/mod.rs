@@ -40,7 +40,7 @@ impl From<proposal::Proposal> for Proposal {
                 psbt,
             } => Self::Spending {
                 descriptor: descriptor.to_string(),
-                to_address: to_address.to_string(),
+                to_address: to_address.assume_checked().to_string(),
                 amount,
                 description,
                 psbt: psbt.to_string(),

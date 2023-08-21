@@ -16,8 +16,10 @@ use coinstr_core::bdk::signer::{SignerContext, SignerWrapper};
 use coinstr_core::bdk::wallet::{AddressIndex, Balance};
 use coinstr_core::bdk::FeeRate as BdkFeeRate;
 use coinstr_core::bips::bip39::Mnemonic;
+use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, Script, Txid, XOnlyPublicKey};
+use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, ScriptBuf, Txid};
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::{
     Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, PolicyTemplate, Proposal,
@@ -83,7 +85,7 @@ pub enum Error {
     #[error(transparent)]
     Secp256k1(#[from] coinstr_core::bitcoin::secp256k1::Error),
     #[error(transparent)]
-    Address(#[from] coinstr_core::bitcoin::util::address::Error),
+    Address(#[from] coinstr_core::bitcoin::address::Error),
     #[error(transparent)]
     EncryptionWithKeys(#[from] EncryptionWithKeysError),
     #[error(transparent)]
@@ -93,7 +95,7 @@ pub enum Error {
     #[error(transparent)]
     NIP46(#[from] nostr_sdk::nips::nip46::Error),
     #[error(transparent)]
-    BIP32(#[from] coinstr_core::bitcoin::util::bip32::Error),
+    BIP32(#[from] coinstr_core::bitcoin::bip32::Error),
     #[error(transparent)]
     Signer(#[from] coinstr_core::signer::Error),
     #[error(transparent)]
@@ -321,11 +323,11 @@ impl Coinstr {
     }
 
     /// Check keychain password
-    pub fn check_password<S>(&self, password: S) -> bool
+    pub fn check_password<S>(&self, password: S) -> Result<bool, Error>
     where
         S: Into<String>,
     {
-        self.keechain.check_password(password)
+        Ok(self.keechain.check_password(password)?)
     }
 
     /// Rename keychain file
@@ -349,7 +351,7 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        if self.check_password(password) {
+        if self.check_password(password)? {
             Ok(self.keechain.wipe()?)
         } else {
             Err(Error::PasswordNotMatch)
@@ -867,7 +869,7 @@ impl Coinstr {
     pub async fn spend<S>(
         &self,
         policy_id: EventId,
-        address: Address,
+        address: Address<NetworkUnchecked>,
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
@@ -889,7 +891,7 @@ impl Coinstr {
                 let endpoint = self.config.electrum_endpoint()?;
                 let proxy: Option<SocketAddr> = self.config.proxy().ok();
                 let config = ElectrumConfig::builder()
-                    .socks5(proxy.map(Socks5Config::new))?
+                    .socks5(proxy.map(Socks5Config::new))
                     .build();
                 let blockchain = ElectrumClient::from_config(&endpoint, config)?;
                 let btc_per_kvb: f32 =
@@ -977,7 +979,7 @@ impl Coinstr {
         );
         self.spend(
             from_policy_id,
-            address,
+            Address::new(self.network, address.payload),
             amount,
             description,
             fee_rate,
@@ -1204,7 +1206,7 @@ impl Coinstr {
             let endpoint = self.config.electrum_endpoint()?;
             let proxy: Option<SocketAddr> = self.config.proxy().ok();
             let config = ElectrumConfig::builder()
-                .socks5(proxy.map(Socks5Config::new))?
+                .socks5(proxy.map(Socks5Config::new))
                 .build();
             let blockchain = ElectrumClient::from_config(&endpoint, config)?;
             blockchain.transaction_broadcast(tx)?;
@@ -1324,7 +1326,7 @@ impl Coinstr {
         }
 
         let descriptions: HashMap<Txid, String> = self.db.get_txs_descriptions(policy_id)?;
-        let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
+        let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
 
         let mut list: Vec<GetTransaction> = Vec::new();
 
@@ -1371,11 +1373,10 @@ impl Coinstr {
             {
                 if wallet.is_mine(&txout.script_pubkey) {
                     let shared_key = self.db.get_shared_key(policy_id)?;
-                    let identifier: String = LabelData::Address(Address::from_script(
-                        &txout.script_pubkey,
-                        self.network,
-                    )?)
-                    .generate_identifier(&shared_key)?;
+                    let address = Address::from_script(&txout.script_pubkey, self.network)?;
+                    let identifier: String =
+                        LabelData::Address(Address::new(self.network, address.payload))
+                            .generate_identifier(&shared_key)?;
                     label = self
                         .db
                         .get_label_by_identifier(identifier)
@@ -1403,20 +1404,18 @@ impl Coinstr {
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<GetAddress, Error> {
-        let address = self.manager.get_address(policy_id, index)?;
+        let address = self.manager.get_address(policy_id, index)?.address;
 
         let shared_key = self.db.get_shared_key(policy_id)?;
+        let address = Address::new(self.network, address.payload);
         let identifier: String =
-            LabelData::Address(address.address.clone()).generate_identifier(&shared_key)?;
+            LabelData::Address(address.clone()).generate_identifier(&shared_key)?;
         let label = self
             .db
             .get_label_by_identifier(identifier)
             .ok()
             .map(|l| l.text());
-        Ok(GetAddress {
-            address: address.address,
-            label,
-        })
+        Ok(GetAddress { address, label })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -1426,14 +1425,14 @@ impl Coinstr {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
-        let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
+        let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
         Ok(self
             .manager
             .get_addresses(policy_id)?
             .into_iter()
             .map(|address| GetAddress {
                 label: script_labels
-                    .get(&address.script_pubkey())
+                    .get(&address.payload.script_pubkey())
                     .map(|l| l.text()),
                 address,
             })
@@ -1444,7 +1443,7 @@ impl Coinstr {
     pub fn get_addresses_balances(
         &self,
         policy_id: EventId,
-    ) -> Result<HashMap<Script, u64>, Error> {
+    ) -> Result<HashMap<ScriptBuf, u64>, Error> {
         Ok(self.manager.get_addresses_balances(policy_id)?)
     }
 
@@ -1452,7 +1451,7 @@ impl Coinstr {
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         // Get labels
-        let script_labels: HashMap<Script, Label> = self.db.get_addresses_labels(policy_id)?;
+        let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
         let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id)?;
 
         // Compose output

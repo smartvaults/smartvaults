@@ -4,6 +4,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::{Address, OutPoint};
 use coinstr_core::crypto::hash;
 use coinstr_core::util::{Encryption, Serde};
@@ -52,7 +53,7 @@ impl FromStr for LabelKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LabelData {
-    Address(Address),
+    Address(Address<NetworkUnchecked>),
     Utxo(OutPoint),
 }
 
@@ -72,7 +73,7 @@ impl FromStr for LabelData {
 impl LabelData {
     pub fn generate_identifier(&self, shared_key: &Keys) -> Result<String, Error> {
         let data = match self {
-            Self::Address(addr) => addr.to_string(),
+            Self::Address(addr) => addr.clone().assume_checked().to_string(),
             Self::Utxo(utxo) => utxo.to_string(),
         };
         let unhashed_identifier = format!("{}:{}", shared_key.secret_key()?.display_secret(), data);
@@ -105,7 +106,7 @@ impl Label {
         }
     }
 
-    pub fn address<S>(address: Address, text: S) -> Self
+    pub fn address<S>(address: Address<NetworkUnchecked>, text: S) -> Self
     where
         S: Into<String>,
     {

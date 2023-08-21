@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use coinstr_sdk::core::bitcoin::Script;
+use coinstr_sdk::core::bitcoin::ScriptBuf;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::db::model::{GetAddress, GetPolicy};
 use coinstr_sdk::nostr::EventId;
@@ -41,7 +41,7 @@ pub enum AddressesMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
     LoadAddresses(EventId),
     PolicySelectd(PolicyPicLisk),
-    AddressesChanged(Vec<GetAddress>, HashMap<Script, u64>),
+    AddressesChanged(Vec<GetAddress>, HashMap<ScriptBuf, u64>),
     ErrorChanged(Option<String>),
 }
 
@@ -50,7 +50,7 @@ pub struct AddressesState {
     policy: Option<PolicyPicLisk>,
     policies: Vec<PolicyPicLisk>,
     addresses: Vec<GetAddress>,
-    balances: HashMap<Script, u64>,
+    balances: HashMap<ScriptBuf, u64>,
     loading: bool,
     loaded: bool,
     error: Option<String>,
@@ -121,9 +121,10 @@ impl State for AddressesState {
                         async move {
                             let addresses = client.get_addresses(policy_id)?;
                             let balances = client.get_addresses_balances(policy_id)?;
-                            Ok::<(Vec<GetAddress>, HashMap<Script, u64>), Box<dyn std::error::Error>>(
-                                (addresses, balances),
-                            )
+                            Ok::<
+                                (Vec<GetAddress>, HashMap<ScriptBuf, u64>),
+                                Box<dyn std::error::Error>,
+                            >((addresses, balances))
                         },
                         |res| match res {
                             Ok((addresses, balances)) => {
@@ -222,6 +223,7 @@ impl State for AddressesState {
                 .push(rule::horizontal_bold());
 
             for (index, GetAddress { address, label }) in self.addresses.iter().enumerate() {
+                let address = address.clone().assume_checked();
                 let row = Row::new()
                     .push(
                         Text::new(index.to_string())

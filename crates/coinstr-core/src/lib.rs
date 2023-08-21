@@ -4,7 +4,9 @@
 pub use bdk::miniscript;
 #[cfg(feature = "hwi")]
 pub use hwi;
+use keechain_core::secp256k1::{rand, All, Secp256k1};
 pub use keechain_core::*;
+use once_cell::sync::Lazy;
 
 pub mod constants;
 pub mod policy;
@@ -19,17 +21,25 @@ pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 pub use self::signer::{SharedSigner, Signer, SignerType};
 pub use self::types::{Amount, FeeRate, Priority};
 
+pub static SECP256K1: Lazy<Secp256k1<All>> = Lazy::new(|| {
+    let mut ctx = Secp256k1::new();
+    let mut rng = rand::thread_rng();
+    ctx.randomize(&mut rng);
+    ctx
+});
+
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
 
-    use bdk::bitcoin::hashes::Hash;
-    use bdk::bitcoin::{Address, BlockHash, Network, Transaction, TxOut};
-    use bdk::chain::{BlockId, ConfirmationTime};
-    use bdk::miniscript::DescriptorPublicKey;
-    use bdk::wallet::AddressIndex;
-    use bdk::{FeeRate, Wallet};
+    use keechain_core::bdk::chain::{BlockId, ConfirmationTime};
+    use keechain_core::bdk::wallet::AddressIndex;
+    use keechain_core::bdk::{FeeRate, Wallet};
     use keechain_core::bips::bip39::Mnemonic;
+    use keechain_core::bitcoin::absolute::Height;
+    use keechain_core::bitcoin::hashes::Hash;
+    use keechain_core::bitcoin::{absolute, Address, BlockHash, Network, Transaction, TxOut};
+    use keechain_core::miniscript::DescriptorPublicKey;
     use keechain_core::types::descriptors::ToDescriptor;
     use keechain_core::types::{Purpose, Seed};
     use keechain_core::Result;
@@ -51,7 +61,7 @@ mod test {
 
         let tx = Transaction {
             version: 1,
-            lock_time: bitcoin::PackedLockTime(0),
+            lock_time: absolute::LockTime::Blocks(Height::min_value()),
             input: vec![],
             output: vec![TxOut {
                 value: 50_000,
@@ -85,13 +95,13 @@ mod test {
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
         let desc_a: DescriptorPublicKey =
-            seed_a.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
+            seed_a.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         // User B
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
         let desc_b: DescriptorPublicKey =
-            seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
+            seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
@@ -125,13 +135,13 @@ mod test {
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
         let desc_a: DescriptorPublicKey =
-            seed_a.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
+            seed_a.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         // User B
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
         let desc_b: DescriptorPublicKey =
-            seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK)?;
+            seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
@@ -157,14 +167,24 @@ mod test {
         // User A
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
-        let desc_a: DescriptorPublicKey =
-            seed_a.to_descriptor(Purpose::TR, Some(COINSTR_ACCOUNT_INDEX), false, NETWORK)?;
+        let desc_a: DescriptorPublicKey = seed_a.to_descriptor(
+            Purpose::TR,
+            Some(COINSTR_ACCOUNT_INDEX),
+            false,
+            NETWORK,
+            &SECP256K1,
+        )?;
 
         // User B
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
-        let desc_b: DescriptorPublicKey =
-            seed_b.to_descriptor(Purpose::TR, Some(COINSTR_ACCOUNT_INDEX), false, NETWORK)?;
+        let desc_b: DescriptorPublicKey = seed_b.to_descriptor(
+            Purpose::TR,
+            Some(COINSTR_ACCOUNT_INDEX),
+            false,
+            NETWORK,
+            &SECP256K1,
+        )?;
 
         let template = PolicyTemplate::multisig(1, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;

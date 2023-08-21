@@ -5,7 +5,9 @@ use std::ops::Deref;
 
 use coinstr_core::bdk::wallet::Balance;
 use coinstr_core::bdk::{LocalUtxo, TransactionDetails};
-use coinstr_core::bitcoin::{Address, XOnlyPublicKey};
+use coinstr_core::bitcoin::address::NetworkUnchecked;
+use coinstr_core::bitcoin::Address;
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::signer::{SharedSigner, Signer};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::nips::nip46::Message;
@@ -97,12 +99,12 @@ pub struct GetUtxo {
 
 #[derive(Debug, Clone)]
 pub struct GetAddress {
-    pub address: Address,
+    pub address: Address<NetworkUnchecked>,
     pub label: Option<String>,
 }
 
 impl Deref for GetAddress {
-    type Target = Address;
+    type Target = Address<NetworkUnchecked>;
     fn deref(&self) -> &Self::Target {
         &self.address
     }

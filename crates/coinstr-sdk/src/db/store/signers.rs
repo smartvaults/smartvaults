@@ -4,8 +4,8 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use coinstr_core::bitcoin::XOnlyPublicKey;
 use coinstr_core::miniscript::{Descriptor, DescriptorPublicKey};
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::{SharedSigner, Signer};
 use nostr_sdk::EventId;
 

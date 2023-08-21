@@ -368,6 +368,7 @@ interface Coinstr {
     string? name();
     [Throws=FFIError]
     void save();
+    [Throws=FFIError]
     boolean check_password(string password);
     [Throws=FFIError]
     void rename(string new_name);

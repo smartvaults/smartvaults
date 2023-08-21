@@ -104,8 +104,8 @@ impl From<coinstr_sdk::core::bips::bip39::Error> for FFIError {
     }
 }
 
-impl From<coinstr_sdk::core::bitcoin::util::address::Error> for FFIError {
-    fn from(e: coinstr_sdk::core::bitcoin::util::address::Error) -> Self {
+impl From<coinstr_sdk::core::bitcoin::address::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::bitcoin::address::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }

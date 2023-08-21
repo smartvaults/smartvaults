@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bips::bip32::Bip32;
+use coinstr_sdk::core::SECP256K1;
 use coinstr_sdk::util::format;
 use iced::widget::Row;
 use iced::{Alignment, Color, Length};
@@ -36,7 +37,12 @@ impl Navbar {
         };
 
         // Identity
-        let fingerprint = match ctx.client.keychain().seed.fingerprint(ctx.client.network()) {
+        let fingerprint = match ctx
+            .client
+            .keychain()
+            .seed
+            .fingerprint(ctx.client.network(), &SECP256K1)
+        {
             Ok(fingerprint) => Text::new(fingerprint.to_string()),
             Err(_) => Text::new("error").color(DARK_RED),
         };

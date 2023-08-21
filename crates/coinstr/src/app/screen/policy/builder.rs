@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::PolicyTemplate;
 use coinstr_sdk::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
 use coinstr_sdk::util;

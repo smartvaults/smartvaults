@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::db::model::NostrConnectRequest;
 use coinstr_sdk::nostr::nips::nip46::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Timestamp};

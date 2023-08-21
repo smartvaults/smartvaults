@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::types::backup::PolicyBackup;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};

@@ -119,7 +119,7 @@ impl Config {
                 "tcp://signet-electrumx.wakiyamap.dev:50001",
                 Some(Url::parse("https://mempool.space/signet")?),
             ),
-            Network::Regtest => ("tcp://localhost:60401", None),
+            _ => ("tcp://localhost:60401", None),
         };
 
         Ok(Self {

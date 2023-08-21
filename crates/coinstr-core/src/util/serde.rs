@@ -3,7 +3,7 @@
 
 use std::str::FromStr;
 
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
+use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 pub use keechain_core::util::serde::*;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

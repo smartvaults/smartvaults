@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_core::bitcoin::XOnlyPublicKey;
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{Event, EventBuilder, EventId, Keys, Tag};
 
 use super::{Coinstr, Error};

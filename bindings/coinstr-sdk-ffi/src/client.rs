@@ -13,7 +13,8 @@ use async_utility::thread;
 use coinstr_sdk::client;
 use coinstr_sdk::core::bips::bip39::Mnemonic;
 use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_sdk::core::bitcoin::{Address, Network, Txid, XOnlyPublicKey};
+use coinstr_sdk::core::bitcoin::{Address, Txid};
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{GetApprovedProposal, GetProposal as GetProposalSdk};
 use coinstr_sdk::nostr::{self, block_on};
@@ -23,8 +24,8 @@ use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
-    KeychainSeed, Message, Metadata, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
-    OutPoint, PolicyTemplate, Relay, Signer, Utxo,
+    KeychainSeed, Message, Metadata, Network, NostrConnectRequest, NostrConnectSession,
+    NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
 };
 
 pub struct Coinstr {
@@ -62,7 +63,8 @@ impl Coinstr {
     ) -> Result<Self> {
         block_on(async move {
             Ok(Self {
-                inner: client::Coinstr::open(base_path, name, || Ok(password), network).await?,
+                inner: client::Coinstr::open(base_path, name, || Ok(password), network.into())
+                    .await?,
                 dropped: AtomicBool::new(false),
             })
         })
@@ -85,7 +87,7 @@ impl Coinstr {
                     || Ok(password),
                     word_count,
                     || Ok(passphrase),
-                    network,
+                    network.into(),
                 )
                 .await?,
                 dropped: AtomicBool::new(false),
@@ -111,7 +113,7 @@ impl Coinstr {
                     || Ok(password),
                     || Ok(mnemonic),
                     || Ok(passphrase),
-                    network,
+                    network.into(),
                 )
                 .await?,
                 dropped: AtomicBool::new(false),
@@ -130,8 +132,8 @@ impl Coinstr {
     }
 
     /// Check keychain password
-    pub fn check_password(&self, password: String) -> bool {
-        self.inner.check_password(password)
+    pub fn check_password(&self, password: String) -> Result<bool> {
+        Ok(self.inner.check_password(password)?)
     }
 
     pub fn rename(&self, new_name: String) -> Result<()> {
@@ -169,7 +171,7 @@ impl Coinstr {
     }
 
     pub fn network(&self) -> Network {
-        self.inner.network()
+        self.inner.network().into()
     }
 
     /// Add new relay

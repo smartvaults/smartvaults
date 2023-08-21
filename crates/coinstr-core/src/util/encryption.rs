@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::secp256k1::SecretKey;
-use bdk::wallet::ChangeSet;
+use keechain_core::bdk::wallet::ChangeSet;
+use keechain_core::bitcoin::secp256k1::SecretKey;
 use keechain_core::crypto::aes;
 use keechain_core::util::serde::deserialize;
 

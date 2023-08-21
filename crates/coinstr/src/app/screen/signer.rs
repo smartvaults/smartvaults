@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_sdk::core::bitcoin::XOnlyPublicKey;
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;

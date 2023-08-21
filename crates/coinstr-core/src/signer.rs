@@ -3,14 +3,14 @@
 
 use std::fmt;
 
-use bdk::bitcoin::Network;
-use bdk::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
-use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 #[cfg(feature = "hwi")]
 use hwi::types::HWIDevice;
 #[cfg(feature = "hwi")]
 use hwi::HWIClient;
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
+use keechain_core::bitcoin::Network;
+use keechain_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
+use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
 use keechain_core::types::descriptors::ToDescriptor;
 use keechain_core::types::{descriptors, Purpose, Seed};
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ use thiserror::Error;
 
 use crate::constants::COINSTR_ACCOUNT_INDEX;
 use crate::util::{Encryption, Serde};
+use crate::SECP256K1;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -103,11 +104,12 @@ impl Signer {
     where
         S: Into<String>,
     {
-        let descriptor = seed.to_typed_descriptor(Purpose::TR, account, false, network)?;
+        let descriptor =
+            seed.to_typed_descriptor(Purpose::TR, account, false, network, &SECP256K1)?;
         Self::new(
             name,
             description,
-            seed.fingerprint(network)?,
+            seed.fingerprint(network, &SECP256K1)?,
             descriptor,
             SignerType::Seed,
         )

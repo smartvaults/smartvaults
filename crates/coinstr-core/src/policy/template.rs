@@ -1,9 +1,10 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use bdk::bitcoin::{PackedLockTime, Sequence};
-use bdk::miniscript::policy::concrete::Policy;
-use bdk::miniscript::DescriptorPublicKey;
+use keechain_core::bitcoin::absolute::LockTime as AbsoluteLockTime;
+use keechain_core::bitcoin::Sequence;
+use keechain_core::miniscript::policy::concrete::Policy;
+use keechain_core::miniscript::DescriptorPublicKey;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -14,15 +15,15 @@ pub enum Error {
     NoKeys,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
 pub enum Locktime {
     /// An absolute locktime restriction
-    After(PackedLockTime),
+    After(AbsoluteLockTime),
     /// A relative locktime restriction
     Older(Sequence),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
 pub struct RecoveryTemplate {
     threshold: usize,
     keys: Vec<DescriptorPublicKey>,
@@ -33,7 +34,7 @@ impl RecoveryTemplate {
     pub fn social_recovery(
         threshold: usize,
         keys: Vec<DescriptorPublicKey>,
-        after: PackedLockTime,
+        after: AbsoluteLockTime,
     ) -> Self {
         Self {
             threshold,
@@ -64,14 +65,14 @@ impl RecoveryTemplate {
         Ok(Policy::And(vec![
             Policy::Threshold(self.threshold, keys),
             match self.locktime {
-                Locktime::After(after) => Policy::After(after),
+                Locktime::After(after) => Policy::After(after.into()),
                 Locktime::Older(older) => Policy::Older(older),
             },
         ]))
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
 pub enum PolicyTemplate {
     Multisig {
         threshold: usize,
@@ -83,7 +84,7 @@ pub enum PolicyTemplate {
     },
     Hold {
         my_key: DescriptorPublicKey,
-        after: PackedLockTime,
+        after: AbsoluteLockTime,
     },
 }
 
@@ -96,7 +97,7 @@ impl PolicyTemplate {
         Self::Recovery { my_key, recovery }
     }
 
-    pub fn hold(my_key: DescriptorPublicKey, after: PackedLockTime) -> Self {
+    pub fn hold(my_key: DescriptorPublicKey, after: AbsoluteLockTime) -> Self {
         Self::Hold { my_key, after }
     }
 
@@ -121,7 +122,7 @@ impl PolicyTemplate {
             ])),
             Self::Hold { my_key, after } => Ok(Policy::And(vec![
                 Policy::Key(my_key.clone()),
-                Policy::After(*after),
+                Policy::After((*after).into()),
             ])),
         }
     }
@@ -167,7 +168,7 @@ mod test {
         // Recovery keys
         let desc2 = DescriptorPublicKey::from_str("[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*").unwrap();
         let desc3 = DescriptorPublicKey::from_str("[f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*").unwrap();
-        let after = PackedLockTime(10_000);
+        let after = AbsoluteLockTime::from_consensus(10_000);
 
         let recovery = RecoveryTemplate::social_recovery(2, vec![desc2, desc3], after);
         let template = PolicyTemplate::recovery(desc1, recovery);
@@ -192,7 +193,7 @@ mod test {
     #[test]
     fn test_hold_template() {
         let desc1 = DescriptorPublicKey::from_str("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*").unwrap();
-        let after = PackedLockTime(10_000);
+        let after = AbsoluteLockTime::from_consensus(10_000);
         let template = PolicyTemplate::hold(desc1, after);
         assert_eq!(template.build().unwrap().to_string(), String::from("and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),after(10000))"));
     }

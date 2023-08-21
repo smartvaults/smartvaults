@@ -3,20 +3,20 @@
 
 use std::fmt;
 
-use bdk::bitcoin::{Network, PrivateKey};
-use bdk::miniscript::psbt::PsbtExt;
-use bdk::miniscript::Descriptor;
-use bdk::signer::SignerWrapper;
-use bdk::{SignOptions, Wallet};
 #[cfg(feature = "hwi")]
 use hwi::HWIClient;
+use keechain_core::bdk::signer::SignerWrapper;
+use keechain_core::bdk::{SignOptions, Wallet};
+use keechain_core::bitcoin::address::NetworkUnchecked;
 use keechain_core::bitcoin::psbt::{
     Error as PsbtError, PartiallySignedTransaction, PsbtParseError,
 };
 use keechain_core::bitcoin::Address;
+use keechain_core::bitcoin::{Network, PrivateKey};
+use keechain_core::miniscript::psbt::PsbtExt;
+use keechain_core::miniscript::Descriptor;
 use keechain_core::types::psbt::{Error as KPsbtError, Psbt};
 use keechain_core::types::Seed;
-use keechain_core::SECP256K1;
 use serde::{Deserialize, Serialize};
 
 mod approved;
@@ -28,13 +28,14 @@ pub use self::completed::CompletedProposal;
 use crate::signer::Signer;
 use crate::util::serde::{deserialize_psbt, serialize_psbt};
 use crate::util::{Encryption, Serde};
+use crate::SECP256K1;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Bdk(#[from] bdk::Error),
+    Bdk(#[from] keechain_core::bdk::Error),
     #[error(transparent)]
-    BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
+    BdkDescriptor(#[from] keechain_core::bdk::descriptor::DescriptorError),
     #[error(transparent)]
     Psbt(#[from] PsbtError),
     #[error(transparent)]
@@ -51,7 +52,7 @@ pub enum Error {
     #[error("the provided approved proposals must have the same type")]
     ApprovedProposalTypeMismatch,
     #[error("impossible to finalize the PSBT: {0:?}")]
-    ImpossibleToFinalizePsbt(Vec<bdk::miniscript::psbt::Error>),
+    ImpossibleToFinalizePsbt(Vec<keechain_core::miniscript::psbt::Error>),
     #[error("impossible to finalize the non-std PSBT")]
     ImpossibleToFinalizeNonStdPsbt,
 }
@@ -75,7 +76,7 @@ impl fmt::Display for ProposalType {
 pub enum Proposal {
     Spending {
         descriptor: Descriptor<String>,
-        to_address: Address,
+        to_address: Address<NetworkUnchecked>,
         amount: u64,
         description: String,
         #[serde(
@@ -98,7 +99,7 @@ pub enum Proposal {
 impl Proposal {
     pub fn spending<S>(
         descriptor: Descriptor<String>,
-        to_address: Address,
+        to_address: Address<NetworkUnchecked>,
         amount: u64,
         description: S,
         psbt: PartiallySignedTransaction,
@@ -174,11 +175,19 @@ impl Proposal {
                 custom_signers.clone(),
                 false,
                 network,
+                &SECP256K1,
             ) {
                 Ok(_) => psbt,
                 Err(KPsbtError::PsbtNotSigned) => {
                     let mut psbt = self.psbt();
-                    psbt.sign_custom(seed, Some(self.descriptor()), custom_signers, true, network)?;
+                    psbt.sign_custom(
+                        seed,
+                        Some(self.descriptor()),
+                        custom_signers,
+                        true,
+                        network,
+                        &SECP256K1,
+                    )?;
                     psbt
                 }
                 Err(e) => return Err(Error::KPsbt(e)),

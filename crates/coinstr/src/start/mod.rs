@@ -65,7 +65,7 @@ impl Start {
             Network::Bitcoin => Theme::Mainnet,
             Network::Testnet => Theme::Testnet,
             Network::Signet => Theme::Signet,
-            Network::Regtest => Theme::Regtest,
+            _ => Theme::Regtest,
         }
     }
 

@@ -4,17 +4,18 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk::bitcoin::{Address, Network, OutPoint, XOnlyPublicKey};
 use bdk::chain::PersistBackend;
 use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
-use bdk::miniscript::descriptor::DescriptorType;
-use bdk::miniscript::policy::Concrete;
-use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, Wallet};
-use keechain_core::types::psbt::{self, Psbt};
+use keechain_core::bitcoin::address::NetworkUnchecked;
+use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
+use keechain_core::bitcoin::{Address, Network, OutPoint};
+use keechain_core::miniscript::descriptor::DescriptorType;
+use keechain_core::miniscript::policy::Concrete;
+use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
+use keechain_core::secp256k1::XOnlyPublicKey;
 use serde::{Deserialize, Serialize};
 
 pub mod template;
@@ -23,7 +24,7 @@ pub use self::template::{Locktime, PolicyTemplate, RecoveryTemplate};
 use crate::proposal::Proposal;
 use crate::reserves::ProofOfReserves;
 use crate::util::{Encryption, Serde, Unspendable};
-use crate::Amount;
+use crate::{Amount, SECP256K1};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -34,13 +35,13 @@ pub enum Error {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
-    Miniscript(#[from] bdk::miniscript::Error),
+    Miniscript(#[from] keechain_core::miniscript::Error),
     #[error(transparent)]
-    Psbt(#[from] psbt::Error),
+    Psbt(#[from] keechain_core::bitcoin::psbt::Error),
     #[error(transparent)]
     ProofOfReserves(#[from] crate::reserves::ProofError),
     #[error(transparent)]
-    Policy(#[from] bdk::miniscript::policy::compiler::CompilerError),
+    Policy(#[from] keechain_core::miniscript::policy::compiler::CompilerError),
     #[error(transparent)]
     Template(#[from] template::Error),
     #[error("{0}, {1}")]
@@ -103,7 +104,7 @@ impl Policy {
         S: Into<String>,
     {
         let policy: Concrete<String> = Concrete::<String>::from_str(&policy.into())?;
-        let unspendable_pk: XOnlyPublicKey = XOnlyPublicKey::unspendable();
+        let unspendable_pk: XOnlyPublicKey = XOnlyPublicKey::unspendable(&SECP256K1);
         let descriptor: Descriptor<String> = policy.compile_tr(Some(unspendable_pk.to_string()))?;
         Self::new(name, description, descriptor, network)
     }
@@ -186,7 +187,7 @@ impl Policy {
     pub fn spend<D, S>(
         &self,
         wallet: &mut Wallet<D>,
-        address: Address,
+        address: Address<NetworkUnchecked>,
         amount: Amount,
         description: S,
         fee_rate: FeeRate,
@@ -212,15 +213,19 @@ impl Policy {
 
             builder.fee_rate(fee_rate).enable_rbf();
             match amount {
-                Amount::Max => builder.drain_wallet().drain_to(address.script_pubkey()),
-                Amount::Custom(amount) => builder.add_recipient(address.script_pubkey(), amount),
+                Amount::Max => builder
+                    .drain_wallet()
+                    .drain_to(address.payload.script_pubkey()),
+                Amount::Custom(amount) => {
+                    builder.add_recipient(address.payload.script_pubkey(), amount)
+                }
             };
             builder.finish()?
         };
 
         let amount: u64 = match amount {
             Amount::Max => {
-                let fee: u64 = psbt.fee()?;
+                let fee: u64 = psbt.fee()?.to_sat();
                 details
                     .sent
                     .saturating_sub(details.received)

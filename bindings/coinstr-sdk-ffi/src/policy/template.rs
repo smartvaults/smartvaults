@@ -5,8 +5,9 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use coinstr_sdk::core;
+use coinstr_sdk::core::bitcoin::absolute::LockTime as AbsoluteLockTime;
+use coinstr_sdk::core::bitcoin::Sequence;
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
-use coinstr_sdk::nostr::prelude::{PackedLockTime, Sequence};
 
 use crate::Descriptor;
 
@@ -31,7 +32,7 @@ impl RecoveryTemplate {
             inner: core::RecoveryTemplate::social_recovery(
                 threshold as usize,
                 keys,
-                PackedLockTime(after),
+                AbsoluteLockTime::from_consensus(after),
             ),
         }
     }
@@ -88,7 +89,7 @@ impl PolicyTemplate {
         Self {
             inner: core::PolicyTemplate::hold(
                 my_key.as_ref().deref().clone(),
-                PackedLockTime(after),
+                AbsoluteLockTime::from_consensus(after),
             ),
         }
     }

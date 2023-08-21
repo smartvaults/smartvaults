@@ -8,8 +8,10 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use coinstr_sdk::core::bips::bip32::Fingerprint;
-use coinstr_sdk::core::bitcoin::{Address, XOnlyPublicKey};
+use coinstr_sdk::core::bitcoin::Address;
 use coinstr_sdk::core::miniscript::{Descriptor, DescriptorPublicKey};
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
+use coinstr_sdk::nostr::prelude::address::NetworkUnchecked;
 use coinstr_sdk::nostr::prelude::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Url};
 use coinstr_sdk::types::LabelData;
@@ -140,7 +142,7 @@ pub enum Command {
         policy_id: EventId,
         /// To address
         #[arg(required = true)]
-        to_address: Address,
+        to_address: Address<NetworkUnchecked>,
         /// Amount in sat
         #[arg(required = true)]
         amount: u64,
@@ -158,7 +160,7 @@ pub enum Command {
         policy_id: EventId,
         /// To address
         #[arg(required = true)]
-        to_address: Address,
+        to_address: Address<NetworkUnchecked>,
         /// Description
         #[arg(required = true)]
         description: String,

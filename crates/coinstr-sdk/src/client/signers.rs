@@ -3,8 +3,8 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_core::bitcoin::XOnlyPublicKey;
 use coinstr_core::miniscript::Descriptor;
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::util::Serde;
 use nostr_sdk::nips::nip04;

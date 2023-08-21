@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::types::Secrets;
+use coinstr_sdk::core::SECP256K1;
 use iced::widget::{Column, Row};
 use iced::{Alignment, Command, Element, Length};
 
@@ -53,11 +54,15 @@ impl State for RecoveryKeysState {
                     self.error = e;
                 }
                 RecoveryKeysMessage::Confirm => {
-                    if ctx.client.check_password(&self.password) {
+                    if ctx
+                        .client
+                        .check_password(&self.password)
+                        .unwrap_or_default()
+                    {
                         self.loading = true;
                         let client = ctx.client.clone();
                         return Command::perform(
-                            async move { client.keychain().secrets(client.network()) },
+                            async move { client.keychain().secrets(client.network(), &SECP256K1) },
                             |res| match res {
                                 Ok(secrets) => RecoveryKeysMessage::LoadSecrets(secrets).into(),
                                 Err(e) => {

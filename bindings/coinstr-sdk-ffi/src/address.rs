@@ -32,7 +32,7 @@ impl From<model::GetAddress> for GetAddress {
 
 impl GetAddress {
     pub fn address(&self) -> String {
-        self.inner.address.to_string()
+        self.inner.address.clone().assume_checked().to_string()
     }
 
     pub fn label(&self) -> Option<String> {

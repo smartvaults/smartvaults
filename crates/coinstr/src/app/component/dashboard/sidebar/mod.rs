@@ -31,7 +31,7 @@ impl Sidebar {
             Network::Bitcoin => APP_LOGO_MAINNET,
             Network::Testnet => APP_LOGO_TESTNET,
             Network::Signet => APP_LOGO_SIGNET,
-            Network::Regtest => APP_LOGO_REGTEST,
+            _ => APP_LOGO_REGTEST,
         });
         let logo = svg(handle)
             .width(Length::Fixed(80.0))

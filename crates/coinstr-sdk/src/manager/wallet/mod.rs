@@ -6,17 +6,17 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use bdk_electrum::bdk_chain::local_chain::{CannotConnectError, CheckPoint};
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::ElectrumExt;
-use coinstr_core::bdk::chain::keychain::LocalUpdate;
-use coinstr_core::bdk::chain::local_chain::UpdateNotConnectedError;
 use coinstr_core::bdk::chain::{ConfirmationTimeAnchor, TxGraph};
-use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance};
+use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
 use coinstr_core::bdk::{FeeRate, KeychainKind, LocalUtxo, TransactionDetails, Wallet};
+use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Address, BlockHash, OutPoint, Script, Txid};
+use coinstr_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Txid};
 use coinstr_core::reserves::ProofOfReserves;
 use coinstr_core::{Amount, Policy, Proposal};
 use parking_lot::RwLock;
@@ -36,11 +36,11 @@ pub enum Error {
     #[error(transparent)]
     Proof(#[from] coinstr_core::reserves::ProofError),
     #[error(transparent)]
-    Address(#[from] coinstr_core::bitcoin::util::address::Error),
+    Address(#[from] coinstr_core::bitcoin::address::Error),
     #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
-    UpdateNotConnected(#[from] UpdateNotConnectedError),
+    CannotConnect(#[from] CannotConnectError),
     #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("impossible to read wallet")]
@@ -77,8 +77,8 @@ impl CoinstrWallet {
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(syncing));
     }
 
-    pub fn checkpoints(&self) -> BTreeMap<u32, BlockHash> {
-        self.wallet.read().checkpoints().clone()
+    pub fn latest_checkpoint(&self) -> Option<CheckPoint> {
+        self.wallet.read().latest_checkpoint().clone()
     }
 
     pub fn graph(&self) -> TxGraph<ConfirmationTimeAnchor> {
@@ -86,7 +86,7 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn spks(&self) -> BTreeMap<KeychainKind, impl Iterator<Item = (u32, Script)> + Clone> {
+    pub fn spks(&self) -> BTreeMap<KeychainKind, impl Iterator<Item = (u32, ScriptBuf)> + Clone> {
         self.wallet.read().spks_of_all_keychains()
     }
 
@@ -94,7 +94,7 @@ impl CoinstrWallet {
     pub fn spks_of_keychain(
         &self,
         keychain: KeychainKind,
-    ) -> impl Iterator<Item = (u32, Script)> + Clone {
+    ) -> impl Iterator<Item = (u32, ScriptBuf)> + Clone {
         self.wallet.read().spks_of_keychain(keychain)
     }
 
@@ -112,7 +112,7 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses(&self) -> Result<Vec<Address>, Error> {
+    pub fn get_addresses(&self) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
         // Get spks
         let spks = self.spks_of_keychain(KeychainKind::External);
 
@@ -124,15 +124,19 @@ impl CoinstrWallet {
         let network = wallet.network();
         drop(wallet);
 
-        let mut addresses: Vec<Address> = Vec::new();
+        let mut addresses: Vec<Address<NetworkUnchecked>> = Vec::new();
         let mut counter: Option<u8> = None;
 
         for (_index, script) in spks {
-            let addr = Address::from_script(&script, network)?;
-            addresses.push(addr.clone());
+            let addr: Address = Address::from_script(&script, network)?;
+            let addr_unchecked: Address<NetworkUnchecked> =
+                Address::new(network, addr.payload.clone());
+            addresses.push(addr_unchecked);
+
             if addr == last_unused.address {
                 counter = Some(0);
             }
+
             if let Some(counter) = counter.as_mut() {
                 *counter += 1;
 
@@ -146,8 +150,8 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses_balances(&self) -> HashMap<Script, u64> {
-        let mut map: HashMap<Script, u64> = HashMap::new();
+    pub fn get_addresses_balances(&self) -> HashMap<ScriptBuf, u64> {
+        let mut map: HashMap<ScriptBuf, u64> = HashMap::new();
 
         for utxo in self.wallet.read().list_unspent() {
             map.entry(utxo.txout.script_pubkey)
@@ -162,7 +166,7 @@ impl CoinstrWallet {
         let wallet = self.wallet.read();
         wallet
             .transactions()
-            .filter_map(|t| wallet.get_tx(t.node.txid, true))
+            .filter_map(|t| wallet.get_tx(t.tx_node.txid, true))
             .collect()
     }
 
@@ -183,23 +187,17 @@ impl CoinstrWallet {
             self.set_syncing(true);
 
             let endpoint: String = endpoint.into();
-            let local_chain = self.checkpoints();
+            let prev_tip = self.latest_checkpoint();
             let keychain_spks = self.spks();
             let graph = self.graph();
 
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy)?.build();
+            let config = ElectrumConfig::builder().socks5(proxy).build();
             let client = ElectrumClient::from_config(&endpoint, config)?;
 
-            let electrum_update = client.scan(
-                &local_chain,
-                keychain_spks,
-                None,
-                None,
-                STOP_GAP,
-                BATCH_SIZE,
-            )?;
+            let electrum_update =
+                client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
             let missing = electrum_update.missing_full_txs(&graph);
             let update = electrum_update.finalize_as_confirmation_time(&client, None, missing)?;
 
@@ -214,10 +212,7 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn apply_update(
-        &self,
-        update: LocalUpdate<KeychainKind, ConfirmationTimeAnchor>,
-    ) -> Result<(), Error> {
+    pub fn apply_update(&self, update: Update) -> Result<(), Error> {
         let mut wallet = self.wallet.write();
         wallet.apply_update(update)?;
         wallet.commit()?;
@@ -227,7 +222,7 @@ impl CoinstrWallet {
     #[allow(clippy::too_many_arguments)]
     pub fn spend<S>(
         &self,
-        address: Address,
+        address: Address<NetworkUnchecked>,
         amount: Amount,
         description: S,
         fee_rate: FeeRate,

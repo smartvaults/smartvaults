@@ -9,10 +9,10 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use async_utility::thread;
+use bdk_electrum::electrum_client::ElectrumApi;
 use bdk_electrum::electrum_client::{
-    Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
+    Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
 };
-use bdk_electrum::ElectrumExt;
 use coinstr_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
 use coinstr_core::util::Serde;
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer};
@@ -69,11 +69,11 @@ impl Coinstr {
 
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy)?.build();
+            let config = ElectrumConfig::builder().socks5(proxy).build();
             let client = ElectrumClient::from_config(&endpoint, config)?;
 
-            let (height, ..) = client.get_tip()?;
-            self.db.block_height.set_block_height(height);
+            let HeaderNotification { height, .. } = client.block_headers_subscribe()?;
+            self.db.block_height.set_block_height(height as u32);
             self.db.block_height.just_synced();
 
             let _ = self.sync_channel.send(Message::BlockHeightUpdated);

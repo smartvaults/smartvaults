@@ -7,18 +7,19 @@ use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
 use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::bips::bip32::Bip32;
-use coinstr_sdk::core::bitcoin::util::bip32::ExtendedPubKey;
-use coinstr_sdk::core::bitcoin::{Network, Script};
+use coinstr_sdk::core::bitcoin::bip32::ExtendedPubKey;
+use coinstr_sdk::core::bitcoin::{Network, ScriptBuf};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
+use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::Purpose;
-use coinstr_sdk::core::{Keychain, Result};
+use coinstr_sdk::core::{Keychain, Result, SECP256K1};
 use coinstr_sdk::db::model::{
     GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, GetUtxo,
     NostrConnectRequest,
 };
-use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32, XOnlyPublicKey};
-use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url, SECP256K1};
+use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
+use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url};
 use coinstr_sdk::util::{self, format};
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
@@ -52,7 +53,7 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     println!("  Private  : {} ", keys.secret_key()?.display_secret());
 
     let root_key = keychain.seed.to_bip32_root_key(network)?;
-    let descriptors = keychain.descriptors(network, None)?;
+    let descriptors = keychain.descriptors(network, None, &SECP256K1)?;
     let external = descriptors.get_by_purpose(Purpose::TR, false).unwrap();
     let internal = descriptors.get_by_purpose(Purpose::TR, true).unwrap();
 
@@ -60,7 +61,7 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     println!("  Root Private Key: {root_key}");
     println!(
         "  Extended Pub Key: {}",
-        ExtendedPubKey::from_priv(SECP256K1, &root_key)
+        ExtendedPubKey::from_priv(&SECP256K1, &root_key)
     );
     println!("  Output Descriptor: {external}");
     println!("  Change Descriptor: {internal}");
@@ -136,7 +137,7 @@ pub fn print_policy(
     println!(
         "\n{}: {}\n",
         "Deposit address".fg::<BlazeOrange>().underline(),
-        address.address
+        address.address.assume_checked()
     );
 
     if !txs.is_empty() {
@@ -336,7 +337,7 @@ pub fn print_proposal(proposal: GetProposal) {
         } => {
             println!("- Type: spending");
             println!("- Description: {description}");
-            println!("- To address: {to_address}");
+            println!("- To address: {}", to_address.assume_checked());
             println!("- Amount: {amount}");
         }
         Proposal::ProofOfReserve { message, .. } => {
@@ -382,7 +383,7 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
                     util::cut_event_id(policy_id),
                     "spending",
                     description,
-                    to_address,
+                    to_address.assume_checked(),
                     format!("{} sat", format::number(amount))
                 ]);
             }
@@ -501,7 +502,7 @@ pub async fn print_relays(relays: BTreeMap<Url, Relay>) {
     table.printstd();
 }
 
-pub fn print_addresses(addresses: Vec<GetAddress>, balances: HashMap<Script, u64>) {
+pub fn print_addresses(addresses: Vec<GetAddress>, balances: HashMap<ScriptBuf, u64>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "Address", "Label", "Balance"]);
@@ -509,13 +510,13 @@ pub fn print_addresses(addresses: Vec<GetAddress>, balances: HashMap<Script, u64
     for (index, GetAddress { address, label }) in addresses.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
-            address.to_string(),
+            address.clone().assume_checked().to_string(),
             label.unwrap_or_else(|| String::from("-")),
             format!(
                 "{} sat",
                 format::number(
                     balances
-                        .get(&address.script_pubkey())
+                        .get(&address.payload.script_pubkey())
                         .copied()
                         .unwrap_or_default()
                 )

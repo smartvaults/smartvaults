@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
 use coinstr_sdk::core::bdk::wallet::Balance;
+use coinstr_sdk::core::bitcoin::address::NetworkUnchecked;
 use coinstr_sdk::core::bitcoin::{Address, OutPoint};
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
@@ -135,7 +136,7 @@ impl SpendState {
         &mut self,
         ctx: &mut Context,
         policy_id: EventId,
-        to_address: Address,
+        to_address: Address<NetworkUnchecked>,
         amount: Amount,
     ) -> Command<Message> {
         self.loading = true;
