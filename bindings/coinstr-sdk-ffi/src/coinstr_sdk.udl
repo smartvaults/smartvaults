@@ -345,6 +345,11 @@ interface NostrConnectRequest {
     boolean approved();
 };
 
+interface GetContact {
+    PublicKey public_key();
+    Metadata metadata();
+};
+
 interface Config {
     [Throws=FFIError]
     void save();
@@ -403,7 +408,7 @@ interface Coinstr {
     [Throws=FFIError]
     Metadata get_profile();
     [Throws=FFIError]
-    record<DOMString, Metadata> get_contacts();
+    sequence<GetContact> get_contacts();
     [Throws=FFIError]
     void add_contact(PublicKey public_key);
     [Throws=FFIError]

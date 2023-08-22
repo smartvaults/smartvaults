@@ -23,9 +23,9 @@ use nostr_ffi::{EventId, Keys, PublicKey};
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
-    GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
-    KeychainSeed, Message, Metadata, Network, NostrConnectRequest, NostrConnectSession,
-    NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
+    GetCompletedProposal, GetContact, GetPolicy, GetProposal, GetSharedSigner, GetSigner,
+    GetTransaction, KeychainSeed, Message, Metadata, Network, NostrConnectRequest,
+    NostrConnectSession, NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
 };
 
 pub struct Coinstr {
@@ -222,13 +222,12 @@ impl Coinstr {
         Ok(Arc::new(self.inner.get_profile()?.into()))
     }
 
-    // TODO: return PublicKey instead of String (must replace HashMap with Vec)
-    pub fn get_contacts(&self) -> Result<HashMap<String, Arc<Metadata>>> {
+    pub fn get_contacts(&self) -> Result<Vec<Arc<GetContact>>> {
         Ok(self
             .inner
             .get_contacts()?
             .into_iter()
-            .map(|(pk, m)| (pk.to_string(), Arc::new(m.into())))
+            .map(|(pk, m)| Arc::new((pk, m).into()))
             .collect())
     }
 

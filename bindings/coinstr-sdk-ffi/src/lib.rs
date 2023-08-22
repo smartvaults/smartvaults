@@ -8,6 +8,7 @@ mod approval;
 mod balance;
 mod client;
 mod config;
+mod contact;
 mod descriptor;
 mod error;
 mod logger;
@@ -57,6 +58,7 @@ mod ffi {
     pub use crate::balance::Balance;
     pub use crate::client::{Coinstr, SyncHandler};
     pub use crate::config::Config;
+    pub use crate::contact::GetContact;
     pub use crate::descriptor::Descriptor;
     pub use crate::message::{EventHandled, Message};
     pub use crate::metadata::Metadata;
