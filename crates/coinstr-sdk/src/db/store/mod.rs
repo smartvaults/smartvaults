@@ -32,6 +32,7 @@ mod policy;
 mod relays;
 mod signers;
 mod timechain;
+mod utxos;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{

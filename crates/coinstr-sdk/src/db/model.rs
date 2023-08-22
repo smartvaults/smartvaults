@@ -96,6 +96,7 @@ pub struct GetCompletedProposal {
 pub struct GetUtxo {
     pub utxo: LocalUtxo,
     pub label: Option<String>,
+    pub frozen: bool,
 }
 
 #[derive(Debug, Clone)]

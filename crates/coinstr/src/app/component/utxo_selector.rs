@@ -77,7 +77,12 @@ impl Component<Message, Renderer> for UtxoSelector {
             )
             .push(rule::horizontal_bold());
 
-        for GetUtxo { utxo, label } in self.utxos.iter() {
+        for GetUtxo {
+            utxo,
+            label,
+            frozen,
+        } in self.utxos.iter()
+        {
             let LocalUtxo {
                 outpoint, txout, ..
             } = utxo;
@@ -106,7 +111,13 @@ impl Component<Message, Renderer> for UtxoSelector {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(
+                        .push(if *frozen {
+                            Button::new()
+                                .text("Frozen")
+                                .style(ButtonStyle::Bordered)
+                                .width(Length::Fixed(130.0))
+                                .view()
+                        } else {
                             Button::new()
                                 .text(if selected { "Selected" } else { "Select" })
                                 .style(if selected {
@@ -116,8 +127,8 @@ impl Component<Message, Renderer> for UtxoSelector {
                                 })
                                 .on_press(Event::ToggleUtxo(*outpoint))
                                 .width(Length::Fixed(130.0))
-                                .view(),
-                        )
+                                .view()
+                        })
                         .spacing(20)
                         .align_items(Alignment::Center),
                 )

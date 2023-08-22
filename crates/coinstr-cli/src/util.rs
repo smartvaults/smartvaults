@@ -202,14 +202,23 @@ pub fn print_txs(txs: Vec<GetTransaction>, limit: usize) {
 pub fn print_utxos(utxos: Vec<GetUtxo>, limit: usize) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "UTXO", "Value", "Label"]);
+    table.set_titles(row!["#", "UTXO", "Value", "Label", "Frozen"]);
 
-    for (index, GetUtxo { utxo, label }) in utxos.into_iter().take(limit).enumerate() {
+    for (
+        index,
+        GetUtxo {
+            utxo,
+            label,
+            frozen,
+        },
+    ) in utxos.into_iter().take(limit).enumerate()
+    {
         table.add_row(row![
             index + 1,
             utxo.outpoint.to_string(),
             format!("{} sat", format::number(utxo.txout.value)),
-            label.unwrap_or_else(|| String::from("-"))
+            label.unwrap_or_else(|| String::from("-")),
+            frozen
         ]);
     }
 

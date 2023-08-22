@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
@@ -18,6 +18,8 @@ use coinstr_core::bdk::wallet::{AddressIndex, Balance};
 use coinstr_core::bdk::FeeRate as BdkFeeRate;
 use coinstr_core::bips::bip39::Mnemonic;
 use coinstr_core::bitcoin::address::NetworkUnchecked;
+use coinstr_core::bitcoin::hashes::sha256::Hash as Sha256Hash;
+use coinstr_core::bitcoin::hashes::Hash;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, PrivateKey, ScriptBuf, Txid};
 use coinstr_core::secp256k1::XOnlyPublicKey;
@@ -1447,6 +1449,7 @@ impl Coinstr {
         // Get labels
         let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
         let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id)?;
+        let frozen_utxos: HashSet<Sha256Hash> = self.db.get_frozen_utxos(policy_id)?;
 
         // Compose output
         Ok(self
@@ -1458,6 +1461,10 @@ impl Coinstr {
                     .get(&utxo.outpoint)
                     .or_else(|| script_labels.get(&utxo.txout.script_pubkey))
                     .map(|l| l.text()),
+                frozen: {
+                    let hash = Sha256Hash::hash(utxo.outpoint.to_string().as_bytes());
+                    frozen_utxos.contains(&hash)
+                },
                 utxo,
             })
             .collect())

@@ -45,6 +45,9 @@ pub enum Error {
     /// Secp256k1 error
     #[error(transparent)]
     Secp256k1(#[from] nostr_sdk::secp256k1::Error),
+    /// Hash error
+    #[error(transparent)]
+    Hash(#[from] coinstr_core::bitcoin::hashes::hex::Error),
     /// Policy error
     #[error(transparent)]
     Policy(#[from] policy::Error),
