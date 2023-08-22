@@ -93,15 +93,40 @@ interface EventId {
 };
 
 interface Metadata {
-    string? name();
-    string? display_name();
-    string? about();
-    string? website();
-    string? picture();
-    string? banner();
-    string? nip05();
-    string? lud06();
-    string? lud16();
+    constructor();
+
+    [Throws=FFIError, Name=from_json]
+    constructor(string json);
+    string as_json();
+
+    [Self=ByArc]
+    Metadata set_name(string name);
+    [Self=ByArc]
+    Metadata set_display_name(string display_name);
+    [Self=ByArc]
+    Metadata set_about(string about);
+    [Throws=FFIError, Self=ByArc]
+    Metadata set_website(string website);
+    [Throws=FFIError, Self=ByArc]
+    Metadata set_picture(string picture);
+    [Throws=FFIError, Self=ByArc]
+    Metadata set_banner(string banner);
+    [Self=ByArc]
+    Metadata set_nip05(string nip05);
+    [Self=ByArc]
+    Metadata set_lud06(string lud06);
+    [Self=ByArc]
+    Metadata set_lud16(string lud16);
+
+    string? get_name();
+    string? get_display_name();
+    string? get_about();
+    string? get_website();
+    string? get_picture();
+    string? get_banner();
+    string? get_nip05();
+    string? get_lud06();
+    string? get_lud16();
 };
 
 enum RelayStatus {
@@ -404,7 +429,7 @@ interface Coinstr {
     u32 block_height();
 
     [Throws=FFIError]
-    void set_metadata(string json);
+    void set_metadata(Metadata metadata);
     [Throws=FFIError]
     Metadata get_profile();
     [Throws=FFIError]

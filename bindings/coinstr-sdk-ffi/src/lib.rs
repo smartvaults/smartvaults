@@ -13,7 +13,6 @@ mod descriptor;
 mod error;
 mod logger;
 mod message;
-mod metadata;
 mod network;
 mod nip46;
 mod policy;
@@ -44,7 +43,9 @@ mod ffi {
     pub use coinstr_sdk::core::signer::SignerType;
     pub use coinstr_sdk::core::types::WordCount;
     pub use coinstr_sdk::nostr::RelayStatus;
-    pub use nostr_ffi::{EventId, Keys, NostrConnectURI, PublicKey, SecretKey, Timestamp};
+    pub use nostr_ffi::{
+        EventId, Keys, Metadata, NostrConnectURI, PublicKey, SecretKey, Timestamp,
+    };
 
     // Namespace
     pub use crate::logger::init_logger;
@@ -61,7 +62,6 @@ mod ffi {
     pub use crate::contact::GetContact;
     pub use crate::descriptor::Descriptor;
     pub use crate::message::{EventHandled, Message};
-    pub use crate::metadata::Metadata;
     pub use crate::network::Network;
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
     pub use crate::policy::{GetPolicy, Policy, PolicyTemplate, RecoveryTemplate};

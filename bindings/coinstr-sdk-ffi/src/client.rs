@@ -17,15 +17,15 @@ use coinstr_sdk::core::bitcoin::{Address, Txid};
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{GetApprovedProposal, GetProposal as GetProposalSdk};
-use coinstr_sdk::nostr::{self, block_on};
-use nostr_ffi::{EventId, Keys, PublicKey};
+use coinstr_sdk::nostr::block_on;
+use nostr_ffi::{EventId, Keys, Metadata, PublicKey};
 
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
     GetCompletedProposal, GetContact, GetPolicy, GetProposal, GetSharedSigner, GetSigner,
-    GetTransaction, KeychainSeed, Message, Metadata, Network, NostrConnectRequest,
-    NostrConnectSession, NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
+    GetTransaction, KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession,
+    NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
 };
 
 pub struct Coinstr {
@@ -211,10 +211,12 @@ impl Coinstr {
         self.inner.block_height()
     }
 
-    pub fn set_metadata(&self, json: String) -> Result<()> {
+    pub fn set_metadata(&self, metadata: Arc<Metadata>) -> Result<()> {
         block_on(async move {
-            let metadata = nostr::Metadata::from_json(json)?;
-            Ok(self.inner.set_metadata(metadata).await?)
+            Ok(self
+                .inner
+                .set_metadata(metadata.as_ref().deref().clone())
+                .await?)
         })
     }
 

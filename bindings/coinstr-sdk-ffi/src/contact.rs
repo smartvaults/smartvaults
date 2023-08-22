@@ -5,9 +5,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::nostr;
-use nostr_ffi::PublicKey;
-
-use crate::Metadata;
+use nostr_ffi::{Metadata, PublicKey};
 
 pub struct GetContact {
     public_key: XOnlyPublicKey,
