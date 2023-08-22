@@ -903,6 +903,16 @@ impl Coinstr {
             FeeRate::Rate(rate) => BdkFeeRate::from_sat_per_vb(rate),
         };
 
+        let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id)?;
+        let mut frozen_utxos = Vec::new();
+
+        for local_utxo in self.manager.get_utxos(policy_id)?.into_iter() {
+            let hash = Sha256Hash::hash(local_utxo.outpoint.to_string().as_bytes());
+            if hashed_frozen_utxos.contains(&hash) {
+                frozen_utxos.push(local_utxo.outpoint);
+            }
+        }
+
         // Build spending proposal
         let proposal: Proposal = self.manager.spend(
             policy_id,
@@ -911,6 +921,7 @@ impl Coinstr {
             description,
             fee_rate,
             utxos,
+            Some(frozen_utxos),
             policy_path,
         )?;
 

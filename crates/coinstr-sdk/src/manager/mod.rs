@@ -141,6 +141,7 @@ impl Manager {
         description: S,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
+        frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<Proposal, Error>
     where
@@ -152,6 +153,7 @@ impl Manager {
             description,
             fee_rate,
             utxos,
+            frozen_utxos,
             policy_path,
         )?)
     }

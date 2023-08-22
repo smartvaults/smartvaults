@@ -254,6 +254,7 @@ impl Policy {
         description: S,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
+        frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<Proposal, Error>
     where
@@ -266,6 +267,12 @@ impl Policy {
 
             if let Some(path) = policy_path {
                 builder.policy_path(path, KeychainKind::External);
+            }
+
+            if let Some(frozen_utxos) = frozen_utxos {
+                for unspendable in frozen_utxos.into_iter() {
+                    builder.add_unspendable(unspendable);
+                }
             }
 
             if let Some(utxos) = utxos {
