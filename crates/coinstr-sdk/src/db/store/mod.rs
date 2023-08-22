@@ -207,6 +207,12 @@ impl Store {
                 proposal.encrypt_with_keys(&self.keys)?,
             ),
         )?;
+
+        // Freeze UTXOs
+        for txin in proposal.psbt().unsigned_tx.input.into_iter() {
+            self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))?;
+        }
+
         tracing::info!("Spending proposal {proposal_id} saved");
         Ok(())
     }
@@ -296,6 +302,12 @@ impl Store {
         // Delete approvals
         conn.execute(
             "DELETE FROM approved_proposals WHERE proposal_id = ?;",
+            [proposal_id.to_hex()],
+        )?;
+
+        // Delete frozen UTXOs
+        conn.execute(
+            "DELETE FROM frozen_utxos WHERE proposal_id = ?;",
             [proposal_id.to_hex()],
         )?;
 
