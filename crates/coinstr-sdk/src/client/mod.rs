@@ -839,7 +839,10 @@ impl Coinstr {
 
         // Cache policy
         self.db.save_shared_key(policy_id, shared_key)?;
-        self.db.save_policy(policy_id, policy, nostr_pubkeys)?;
+        self.db.save_policy(policy_id, &policy, nostr_pubkeys)?;
+
+        // Load policy
+        self.manager.load_policy(policy_id, policy)?;
 
         Ok(policy_id)
     }

@@ -27,7 +27,7 @@ impl Store {
     pub fn save_policy(
         &self,
         policy_id: EventId,
-        policy: Policy,
+        policy: &Policy,
         nostr_public_keys: Vec<XOnlyPublicKey>,
     ) -> Result<(), Error> {
         let conn = self.pool.get()?;

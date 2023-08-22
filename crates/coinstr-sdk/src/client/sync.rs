@@ -381,8 +381,7 @@ impl Coinstr {
                 if nostr_pubkeys.is_empty() {
                     tracing::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
-                    self.db
-                        .save_policy(event.id, policy.clone(), nostr_pubkeys)?;
+                    self.db.save_policy(event.id, &policy, nostr_pubkeys)?;
                     self.manager.load_policy(event.id, policy)?;
                     let notification = Notification::NewPolicy(event.id);
                     self.db.save_notification(event.id, notification)?;
