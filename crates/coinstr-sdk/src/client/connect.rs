@@ -7,7 +7,7 @@ use std::time::Duration;
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use nostr_sdk::nips::nip46::NostrConnectURI;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
-use nostr_sdk::{EventBuilder, EventId, RelaySendOptions, Timestamp, Url};
+use nostr_sdk::{ClientMessage, EventBuilder, EventId, Timestamp, Url};
 
 use super::{Coinstr, Error};
 use crate::db::model::NostrConnectRequest;
@@ -64,7 +64,7 @@ impl Coinstr {
         } else {
             self.client
                 .pool()
-                .send_event_to(uri.relay_url, nip46_event, RelaySendOptions::default())
+                .send_msg_to(uri.relay_url, ClientMessage::new_event(nip46_event), None)
                 .await?;
         }
         self.db.delete_nostr_connect_session(app_public_key)?;

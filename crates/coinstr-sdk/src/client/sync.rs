@@ -20,8 +20,8 @@ use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::{
-    Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, RelayMessage,
-    RelayPoolNotification, RelaySendOptions, Result, Tag, TagKind, Timestamp,
+    ClientMessage, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, RelayMessage,
+    RelayPoolNotification, Result, Tag, TagKind, Timestamp,
 };
 use tokio::sync::broadcast::Receiver;
 
@@ -595,9 +595,10 @@ impl Coinstr {
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
                         let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
                             .to_event(&keys)?;
+                        // TODO: use send_event?
                         self.client
                             .pool()
-                            .send_event_to(uri.relay_url, nip46_event, RelaySendOptions::default())
+                            .send_msg_to(uri.relay_url, ClientMessage::new_event(nip46_event), None)
                             .await?;
                     }
                     _ => {
@@ -616,10 +617,10 @@ impl Coinstr {
                                     .to_event(&keys)?;
                             self.client
                                 .pool()
-                                .send_event_to(
+                                .send_msg_to(
                                     uri.relay_url,
-                                    nip46_event,
-                                    RelaySendOptions::default(),
+                                    ClientMessage::new_event(nip46_event),
+                                    None,
                                 )
                                 .await?;
                             self.db.save_nostr_connect_request(

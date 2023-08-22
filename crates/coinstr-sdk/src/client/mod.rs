@@ -26,8 +26,8 @@ use coinstr_core::{
 };
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
-    nips, Client, Contact, Event, EventBuilder, EventId, Keys, Kind, Metadata, Options, Relay,
-    RelayPoolNotification, RelaySendOptions, Result, Tag, TagKind, Timestamp, Url,
+    nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Keys, Kind, Metadata,
+    Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use tokio::sync::broadcast::{self, Sender};
 
@@ -181,7 +181,6 @@ impl Coinstr {
         let opts = Options::new()
             .wait_for_connection(false)
             .wait_for_send(true)
-            .wait_for_ok(false)
             .wait_for_subscription(false)
             .send_timeout(Some(SEND_TIMEOUT));
 
@@ -823,13 +822,13 @@ impl Coinstr {
                 ],
             )
             .to_event(&keys)?;
+            let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
             self.db.save_event(&event)?;
-            let event_id: EventId = self
-                .client
+            self.client
                 .pool()
-                .send_event(event, RelaySendOptions::default())
+                .send_msg(ClientMessage::new_event(event), None)
                 .await?;
             tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
@@ -1528,10 +1527,9 @@ impl Coinstr {
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {
         let pool = self.client.pool();
-        let opts = RelaySendOptions::default();
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
-            pool.send_event(event, opts).await?;
+            pool.send_msg(ClientMessage::new_event(event), None).await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1541,12 +1539,12 @@ impl Coinstr {
     where
         S: Into<String>,
     {
-        let url: Url = Url::parse(&url.into())?;
+        let url: String = url.into();
         let pool = self.client.pool();
-        let opts = RelaySendOptions::default();
         let events: Vec<Event> = self.db.get_events()?;
         for event in events.into_iter() {
-            pool.send_event_to(url.clone(), event, opts).await?;
+            pool.send_msg_to(&*url, ClientMessage::new_event(event), None)
+                .await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1572,13 +1570,13 @@ impl Coinstr {
                 ],
             )
             .to_event(&keys)?;
+            let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
             self.db.save_event(&event)?;
-            let event_id: EventId = self
-                .client
+            self.client
                 .pool()
-                .send_event(event, RelaySendOptions::default())
+                .send_msg(ClientMessage::new_event(event), None)
                 .await?;
             tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }

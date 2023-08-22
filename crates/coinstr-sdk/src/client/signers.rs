@@ -8,7 +8,7 @@ use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::util::Serde;
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{Event, EventBuilder, EventId, Keys, Kind, RelaySendOptions, Tag};
+use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Tag};
 
 use super::{Coinstr, Error};
 use crate::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
@@ -159,13 +159,13 @@ impl Coinstr {
                 ];
                 let event: Event =
                     EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+                let event_id: EventId = event.id;
 
                 // TODO: use send_batch_event method from nostr-sdk
                 self.db.save_event(&event)?;
-                let event_id = self
-                    .client
+                self.client
                     .pool()
-                    .send_event(event, RelaySendOptions::default())
+                    .send_msg(ClientMessage::new_event(event), None)
                     .await?;
 
                 self.db
