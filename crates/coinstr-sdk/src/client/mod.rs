@@ -43,7 +43,7 @@ use crate::constants::{
     POLICY_KIND, PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND, TESTNET_RELAYS,
 };
 use crate::db::model::{
-    GetAddress, GetApprovedProposal, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicy,
+    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicy,
     GetNotifications, GetPolicy, GetProposal, GetTransaction, GetUtxo,
 };
 use crate::db::store::Store;
@@ -766,7 +766,7 @@ impl Coinstr {
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
-    ) -> Result<BTreeMap<EventId, GetApprovedProposal>, Error> {
+    ) -> Result<Vec<GetApproval>, Error> {
         Ok(self.db.get_approvals_by_proposal_id(proposal_id)?)
     }
 

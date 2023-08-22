@@ -1,13 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
 use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Psbt;
 use coinstr_sdk::core::CompletedProposal;
-use coinstr_sdk::db::model::{GetApprovedProposal, GetProposal};
+use coinstr_sdk::db::model::{GetApproval, GetProposal};
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
@@ -24,12 +22,7 @@ use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
-    LoadProposal(
-        Proposal,
-        EventId,
-        BTreeMap<EventId, GetApprovedProposal>,
-        Option<Signer>,
-    ),
+    LoadProposal(Proposal, EventId, Vec<GetApproval>, Option<Signer>),
     Approve,
     Finalize,
     Signed(bool),
@@ -52,7 +45,7 @@ pub struct ProposalState {
     proposal_id: EventId,
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
-    approved_proposals: BTreeMap<EventId, GetApprovedProposal>,
+    approved_proposals: Vec<GetApproval>,
     signer: Option<Signer>,
     error: Option<String>,
 }
@@ -67,7 +60,7 @@ impl ProposalState {
             proposal_id,
             proposal: None,
             policy_id: None,
-            approved_proposals: BTreeMap::new(),
+            approved_proposals: Vec::new(),
             signer: None,
             error: None,
         }
@@ -223,12 +216,9 @@ impl State for ProposalState {
                             .approved_proposals
                             .iter()
                             .map(
-                                |(
-                                    _,
-                                    GetApprovedProposal {
-                                        approved_proposal, ..
-                                    },
-                                )| { approved_proposal.clone() },
+                                |GetApproval {
+                                     approved_proposal, ..
+                                 }| { approved_proposal.clone() },
                             )
                             .collect();
                         return Command::perform(
@@ -391,7 +381,7 @@ impl State for ProposalState {
                     );
 
                     let (approve_btn, mut finalize_btn) = match self.approved_proposals.iter().find(
-                        |(_, GetApprovedProposal { public_key, .. })| {
+                        |GetApproval { public_key, .. }| {
                             public_key == &ctx.client.keys().public_key()
                         },
                     ) {
@@ -485,14 +475,12 @@ impl State for ProposalState {
                             .push(rule::horizontal_bold());
 
                         let my_public_key = ctx.client.keys().public_key();
-                        for (
+                        for GetApproval {
                             approval_id,
-                            GetApprovedProposal {
-                                public_key,
-                                timestamp,
-                                ..
-                            },
-                        ) in self.approved_proposals.iter()
+                            public_key,
+                            timestamp,
+                            ..
+                        } in self.approved_proposals.iter()
                         {
                             let mut row = Row::new()
                                 .push(

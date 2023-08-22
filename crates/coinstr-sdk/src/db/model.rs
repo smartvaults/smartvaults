@@ -43,7 +43,8 @@ pub struct GetNotifications {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetApprovedProposal {
+pub struct GetApproval {
+    pub approval_id: EventId,
     pub public_key: XOnlyPublicKey,
     pub approved_proposal: ApprovedProposal,
     pub timestamp: Timestamp,

@@ -6,7 +6,7 @@
 #![allow(clippy::type_complexity)]
 
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::ops::Add;
 use std::path::Path;
 use std::str::FromStr;
@@ -35,7 +35,7 @@ mod timechain;
 
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
-    GetApprovedProposal, GetApprovedProposals, GetCompletedProposal, GetNotifications, GetProposal,
+    GetApproval, GetApprovedProposals, GetCompletedProposal, GetNotifications, GetProposal,
 };
 use super::Error;
 use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
@@ -305,24 +305,22 @@ impl Store {
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
-    ) -> Result<BTreeMap<EventId, GetApprovedProposal>, Error> {
+    ) -> Result<Vec<GetApproval>, Error> {
         let conn = self.pool.get()?;
         let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
         let mut rows = stmt.query([proposal_id.to_hex()])?;
-        let mut approvals = BTreeMap::new();
+        let mut approvals = Vec::new();
         while let Ok(Some(row)) = rows.next() {
             let approval_id: String = row.get(0)?;
             let public_key: String = row.get(1)?;
             let json: String = row.get(2)?;
             let timestamp: u64 = row.get(3)?;
-            approvals.insert(
-                EventId::from_hex(approval_id)?,
-                GetApprovedProposal {
-                    public_key: XOnlyPublicKey::from_str(&public_key)?,
-                    approved_proposal: ApprovedProposal::decrypt_with_keys(&self.keys, json)?,
-                    timestamp: Timestamp::from(timestamp),
-                },
-            );
+            approvals.push(GetApproval {
+                approval_id: EventId::from_hex(approval_id)?,
+                public_key: XOnlyPublicKey::from_str(&public_key)?,
+                approved_proposal: ApprovedProposal::decrypt_with_keys(&self.keys, json)?,
+                timestamp: Timestamp::from(timestamp),
+            });
         }
         Ok(approvals)
     }
@@ -359,12 +357,9 @@ impl Store {
             approved_proposals: approved_proposals
                 .iter()
                 .map(
-                    |(
-                        _,
-                        GetApprovedProposal {
-                            approved_proposal, ..
-                        },
-                    )| approved_proposal.clone(),
+                    |GetApproval {
+                         approved_proposal, ..
+                     }| approved_proposal.clone(),
                 )
                 .collect(),
         })
