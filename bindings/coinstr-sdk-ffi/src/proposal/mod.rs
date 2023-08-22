@@ -10,7 +10,7 @@ use nostr_ffi::EventId;
 mod approved;
 mod completed;
 
-pub use self::approved::ApprovedProposal;
+pub use self::approved::{ApprovedProposal, GetApproval};
 pub use self::completed::{CompletedProposal, GetCompletedProposal};
 
 #[derive(Clone)]

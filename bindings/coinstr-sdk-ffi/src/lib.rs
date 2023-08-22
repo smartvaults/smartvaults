@@ -4,7 +4,6 @@
 mod abortable;
 mod address;
 mod amount;
-mod approval;
 mod balance;
 mod client;
 mod config;
@@ -55,7 +54,6 @@ mod ffi {
     pub use crate::abortable::AbortHandle;
     pub use crate::address::{AddressIndex, GetAddress};
     pub use crate::amount::Amount;
-    pub use crate::approval::Approval;
     pub use crate::balance::Balance;
     pub use crate::client::{Coinstr, SyncHandler};
     pub use crate::config::Config;
@@ -66,7 +64,8 @@ mod ffi {
     pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
     pub use crate::policy::{GetPolicy, Policy, PolicyTemplate, RecoveryTemplate};
     pub use crate::proposal::{
-        ApprovedProposal, CompletedProposal, GetCompletedProposal, GetProposal, Proposal,
+        ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal,
+        Proposal,
     };
     pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;

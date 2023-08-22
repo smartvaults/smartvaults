@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -16,13 +15,13 @@ use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Txid};
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
-use coinstr_sdk::db::model::{GetApprovedProposal, GetProposal as GetProposalSdk};
+use coinstr_sdk::db::model::{GetApproval as GetApprovalSdk, GetProposal as GetProposalSdk};
 use coinstr_sdk::nostr::block_on;
 use nostr_ffi::{EventId, Keys, Metadata, PublicKey};
 
 use crate::error::Result;
 use crate::{
-    AbortHandle, AddressIndex, Amount, Approval, Balance, CompletedProposal, Config, GetAddress,
+    AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
     GetCompletedProposal, GetContact, GetPolicy, GetProposal, GetSharedSigner, GetSigner,
     GetTransaction, KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession,
     NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
@@ -317,27 +316,23 @@ impl Coinstr {
             .get_approvals_by_proposal_id(**proposal_id)?
             .iter()
             .map(
-                |(
-                    _,
-                    GetApprovedProposal {
-                        approved_proposal, ..
-                    },
-                )| { approved_proposal.clone() },
+                |GetApprovalSdk {
+                     approved_proposal, ..
+                 }| { approved_proposal.clone() },
             )
             .collect();
         Ok(proposal.finalize(approvals, self.inner.network()).is_ok())
     }
 
-    // TODO: replace String with EventId (replace HashMap with Vec)
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: Arc<EventId>,
-    ) -> Result<HashMap<String, Arc<Approval>>> {
+    ) -> Result<Vec<Arc<GetApproval>>> {
         Ok(self
             .inner
             .get_approvals_by_proposal_id(**proposal_id)?
             .into_iter()
-            .map(|(id, res)| (id.to_hex(), Arc::new(res.into())))
+            .map(|res| Arc::new(res.into()))
             .collect())
     }
 

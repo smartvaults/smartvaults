@@ -342,8 +342,10 @@ interface GetCompletedProposal {
     CompletedProposal completed_proposal();
 };
 
-interface Approval {
+interface GetApproval {
+    EventId approval_id();
     PublicKey public_key();
+    ApprovedProposal approved_proposal();
     Timestamp timestamp();
 };
 
@@ -466,7 +468,7 @@ interface Coinstr {
     [Throws=FFIError]
     boolean is_proposal_signed(EventId proposal_id);
     [Throws=FFIError]
-    record<DOMString, Approval> get_approvals_by_proposal_id(EventId proposal_id);
+    sequence<GetApproval> get_approvals_by_proposal_id(EventId proposal_id);
     [Throws=FFIError]
     sequence<GetCompletedProposal> get_completed_proposals();
 
