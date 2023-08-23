@@ -9,6 +9,13 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use serde_json::Error;
 
+pub trait SerdeSer: Sized + Serialize {
+    /// Serialize to `JSON` string
+    fn as_json(&self) -> String {
+        serde_json::json!(self).to_string()
+    }
+}
+
 pub trait Serde: Sized + Serialize + DeserializeOwned {
     /// Deserialize from `JSON` string
     fn from_json<S>(json: S) -> Result<Self, Error>
