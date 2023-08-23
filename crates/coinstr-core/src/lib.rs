@@ -16,7 +16,7 @@ pub mod signer;
 pub mod types;
 pub mod util;
 
-pub use self::policy::{Policy, PolicyTemplate, RecoveryTemplate};
+pub use self::policy::{Policy, PolicyTemplate, PolicyTemplateType, RecoveryTemplate};
 pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 pub use self::signer::{SharedSigner, Signer, SignerType};
 pub use self::types::{Amount, FeeRate, Priority};

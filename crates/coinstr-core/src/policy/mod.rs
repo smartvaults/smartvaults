@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod template;
 
-pub use self::template::{PolicyTemplate, RecoveryTemplate};
+pub use self::template::{PolicyTemplate, PolicyTemplateType, RecoveryTemplate};
 use crate::proposal::Proposal;
 use crate::reserves::ProofOfReserves;
 use crate::util::serde::SerdeSer;
@@ -187,6 +187,53 @@ impl Policy {
         Ok(result)
     }
 
+    /// Check if [`Policy`] match any [`PolicyTemplateType`]
+    pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>, Error> {
+        if let SatisfiableItem::Thresh { items, threshold } = self.satisfiable_item(network)? {
+            if threshold == 1 && items.len() == 2 {
+                if let SatisfiableItem::SchnorrSignature(..) = items[0].item {
+                    match &items[1].item {
+                        // Multisig 1 of 2 or N of M templates
+                        SatisfiableItem::SchnorrSignature(..)
+                        | SatisfiableItem::Multisig { .. } => {
+                            return Ok(Some(PolicyTemplateType::Multisig))
+                        }
+                        SatisfiableItem::Thresh { items, threshold } => {
+                            if *threshold == 2 && items.len() == 2 {
+                                match items[0].item {
+                                    // Hold template
+                                    SatisfiableItem::SchnorrSignature(..) => {
+                                        if let SatisfiableItem::AbsoluteTimelock { .. } =
+                                            items[1].item
+                                        {
+                                            return Ok(Some(PolicyTemplateType::Hold));
+                                        }
+                                    }
+                                    // Recovery templates
+                                    SatisfiableItem::Multisig { .. } => match items[1].item {
+                                        // Social Recovery
+                                        SatisfiableItem::AbsoluteTimelock { .. } => {
+                                            return Ok(Some(PolicyTemplateType::SocialRecovery))
+                                        }
+                                        // Inheritance
+                                        SatisfiableItem::RelativeTimelock { .. } => {
+                                            return Ok(Some(PolicyTemplateType::Inheritance))
+                                        }
+                                        _ => (),
+                                    },
+                                    _ => (),
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn spend<D, S>(
         &self,
@@ -330,5 +377,43 @@ mod test {
         ));
 
         assert_eq!(conditions, c)
+    }
+
+    #[test]
+    fn test_policy_template_match() {
+        let multisig_1_of_2 = "thresh(1,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))";
+        let policy = Policy::from_policy("Multisig 1 of 2", "", multisig_1_of_2, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Multisig)
+        );
+
+        let multisig_2_of_2 = "thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))";
+        let policy = Policy::from_policy("Multisig 2 of 2", "", multisig_2_of_2, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Multisig)
+        );
+
+        let social_recovery = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),after(10000)))";
+        let policy = Policy::from_policy("Social Recovery", "", social_recovery, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::SocialRecovery)
+        );
+
+        let inheritance = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),older(6)))";
+        let policy = Policy::from_policy("Inheritance", "", inheritance, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Inheritance)
+        );
+
+        let hold = "and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),after(10000))";
+        let policy = Policy::from_policy("Hold", "", hold, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Hold)
+        );
     }
 }

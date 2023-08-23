@@ -23,6 +23,14 @@ enum Locktime {
     Older(Sequence),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
+pub enum PolicyTemplateType {
+    Multisig,
+    SocialRecovery,
+    Inheritance,
+    Hold,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
 pub struct RecoveryTemplate {
     threshold: usize,
