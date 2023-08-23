@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use coinstr_sdk::core::policy;
 use coinstr_sdk::core::util::serde::SerdeSer;
+use coinstr_sdk::core::{policy, PolicyTemplateType};
 use coinstr_sdk::db::model;
 use nostr_ffi::{EventId, Timestamp};
 
@@ -57,6 +57,10 @@ impl Policy {
             .selectable_conditions(network.into())?
             .into_iter()
             .collect())
+    }
+
+    pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
+        Ok(self.inner.template_match(network.into())?)
     }
 }
 

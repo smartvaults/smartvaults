@@ -247,6 +247,8 @@ interface Policy {
     string satisfiable_item(Network network);
     [Throws=FFIError]
     record<string, sequence<string>> selectable_conditions(Network network);
+    [Throws=FFIError]
+    PolicyTemplateType? template_match(Network network);
 };
 
 interface GetPolicy {
@@ -310,6 +312,13 @@ interface RecoveryTemplate {
     constructor(u64 threshold, sequence<Descriptor> keys, AbsoluteLockTime after);
     [Name=inheritance]
     constructor(u64 threshold, sequence<Descriptor> keys, Sequence older);
+};
+
+enum PolicyTemplateType {
+    "Multisig",
+    "SocialRecovery",
+    "Inheritance",
+    "Hold",
 };
 
 interface PolicyTemplate {

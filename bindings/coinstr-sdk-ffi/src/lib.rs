@@ -39,6 +39,7 @@ mod ffi {
     pub use crate::error::FFIError;
 
     // External
+    pub use coinstr_sdk::core::policy::PolicyTemplateType;
     pub use coinstr_sdk::core::signer::SignerType;
     pub use coinstr_sdk::core::types::WordCount;
     pub use coinstr_sdk::nostr::RelayStatus;
