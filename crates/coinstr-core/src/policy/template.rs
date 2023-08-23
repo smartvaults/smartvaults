@@ -16,7 +16,7 @@ pub enum Error {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
-pub enum Locktime {
+enum Locktime {
     /// An absolute locktime restriction
     After(AbsoluteLockTime),
     /// A relative locktime restriction
@@ -168,7 +168,7 @@ mod test {
         // Recovery keys
         let desc2 = DescriptorPublicKey::from_str("[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*").unwrap();
         let desc3 = DescriptorPublicKey::from_str("[f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*").unwrap();
-        let after = AbsoluteLockTime::from_consensus(10_000);
+        let after = AbsoluteLockTime::from_height(10_000).unwrap();
 
         let recovery = RecoveryTemplate::social_recovery(2, vec![desc2, desc3], after);
         let template = PolicyTemplate::recovery(desc1, recovery);

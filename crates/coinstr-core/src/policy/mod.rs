@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod template;
 
-pub use self::template::{Locktime, PolicyTemplate, RecoveryTemplate};
+pub use self::template::{PolicyTemplate, RecoveryTemplate};
 use crate::proposal::Proposal;
 use crate::reserves::ProofOfReserves;
 use crate::util::{Encryption, Serde, Unspendable};
