@@ -10,7 +10,7 @@ use nostr_ffi::{EventId, Timestamp};
 
 mod template;
 
-pub use self::template::{PolicyTemplate, RecoveryTemplate};
+pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, Sequence};
 
 #[derive(Clone)]
 pub struct Policy {

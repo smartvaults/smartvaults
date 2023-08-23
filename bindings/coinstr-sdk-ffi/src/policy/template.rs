@@ -5,11 +5,56 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use coinstr_sdk::core;
-use coinstr_sdk::core::bitcoin::absolute::LockTime as AbsoluteLockTime;
-use coinstr_sdk::core::bitcoin::Sequence;
+use coinstr_sdk::core::bitcoin;
+use coinstr_sdk::core::bitcoin::absolute;
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
 
+use crate::error::Result;
 use crate::Descriptor;
+
+pub struct Sequence {
+    inner: bitcoin::Sequence,
+}
+
+impl Deref for Sequence {
+    type Target = bitcoin::Sequence;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl Sequence {
+    pub fn from_blocks(blocks: u16) -> Self {
+        Self {
+            inner: bitcoin::Sequence::from_height(blocks),
+        }
+    }
+}
+
+pub struct AbsoluteLockTime {
+    inner: absolute::LockTime,
+}
+
+impl Deref for AbsoluteLockTime {
+    type Target = absolute::LockTime;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl AbsoluteLockTime {
+    pub fn from_height(height: u32) -> Result<Self> {
+        Ok(Self {
+            inner: absolute::LockTime::from_height(height)?,
+        })
+    }
+
+    pub fn from_timestamp(timestamp: u32) -> Result<Self> {
+        Ok(Self {
+            inner: absolute::LockTime::from_time(timestamp)?,
+        })
+    }
+}
 
 pub struct RecoveryTemplate {
     inner: core::RecoveryTemplate,
@@ -23,27 +68,27 @@ impl Deref for RecoveryTemplate {
 }
 
 impl RecoveryTemplate {
-    pub fn social_recovery(threshold: u64, keys: Vec<Arc<Descriptor>>, after: u32) -> Self {
+    pub fn social_recovery(
+        threshold: u64,
+        keys: Vec<Arc<Descriptor>>,
+        after: Arc<AbsoluteLockTime>,
+    ) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
         Self {
-            inner: core::RecoveryTemplate::social_recovery(
-                threshold as usize,
-                keys,
-                AbsoluteLockTime::from_consensus(after),
-            ),
+            inner: core::RecoveryTemplate::social_recovery(threshold as usize, keys, **after),
         }
     }
 
-    pub fn inheritance(threshold: u64, keys: Vec<Arc<Descriptor>>, older: u32) -> Self {
+    pub fn inheritance(threshold: u64, keys: Vec<Arc<Descriptor>>, older: Arc<Sequence>) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
         Self {
-            inner: core::RecoveryTemplate::inheritance(threshold as usize, keys, Sequence(older)),
+            inner: core::RecoveryTemplate::inheritance(threshold as usize, keys, **older),
         }
     }
 }
@@ -85,12 +130,9 @@ impl PolicyTemplate {
         }
     }
 
-    pub fn hold(my_key: Arc<Descriptor>, after: u32) -> Self {
+    pub fn hold(my_key: Arc<Descriptor>, after: Arc<AbsoluteLockTime>) -> Self {
         Self {
-            inner: core::PolicyTemplate::hold(
-                my_key.as_ref().deref().clone(),
-                AbsoluteLockTime::from_consensus(after),
-            ),
+            inner: core::PolicyTemplate::hold(my_key.as_ref().deref().clone(), **after),
         }
     }
 }

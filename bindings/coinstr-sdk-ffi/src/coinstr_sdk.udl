@@ -289,11 +289,23 @@ interface Descriptor {
     string to_str();
 };
 
+interface Sequence {
+    [Name=from_blocks]
+    constructor(u16 blocks);
+};
+
+interface AbsoluteLockTime {
+    [Throws=FFIError, Name=from_height]
+    constructor(u32 height);
+    [Throws=FFIError, Name=from_timestamp]
+    constructor(u32 timestamp);
+};
+
 interface RecoveryTemplate {
     [Name=social_recovery]
-    constructor(u64 threshold, sequence<Descriptor> keys, u32 after);
+    constructor(u64 threshold, sequence<Descriptor> keys, AbsoluteLockTime after);
     [Name=inheritance]
-    constructor(u64 threshold, sequence<Descriptor> keys, u32 older);
+    constructor(u64 threshold, sequence<Descriptor> keys, Sequence older);
 };
 
 interface PolicyTemplate {
@@ -302,7 +314,7 @@ interface PolicyTemplate {
     [Name=recovery]
     constructor(Descriptor my_key, RecoveryTemplate recovery);
     [Name=hold]
-    constructor(Descriptor my_key, u32 after);
+    constructor(Descriptor my_key, AbsoluteLockTime after);
 };
 
 interface Amount {
