@@ -1,16 +1,20 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 
 use coinstr_sdk::core::policy;
+use coinstr_sdk::core::util::serde::SerdeSer;
 use coinstr_sdk::db::model;
 use nostr_ffi::{EventId, Timestamp};
 
 mod template;
 
 pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, Sequence};
+use crate::error::Result;
+use crate::Network;
 
 #[derive(Clone)]
 pub struct Policy {
@@ -41,6 +45,18 @@ impl Policy {
 
     pub fn descriptor(&self) -> String {
         self.inner.descriptor.to_string()
+    }
+
+    pub fn satisfiable_item(&self, network: Network) -> Result<String> {
+        Ok(self.inner.satisfiable_item(network.into())?.as_json())
+    }
+
+    pub fn selectable_conditions(&self, network: Network) -> Result<HashMap<String, Vec<String>>> {
+        Ok(self
+            .inner
+            .selectable_conditions(network.into())?
+            .into_iter()
+            .collect())
     }
 }
 

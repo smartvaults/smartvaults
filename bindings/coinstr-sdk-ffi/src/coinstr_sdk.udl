@@ -243,6 +243,10 @@ interface Policy {
     string name();
     string description();
     string descriptor();
+    [Throws=FFIError]
+    string satisfiable_item(Network network);
+    [Throws=FFIError]
+    record<string, sequence<string>> selectable_conditions(Network network);
 };
 
 interface GetPolicy {

@@ -122,6 +122,12 @@ impl From<coinstr_sdk::core::util::dir::Error> for FFIError {
     }
 }
 
+impl From<coinstr_sdk::core::policy::Error> for FFIError {
+    fn from(e: coinstr_sdk::core::policy::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<coinstr_sdk::core::signer::Error> for FFIError {
     fn from(e: coinstr_sdk::core::signer::Error) -> Self {
         Self::Generic { err: e.to_string() }
