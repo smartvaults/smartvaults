@@ -392,8 +392,7 @@ impl SpendState {
         let (next_stage, ready): (InternalStage, bool) = {
             match &self.policy {
                 Some(policy) => {
-                    let descriptor = policy.policy.descriptor.to_string();
-                    if descriptor.contains("after") || descriptor.contains("older") {
+                    if policy.policy.has_timelock() {
                         (InternalStage::SelectPolicyPath, true)
                     } else {
                         (InternalStage::Review, true)
@@ -736,8 +735,7 @@ impl SpendState {
         let prev_stage: InternalStage = {
             match &self.policy {
                 Some(policy) => {
-                    let descriptor = policy.policy.descriptor.to_string();
-                    if descriptor.contains("after") || descriptor.contains("older") {
+                    if policy.policy.has_timelock() {
                         InternalStage::SelectPolicyPath
                     } else {
                         InternalStage::default()

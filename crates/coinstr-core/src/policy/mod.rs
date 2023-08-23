@@ -234,6 +234,12 @@ impl Policy {
         Ok(None)
     }
 
+    /// Check if [`Policy`] has a timelock
+    pub fn has_timelock(&self) -> bool {
+        let descriptor = self.descriptor.to_string();
+        descriptor.contains("after") || descriptor.contains("older")
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn spend<D, S>(
         &self,

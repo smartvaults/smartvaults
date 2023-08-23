@@ -62,6 +62,10 @@ impl Policy {
     pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
         Ok(self.inner.template_match(network.into())?)
     }
+
+    pub fn has_timelock(&self) -> bool {
+        self.inner.has_timelock()
+    }
 }
 
 #[derive(Debug, Clone)]

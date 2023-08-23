@@ -249,6 +249,7 @@ interface Policy {
     record<string, sequence<string>> selectable_conditions(Network network);
     [Throws=FFIError]
     PolicyTemplateType? template_match(Network network);
+    boolean has_timelock();
 };
 
 interface GetPolicy {
