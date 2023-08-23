@@ -245,11 +245,11 @@ interface Policy {
     string descriptor();
     [Throws=FFIError]
     string satisfiable_item(Network network);
+    boolean has_timelock();
     [Throws=FFIError]
-    record<string, sequence<string>> selectable_conditions(Network network);
+    record<string, sequence<string>>? selectable_conditions(Network network);
     [Throws=FFIError]
     PolicyTemplateType? template_match(Network network);
-    boolean has_timelock();
 };
 
 interface GetPolicy {

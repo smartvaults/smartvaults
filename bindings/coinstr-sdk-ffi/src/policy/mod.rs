@@ -51,20 +51,22 @@ impl Policy {
         Ok(self.inner.satisfiable_item(network.into())?.as_json())
     }
 
-    pub fn selectable_conditions(&self, network: Network) -> Result<HashMap<String, Vec<String>>> {
+    pub fn has_timelock(&self) -> bool {
+        self.inner.has_timelock()
+    }
+
+    pub fn selectable_conditions(
+        &self,
+        network: Network,
+    ) -> Result<Option<HashMap<String, Vec<String>>>> {
         Ok(self
             .inner
             .selectable_conditions(network.into())?
-            .into_iter()
-            .collect())
+            .map(|list| list.into_iter().collect()))
     }
 
     pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
         Ok(self.inner.template_match(network.into())?)
-    }
-
-    pub fn has_timelock(&self) -> bool {
-        self.inner.has_timelock()
     }
 }
 

@@ -79,7 +79,7 @@ pub enum SpendMessage {
         Option<Balance>,
         Vec<GetUtxo>,
         SatisfiableItem,
-        Vec<(String, Vec<String>)>,
+        Option<Vec<(String, Vec<String>)>>,
     ),
     SelectedUtxosChanged(HashSet<OutPoint>),
     ToggleCondition(String, usize),
@@ -239,7 +239,7 @@ impl State for SpendState {
                                         Option<Balance>,
                                         Vec<GetUtxo>,
                                         SatisfiableItem,
-                                        Vec<(String, Vec<String>)>,
+                                        Option<Vec<(String, Vec<String>)>>,
                                     ),
                                     Box<dyn std::error::Error>,
                                 >((
@@ -265,7 +265,7 @@ impl State for SpendState {
                     self.balance = balance;
                     self.utxos = utxos;
                     self.satisfiable_item = Some(item);
-                    self.selectable_conditions = Some(conditions);
+                    self.selectable_conditions = conditions;
                 }
                 SpendMessage::SelectedUtxosChanged(s) => self.selected_utxos = s,
                 SpendMessage::ToggleCondition(id, index) => match self.policy_path.as_mut() {
@@ -390,15 +390,10 @@ impl SpendState {
         };
 
         let (next_stage, ready): (InternalStage, bool) = {
-            match &self.policy {
-                Some(policy) => {
-                    if policy.policy.has_timelock() {
-                        (InternalStage::SelectPolicyPath, true)
-                    } else {
-                        (InternalStage::Review, true)
-                    }
-                }
-                None => (InternalStage::default(), false),
+            if self.selectable_conditions.is_some() {
+                (InternalStage::SelectPolicyPath, true)
+            } else {
+                (InternalStage::Review, true)
             }
         };
 
@@ -733,15 +728,10 @@ impl SpendState {
         };
 
         let prev_stage: InternalStage = {
-            match &self.policy {
-                Some(policy) => {
-                    if policy.policy.has_timelock() {
-                        InternalStage::SelectPolicyPath
-                    } else {
-                        InternalStage::default()
-                    }
-                }
-                None => InternalStage::default(),
+            if self.selectable_conditions.is_some() {
+                InternalStage::SelectPolicyPath
+            } else {
+                InternalStage::default()
             }
         };
 

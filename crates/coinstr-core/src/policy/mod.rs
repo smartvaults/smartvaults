@@ -161,30 +161,41 @@ impl Policy {
         Ok(policy.item)
     }
 
+    /// Check if [`Policy`] has a timelock
+    pub fn has_timelock(&self) -> bool {
+        let descriptor = self.descriptor.to_string();
+        descriptor.contains("after") || descriptor.contains("older")
+    }
+
+    #[allow(clippy::type_complexity)]
     pub fn selectable_conditions(
         &self,
         network: Network,
-    ) -> Result<Vec<(String, Vec<String>)>, Error> {
-        fn selectable_conditions(
-            item: &SatisfiableItem,
-            prev_id: String,
-            result: &mut Vec<(String, Vec<String>)>,
-        ) {
-            if let SatisfiableItem::Thresh { items, threshold } = item {
-                if *threshold < items.len() {
-                    result.push((prev_id, items.iter().map(|i| i.id.clone()).collect()));
-                }
+    ) -> Result<Option<Vec<(String, Vec<String>)>>, Error> {
+        if self.has_timelock() {
+            fn selectable_conditions(
+                item: &SatisfiableItem,
+                prev_id: String,
+                result: &mut Vec<(String, Vec<String>)>,
+            ) {
+                if let SatisfiableItem::Thresh { items, threshold } = item {
+                    if *threshold < items.len() {
+                        result.push((prev_id, items.iter().map(|i| i.id.clone()).collect()));
+                    }
 
-                for x in items.iter() {
-                    selectable_conditions(&x.item, x.id.clone(), result);
+                    for x in items.iter() {
+                        selectable_conditions(&x.item, x.id.clone(), result);
+                    }
                 }
             }
-        }
 
-        let item = self.satisfiable_item(network)?;
-        let mut result = Vec::new();
-        selectable_conditions(&item, item.id(), &mut result);
-        Ok(result)
+            let item = self.satisfiable_item(network)?;
+            let mut result = Vec::new();
+            selectable_conditions(&item, item.id(), &mut result);
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Check if [`Policy`] match any [`PolicyTemplateType`]
@@ -232,12 +243,6 @@ impl Policy {
         }
 
         Ok(None)
-    }
-
-    /// Check if [`Policy`] has a timelock
-    pub fn has_timelock(&self) -> bool {
-        let descriptor = self.descriptor.to_string();
-        descriptor.contains("after") || descriptor.contains("older")
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -382,7 +387,12 @@ mod test {
             vec![String::from("0e36xhlc"), String::from("m4n7s285")],
         ));
 
-        assert_eq!(conditions, c)
+        assert_eq!(conditions, Some(c));
+
+        let policy: &str = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
+        let policy = Policy::from_policy("", "", policy, Network::Testnet).unwrap();
+        let conditions = policy.selectable_conditions(Network::Testnet).unwrap();
+        assert!(conditions.is_none())
     }
 
     #[test]
