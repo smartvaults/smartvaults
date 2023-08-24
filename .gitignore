@@ -1,5 +1,4 @@
 /target
 /output
 .DS_Store
-Cargo.lock
 /release
