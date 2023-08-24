@@ -310,9 +310,9 @@ interface AbsoluteLockTime {
 
 interface RecoveryTemplate {
     [Name=social_recovery]
-    constructor(u64 threshold, sequence<Descriptor> keys, AbsoluteLockTime after);
-    [Name=inheritance]
     constructor(u64 threshold, sequence<Descriptor> keys, RelativeLockTime older);
+    [Name=inheritance]
+    constructor(u64 threshold, sequence<Descriptor> keys, AbsoluteLockTime after);
 };
 
 enum PolicyTemplateType {
@@ -328,7 +328,7 @@ interface PolicyTemplate {
     [Name=recovery]
     constructor(Descriptor my_key, RecoveryTemplate recovery);
     [Name=hold]
-    constructor(Descriptor my_key, AbsoluteLockTime after);
+    constructor(Descriptor my_key, RelativeLockTime older);
 };
 
 interface Amount {

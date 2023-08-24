@@ -71,20 +71,6 @@ impl RecoveryTemplate {
     pub fn social_recovery(
         threshold: u64,
         keys: Vec<Arc<Descriptor>>,
-        after: Arc<AbsoluteLockTime>,
-    ) -> Self {
-        let keys: Vec<DescriptorPublicKey> = keys
-            .into_iter()
-            .map(|k| k.as_ref().deref().clone())
-            .collect();
-        Self {
-            inner: core::RecoveryTemplate::social_recovery(threshold as usize, keys, **after),
-        }
-    }
-
-    pub fn inheritance(
-        threshold: u64,
-        keys: Vec<Arc<Descriptor>>,
         older: Arc<RelativeLockTime>,
     ) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
@@ -92,7 +78,21 @@ impl RecoveryTemplate {
             .map(|k| k.as_ref().deref().clone())
             .collect();
         Self {
-            inner: core::RecoveryTemplate::inheritance(threshold as usize, keys, **older),
+            inner: core::RecoveryTemplate::social_recovery(threshold as usize, keys, **older),
+        }
+    }
+
+    pub fn inheritance(
+        threshold: u64,
+        keys: Vec<Arc<Descriptor>>,
+        after: Arc<AbsoluteLockTime>,
+    ) -> Self {
+        let keys: Vec<DescriptorPublicKey> = keys
+            .into_iter()
+            .map(|k| k.as_ref().deref().clone())
+            .collect();
+        Self {
+            inner: core::RecoveryTemplate::inheritance(threshold as usize, keys, **after),
         }
     }
 }
@@ -134,9 +134,9 @@ impl PolicyTemplate {
         }
     }
 
-    pub fn hold(my_key: Arc<Descriptor>, after: Arc<AbsoluteLockTime>) -> Self {
+    pub fn hold(my_key: Arc<Descriptor>, older: Arc<RelativeLockTime>) -> Self {
         Self {
-            inner: core::PolicyTemplate::hold(my_key.as_ref().deref().clone(), **after),
+            inner: core::PolicyTemplate::hold(my_key.as_ref().deref().clone(), **older),
         }
     }
 }
