@@ -12,18 +12,18 @@ use coinstr_sdk::core::miniscript::DescriptorPublicKey;
 use crate::error::Result;
 use crate::Descriptor;
 
-pub struct Sequence {
+pub struct RelativeLockTime {
     inner: bitcoin::Sequence,
 }
 
-impl Deref for Sequence {
+impl Deref for RelativeLockTime {
     type Target = bitcoin::Sequence;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl Sequence {
+impl RelativeLockTime {
     pub fn from_blocks(blocks: u16) -> Self {
         Self {
             inner: bitcoin::Sequence::from_height(blocks),
@@ -82,7 +82,11 @@ impl RecoveryTemplate {
         }
     }
 
-    pub fn inheritance(threshold: u64, keys: Vec<Arc<Descriptor>>, older: Arc<Sequence>) -> Self {
+    pub fn inheritance(
+        threshold: u64,
+        keys: Vec<Arc<Descriptor>>,
+        older: Arc<RelativeLockTime>,
+    ) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())

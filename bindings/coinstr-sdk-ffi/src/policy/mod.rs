@@ -12,7 +12,7 @@ use nostr_ffi::{EventId, Timestamp};
 
 mod template;
 
-pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, Sequence};
+pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, RelativeLockTime};
 use crate::error::Result;
 use crate::Network;
 

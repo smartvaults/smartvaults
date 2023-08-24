@@ -296,7 +296,7 @@ interface Descriptor {
     string to_str();
 };
 
-interface Sequence {
+interface RelativeLockTime {
     [Name=from_blocks]
     constructor(u16 blocks);
 };
@@ -312,7 +312,7 @@ interface RecoveryTemplate {
     [Name=social_recovery]
     constructor(u64 threshold, sequence<Descriptor> keys, AbsoluteLockTime after);
     [Name=inheritance]
-    constructor(u64 threshold, sequence<Descriptor> keys, Sequence older);
+    constructor(u64 threshold, sequence<Descriptor> keys, RelativeLockTime older);
 };
 
 enum PolicyTemplateType {
