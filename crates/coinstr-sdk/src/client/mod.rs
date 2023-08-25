@@ -40,7 +40,7 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, MAINNET_RELAYS,
-    POLICY_KIND, PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND, TESTNET_RELAYS,
+    PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND, TESTNET_RELAYS,
 };
 use crate::db::model::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicy,
@@ -50,6 +50,7 @@ use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::{Notification, PolicyBackup};
 use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
+use crate::util::event_builder::CoinstrEventBuilder;
 use crate::{util, Label, LabelData};
 
 #[derive(Debug, thiserror::Error)]
@@ -76,6 +77,8 @@ pub enum Error {
     EventId(#[from] nostr_sdk::event::id::Error),
     #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
+    #[error(transparent)]
+    CoinstrEventBuilder(#[from] crate::util::event_builder::Error),
     #[error(transparent)]
     Relay(#[from] nostr_sdk::relay::Error),
     #[error(transparent)]
@@ -797,31 +800,13 @@ impl Coinstr {
         let policy = Policy::from_desc_or_policy(name, description, descriptor, self.network)?;
 
         // Compose the event
-        let content: String = policy.encrypt_with_keys(&shared_key)?;
-        let tags: Vec<Tag> = nostr_pubkeys
-            .iter()
-            .map(|p| Tag::PubKey(*p, None))
-            .collect();
-        // Publish policy with `shared_key` so every owner can delete it
-        let policy_event = EventBuilder::new(POLICY_KIND, content, &tags).to_event(&shared_key)?;
+        // Publish it with `shared_key` so every owner can delete it
+        let policy_event: Event = EventBuilder::policy(&shared_key, &policy, &nostr_pubkeys)?;
         let policy_id = policy_event.id;
 
         // Publish the shared key
         for pubkey in nostr_pubkeys.iter() {
-            let encrypted_shared_key = nips::nip04::encrypt(
-                &keys.secret_key()?,
-                pubkey,
-                shared_key.secret_key()?.display_secret().to_string(),
-            )?;
-            let event: Event = EventBuilder::new(
-                SHARED_KEY_KIND,
-                encrypted_shared_key,
-                &[
-                    Tag::Event(policy_id, None, None),
-                    Tag::PubKey(*pubkey, None),
-                ],
-            )
-            .to_event(&keys)?;
+            let event: Event = EventBuilder::shared_key(&keys, &shared_key, pubkey, policy_id)?;
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
@@ -921,18 +906,12 @@ impl Coinstr {
         } = &proposal
         {
             // Get shared keys
-            let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
+            let shared_key: Keys = self.db.get_shared_key(policy_id)?;
 
             // Compose the event
             let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
-            let mut tags: Vec<Tag> = nostr_pubkeys
-                .iter()
-                .map(|p| Tag::PubKey(*p, None))
-                .collect();
-            tags.push(Tag::Event(policy_id, None, None));
-            let content: String = proposal.encrypt_with_keys(&shared_keys)?;
-            // Publish proposal with `shared_key` so every owner can delete it
-            let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+            let event: Event =
+                EventBuilder::proposal(&shared_key, policy_id, &proposal, &nostr_pubkeys)?;
             let proposal_id = self.send_event(event).await?;
 
             // Send DM msg

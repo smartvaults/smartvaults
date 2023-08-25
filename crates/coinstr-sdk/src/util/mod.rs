@@ -7,6 +7,7 @@ use nostr_sdk::{Event, EventId, Tag, TagKind};
 
 pub(crate) mod dir;
 pub mod encryption;
+pub mod event_builder;
 pub mod format;
 
 pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
