@@ -129,6 +129,18 @@ interface Metadata {
     string? get_lud16();
 };
 
+interface RelayInformationDocument {
+    [Throws=FFIError, Name=get]
+    constructor(string url, string? proxy);
+    string? name();
+    string? description();
+    string? pubkey();
+    string? contact();
+    sequence<u16>? supported_nips();
+    string? software();
+    string? version();
+};
+
 enum RelayStatus {
     "Initialized",
     "Connected",
@@ -138,10 +150,23 @@ enum RelayStatus {
     "Terminated",
 };
 
+interface RelayConnectionStats {
+    u64 attempts();
+    u64 success();
+    u64 bytes_sent();
+    u64 bytes_received();
+    duration? latency();
+    u64 connected_at();
+};
+
 interface Relay {
     string url();
+    string? proxy();
     RelayStatus status();
     boolean is_connected();
+    RelayInformationDocument document();
+    RelayConnectionStats stats();
+    u64 queue();
 };
 
 // Bitcoin & BDK

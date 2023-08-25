@@ -146,8 +146,8 @@ impl From<coinstr_sdk::core::bitcoin::absolute::Error> for FFIError {
     }
 }
 
-impl From<nostr_ffi::NostrError> for FFIError {
-    fn from(e: nostr_ffi::NostrError) -> FFIError {
+impl From<nostr_sdk_ffi::NostrError> for FFIError {
+    fn from(e: nostr_sdk_ffi::NostrError) -> FFIError {
         Self::Generic { err: e.to_string() }
     }
 }

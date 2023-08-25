@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::proposal;
 use coinstr_sdk::db::model;
-use nostr_ffi::{EventId, PublicKey, Timestamp};
+use nostr_sdk_ffi::{EventId, PublicKey, Timestamp};
 
 #[derive(Clone)]
 pub enum ApprovedProposal {

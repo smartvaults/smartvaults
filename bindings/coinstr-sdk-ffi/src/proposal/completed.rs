@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::proposal;
 use coinstr_sdk::db::model;
-use nostr_ffi::EventId;
+use nostr_sdk_ffi::EventId;
 
 #[derive(Clone)]
 pub enum CompletedProposal {

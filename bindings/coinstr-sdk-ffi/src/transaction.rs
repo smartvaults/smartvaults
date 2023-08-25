@@ -7,7 +7,7 @@ use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bitcoin::{self, Address};
 use coinstr_sdk::db::model::{self, GetUtxo};
-use nostr_ffi::Timestamp;
+use nostr_sdk_ffi::Timestamp;
 
 use crate::error::Result;
 use crate::Network;

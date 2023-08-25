@@ -8,7 +8,7 @@ use std::sync::Arc;
 use coinstr_sdk::core::util::serde::SerdeSer;
 use coinstr_sdk::core::{policy, PolicyTemplateType};
 use coinstr_sdk::db::model;
-use nostr_ffi::{EventId, Timestamp};
+use nostr_sdk_ffi::{EventId, Timestamp};
 
 mod template;
 

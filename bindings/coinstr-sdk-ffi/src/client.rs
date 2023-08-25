@@ -17,7 +17,7 @@ use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
 use coinstr_sdk::db::model::{GetApproval as GetApprovalSdk, GetProposal as GetProposalSdk};
 use coinstr_sdk::nostr::block_on;
-use nostr_ffi::{EventId, Keys, Metadata, PublicKey};
+use nostr_sdk_ffi::{EventId, Keys, Metadata, PublicKey};
 
 use crate::error::Result;
 use crate::{

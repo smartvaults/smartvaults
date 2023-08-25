@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::signer::{self, SignerType};
 use coinstr_sdk::db::model;
-use nostr_ffi::{EventId, PublicKey};
+use nostr_sdk_ffi::{EventId, PublicKey};
 
 use crate::error::Result;
 use crate::Descriptor;

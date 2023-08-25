@@ -16,7 +16,6 @@ mod network;
 mod nip46;
 mod policy;
 mod proposal;
-mod relay;
 mod seed;
 mod signer;
 mod transaction;
@@ -43,8 +42,9 @@ mod ffi {
     pub use coinstr_sdk::core::signer::SignerType;
     pub use coinstr_sdk::core::types::WordCount;
     pub use coinstr_sdk::nostr::RelayStatus;
-    pub use nostr_ffi::{
-        EventId, Keys, Metadata, NostrConnectURI, PublicKey, SecretKey, Timestamp,
+    pub use nostr_sdk_ffi::{
+        EventId, Keys, Metadata, NostrConnectURI, PublicKey, Relay, RelayConnectionStats,
+        RelayInformationDocument, SecretKey, Timestamp,
     };
 
     // Namespace
@@ -70,7 +70,6 @@ mod ffi {
         ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal,
         Proposal,
     };
-    pub use crate::relay::Relay;
     pub use crate::seed::Seed as KeychainSeed;
     pub use crate::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer};
     pub use crate::transaction::{
