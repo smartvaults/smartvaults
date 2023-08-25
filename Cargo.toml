@@ -12,7 +12,7 @@ resolver = "2"
 
 [workspace.package]
 version = "0.3.0"
-description = "Using nostr to coordinate Bitcoin spending policy signatures and multi-custody"
+description = "Bitcoin multi-custody signature orchestration"
 authors = ["Yuki Kishimoto <yukikishimoto@protonmail.com>", "Max Gravitt"]
 homepage = "https://github.com/coinstr/coinstr"
 repository = "https://github.com/coinstr/coinstr.git"
