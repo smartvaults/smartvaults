@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bitcoin::Network;
 use iced::widget::{svg, Column, Container, Space};
 use iced::Length;
 
@@ -10,7 +9,7 @@ mod button;
 use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::Text;
-use crate::constants::{APP_LOGO_MAINNET, APP_LOGO_REGTEST, APP_LOGO_SIGNET, APP_LOGO_TESTNET};
+use crate::constants::APP_LOGO;
 use crate::theme::icon::{
     CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, SEND_PENDING, SETTING, WALLET,
 };
@@ -27,15 +26,10 @@ impl Sidebar {
 
     pub fn view<'a>(&self, ctx: &Context) -> Container<'a, Message> {
         // Logo
-        let handle = svg::Handle::from_memory(match ctx.client.network() {
-            Network::Bitcoin => APP_LOGO_MAINNET,
-            Network::Testnet => APP_LOGO_TESTNET,
-            Network::Signet => APP_LOGO_SIGNET,
-            _ => APP_LOGO_REGTEST,
-        });
+        let handle = svg::Handle::from_memory(APP_LOGO);
         let logo = svg(handle)
-            .width(Length::Fixed(80.0))
-            .height(Length::Fixed(80.0));
+            .width(Length::Fixed(100.0))
+            .height(Length::Fixed(100.0));
 
         // Buttons
         let home_button =
@@ -101,7 +95,7 @@ pub fn sidebar<'a, T: 'a>(
         Column::new()
             .padding(10)
             .push(logo)
-            .push(Space::with_height(Length::Fixed(15.0)))
+            .push(Space::with_height(Length::Fixed(10.0)))
             .push(menu.height(Length::Fill))
             .push(footer.height(Length::Shrink)),
     )
