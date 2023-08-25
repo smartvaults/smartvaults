@@ -1398,8 +1398,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 [[package]]
 name = "electrum-client"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acf3fead871d3a3e91503945c87c7bce129cfdfd37fba3fe898bea59b84694a6"
+source = "git+https://github.com/yukibtc/rust-electrum-client?rev=ee2e522cb808ed17a8ded9811323dc480459c4ed#ee2e522cb808ed17a8ded9811323dc480459c4ed"
 dependencies = [
  "bitcoin 0.30.1",
  "bitcoin-private",
@@ -1409,8 +1408,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "webpki",
- "webpki-roots 0.22.6",
+ "webpki-roots 0.25.2",
  "winapi",
 ]
 
