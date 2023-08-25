@@ -7,6 +7,7 @@ use std::ops::Add;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::time::Duration;
 
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
@@ -26,8 +27,8 @@ use coinstr_core::{
 };
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
-    nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Keys, Kind, Metadata,
-    Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
+    nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
+    Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use tokio::sync::broadcast::{self, Sender};
 
@@ -557,6 +558,7 @@ impl Coinstr {
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
         if public_key != self.keys().public_key() {
+            // Add contact
             let mut contacts: Vec<Contact> = self
                 .db
                 .get_contacts_public_keys()?
@@ -567,6 +569,17 @@ impl Coinstr {
             let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
             self.send_event(event).await?;
             self.db.save_contact(public_key)?;
+
+            // Request contact metadata
+            self.client
+                .req_events_of(
+                    vec![Filter::new()
+                        .author(public_key.to_string())
+                        .kind(Kind::Metadata)
+                        .limit(1)],
+                    Some(Duration::from_secs(60)),
+                )
+                .await;
         }
 
         Ok(())
