@@ -23,6 +23,7 @@ pub struct Relay {
     proxy: Option<SocketAddr>,
     status: RelayStatus,
     stats: RelayConnectionStats,
+    latency: Option<Duration>,
     queue: usize,
 }
 
@@ -66,11 +67,13 @@ impl State for RelaysState {
             async move {
                 let mut relays = Vec::new();
                 for (url, relay) in client.relays().await.into_iter() {
+                    let stats = relay.stats();
                     relays.push(Relay {
                         url,
                         proxy: relay.proxy(),
                         status: relay.status().await,
-                        stats: relay.stats(),
+                        latency: stats.latency().await,
+                        stats,
                         queue: relay.queue(),
                     });
                 }
@@ -179,6 +182,14 @@ impl State for RelaysState {
                                 .view(),
                         )
                         .push(
+                            Text::new("Latency")
+                                .bold()
+                                .big()
+                                .horizontal_alignment(Horizontal::Center)
+                                .width(Length::Fixed(80.0))
+                                .view(),
+                        )
+                        .push(
                             Text::new("Connected at")
                                 .bold()
                                 .big()
@@ -215,6 +226,7 @@ impl State for RelaysState {
                 proxy,
                 status,
                 stats,
+                latency,
                 queue,
             } in self.relays.iter()
             {
@@ -274,6 +286,15 @@ impl State for RelaysState {
                             .horizontal_alignment(Horizontal::Center)
                             .width(Length::Fixed(80.0))
                             .view(),
+                    )
+                    .push(
+                        Text::new(match latency {
+                            Some(latency) => format!("{} ms", latency.as_millis()),
+                            None => String::from("-"),
+                        })
+                        .horizontal_alignment(Horizontal::Center)
+                        .width(Length::Fixed(80.0))
+                        .view(),
                     )
                     .push(
                         Text::new(stats.connected_at().to_human_datetime())
