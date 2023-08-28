@@ -223,8 +223,8 @@ impl Coinstr {
         let base_path = base_path.as_ref();
 
         // Open keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
-        let mut keechain: KeeChain = KeeChain::open(file_path, get_password)?;
+        let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
+        let mut keechain: KeeChain = KeeChain::open(keychains_path, name, get_password)?;
         let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
         keechain.keychain.apply_passphrase(passphrase);
 
@@ -249,9 +249,9 @@ impl Coinstr {
         let base_path = base_path.as_ref();
 
         // Generate keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
+        let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
         let mut keechain: KeeChain =
-            KeeChain::generate(file_path, get_password, word_count, || Ok(None))?;
+            KeeChain::generate(keychains_path, name, get_password, word_count, || Ok(None))?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
@@ -282,8 +282,9 @@ impl Coinstr {
         let base_path = base_path.as_ref();
 
         // Restore keychain
-        let file_path: PathBuf = util::dir::get_keychain_file(base_path, network, name)?;
-        let mut keechain: KeeChain = KeeChain::restore(file_path, get_password, get_mnemonic)?;
+        let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
+        let mut keechain: KeeChain =
+            KeeChain::restore(keychains_path, name, get_password, get_mnemonic)?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {

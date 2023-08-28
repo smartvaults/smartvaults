@@ -15,7 +15,7 @@ rust-version = "1.60.0"
 bdk = { git = "https://github.com/bitcoindevkit/bdk", rev = "d6bcd9b725a63b5db9157fb11a827a472ddcf73d", default-features = false, features = ["std", "compiler"] }
 bitcoinconsensus = "0.20.2-0.5.0"
 hwi = { version = "0.6", default-features = false, features = ["use-miniscript"], optional = true }
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "fe69f3bc7300eee7fd67c269fbabfc42cedc302b" }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "101d729ea0026ceeac5bfea8c241715468e93ae6" }
 once_cell = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"

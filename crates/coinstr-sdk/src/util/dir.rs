@@ -17,7 +17,7 @@ where
     Ok(path)
 }
 
-fn keychains_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
+pub(crate) fn keychains_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,
 {
@@ -70,17 +70,4 @@ where
 {
     let keychains_path = keychains_path(base_path, network)?;
     dir::get_keychains_list(keychains_path)
-}
-
-pub(crate) fn get_keychain_file<P, S>(
-    base_path: P,
-    network: Network,
-    name: S,
-) -> Result<PathBuf, Error>
-where
-    P: AsRef<Path>,
-    S: Into<String>,
-{
-    let keychains_path = keychains_path(base_path, network)?;
-    dir::get_keychain_file(keychains_path, name)
 }
