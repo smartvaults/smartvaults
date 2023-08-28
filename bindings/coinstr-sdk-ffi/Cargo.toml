@@ -18,10 +18,10 @@ path = "uniffi-bindgen.rs"
 [dependencies]
 async-utility = "0.1"
 coinstr-sdk = { path = "../../crates/coinstr-sdk", features = ["blocking"] }
-nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "57c3550ad91b173d97841af79dbf2b77a2abef4b" }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "ea87febbbd4c1c5665461aede8fbd84766560464" }
 tokio = { version = "1", features = ["full"] }
 tracing = { workspace = true }
-uniffi = { version = "0.24", features = ["cli"] }
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "cae8edc45ba5b56bfcbf35b60c1ab6a97d1bf9da", features = ["cli"] }
 
 [build-dependencies]
-uniffi = { version = "0.24", features = ["build"] }
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "cae8edc45ba5b56bfcbf35b60c1ab6a97d1bf9da", features = ["build"] }
