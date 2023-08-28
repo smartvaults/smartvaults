@@ -30,31 +30,6 @@
 ## Architecture
 ![coinstr-arch](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/coinstr/coinstr/master/doc/arch.iuml)
 
-## Screenshots
-
-### Native GUI
-
-#### Dashboard
-
-![dashboard](./doc/screenshots/desktop/coinstr-dashboard.png)
-
-#### Policy
-
-![policy](./doc/screenshots/desktop/coinstr-policy.png)
-
-### Spend
-
-![spend](./doc/screenshots/desktop/coinstr-spend.png)
-
-#### Transaction
-
-![tx](./doc/screenshots/desktop/coinstr-tx.png)
-![mempool](./doc/screenshots/desktop/mempool-tx.png)
-      
-### Policy Editor
-
-![policy-editor](./doc/screenshots/web/policy-editor.png)
-
 ## Coinstr Video Playlist
 [![Watch the video](https://img.youtube.com/vi/_-K8K_76K24/default.jpg)](https://www.youtube.com/playlist?list=PLQvYD9hYsl07Iq8WkAk8sfrGC8jkWZZA4)
 
