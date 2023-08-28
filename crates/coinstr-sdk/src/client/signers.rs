@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use coinstr_core::miniscript::Descriptor;
 use coinstr_core::secp256k1::XOnlyPublicKey;
@@ -216,6 +216,19 @@ impl Coinstr {
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         Ok(self.db.get_shared_signers()?)
+    }
+
+    pub fn get_shared_signers_public_keys(
+        &self,
+        include_contacts: bool,
+    ) -> Result<Vec<XOnlyPublicKey>, Error> {
+        let public_keys: HashSet<XOnlyPublicKey> = self.db.get_shared_signers_public_keys()?;
+        if include_contacts {
+            Ok(public_keys.into_iter().collect())
+        } else {
+            let contacts: HashSet<XOnlyPublicKey> = self.db.get_contacts_public_keys()?;
+            Ok(public_keys.difference(&contacts).copied().collect())
+        }
     }
 
     #[tracing::instrument(skip_all, level = "trace")]

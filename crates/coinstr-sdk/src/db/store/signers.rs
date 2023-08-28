@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 
 use coinstr_core::miniscript::{Descriptor, DescriptorPublicKey};
@@ -279,6 +279,18 @@ impl Store {
                 owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
                 shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
             });
+        }
+        Ok(list)
+    }
+
+    pub fn get_shared_signers_public_keys(&self) -> Result<HashSet<XOnlyPublicKey>, Error> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare("SELECT owner_public_key FROM shared_signers;")?;
+        let mut rows = stmt.query([])?;
+        let mut list = HashSet::new();
+        while let Ok(Some(row)) = rows.next() {
+            let public_key: String = row.get(0)?;
+            list.insert(XOnlyPublicKey::from_str(&public_key)?);
         }
         Ok(list)
     }

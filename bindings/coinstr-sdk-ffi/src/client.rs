@@ -558,6 +558,18 @@ impl Coinstr {
             .collect())
     }
 
+    pub fn get_shared_signers_public_keys(
+        &self,
+        include_contacts: bool,
+    ) -> Result<Vec<Arc<PublicKey>>> {
+        Ok(self
+            .inner
+            .get_shared_signers_public_keys(include_contacts)?
+            .into_iter()
+            .map(|p| Arc::new(p.into()))
+            .collect())
+    }
+
     pub fn get_shared_signers_by_public_key(
         &self,
         public_key: Arc<PublicKey>,

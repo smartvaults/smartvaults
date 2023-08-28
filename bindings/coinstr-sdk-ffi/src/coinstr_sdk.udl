@@ -559,6 +559,8 @@ interface Coinstr {
     [Throws=FFIError]
     sequence<GetSharedSigner> get_shared_signers();
     [Throws=FFIError]
+    sequence<PublicKey> get_shared_signers_public_keys(boolean include_contacts);
+    [Throws=FFIError]
     sequence<GetSharedSigner> get_shared_signers_by_public_key(PublicKey public_key);
 
     Balance? get_balance(EventId policy_id);
