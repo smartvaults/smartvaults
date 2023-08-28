@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./crates/coinstr/static/img/coinstr.svg" width=200/>
+  <img src="./crates/coinstr/static/img/smartvaults.svg" width=200/>
   <h2>Bitcoin [taproot] multi-custody</h2>
   <p>
     <a href="https://github.com/coinstr/coinstr/blob/master/LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"/></a>
