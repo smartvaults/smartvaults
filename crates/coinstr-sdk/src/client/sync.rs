@@ -328,6 +328,7 @@ impl Coinstr {
                                     }
                                 }
                             }
+                            RelayPoolNotification::RelayStatus { .. } => (),
                             RelayPoolNotification::Stop | RelayPoolNotification::Shutdown => {
                                 tracing::debug!("Received stop/shutdown msg");
                                 block_height_syncer.abort();

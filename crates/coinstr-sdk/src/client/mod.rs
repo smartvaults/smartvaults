@@ -189,6 +189,7 @@ impl Coinstr {
             .wait_for_connection(false)
             .wait_for_send(true)
             .wait_for_subscription(false)
+            .skip_disconnected_relays(true)
             .send_timeout(Some(SEND_TIMEOUT));
 
         let (sender, _) = broadcast::channel::<Message>(2048);
