@@ -32,6 +32,7 @@ use coinstr_protocol::v1::constants::{
     SHARED_KEY_KIND,
 };
 use coinstr_protocol::v1::util::{Encryption, EncryptionError};
+use coinstr_protocol::v1::{CoinstrEventBuilder, CoinstrEventBuilderError};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -54,7 +55,6 @@ use crate::db::model::{
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::{Notification, PolicyBackup};
-use crate::util::event_builder::CoinstrEventBuilder;
 use crate::{util, Label, LabelData};
 
 #[derive(Debug, thiserror::Error)]
@@ -82,7 +82,7 @@ pub enum Error {
     #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
     #[error(transparent)]
-    CoinstrEventBuilder(#[from] crate::util::event_builder::Error),
+    CoinstrEventBuilder(#[from] CoinstrEventBuilderError),
     #[error(transparent)]
     Relay(#[from] nostr_sdk::relay::Error),
     #[error(transparent)]
