@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -385,6 +386,7 @@ impl Coinstr {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn spend(
         &self,
         policy_id: Arc<EventId>,
@@ -393,6 +395,7 @@ impl Coinstr {
         description: String,
         target_blocks: u8,
         utxos: Option<Vec<Arc<OutPoint>>>,
+        policy_path: Option<HashMap<String, Vec<u64>>>,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let to_address = Address::from_str(&to_address)?;
@@ -405,7 +408,11 @@ impl Coinstr {
                     description,
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
-                    None,
+                    policy_path.map(|pp| {
+                        pp.into_iter()
+                            .map(|(k, v)| (k, v.into_iter().map(|i| i as usize).collect()))
+                            .collect()
+                    }),
                 )
                 .await?;
             Ok(Arc::new(proposal.into()))
