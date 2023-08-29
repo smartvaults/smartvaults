@@ -738,10 +738,12 @@ impl Coinstr {
         &self,
         app_public_key: Arc<PublicKey>,
         duration: Duration,
-    ) -> Result<()> {
-        self.inner
-            .auto_approve_nostr_connect_requests(**app_public_key, duration);
-        Ok(())
+    ) {
+        block_on(async move {
+            self.inner
+                .auto_approve_nostr_connect_requests(**app_public_key, duration)
+                .await;
+        })
     }
 
     // TODO: add revoke_nostr_connect_auto_approve

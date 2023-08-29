@@ -10,9 +10,9 @@ use std::sync::Arc;
 use coinstr_core::bitcoin::Network;
 use coinstr_core::util;
 use nostr_sdk::Url;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::util::dir;
 
@@ -44,18 +44,6 @@ struct BitcoinFile {
 #[derive(Serialize, Deserialize)]
 struct ConfigFile {
     bitcoin: BitcoinFile,
-}
-
-impl From<&Config> for ConfigFile {
-    fn from(config: &Config) -> Self {
-        Self {
-            bitcoin: BitcoinFile {
-                electrum_server: (*config.bitcoin.electrum_server.read()).clone(),
-                proxy: *config.bitcoin.proxy.read(),
-                block_explorer: (*config.bitcoin.block_explorer.read()).clone(),
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -132,9 +120,19 @@ impl Config {
         })
     }
 
+    async fn to_config_file(&self) -> ConfigFile {
+        ConfigFile {
+            bitcoin: BitcoinFile {
+                electrum_server: (*self.bitcoin.electrum_server.read().await).clone(),
+                proxy: *self.bitcoin.proxy.read().await,
+                block_explorer: (*self.bitcoin.block_explorer.read().await).clone(),
+            },
+        }
+    }
+
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn save(&self) -> Result<(), Error> {
-        let config_file: ConfigFile = self.into();
+    pub async fn save(&self) -> Result<(), Error> {
+        let config_file: ConfigFile = self.to_config_file().await;
         let data: Vec<u8> = util::serde::serialize(config_file)?;
         let mut file: File = File::options()
             .create(true)
@@ -145,41 +143,41 @@ impl Config {
         Ok(())
     }
 
-    pub fn set_electrum_endpoint<S>(&self, endpoint: Option<S>)
+    pub async fn set_electrum_endpoint<S>(&self, endpoint: Option<S>)
     where
         S: Into<String>,
     {
-        let mut e = self.bitcoin.electrum_server.write();
+        let mut e = self.bitcoin.electrum_server.write().await;
         *e = endpoint.map(|e| e.into());
     }
 
-    pub fn electrum_endpoint(&self) -> Result<String, Error> {
-        let endpoint = self.bitcoin.electrum_server.read();
+    pub async fn electrum_endpoint(&self) -> Result<String, Error> {
+        let endpoint = self.bitcoin.electrum_server.read().await;
         endpoint.clone().ok_or(Error::ElectrumEndpointNotSet)
     }
 
-    pub fn set_proxy(&self, proxy: Option<SocketAddr>) {
-        let mut e = self.bitcoin.proxy.write();
+    pub async fn set_proxy(&self, proxy: Option<SocketAddr>) {
+        let mut e = self.bitcoin.proxy.write().await;
         *e = proxy;
     }
 
-    pub fn proxy(&self) -> Result<SocketAddr, Error> {
-        let proxy = self.bitcoin.proxy.read();
+    pub async fn proxy(&self) -> Result<SocketAddr, Error> {
+        let proxy = self.bitcoin.proxy.read().await;
         (*proxy).ok_or(Error::ProxyNotSet)
     }
 
-    pub fn set_block_explorer(&self, url: Option<Url>) {
-        let mut e = self.bitcoin.block_explorer.write();
+    pub async fn set_block_explorer(&self, url: Option<Url>) {
+        let mut e = self.bitcoin.block_explorer.write().await;
         *e = url;
     }
 
-    pub fn block_explorer(&self) -> Result<Url, Error> {
-        let block_explorer = self.bitcoin.block_explorer.read();
+    pub async fn block_explorer(&self) -> Result<Url, Error> {
+        let block_explorer = self.bitcoin.block_explorer.read().await;
         block_explorer.clone().ok_or(Error::BlockExplorerNotSet)
     }
 
-    pub fn as_pretty_json(&self) -> Result<String, Error> {
-        let config_file: ConfigFile = self.into();
+    pub async fn as_pretty_json(&self) -> Result<String, Error> {
+        let config_file: ConfigFile = self.to_config_file().await;
         Ok(nostr_sdk::serde_json::to_string_pretty(&config_file)?)
     }
 }

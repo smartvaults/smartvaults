@@ -63,10 +63,10 @@ pub enum Message {
 }
 
 impl Coinstr {
-    fn _block_height_syncer(&self) -> Result<(), Error> {
-        if !self.db.block_height.is_synced() {
-            let endpoint = self.config.electrum_endpoint()?;
-            let proxy: Option<SocketAddr> = self.config.proxy().ok();
+    async fn _block_height_syncer(&self) -> Result<(), Error> {
+        if !self.db.block_height.is_synced().await {
+            let endpoint = self.config.electrum_endpoint().await?;
+            let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
 
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
@@ -75,7 +75,7 @@ impl Coinstr {
 
             let HeaderNotification { height, .. } = client.block_headers_subscribe()?;
             self.db.block_height.set_block_height(height as u32);
-            self.db.block_height.just_synced();
+            self.db.block_height.just_synced().await;
 
             let _ = self.sync_channel.send(Message::BlockHeightUpdated);
 
@@ -89,7 +89,7 @@ impl Coinstr {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                if let Err(e) = this._block_height_syncer() {
+                if let Err(e) = this._block_height_syncer().await {
                     tracing::error!("Impossible to sync block height: {e}");
                 }
 
@@ -102,10 +102,10 @@ impl Coinstr {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                match this.config.electrum_endpoint() {
+                match this.config.electrum_endpoint().await {
                     Ok(endpoint) => match this.get_policies().await {
                         Ok(policies) => {
-                            let proxy = this.config.proxy().ok();
+                            let proxy = this.config.proxy().await.ok();
                             for GetPolicy {
                                 policy_id,
                                 last_sync,
@@ -606,6 +606,7 @@ impl Coinstr {
                         if self
                             .db
                             .is_nostr_connect_session_pre_authorized(event.pubkey)
+                            .await
                         {
                             let uri = self.db.get_nostr_connect_session(event.pubkey)?;
                             let keys = self.client.keys();

@@ -66,7 +66,7 @@ impl State for ConnectState {
                 let sessions = client.get_nostr_connect_sessions().unwrap();
                 let pending_requests = client.get_nostr_connect_requests(false).unwrap();
                 let approved_requests = client.get_nostr_connect_requests(true).unwrap();
-                let authorizations = client.get_nostr_connect_pre_authorizations();
+                let authorizations = client.get_nostr_connect_pre_authorizations().await;
                 (
                     sessions,
                     pending_requests,
@@ -140,10 +140,12 @@ impl State for ConnectState {
                     let client = ctx.client.clone();
                     Command::perform(
                         async move {
-                            client.auto_approve_nostr_connect_requests(
-                                public_key,
-                                Duration::from_secs(60 * 60),
-                            )
+                            client
+                                .auto_approve_nostr_connect_requests(
+                                    public_key,
+                                    Duration::from_secs(60 * 60),
+                                )
+                                .await
                         },
                         |_| ConnectMessage::Reload.into(),
                     )
@@ -151,7 +153,7 @@ impl State for ConnectState {
                 ConnectMessage::RevokeAuthorization(public_key) => {
                     let client = ctx.client.clone();
                     Command::perform(
-                        async move { client.revoke_nostr_connect_auto_approve(public_key) },
+                        async move { client.revoke_nostr_connect_auto_approve(public_key).await },
                         |_| ConnectMessage::Reload.into(),
                     )
                 }

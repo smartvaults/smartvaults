@@ -1042,7 +1042,6 @@ dependencies = [
  "coinstr-protocol",
  "futures-util",
  "nostr-sdk",
- "parking_lot 0.12.1",
  "r2d2",
  "r2d2_sqlite",
  "rusqlite",

@@ -179,15 +179,16 @@ impl TransactionsList {
                             .view(),
                     )
                     .push({
-                        let mut btn = Button::new()
+                        let btn = Button::new()
                             .icon(BROWSER)
                             .style(ButtonStyle::Bordered)
                             .width(Length::Fixed(40.0));
 
-                        if let Ok(url) = ctx.client.config().block_explorer() {
+                        // TODO
+                        /* if let Ok(url) = ctx.client.config().block_explorer().await {
                             btn = btn
                                 .on_press(Message::OpenInBrowser(format!("{url}/tx/{}", tx.txid)));
-                        }
+                        } */
 
                         btn.view()
                     })

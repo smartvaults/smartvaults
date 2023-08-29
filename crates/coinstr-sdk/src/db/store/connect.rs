@@ -175,13 +175,20 @@ impl Store {
         Ok(())
     }
 
-    pub fn set_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey, until: Timestamp) {
-        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+    pub async fn set_nostr_connect_auto_approve(
+        &self,
+        app_public_key: XOnlyPublicKey,
+        until: Timestamp,
+    ) {
+        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.write().await;
         nostr_connect_auto_approve.insert(app_public_key, until);
     }
 
-    pub fn is_nostr_connect_session_pre_authorized(&self, app_public_key: XOnlyPublicKey) -> bool {
-        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+    pub async fn is_nostr_connect_session_pre_authorized(
+        &self,
+        app_public_key: XOnlyPublicKey,
+    ) -> bool {
+        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.write().await;
         if let Some(until) = nostr_connect_auto_approve.get(&app_public_key) {
             if Timestamp::now() < *until {
                 return true;
@@ -192,13 +199,15 @@ impl Store {
         false
     }
 
-    pub fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
-        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+    pub async fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
+        let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.write().await;
         nostr_connect_auto_approve.remove(&app_public_key);
     }
 
-    pub fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<XOnlyPublicKey, Timestamp> {
-        let nostr_connect_auto_approve = self.nostr_connect_auto_approve.lock();
+    pub async fn get_nostr_connect_pre_authorizations(
+        &self,
+    ) -> BTreeMap<XOnlyPublicKey, Timestamp> {
+        let nostr_connect_auto_approve = self.nostr_connect_auto_approve.read().await;
         nostr_connect_auto_approve
             .iter()
             .map(|(pk, ts)| (*pk, *ts))

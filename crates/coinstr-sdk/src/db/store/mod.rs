@@ -21,10 +21,10 @@ use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::event::id::EventId;
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
 use nostr_sdk::{Event, Keys, Timestamp};
-use parking_lot::Mutex;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::config::DbConfig;
 use rusqlite::OpenFlags;
+use tokio::sync::RwLock;
 
 mod connect;
 mod contacts;
@@ -49,7 +49,7 @@ pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManage
 #[derive(Debug, Clone, Default)]
 pub struct BlockHeight {
     height: Arc<AtomicU32>,
-    last_sync: Arc<Mutex<Option<Timestamp>>>,
+    last_sync: Arc<RwLock<Option<Timestamp>>>,
 }
 
 impl BlockHeight {
@@ -63,14 +63,14 @@ impl BlockHeight {
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(block_height));
     }
 
-    pub fn is_synced(&self) -> bool {
-        let last_sync = self.last_sync.lock();
+    pub async fn is_synced(&self) -> bool {
+        let last_sync = self.last_sync.read().await;
         let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
         last_sync.add(BLOCK_HEIGHT_SYNC_INTERVAL) > Timestamp::now()
     }
 
-    pub fn just_synced(&self) {
-        let mut last_sync = self.last_sync.lock();
+    pub async fn just_synced(&self) {
+        let mut last_sync = self.last_sync.write().await;
         *last_sync = Some(Timestamp::now());
     }
 }
@@ -81,7 +81,7 @@ pub struct Store {
     pool: SqlitePool,
     keys: Keys,
     pub(crate) block_height: BlockHeight,
-    nostr_connect_auto_approve: Arc<Mutex<HashMap<XOnlyPublicKey, Timestamp>>>,
+    nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
 }
 
 impl Drop for Store {
@@ -102,7 +102,7 @@ impl Store {
         Ok(Self {
             pool,
             keys: keys.clone(),
-            nostr_connect_auto_approve: Arc::new(Mutex::new(HashMap::new())),
+            nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
             block_height: BlockHeight::default(),
         })
     }

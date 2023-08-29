@@ -57,9 +57,9 @@ impl State for SettingState {
                 let config = Config::try_from_file(BASE_PATH.as_path(), network)?;
                 Ok::<(Option<String>, Option<SocketAddr>, Option<Url>), Box<dyn std::error::Error>>(
                     (
-                        config.electrum_endpoint().ok(),
-                        config.proxy().ok(),
-                        config.block_explorer().ok(),
+                        config.electrum_endpoint().await.ok(),
+                        config.proxy().await.ok(),
+                        config.block_explorer().await.ok(),
                     ),
                 )
             },
@@ -122,10 +122,10 @@ impl State for SettingState {
                             };
 
                             let config = Config::try_from_file(BASE_PATH.as_path(), network)?;
-                            config.set_electrum_endpoint(Some(endpoint));
-                            config.set_proxy(proxy);
-                            config.set_block_explorer(block_explorer);
-                            config.save()?;
+                            config.set_electrum_endpoint(Some(endpoint)).await;
+                            config.set_proxy(proxy).await;
+                            config.set_block_explorer(block_explorer).await;
+                            config.save().await?;
 
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },

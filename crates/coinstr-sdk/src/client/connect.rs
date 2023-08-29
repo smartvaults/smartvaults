@@ -135,21 +135,26 @@ impl Coinstr {
         }
     }
 
-    pub fn auto_approve_nostr_connect_requests(
+    pub async fn auto_approve_nostr_connect_requests(
         &self,
         app_public_key: XOnlyPublicKey,
         duration: Duration,
     ) {
         let until: Timestamp = Timestamp::now() + duration;
         self.db
-            .set_nostr_connect_auto_approve(app_public_key, until);
+            .set_nostr_connect_auto_approve(app_public_key, until)
+            .await;
     }
 
-    pub fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
-        self.db.revoke_nostr_connect_auto_approve(app_public_key);
+    pub async fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
+        self.db
+            .revoke_nostr_connect_auto_approve(app_public_key)
+            .await;
     }
 
-    pub fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<XOnlyPublicKey, Timestamp> {
-        self.db.get_nostr_connect_pre_authorizations()
+    pub async fn get_nostr_connect_pre_authorizations(
+        &self,
+    ) -> BTreeMap<XOnlyPublicKey, Timestamp> {
+        self.db.get_nostr_connect_pre_authorizations().await
     }
 }

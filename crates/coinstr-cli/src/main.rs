@@ -188,7 +188,7 @@ async fn run() -> Result<()> {
         CliCommand::Config { command } => match command {
             ConfigCommand::View => {
                 let config = Config::try_from_file(base_path, network)?;
-                println!("{}", config.as_pretty_json()?);
+                println!("{}", config.as_pretty_json().await?);
                 Ok(())
             }
             ConfigCommand::Set {
@@ -199,18 +199,18 @@ async fn run() -> Result<()> {
                 let config = Config::try_from_file(base_path, network)?;
 
                 if let Some(endpoint) = electrum_server {
-                    config.set_electrum_endpoint(Some(endpoint));
+                    config.set_electrum_endpoint(Some(endpoint)).await;
                 }
 
                 if let Some(proxy) = proxy {
-                    config.set_proxy(Some(proxy));
+                    config.set_proxy(Some(proxy)).await;
                 }
 
                 if let Some(block_explorer) = block_explorer {
-                    config.set_block_explorer(Some(block_explorer));
+                    config.set_block_explorer(Some(block_explorer)).await;
                 }
 
-                config.save()?;
+                config.save().await?;
 
                 Ok(())
             }
@@ -222,18 +222,18 @@ async fn run() -> Result<()> {
                 let config = Config::try_from_file(base_path, network)?;
 
                 if electrum_server {
-                    config.set_electrum_endpoint::<String>(None);
+                    config.set_electrum_endpoint::<String>(None).await;
                 }
 
                 if proxy {
-                    config.set_proxy(None);
+                    config.set_proxy(None).await;
                 }
 
                 if block_explorer {
-                    config.set_block_explorer(None);
+                    config.set_block_explorer(None).await;
                 }
 
-                config.save()?;
+                config.save().await?;
 
                 Ok(())
             }
@@ -365,19 +365,23 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 app_public_key,
                 seconds,
             } => {
-                coinstr.auto_approve_nostr_connect_requests(
-                    app_public_key,
-                    Duration::from_secs(seconds),
-                );
+                coinstr
+                    .auto_approve_nostr_connect_requests(
+                        app_public_key,
+                        Duration::from_secs(seconds),
+                    )
+                    .await;
                 Ok(())
             }
             ConnectCommand::Authorizations => {
-                let authorizations = coinstr.get_nostr_connect_pre_authorizations();
+                let authorizations = coinstr.get_nostr_connect_pre_authorizations().await;
                 util::print_authorizations(authorizations);
                 Ok(())
             }
             ConnectCommand::Revoke { app_public_key } => {
-                coinstr.revoke_nostr_connect_auto_approve(app_public_key);
+                coinstr
+                    .revoke_nostr_connect_auto_approve(app_public_key)
+                    .await;
                 Ok(())
             }
         },

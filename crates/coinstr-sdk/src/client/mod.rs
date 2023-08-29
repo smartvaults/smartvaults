@@ -523,19 +523,19 @@ impl Coinstr {
         self.config.clone()
     }
 
-    pub fn set_electrum_endpoint<S>(&self, endpoint: S) -> Result<(), Error>
+    pub async fn set_electrum_endpoint<S>(&self, endpoint: S) -> Result<(), Error>
     where
         S: Into<String>,
     {
         // Set electrum endpoint
-        self.config.set_electrum_endpoint(Some(endpoint));
+        self.config.set_electrum_endpoint(Some(endpoint)).await;
         // Save config file
-        self.config.save()?;
+        self.config.save().await?;
         Ok(())
     }
 
-    pub fn electrum_endpoint(&self) -> Result<String, Error> {
-        Ok(self.config.electrum_endpoint()?)
+    pub async fn electrum_endpoint(&self) -> Result<String, Error> {
+        Ok(self.config.electrum_endpoint().await?)
     }
 
     pub fn block_height(&self) -> u32 {
@@ -894,8 +894,8 @@ impl Coinstr {
 
         let fee_rate: BdkFeeRate = match fee_rate {
             FeeRate::Priority(priority) => {
-                let endpoint = self.config.electrum_endpoint()?;
-                let proxy: Option<SocketAddr> = self.config.proxy().ok();
+                let endpoint = self.config.electrum_endpoint().await?;
+                let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
                 let config = ElectrumConfig::builder()
                     .socks5(proxy.map(Socks5Config::new))
                     .build();
@@ -1216,8 +1216,8 @@ impl Coinstr {
 
         // Broadcast
         if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
-            let endpoint = self.config.electrum_endpoint()?;
-            let proxy: Option<SocketAddr> = self.config.proxy().ok();
+            let endpoint = self.config.electrum_endpoint().await?;
+            let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
             let config = ElectrumConfig::builder()
                 .socks5(proxy.map(Socks5Config::new))
                 .build();

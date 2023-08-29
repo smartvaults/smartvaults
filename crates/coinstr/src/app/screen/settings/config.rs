@@ -53,9 +53,9 @@ impl State for ConfigState {
         Command::perform(
             async move {
                 (
-                    config.electrum_endpoint().ok(),
-                    config.proxy().ok(),
-                    config.block_explorer().ok(),
+                    config.electrum_endpoint().await.ok(),
+                    config.proxy().await.ok(),
+                    config.block_explorer().await.ok(),
                 )
             },
             |(electrum, proxy, block_explorer)| {
@@ -115,10 +115,10 @@ impl State for ConfigState {
                                 Some(Url::parse(&block_explorer)?)
                             };
 
-                            config.set_electrum_endpoint(Some(endpoint));
-                            config.set_proxy(proxy);
-                            config.set_block_explorer(block_explorer);
-                            config.save()?;
+                            config.set_electrum_endpoint(Some(endpoint)).await;
+                            config.set_proxy(proxy).await;
+                            config.set_block_explorer(block_explorer).await;
+                            config.save().await?;
 
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },
