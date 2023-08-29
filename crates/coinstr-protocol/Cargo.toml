@@ -1,0 +1,15 @@
+[package]
+name = "coinstr-protocol"
+edition = "2021"
+version.workspace = true
+description = "Implementation of the Coinstr protocol"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme = "README.md"
+keywords.workspace = true
+
+[dependencies]
+#coinstr-core = { path = "../coinstr-core", default-features = false }
+nostr = { git = "https://github.com/rust-nostr/nostr", rev = "ea87febbbd4c1c5665461aede8fbd84766560464", default-features = false }

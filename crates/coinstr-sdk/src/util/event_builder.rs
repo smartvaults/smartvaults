@@ -1,10 +1,12 @@
+// Copyright (c) 2022-2023 Coinstr
+// Distributed under the MIT software license
+
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::{Policy, Proposal};
+use coinstr_protocol::v1::constants::{POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND};
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Event, EventBuilder, EventId, Keys, Tag};
 use thiserror::Error;
-
-use crate::constants::{POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND};
 
 use super::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 

@@ -7,11 +7,11 @@ use coinstr_core::miniscript::Descriptor;
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_core::util::Serde;
+use coinstr_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Tag};
 
 use super::{Coinstr, Error};
-use crate::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
 use crate::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
 use crate::util::encryption::EncryptionWithKeys;
 

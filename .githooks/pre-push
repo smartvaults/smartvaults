@@ -5,6 +5,7 @@ cargo fmt --all -- --config format_code_in_doc_comments=true
 buildargs=(
     "-p coinstr-core"
     "-p coinstr-core --features reserves"
+    "-p coinstr-protocol"
     "-p coinstr-sdk"
     "-p coinstr-cli"
     "-p coinstr"
@@ -20,6 +21,7 @@ done
 
 buildargs=(
     "-p coinstr-core --target wasm32-unknown-unknown"
+    "-p coinstr-protocol --target wasm32-unknown-unknown"
 )
 
 for arg in "${buildargs[@]}"; do

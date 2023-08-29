@@ -1029,12 +1029,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "coinstr-protocol"
+version = "0.3.0"
+dependencies = [
+ "nostr",
+]
+
+[[package]]
 name = "coinstr-sdk"
 version = "0.3.0"
 dependencies = [
  "async-utility",
  "bdk_electrum",
  "coinstr-core",
+ "coinstr-protocol",
  "futures-util",
  "nostr-sdk",
  "parking_lot 0.12.1",

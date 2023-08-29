@@ -28,6 +28,7 @@ jobs:
           [
             "-p coinstr-core",
             "-p coinstr-core --features reserves",
+            "-p coinstr-protocol",
             "-p coinstr-sdk",
             "-p coinstr-cli",
             "-p coinstr",
@@ -67,7 +68,8 @@ jobs:
           - version: stable
         build-args:
           [
-            -p coinstr-core,
+            "-p coinstr-core",
+            "-p coinstr-protocol",
           ]
     steps:
     - name: Checkout

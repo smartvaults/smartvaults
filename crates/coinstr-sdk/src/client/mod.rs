@@ -27,6 +27,10 @@ use coinstr_core::types::{KeeChain, Keychain, Seed, WordCount};
 use coinstr_core::{
     Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, PolicyTemplate, Proposal,
 };
+use coinstr_protocol::v1::constants::{
+    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
+    SHARED_KEY_KIND,
+};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -41,10 +45,7 @@ mod sync;
 
 pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
-use crate::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, MAINNET_RELAYS,
-    PROPOSAL_KIND, SEND_TIMEOUT, SHARED_KEY_KIND, TESTNET_RELAYS,
-};
+use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::db::model::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicy,
     GetNotifications, GetPolicy, GetProposal, GetTransaction, GetUtxo,

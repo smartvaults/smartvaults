@@ -2,10 +2,10 @@
 // Distributed under the MIT software license
 
 use coinstr_core::secp256k1::XOnlyPublicKey;
+use coinstr_protocol::v1::constants::LABELS_KIND;
 use nostr_sdk::{Event, EventBuilder, EventId, Keys, Tag};
 
 use super::{Coinstr, Error};
-use crate::constants::LABELS_KIND;
 use crate::types::Label;
 use crate::util::encryption::EncryptionWithKeys;
 
