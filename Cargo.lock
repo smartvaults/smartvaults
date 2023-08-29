@@ -2930,7 +2930,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.23.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=ea87febbbd4c1c5665461aede8fbd84766560464#ea87febbbd4c1c5665461aede8fbd84766560464"
+source = "git+https://github.com/rust-nostr/nostr?rev=ce12210ffbd6d432554c95cc859c572b86066dd7#ce12210ffbd6d432554c95cc859c572b86066dd7"
 dependencies = [
  "aes",
  "base64 0.21.3",
@@ -2953,7 +2953,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=ea87febbbd4c1c5665461aede8fbd84766560464#ea87febbbd4c1c5665461aede8fbd84766560464"
+source = "git+https://github.com/rust-nostr/nostr?rev=ce12210ffbd6d432554c95cc859c572b86066dd7#ce12210ffbd6d432554c95cc859c572b86066dd7"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2962,7 +2962,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.23.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=ea87febbbd4c1c5665461aede8fbd84766560464#ea87febbbd4c1c5665461aede8fbd84766560464"
+source = "git+https://github.com/rust-nostr/nostr?rev=ce12210ffbd6d432554c95cc859c572b86066dd7#ce12210ffbd6d432554c95cc859c572b86066dd7"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2976,11 +2976,10 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=ea87febbbd4c1c5665461aede8fbd84766560464#ea87febbbd4c1c5665461aede8fbd84766560464"
+source = "git+https://github.com/rust-nostr/nostr?rev=ce12210ffbd6d432554c95cc859c572b86066dd7#ce12210ffbd6d432554c95cc859c572b86066dd7"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
- "parking_lot 0.12.1",
  "tracing",
  "tracing-subscriber",
  "uniffi",
@@ -2989,7 +2988,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.23.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=ea87febbbd4c1c5665461aede8fbd84766560464#ea87febbbd4c1c5665461aede8fbd84766560464"
+source = "git+https://github.com/rust-nostr/nostr?rev=ce12210ffbd6d432554c95cc859c572b86066dd7#ce12210ffbd6d432554c95cc859c572b86066dd7"
 dependencies = [
  "futures-util",
  "thiserror",
