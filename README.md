@@ -27,14 +27,34 @@
 * [Build from source](doc/build.md)  
 * [Usage](doc/usage/README.md) 
 
+## Project structure
+
+The project is split up into several crates in the `crates/` directory:
+
+### Executables
+
+* [**coinstr**](./crates/coinstr/): Desktop application.
+* [**coinstr-cli**](./crates/coinstr-cli): CLI appication.
+
+### Libraries
+
+* [**coinstr-core**](./crates/coinstr-core): Protocol primitives and bitcoin TX building/singning logic.
+* [**coinstr-protocol**](./crates/coinstr-protocol): Implementation of the `Coinstr` protocol.
+* [**coinstr-sdk**](./crates/coinstr-sdk): High level client library.
+
+### Bindings
+
+**coinstr-sdk** crate can be embedded inside other environments, like Swift, Kotlin, Python and JavaScript. 
+Please, explore the [`bindings/`](./bindings/) directory to learn more.
+
+#### Available packages
+
+* **coinstr-sdk**:
+    * Kotlin: [`io.coinstr:coinstr-sdk`](https://central.sonatype.com/artifact/io.coinstr/coinstr-sdk)
+    * Swift: https://github.com/coinstr/coinstr-sdk-swift
+
 ## Architecture
 ![coinstr-arch](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/coinstr/coinstr/master/doc/arch.iuml)
-
-## Coinstr Video Playlist
-[![Watch the video](https://img.youtube.com/vi/_-K8K_76K24/default.jpg)](https://www.youtube.com/playlist?list=PLQvYD9hYsl07Iq8WkAk8sfrGC8jkWZZA4)
-
-## Tutorials
-[![Watch the video](https://img.youtube.com/vi/jW5_6kZWuWU/default.jpg)](https://www.youtube.com/watch?v=jW5_6kZWuWU)
 
 ## State
 

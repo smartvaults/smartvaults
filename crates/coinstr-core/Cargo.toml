@@ -2,7 +2,7 @@
 name = "coinstr-core"
 version.workspace = true
 edition = "2021"
-description = "Coinstr's Core library."
+description = "Protocol primitives and bitcoin TX building/singning logic"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true

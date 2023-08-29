@@ -2,7 +2,7 @@
 
 ## Description
 
-Coinstr Core library.
+Protocol primitives and bitcoin TX building/singning logic
 
 ## State
 
