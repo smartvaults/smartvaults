@@ -7,12 +7,10 @@ use std::str::FromStr;
 use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::{Address, OutPoint};
 use coinstr_core::crypto::hash;
-use coinstr_core::util::{Encryption, Serde};
+use coinstr_protocol::v1::util::{Encryption, Serde};
 use nostr_sdk::Keys;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use crate::util::encryption::EncryptionWithKeys;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -139,7 +137,6 @@ impl Label {
 
 impl Serde for Label {}
 impl Encryption for Label {}
-impl EncryptionWithKeys for Label {}
 
 #[cfg(test)]
 mod test {

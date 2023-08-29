@@ -6,8 +6,7 @@ use keechain_core::bitcoin::Transaction;
 use keechain_core::miniscript::Descriptor;
 use serde::{Deserialize, Serialize};
 
-use crate::util::serde::{deserialize_psbt, serialize_psbt};
-use crate::util::{Encryption, Serde};
+use crate::util::{deserialize_psbt, serialize_psbt};
 
 use super::ProposalType;
 
@@ -94,6 +93,3 @@ impl CompletedProposal {
         }
     }
 }
-
-impl Serde for CompletedProposal {}
-impl Encryption for CompletedProposal {}

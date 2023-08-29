@@ -9,7 +9,7 @@ use std::path::Path;
 
 use coinstr_core::miniscript::Descriptor;
 use coinstr_core::secp256k1::XOnlyPublicKey;
-use coinstr_core::util::Serde;
+use coinstr_protocol::v1::util::Serde;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

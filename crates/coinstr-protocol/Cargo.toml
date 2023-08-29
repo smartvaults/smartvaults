@@ -11,5 +11,8 @@ readme = "README.md"
 keywords.workspace = true
 
 [dependencies]
-#coinstr-core = { path = "../coinstr-core", default-features = false }
+coinstr-core = { path = "../coinstr-core", default-features = false }
 nostr = { git = "https://github.com/rust-nostr/nostr", rev = "ea87febbbd4c1c5665461aede8fbd84766560464", default-features = false }
+serde = { workspace = true, features = ["derive"] }
+serde_json = "1.0"
+thiserror = { workspace = true }

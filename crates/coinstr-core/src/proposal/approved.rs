@@ -4,10 +4,8 @@
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use serde::{Deserialize, Serialize};
 
-use crate::util::serde::{deserialize_psbt, serialize_psbt};
-use crate::util::{Encryption, Serde};
-
 use super::ProposalType;
+use crate::util::{deserialize_psbt, serialize_psbt};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApprovedProposal {
@@ -50,6 +48,3 @@ impl ApprovedProposal {
         }
     }
 }
-
-impl Serde for ApprovedProposal {}
-impl Encryption for ApprovedProposal {}

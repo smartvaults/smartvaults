@@ -6,7 +6,6 @@ use coinstr_core::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{Event, EventId, Tag, TagKind};
 
 pub(crate) mod dir;
-pub mod encryption;
 pub mod event_builder;
 pub mod format;
 

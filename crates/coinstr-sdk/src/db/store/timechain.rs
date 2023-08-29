@@ -2,16 +2,16 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::chain::Append;
+use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 
 use super::{Error, Store};
-use crate::util::encryption::EncryptionWithKeys;
 
 impl Store {
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn save_changeset<K>(&self, descriptor_hash: Sha256Hash, changeset: &K) -> Result<(), Error>
     where
-        K: Default + Clone + Append + EncryptionWithKeys,
+        K: Default + Clone + Append + Encryption,
     {
         let conn = self.pool.get()?;
         let data: String = changeset.encrypt_with_keys(&self.keys)?;
@@ -29,7 +29,7 @@ impl Store {
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_changeset<K>(&self, descriptor_hash: Sha256Hash) -> Result<K, Error>
     where
-        K: Default + Clone + Append + EncryptionWithKeys,
+        K: Default + Clone + Append + Encryption,
     {
         let conn = self.pool.get()?;
         let mut stmt =

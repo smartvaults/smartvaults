@@ -2,13 +2,13 @@
 // Distributed under the MIT software license
 
 use coinstr_core::Policy;
+use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{EventId, Timestamp};
 
 use super::Store;
 use crate::db::model::GetPolicy;
 use crate::db::Error;
-use crate::util::encryption::EncryptionWithKeys;
 
 impl Store {
     pub fn policy_exists(&self, policy_id: EventId) -> Result<bool, Error> {

@@ -25,8 +25,7 @@ pub use self::template::{PolicyTemplate, PolicyTemplateType, RecoveryTemplate};
 use crate::proposal::Proposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
-use crate::util::serde::SerdeSer;
-use crate::util::{Encryption, Serde, Unspendable};
+use crate::util::Unspendable;
 use crate::{Amount, SECP256K1};
 
 #[derive(Debug, thiserror::Error)]
@@ -55,9 +54,6 @@ pub enum Error {
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
 }
-
-impl SerdeSer for SpendingPolicy {}
-impl SerdeSer for SatisfiableItem {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Policy {
@@ -343,9 +339,6 @@ impl Policy {
         ))
     }
 }
-
-impl Serde for Policy {}
-impl Encryption for Policy {}
 
 #[cfg(test)]
 mod test {

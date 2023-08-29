@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use coinstr_sdk::core::util::serde::SerdeSer;
 use coinstr_sdk::core::{policy, PolicyTemplateType};
 use coinstr_sdk::db::model;
+use coinstr_sdk::protocol::v1::util::SerdeSer;
 use nostr_sdk_ffi::{EventId, Timestamp};
 
 mod template;

@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 pub use coinstr_core as core;
+pub use coinstr_protocol as protocol;
 pub use nostr_sdk as nostr;
 
 pub mod client;

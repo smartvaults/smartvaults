@@ -7,11 +7,11 @@ use std::str::FromStr;
 use coinstr_core::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::{SharedSigner, Signer};
+use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::EventId;
 
 use super::{Error, Store};
 use crate::db::model::{GetSharedSigner, GetSigner};
-use crate::util::encryption::EncryptionWithKeys;
 
 impl Store {
     pub fn signer_exists(&self, signer_id: EventId) -> Result<bool, Error> {

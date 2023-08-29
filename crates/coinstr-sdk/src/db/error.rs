@@ -2,12 +2,12 @@
 // Distributed under the MIT software license
 
 use coinstr_core::policy;
-use coinstr_core::util::serde::Error as SerdeError;
+use coinstr_protocol::v1::util::serde::Error as SerdeError;
+use coinstr_protocol::v1::util::EncryptionError;
 use nostr_sdk::event;
 use nostr_sdk::event::id;
 
 use super::migration::MigrationError;
-use crate::util::encryption::EncryptionWithKeysError;
 
 /// Store error
 #[derive(Debug, thiserror::Error)]
@@ -23,7 +23,7 @@ pub enum Error {
     Migration(#[from] MigrationError),
     /// Encryption error
     #[error(transparent)]
-    EncryptionWithKeys(#[from] EncryptionWithKeysError),
+    Encryption(#[from] EncryptionError),
     /// Keys error
     #[error(transparent)]
     Keys(#[from] nostr_sdk::nostr::key::Error),

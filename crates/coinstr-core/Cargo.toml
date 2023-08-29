@@ -22,4 +22,4 @@ keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "101d729ea0
 once_cell = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0"
+thiserror = { workspace = true }

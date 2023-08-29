@@ -31,6 +31,7 @@ use coinstr_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
+use coinstr_protocol::v1::util::{Encryption, EncryptionError};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -53,7 +54,6 @@ use crate::db::model::{
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::{Notification, PolicyBackup};
-use crate::util::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 use crate::util::event_builder::CoinstrEventBuilder;
 use crate::{util, Label, LabelData};
 
@@ -94,7 +94,7 @@ pub enum Error {
     #[error(transparent)]
     Address(#[from] coinstr_core::bitcoin::address::Error),
     #[error(transparent)]
-    EncryptionWithKeys(#[from] EncryptionWithKeysError),
+    Encryption(#[from] EncryptionError),
     #[error(transparent)]
     NIP04(#[from] nostr_sdk::nips::nip04::Error),
     #[error(transparent)]

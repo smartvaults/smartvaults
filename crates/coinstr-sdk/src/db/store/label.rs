@@ -4,11 +4,11 @@
 use std::collections::HashMap;
 
 use coinstr_core::bitcoin::{OutPoint, ScriptBuf};
+use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::EventId;
 
 use super::{Error, Store};
 use crate::types::{Label, LabelData, LabelKind};
-use crate::util::encryption::EncryptionWithKeys;
 
 impl Store {
     pub fn save_label(

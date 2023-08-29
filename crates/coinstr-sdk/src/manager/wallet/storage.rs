@@ -2,11 +2,11 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::chain::{Append, PersistBackend};
+use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use thiserror::Error;
 
 use crate::db::{Error as DbError, Store};
-use crate::util::encryption::EncryptionWithKeys;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -33,7 +33,7 @@ impl CoinstrWalletStorage {
 
 impl<K> PersistBackend<K> for CoinstrWalletStorage
 where
-    K: Default + Clone + Append + EncryptionWithKeys,
+    K: Default + Clone + Append + Encryption,
 {
     type WriteError = Error;
     type LoadError = Error;

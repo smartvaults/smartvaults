@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::constants::COINSTR_ACCOUNT_INDEX;
-use crate::util::{Encryption, Serde};
 use crate::SECP256K1;
 
 #[derive(Debug, Error)]
@@ -59,9 +58,6 @@ impl fmt::Display for Signer {
         write!(f, "{}({})", self.t, self.fingerprint)
     }
 }
-
-impl Serde for Signer {}
-impl Encryption for Signer {}
 
 impl Signer {
     pub fn new<S>(
@@ -169,9 +165,6 @@ pub struct SharedSigner {
     fingerprint: Fingerprint,
     descriptor: Descriptor<DescriptorPublicKey>,
 }
-
-impl Serde for SharedSigner {}
-impl Encryption for SharedSigner {}
 
 impl From<Signer> for SharedSigner {
     fn from(value: Signer) -> Self {

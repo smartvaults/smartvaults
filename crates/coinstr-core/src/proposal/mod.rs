@@ -22,8 +22,7 @@ mod completed;
 
 pub use self::approved::ApprovedProposal;
 pub use self::completed::CompletedProposal;
-use crate::util::serde::{deserialize_psbt, serialize_psbt};
-use crate::util::{Encryption, Serde};
+use crate::util::{deserialize_psbt, serialize_psbt};
 use crate::SECP256K1;
 
 #[derive(Debug, thiserror::Error)]
@@ -287,6 +286,3 @@ impl Proposal {
         }
     }
 }
-
-impl Serde for Proposal {}
-impl Encryption for Proposal {}

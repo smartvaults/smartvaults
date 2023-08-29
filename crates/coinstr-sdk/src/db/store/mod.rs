@@ -15,8 +15,9 @@ use std::sync::Arc;
 
 use coinstr_core::bitcoin::Txid;
 use coinstr_core::proposal::{CompletedProposal, Proposal};
-use coinstr_core::util::serde::Serde;
 use coinstr_core::ApprovedProposal;
+use coinstr_protocol::v1::util::serde::Serde;
+use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::event::id::EventId;
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
 use nostr_sdk::{Event, Keys, Timestamp};
@@ -41,7 +42,6 @@ use super::model::{
 use super::Error;
 use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
 use crate::types::Notification;
-use crate::util::encryption::EncryptionWithKeys;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
 pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;

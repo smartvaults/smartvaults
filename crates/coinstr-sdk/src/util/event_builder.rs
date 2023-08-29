@@ -4,11 +4,10 @@
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::{Policy, Proposal};
 use coinstr_protocol::v1::constants::{POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND};
+use coinstr_protocol::v1::util::{Encryption, EncryptionError};
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Event, EventBuilder, EventId, Keys, Tag};
 use thiserror::Error;
-
-use super::encryption::{EncryptionWithKeys, EncryptionWithKeysError};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -19,7 +18,7 @@ pub enum Error {
     #[error(transparent)]
     NIP04(#[from] nostr_sdk::nips::nip04::Error),
     #[error(transparent)]
-    EncryptionWithKeys(#[from] EncryptionWithKeysError),
+    Encryption(#[from] EncryptionError),
 }
 
 pub trait CoinstrEventBuilder {
