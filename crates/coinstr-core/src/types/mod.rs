@@ -88,6 +88,21 @@ pub enum Amount {
     Custom(u64),
 }
 
+impl Amount {
+    pub fn max() -> Self {
+        Self::Max
+    }
+
+    pub fn from_sats(sats: u64) -> Self {
+        Self::Custom(sats)
+    }
+
+    pub fn from_btc(btc: f64) -> Self {
+        let sats: f64 = btc * 10_f64.powf(8.0);
+        Self::from_sats(sats as u64)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -104,5 +119,11 @@ mod test {
         assert!(!FeeRate::Rate(0.0).is_valid());
         assert!(!FeeRate::Rate(0.9).is_valid());
         assert!(!FeeRate::Rate(-10.0).is_valid());
+    }
+
+    #[test]
+    fn test_amount_from_btc() {
+        let amount: Amount = Amount::from_btc(0.12345);
+        assert_eq!(Amount::from_sats(12_345_000), amount)
     }
 }
