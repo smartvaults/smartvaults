@@ -2,8 +2,6 @@
 // Distributed under the MIT software license
 
 pub use bdk::miniscript;
-#[cfg(feature = "hwi")]
-pub use hwi;
 use keechain_core::secp256k1::{rand, All, Secp256k1};
 pub use keechain_core::*;
 use once_cell::sync::Lazy;

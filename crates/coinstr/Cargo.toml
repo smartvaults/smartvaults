@@ -12,7 +12,6 @@ keywords.workspace = true
 
 [features]
 default = []
-hwi = ["coinstr-sdk/hwi"]
 
 [dependencies]
 async-stream = "0.3"

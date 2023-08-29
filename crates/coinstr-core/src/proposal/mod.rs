@@ -3,8 +3,6 @@
 
 use std::fmt;
 
-#[cfg(feature = "hwi")]
-use hwi::HWIClient;
 use keechain_core::bdk::signer::SignerWrapper;
 use keechain_core::bdk::{SignOptions, Wallet};
 use keechain_core::bitcoin::address::NetworkUnchecked;
@@ -24,8 +22,6 @@ mod completed;
 
 pub use self::approved::ApprovedProposal;
 pub use self::completed::CompletedProposal;
-#[cfg(feature = "hwi")]
-use crate::signer::Signer;
 use crate::util::serde::{deserialize_psbt, serialize_psbt};
 use crate::util::{Encryption, Serde};
 use crate::SECP256K1;
@@ -42,9 +38,6 @@ pub enum Error {
     KPsbt(#[from] KPsbtError),
     #[error(transparent)]
     PsbtParse(#[from] PsbtParseError),
-    #[cfg(feature = "hwi")]
-    #[error(transparent)]
-    HWI(#[from] hwi::error::Error),
     #[error("PSBT not signed (equal to base PSBT)")]
     PsbtNotSigned,
     #[error("approved proposals not proveded")]
@@ -217,8 +210,7 @@ impl Proposal {
         }
     }
 
-    #[cfg(feature = "hwi")]
-    pub fn approve_with_hwi_signer(
+    /* pub fn approve_with_hwi_signer(
         &self,
         signer: Signer,
         network: Network,
@@ -242,7 +234,7 @@ impl Proposal {
         } else {
             Err(Error::PsbtNotSigned)
         }
-    }
+    } */
 
     pub fn finalize(
         &self,

@@ -1,8 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-#[cfg(feature = "hwi")]
-use super::screen::AddHWSignerMessage;
+//use super::screen::AddHWSignerMessage;
 use super::screen::{
     AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage, AddPolicyMessage,
     AddRelayMessage, AddSignerMessage, AddressesMessage, ChangePasswordMessage,
@@ -40,8 +39,7 @@ pub enum Message {
     RevokeAllSigners(RevokeAllSignersMessage),
     Signer(SignerMessage),
     AddSigner(AddSignerMessage),
-    #[cfg(feature = "hwi")]
-    AddHWSigner(AddHWSignerMessage),
+    //AddHWSigner(AddHWSignerMessage),
     AddAirGapSigner(AddAirGapSignerMessage),
     ShareSigner(ShareSignerMessage),
     Contacts(ContactsMessage),

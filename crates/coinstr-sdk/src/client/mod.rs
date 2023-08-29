@@ -1117,8 +1117,7 @@ impl Coinstr {
         Ok((event_id, approved_proposal))
     }
 
-    #[cfg(feature = "hwi")]
-    pub async fn approve_with_hwi_signer(
+    /* pub async fn approve_with_hwi_signer(
         &self,
         proposal_id: EventId,
         signer: Signer,
@@ -1166,7 +1165,7 @@ impl Coinstr {
         )?;
 
         Ok((event_id, approved_proposal))
-    }
+    } */
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
         let Event { pubkey, .. } = self.db.get_event_by_id(approval_id)?;

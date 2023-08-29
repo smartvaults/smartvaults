@@ -15,8 +15,7 @@ use crate::theme::Theme;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-#[cfg(feature = "hwi")]
-use self::screen::AddHWSignerState;
+//use self::screen::AddHWSignerState;
 use self::screen::{
     AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
     AddRelayState, AddSignerState, AddressesState, ChangePasswordState, CompletedProposalState,
@@ -70,8 +69,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),
         Stage::Signer(signer_id, signer) => SignerState::new(*signer_id, signer.clone()).into(),
         Stage::AddSigner => AddSignerState::new().into(),
-        #[cfg(feature = "hwi")]
-        Stage::AddHWSigner => AddHWSignerState::new().into(),
+        //Stage::AddHWSigner => AddHWSignerState::new().into(),
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
         Stage::Contacts => ContactsState::new().into(),

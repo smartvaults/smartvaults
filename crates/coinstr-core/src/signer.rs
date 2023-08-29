@@ -3,10 +3,6 @@
 
 use std::fmt;
 
-#[cfg(feature = "hwi")]
-use hwi::types::HWIDevice;
-#[cfg(feature = "hwi")]
-use hwi::HWIClient;
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
 use keechain_core::bitcoin::Network;
 use keechain_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
@@ -28,9 +24,6 @@ pub enum Error {
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
-    #[cfg(feature = "hwi")]
-    #[error(transparent)]
-    HWI(#[from] hwi::error::Error),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
 }
@@ -115,8 +108,7 @@ impl Signer {
         )
     }
 
-    #[cfg(feature = "hwi")]
-    pub fn from_hwi<S>(
+    /* pub fn from_hwi<S>(
         name: S,
         description: Option<S>,
         device: HWIDevice,
@@ -138,7 +130,7 @@ impl Signer {
             descriptor,
             SignerType::Hardware,
         )
-    }
+    } */
 
     pub fn name(&self) -> String {
         self.name.clone()

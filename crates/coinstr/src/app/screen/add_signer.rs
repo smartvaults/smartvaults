@@ -88,8 +88,7 @@ impl State for AddSignerState {
             .padding(20)
             .max_width(400);
 
-        #[cfg(feature = "hwi")]
-        {
+        /* {
             content = content.push(
                 Button::new()
                     .text("Connect Signing Device")
@@ -97,7 +96,7 @@ impl State for AddSignerState {
                     .width(Length::Fill)
                     .view(),
             );
-        }
+        } */
 
         Dashboard::new()
             .loaded(self.loaded)
