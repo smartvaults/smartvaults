@@ -95,6 +95,7 @@ impl State for ReceiveState {
             async move {
                 client
                     .get_policies()
+                    .await
                     .unwrap()
                     .into_iter()
                     .map(
@@ -129,7 +130,7 @@ impl State for ReceiveState {
                 ReceiveMessage::LoadAddress(policy_id) => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.get_last_unused_address(policy_id) },
+                        async move { client.get_last_unused_address(policy_id).await },
                         |res| match res {
                             Ok(address) => ReceiveMessage::AddressChanged(address).into(),
                             Err(e) => ReceiveMessage::ErrorChanged(Some(e.to_string())).into(),

@@ -80,6 +80,7 @@ impl State for NewProofState {
             async move {
                 client
                     .get_policies()
+                    .await
                     .unwrap()
                     .into_iter()
                     .map(

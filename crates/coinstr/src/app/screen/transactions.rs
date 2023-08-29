@@ -48,8 +48,8 @@ impl State for TransactionsState {
         Command::perform(
             async move {
                 match policy_id {
-                    Some(policy_id) => client.get_txs(policy_id, true).ok(),
-                    None => client.get_all_transactions().ok(),
+                    Some(policy_id) => client.get_txs(policy_id, true).await.ok(),
+                    None => client.get_all_transactions().await.ok(),
                 }
             },
             |res| match res {

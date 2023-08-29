@@ -103,7 +103,7 @@ impl Coinstr {
         thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint() {
-                    Ok(endpoint) => match this.get_policies() {
+                    Ok(endpoint) => match this.get_policies().await {
                         Ok(policies) => {
                             let proxy = this.config.proxy().ok();
                             for GetPolicy {
@@ -121,7 +121,7 @@ impl Coinstr {
                                     let endpoint = endpoint.clone();
                                     thread::spawn(async move {
                                         tracing::debug!("Syncing policy {policy_id}");
-                                        match manager.sync(policy_id, endpoint, proxy) {
+                                        match manager.sync(policy_id, endpoint, proxy).await {
                                             Ok(_) => {
                                                 tracing::info!("Policy {policy_id} synced");
                                                 if let Err(e) = db.update_last_sync(
@@ -383,7 +383,7 @@ impl Coinstr {
                     tracing::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
                     self.db.save_policy(event.id, &policy, nostr_pubkeys)?;
-                    self.manager.load_policy(event.id, policy)?;
+                    self.manager.load_policy(event.id, policy).await?;
                     let notification = Notification::NewPolicy(event.id);
                     self.db.save_notification(event.id, notification)?;
                     self.sync_channel

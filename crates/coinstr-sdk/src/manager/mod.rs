@@ -15,8 +15,8 @@ use coinstr_core::{Amount, Policy, Proposal};
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
 use nostr_sdk::EventId;
-use parking_lot::RwLock;
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 pub mod wallet;
 
@@ -29,6 +29,8 @@ pub enum Error {
     BdkStore(#[from] NewError<StorageError>),
     #[error(transparent)]
     Wallet(#[from] WalletError),
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
     #[error("policy {0} already loaded")]
     AlreadyLoaded(EventId),
     #[error("policy {0} not loaded")]
@@ -51,13 +53,20 @@ impl Manager {
         }
     }
 
-    pub fn load_policy(&self, policy_id: EventId, policy: Policy) -> Result<(), Error> {
-        let mut wallets = self.wallets.write();
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub async fn load_policy(&self, policy_id: EventId, policy: Policy) -> Result<(), Error> {
+        let this = self.clone();
+        let mut wallets = self.wallets.write().await;
         if let Entry::Vacant(e) = wallets.entry(policy_id) {
-            let descriptor_hash = Sha256Hash::hash(policy.descriptor.to_string().as_bytes());
-            let db = CoinstrWalletStorage::new(descriptor_hash, self.db.clone());
-            let wallet = Wallet::new(&policy.descriptor.to_string(), None, db, self.network)?;
-            let wallet = CoinstrWallet::new(policy, wallet);
+            let wallet: CoinstrWallet = tokio::task::spawn_blocking(move || {
+                let descriptor_hash = Sha256Hash::hash(policy.descriptor.to_string().as_bytes());
+                let db: CoinstrWalletStorage =
+                    CoinstrWalletStorage::new(descriptor_hash, this.db.clone());
+                let wallet: Wallet<CoinstrWalletStorage> =
+                    Wallet::new(&policy.descriptor.to_string(), None, db, this.network)?;
+                Ok::<CoinstrWallet, Error>(CoinstrWallet::new(policy, wallet))
+            })
+            .await??;
             e.insert(wallet);
             tracing::info!("Loaded policy {policy_id}");
             Ok(())
@@ -66,61 +75,66 @@ impl Manager {
         }
     }
 
-    pub fn unload_policy(&self, policy_id: EventId) -> Result<(), Error> {
-        let mut wallets = self.wallets.write();
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub async fn unload_policy(&self, policy_id: EventId) -> Result<(), Error> {
+        let mut wallets = self.wallets.write().await;
         match wallets.remove(&policy_id) {
             Some(_) => Ok(()),
             None => Err(Error::NotLoaded(policy_id)),
         }
     }
 
-    pub fn wallet(&self, policy_id: EventId) -> Result<CoinstrWallet, Error> {
-        let wallets = self.wallets.read();
+    pub async fn wallet(&self, policy_id: EventId) -> Result<CoinstrWallet, Error> {
+        let wallets = self.wallets.read().await;
         Ok(wallets
             .get(&policy_id)
             .ok_or(Error::NotLoaded(policy_id))?
             .clone())
     }
 
-    pub fn get_balance(&self, policy_id: EventId) -> Result<Balance, Error> {
-        Ok(self.wallet(policy_id)?.get_balance())
+    pub async fn get_balance(&self, policy_id: EventId) -> Result<Balance, Error> {
+        Ok(self.wallet(policy_id).await?.get_balance().await)
     }
 
-    pub fn get_address(
+    pub async fn get_address(
         &self,
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<AddressInfo, Error> {
-        Ok(self.wallet(policy_id)?.get_address(index))
+        Ok(self.wallet(policy_id).await?.get_address(index).await)
     }
 
-    pub fn get_addresses(
+    pub async fn get_addresses(
         &self,
         policy_id: EventId,
     ) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
-        Ok(self.wallet(policy_id)?.get_addresses()?)
+        Ok(self.wallet(policy_id).await?.get_addresses().await?)
     }
 
-    pub fn get_addresses_balances(
+    pub async fn get_addresses_balances(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<ScriptBuf, u64>, Error> {
-        Ok(self.wallet(policy_id)?.get_addresses_balances())
+        Ok(self.wallet(policy_id).await?.get_addresses_balances().await)
     }
 
-    pub fn get_txs(&self, policy_id: EventId) -> Result<Vec<TransactionDetails>, Error> {
-        Ok(self.wallet(policy_id)?.get_txs())
+    pub async fn get_txs(&self, policy_id: EventId) -> Result<Vec<TransactionDetails>, Error> {
+        Ok(self.wallet(policy_id).await?.get_txs().await)
     }
 
-    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<TransactionDetails, Error> {
-        Ok(self.wallet(policy_id)?.get_tx(txid)?)
+    pub async fn get_tx(
+        &self,
+        policy_id: EventId,
+        txid: Txid,
+    ) -> Result<TransactionDetails, Error> {
+        Ok(self.wallet(policy_id).await?.get_tx(txid).await?)
     }
 
-    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
-        Ok(self.wallet(policy_id)?.get_utxos())
+    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
+        Ok(self.wallet(policy_id).await?.get_utxos().await)
     }
 
-    pub fn sync<S>(
+    pub async fn sync<S>(
         &self,
         policy_id: EventId,
         endpoint: S,
@@ -129,11 +143,11 @@ impl Manager {
     where
         S: Into<String>,
     {
-        Ok(self.wallet(policy_id)?.sync(endpoint, proxy)?)
+        Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn spend<S>(
+    pub async fn spend<S>(
         &self,
         policy_id: EventId,
         address: Address<NetworkUnchecked>,
@@ -147,25 +161,37 @@ impl Manager {
     where
         S: Into<String>,
     {
-        Ok(self.wallet(policy_id)?.spend(
-            address,
-            amount,
-            description,
-            fee_rate,
-            utxos,
-            frozen_utxos,
-            policy_path,
-        )?)
+        Ok(self
+            .wallet(policy_id)
+            .await?
+            .spend(
+                address,
+                amount,
+                description,
+                fee_rate,
+                utxos,
+                frozen_utxos,
+                policy_path,
+            )
+            .await?)
     }
 
-    pub fn proof_of_reserve<S>(&self, policy_id: EventId, message: S) -> Result<Proposal, Error>
+    pub async fn proof_of_reserve<S>(
+        &self,
+        policy_id: EventId,
+        message: S,
+    ) -> Result<Proposal, Error>
     where
         S: Into<String>,
     {
-        Ok(self.wallet(policy_id)?.proof_of_reserve(message)?)
+        Ok(self
+            .wallet(policy_id)
+            .await?
+            .proof_of_reserve(message)
+            .await?)
     }
 
-    pub fn verify_proof<S>(
+    pub async fn verify_proof<S>(
         &self,
         policy_id: EventId,
         psbt: &PartiallySignedTransaction,
@@ -174,6 +200,10 @@ impl Manager {
     where
         S: Into<String>,
     {
-        Ok(self.wallet(policy_id)?.verify_proof(psbt, message)?)
+        Ok(self
+            .wallet(policy_id)
+            .await?
+            .verify_proof(psbt, message)
+            .await?)
     }
 }

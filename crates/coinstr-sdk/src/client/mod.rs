@@ -309,9 +309,9 @@ impl Coinstr {
     async fn init(&self) -> Result<(), Error> {
         for GetPolicy {
             policy_id, policy, ..
-        } in self.get_policies()?.into_iter()
+        } in self.get_policies().await?.into_iter()
         {
-            self.manager.load_policy(policy_id, policy)?;
+            self.manager.load_policy(policy_id, policy).await?;
         }
         self.restore_relays().await?;
         self.client.connect().await;
@@ -646,7 +646,7 @@ impl Coinstr {
 
             self.db.delete_policy(policy_id)?;
 
-            self.manager.unload_policy(policy_id)?;
+            self.manager.unload_policy(policy_id).await?;
 
             Ok(())
         } else {
@@ -744,24 +744,26 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
-        Ok(self.db.get_policies()?)
+    pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
+        Ok(self.db.get_policies().await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_detailed_policies(&self) -> Result<BTreeMap<EventId, GetDetailedPolicy>, Error> {
+    pub async fn get_detailed_policies(
+        &self,
+    ) -> Result<BTreeMap<EventId, GetDetailedPolicy>, Error> {
         let mut policies = BTreeMap::new();
         for GetPolicy {
             policy_id,
             policy,
             last_sync,
-        } in self.get_policies()?.into_iter()
+        } in self.get_policies().await?.into_iter()
         {
             policies.insert(
                 policy_id,
                 GetDetailedPolicy {
                     policy,
-                    balance: self.get_balance(policy_id),
+                    balance: self.get_balance(policy_id).await,
                     last_sync,
                 },
             );
@@ -843,7 +845,7 @@ impl Coinstr {
         self.db.save_policy(policy_id, &policy, nostr_pubkeys)?;
 
         // Load policy
-        self.manager.load_policy(policy_id, policy)?;
+        self.manager.load_policy(policy_id, policy).await?;
 
         Ok(policy_id)
     }
@@ -908,7 +910,7 @@ impl Coinstr {
         let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id)?;
         let mut frozen_utxos = Vec::new();
 
-        for local_utxo in self.manager.get_utxos(policy_id)?.into_iter() {
+        for local_utxo in self.manager.get_utxos(policy_id).await?.into_iter() {
             let hash = Sha256Hash::hash(local_utxo.outpoint.to_string().as_bytes());
             if hashed_frozen_utxos.contains(&hash) {
                 frozen_utxos.push(local_utxo.outpoint);
@@ -916,16 +918,19 @@ impl Coinstr {
         }
 
         // Build spending proposal
-        let proposal: Proposal = self.manager.spend(
-            policy_id,
-            address,
-            amount,
-            description,
-            fee_rate,
-            utxos,
-            Some(frozen_utxos),
-            policy_path,
-        )?;
+        let proposal: Proposal = self
+            .manager
+            .spend(
+                policy_id,
+                address,
+                amount,
+                description,
+                fee_rate,
+                utxos,
+                Some(frozen_utxos),
+                policy_path,
+            )
+            .await?;
 
         if let Proposal::Spending {
             amount,
@@ -980,7 +985,7 @@ impl Coinstr {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Result<GetProposal, Error> {
-        let address = self.get_last_unused_address(to_policy_id)?.address;
+        let address = self.get_last_unused_address(to_policy_id).await?.address;
         let description: String = format!(
             "Self transfer from policy #{} to #{}",
             util::cut_event_id(from_policy_id),
@@ -1260,7 +1265,7 @@ impl Coinstr {
         let message: &str = &message.into();
 
         // Build proposal
-        let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message)?;
+        let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message).await?;
 
         // Get shared keys
         let shared_keys = self.db.get_shared_key(policy_id)?;
@@ -1301,21 +1306,25 @@ impl Coinstr {
             ..
         } = self.get_completed_proposal_by_id(completed_proposal_id)?;
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
-            Ok(self.manager.verify_proof(policy_id, &psbt, message)?)
+            Ok(self.manager.verify_proof(policy_id, &psbt, message).await?)
         } else {
             Err(Error::UnexpectedProposal)
         }
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
-        self.manager.get_balance(policy_id).ok()
+    pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
+        self.manager.get_balance(policy_id).await.ok()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_txs(&self, policy_id: EventId, sort: bool) -> Result<Vec<GetTransaction>, Error> {
-        let wallet = self.manager.wallet(policy_id)?;
-        let mut txs = wallet.get_txs();
+    pub async fn get_txs(
+        &self,
+        policy_id: EventId,
+        sort: bool,
+    ) -> Result<Vec<GetTransaction>, Error> {
+        let wallet = self.manager.wallet(policy_id).await?;
+        let mut txs = wallet.get_txs().await;
 
         if sort {
             txs.sort_by(|a, b| {
@@ -1343,7 +1352,7 @@ impl Coinstr {
                 let mut label = None;
                 if let Some(transaction) = tx.transaction.as_ref() {
                     for txout in transaction.output.iter() {
-                        if wallet.is_mine(&txout.script_pubkey) {
+                        if wallet.is_mine(&txout.script_pubkey).await {
                             label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
                             break;
                         }
@@ -1366,9 +1375,9 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
-        let wallet = self.manager.wallet(policy_id)?;
-        let tx = wallet.get_tx(txid)?;
+    pub async fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
+        let wallet = self.manager.wallet(policy_id).await?;
+        let tx = wallet.get_tx(txid).await?;
 
         let label: Option<String> = if tx.received > tx.sent {
             let mut label = None;
@@ -1379,7 +1388,7 @@ impl Coinstr {
                 .output
                 .iter()
             {
-                if wallet.is_mine(&txout.script_pubkey) {
+                if wallet.is_mine(&txout.script_pubkey).await {
                     let shared_key = self.db.get_shared_key(policy_id)?;
                     let address = Address::from_script(&txout.script_pubkey, self.network)?;
                     let identifier: String =
@@ -1407,12 +1416,12 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_address(
+    pub async fn get_address(
         &self,
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<GetAddress, Error> {
-        let address = self.manager.get_address(policy_id, index)?.address;
+        let address = self.manager.get_address(policy_id, index).await?.address;
 
         let shared_key = self.db.get_shared_key(policy_id)?;
         let address = Address::new(self.network, address.payload);
@@ -1427,16 +1436,17 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
-        self.get_address(policy_id, AddressIndex::LastUnused)
+    pub async fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
+        self.get_address(policy_id, AddressIndex::LastUnused).await
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
+    pub async fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
         let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
         Ok(self
             .manager
-            .get_addresses(policy_id)?
+            .get_addresses(policy_id)
+            .await?
             .into_iter()
             .map(|address| GetAddress {
                 label: script_labels
@@ -1448,16 +1458,16 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses_balances(
+    pub async fn get_addresses_balances(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<ScriptBuf, u64>, Error> {
-        Ok(self.manager.get_addresses_balances(policy_id)?)
+        Ok(self.manager.get_addresses_balances(policy_id).await?)
     }
 
     /// Get wallet UTXOs
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
+    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         // Get labels
         let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
         let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id)?;
@@ -1466,7 +1476,8 @@ impl Coinstr {
         // Compose output
         Ok(self
             .manager
-            .get_utxos(policy_id)?
+            .get_utxos(policy_id)
+            .await?
             .into_iter()
             .map(|utxo| GetUtxo {
                 label: utxo_labels
@@ -1483,15 +1494,15 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_total_balance(&self) -> Result<Balance, Error> {
+    pub async fn get_total_balance(&self) -> Result<Balance, Error> {
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
         for GetPolicy {
             policy_id, policy, ..
-        } in self.get_policies()?.into_iter()
+        } in self.get_policies().await?.into_iter()
         {
             if !already_seen.contains(&policy.descriptor) {
-                let balance = self.get_balance(policy_id).unwrap_or_default();
+                let balance = self.get_balance(policy_id).await.unwrap_or_default();
                 total_balance = total_balance.add(balance);
                 already_seen.push(policy.descriptor);
             }
@@ -1500,16 +1511,17 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
+    pub async fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
         let mut txs = Vec::new();
         let mut already_seen = Vec::new();
         for GetPolicy {
             policy_id, policy, ..
-        } in self.db.get_policies()?.into_iter()
+        } in self.db.get_policies().await?.into_iter()
         {
             if !already_seen.contains(&policy.descriptor) {
                 for tx in self
                     .get_txs(policy_id, false)
+                    .await
                     .unwrap_or_default()
                     .into_iter()
                 {

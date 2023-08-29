@@ -85,6 +85,7 @@ impl State for AddressesState {
             async move {
                 client
                     .get_policies()
+                    .await
                     .unwrap()
                     .into_iter()
                     .map(
@@ -119,8 +120,8 @@ impl State for AddressesState {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move {
-                            let addresses = client.get_addresses(policy_id)?;
-                            let balances = client.get_addresses_balances(policy_id)?;
+                            let addresses = client.get_addresses(policy_id).await?;
+                            let balances = client.get_addresses_balances(policy_id).await?;
                             Ok::<
                                 (Vec<GetAddress>, HashMap<ScriptBuf, u64>),
                                 Box<dyn std::error::Error>,

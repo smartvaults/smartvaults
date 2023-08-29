@@ -19,8 +19,8 @@ use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Txid};
 use coinstr_core::reserves::ProofOfReserves;
 use coinstr_core::{Amount, Policy, Proposal};
-use parking_lot::RwLock;
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 mod storage;
 
@@ -77,50 +77,52 @@ impl CoinstrWallet {
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(syncing));
     }
 
-    pub fn latest_checkpoint(&self) -> Option<CheckPoint> {
-        self.wallet.read().latest_checkpoint().clone()
+    pub async fn latest_checkpoint(&self) -> Option<CheckPoint> {
+        self.wallet.read().await.latest_checkpoint().clone()
     }
 
-    pub fn graph(&self) -> TxGraph<ConfirmationTimeAnchor> {
-        self.wallet.read().as_ref().clone()
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub fn spks(&self) -> BTreeMap<KeychainKind, impl Iterator<Item = (u32, ScriptBuf)> + Clone> {
-        self.wallet.read().spks_of_all_keychains()
+    pub async fn graph(&self) -> TxGraph<ConfirmationTimeAnchor> {
+        self.wallet.read().await.as_ref().clone()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn spks_of_keychain(
+    pub async fn spks(
+        &self,
+    ) -> BTreeMap<KeychainKind, impl Iterator<Item = (u32, ScriptBuf)> + Clone> {
+        self.wallet.read().await.spks_of_all_keychains()
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub async fn spks_of_keychain(
         &self,
         keychain: KeychainKind,
     ) -> impl Iterator<Item = (u32, ScriptBuf)> + Clone {
-        self.wallet.read().spks_of_keychain(keychain)
+        self.wallet.read().await.spks_of_keychain(keychain)
     }
 
-    pub fn is_mine(&self, script: &Script) -> bool {
-        self.wallet.read().is_mine(script)
+    pub async fn is_mine(&self, script: &Script) -> bool {
+        self.wallet.read().await.is_mine(script)
     }
 
-    pub fn get_balance(&self) -> Balance {
-        self.wallet.read().get_balance()
+    pub async fn get_balance(&self) -> Balance {
+        self.wallet.read().await.get_balance()
     }
 
-    pub fn get_address(&self, index: AddressIndex) -> AddressInfo {
-        let mut wallet = self.wallet.write();
+    pub async fn get_address(&self, index: AddressIndex) -> AddressInfo {
+        let mut wallet = self.wallet.write().await;
         wallet.get_address(index)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses(&self) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
+    pub async fn get_addresses(&self) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
         // Get spks
-        let spks = self.spks_of_keychain(KeychainKind::External);
+        let spks = self.spks_of_keychain(KeychainKind::External).await;
 
         // Get last unused address
-        let last_unused = self.get_address(AddressIndex::LastUnused);
+        let last_unused = self.get_address(AddressIndex::LastUnused).await;
 
         // Get network
-        let wallet = self.wallet.read();
+        let wallet = self.wallet.read().await;
         let network = wallet.network();
         drop(wallet);
 
@@ -150,10 +152,10 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_addresses_balances(&self) -> HashMap<ScriptBuf, u64> {
+    pub async fn get_addresses_balances(&self) -> HashMap<ScriptBuf, u64> {
         let mut map: HashMap<ScriptBuf, u64> = HashMap::new();
 
-        for utxo in self.wallet.read().list_unspent() {
+        for utxo in self.wallet.read().await.list_unspent() {
             map.entry(utxo.txout.script_pubkey)
                 .and_modify(|amount| *amount += utxo.txout.value)
                 .or_insert(utxo.txout.value);
@@ -162,24 +164,28 @@ impl CoinstrWallet {
         map
     }
 
-    pub fn get_txs(&self) -> Vec<TransactionDetails> {
-        let wallet = self.wallet.read();
+    pub async fn get_txs(&self) -> Vec<TransactionDetails> {
+        let wallet = self.wallet.read().await;
         wallet
             .transactions()
             .filter_map(|t| wallet.get_tx(t.tx_node.txid, true))
             .collect()
     }
 
-    pub fn get_tx(&self, txid: Txid) -> Result<TransactionDetails, Error> {
-        self.wallet.read().get_tx(txid, true).ok_or(Error::NotFound)
+    pub async fn get_tx(&self, txid: Txid) -> Result<TransactionDetails, Error> {
+        self.wallet
+            .read()
+            .await
+            .get_tx(txid, true)
+            .ok_or(Error::NotFound)
     }
 
-    pub fn get_utxos(&self) -> Vec<LocalUtxo> {
-        let wallet = self.wallet.read();
+    pub async fn get_utxos(&self) -> Vec<LocalUtxo> {
+        let wallet = self.wallet.read().await;
         wallet.list_unspent().collect()
     }
 
-    pub fn sync<S>(&self, endpoint: S, proxy: Option<SocketAddr>) -> Result<(), Error>
+    pub async fn sync<S>(&self, endpoint: S, proxy: Option<SocketAddr>) -> Result<(), Error>
     where
         S: Into<String>,
     {
@@ -187,9 +193,9 @@ impl CoinstrWallet {
             self.set_syncing(true);
 
             let endpoint: String = endpoint.into();
-            let prev_tip = self.latest_checkpoint();
-            let keychain_spks = self.spks();
-            let graph = self.graph();
+            let prev_tip = self.latest_checkpoint().await;
+            let keychain_spks = self.spks().await;
+            let graph = self.graph().await;
 
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
@@ -201,7 +207,7 @@ impl CoinstrWallet {
             let missing = electrum_update.missing_full_txs(&graph);
             let update = electrum_update.finalize_as_confirmation_time(&client, None, missing)?;
 
-            self.apply_update(update)?;
+            self.apply_update(update).await?;
 
             self.set_syncing(false);
 
@@ -212,15 +218,15 @@ impl CoinstrWallet {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn apply_update(&self, update: Update) -> Result<(), Error> {
-        let mut wallet = self.wallet.write();
+    pub async fn apply_update(&self, update: Update) -> Result<(), Error> {
+        let mut wallet = self.wallet.write().await;
         wallet.apply_update(update)?;
         wallet.commit()?;
         Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn spend<S>(
+    pub async fn spend<S>(
         &self,
         address: Address<NetworkUnchecked>,
         amount: Amount,
@@ -233,7 +239,7 @@ impl CoinstrWallet {
     where
         S: Into<String>,
     {
-        let mut wallet = self.wallet.write();
+        let mut wallet = self.wallet.write().await;
         let proposal = self.policy.spend(
             &mut wallet,
             address,
@@ -247,16 +253,16 @@ impl CoinstrWallet {
         Ok(proposal)
     }
 
-    pub fn proof_of_reserve<S>(&self, message: S) -> Result<Proposal, Error>
+    pub async fn proof_of_reserve<S>(&self, message: S) -> Result<Proposal, Error>
     where
         S: Into<String>,
     {
-        let mut wallet = self.wallet.write();
+        let mut wallet = self.wallet.write().await;
         let proposal = self.policy.proof_of_reserve(&mut wallet, message)?;
         Ok(proposal)
     }
 
-    pub fn verify_proof<S>(
+    pub async fn verify_proof<S>(
         &self,
         psbt: &PartiallySignedTransaction,
         message: S,
@@ -264,6 +270,6 @@ impl CoinstrWallet {
     where
         S: Into<String>,
     {
-        Ok(self.wallet.read().verify_proof(psbt, message, None)?)
+        Ok(self.wallet.read().await.verify_proof(psbt, message, None)?)
     }
 }

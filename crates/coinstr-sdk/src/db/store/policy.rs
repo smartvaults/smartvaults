@@ -81,22 +81,27 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("SELECT policy_id, policy, last_sync FROM policies")?;
-        let mut rows = stmt.query([])?;
-        let mut policies = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let policy_id: String = row.get(0)?;
-            let policy: String = row.get(1)?;
-            let last_sync: Option<u64> = row.get(2)?;
-            policies.push(GetPolicy {
-                policy_id: EventId::from_hex(policy_id)?,
-                policy: Policy::decrypt_with_keys(&self.keys, policy)?,
-                last_sync: last_sync.map(Timestamp::from),
-            });
-        }
-        Ok(policies)
+    pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
+        let this = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let conn = this.pool.get()?;
+            let mut stmt =
+                conn.prepare_cached("SELECT policy_id, policy, last_sync FROM policies")?;
+            let mut rows = stmt.query([])?;
+            let mut policies = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let policy_id: String = row.get(0)?;
+                let policy: String = row.get(1)?;
+                let last_sync: Option<u64> = row.get(2)?;
+                policies.push(GetPolicy {
+                    policy_id: EventId::from_hex(policy_id)?,
+                    policy: Policy::decrypt_with_keys(&this.keys, policy)?,
+                    last_sync: last_sync.map(Timestamp::from),
+                });
+            }
+            Ok(policies)
+        })
+        .await?
     }
 
     #[tracing::instrument(skip_all, level = "trace")]

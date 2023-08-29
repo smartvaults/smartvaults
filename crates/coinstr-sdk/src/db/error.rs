@@ -51,6 +51,8 @@ pub enum Error {
     /// Policy error
     #[error(transparent)]
     Policy(#[from] policy::Error),
+    #[error(transparent)]
+    Join(#[from] tokio::task::JoinError),
     /// Label error
     #[error(transparent)]
     Label(#[from] crate::types::label::Error),
