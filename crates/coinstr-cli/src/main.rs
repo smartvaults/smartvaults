@@ -32,6 +32,14 @@ use crate::cli::{
     ShareCommand,
 };
 
+fn base_path() -> Result<PathBuf> {
+    let path = dirs::home_dir()
+        .expect("Imposible to get the HOME dir")
+        .join(".coinstr");
+    std::fs::create_dir_all(path.as_path())?;
+    Ok(path)
+}
+
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
@@ -42,7 +50,7 @@ async fn main() {
 async fn run() -> Result<()> {
     let args = Cli::parse();
     let network: Network = args.network.into();
-    let base_path: PathBuf = coinstr_common::base_path()?;
+    let base_path: PathBuf = base_path()?;
 
     logger::init(base_path.clone(), network, false)?;
 

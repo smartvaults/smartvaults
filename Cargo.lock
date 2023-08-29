@@ -977,8 +977,8 @@ name = "coinstr"
 version = "0.3.0"
 dependencies = [
  "async-stream",
- "coinstr-common",
  "coinstr-sdk",
+ "dirs",
  "iced",
  "iced_aw",
  "iced_futures",
@@ -996,9 +996,9 @@ name = "coinstr-cli"
 version = "0.3.0"
 dependencies = [
  "clap",
- "coinstr-common",
  "coinstr-sdk",
  "dialoguer",
+ "dirs",
  "once_cell",
  "owo-colors",
  "prettytable-rs",
@@ -1006,13 +1006,6 @@ dependencies = [
  "rustyline",
  "termtree",
  "tokio",
-]
-
-[[package]]
-name = "coinstr-common"
-version = "0.3.0"
-dependencies = [
- "dirs",
 ]
 
 [[package]]

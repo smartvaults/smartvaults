@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bitcoin::Network;
+use coinstr_sdk::core::Result;
 use coinstr_sdk::logger;
 use constants::DEFAULT_FONT_SIZE;
 use iced::window::Event as WindowEvent;
@@ -29,8 +30,16 @@ mod theme;
 
 use self::constants::APP_NAME;
 
+fn base_path() -> Result<PathBuf> {
+    let path = dirs::home_dir()
+        .expect("Imposible to get the HOME dir")
+        .join(".coinstr");
+    std::fs::create_dir_all(path.as_path())?;
+    Ok(path)
+}
+
 static BASE_PATH: Lazy<PathBuf> =
-    Lazy::new(|| coinstr_common::base_path().expect("Impossible to get coinstr path"));
+    Lazy::new(|| base_path().expect("Impossible to get coinstr path"));
 
 fn parse_network(args: Vec<String>) -> Network {
     for (i, arg) in args.iter().enumerate() {

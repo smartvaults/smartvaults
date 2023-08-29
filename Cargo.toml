@@ -3,7 +3,6 @@ members = [
     "bindings/coinstr-sdk-ffi",
     "crates/coinstr",
     "crates/coinstr-cli",
-    "crates/coinstr-common",
     "crates/coinstr-core",
     "crates/coinstr-protocol",
     "crates/coinstr-sdk",
