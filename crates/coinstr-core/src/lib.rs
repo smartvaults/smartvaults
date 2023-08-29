@@ -9,6 +9,7 @@ use once_cell::sync::Lazy;
 pub mod constants;
 pub mod policy;
 pub mod proposal;
+#[cfg(feature = "reserves")]
 pub mod reserves;
 pub mod signer;
 pub mod types;
@@ -129,6 +130,7 @@ mod test {
     }
 
     #[test]
+    #[cfg(feature = "reserves")]
     fn test_proof_of_reserve() -> Result<()> {
         // User A
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;

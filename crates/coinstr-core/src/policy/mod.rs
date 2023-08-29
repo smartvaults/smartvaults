@@ -10,6 +10,7 @@ use bdk::descriptor::Policy as SpendingPolicy;
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, Wallet};
 use keechain_core::bitcoin::address::NetworkUnchecked;
+#[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, OutPoint};
 use keechain_core::miniscript::descriptor::DescriptorType;
@@ -22,6 +23,7 @@ pub mod template;
 
 pub use self::template::{PolicyTemplate, PolicyTemplateType, RecoveryTemplate};
 use crate::proposal::Proposal;
+#[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
 use crate::util::serde::SerdeSer;
 use crate::util::{Encryption, Serde, Unspendable};
@@ -39,6 +41,7 @@ pub enum Error {
     Miniscript(#[from] keechain_core::miniscript::Error),
     #[error(transparent)]
     Psbt(#[from] keechain_core::bitcoin::psbt::Error),
+    #[cfg(feature = "reserves")]
     #[error(transparent)]
     ProofOfReserves(#[from] crate::reserves::ProofError),
     #[error(transparent)]
@@ -312,6 +315,7 @@ impl Policy {
         ))
     }
 
+    #[cfg(feature = "reserves")]
     pub fn proof_of_reserve<D, S>(
         &self,
         wallet: &mut Wallet<D>,
