@@ -37,7 +37,7 @@ impl State for ProposalsState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_proposals().unwrap() }, |p| {
+        Command::perform(async move { client.get_proposals().await.unwrap() }, |p| {
             ProposalsMessage::LoadProposals(p).into()
         })
     }

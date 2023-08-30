@@ -183,6 +183,7 @@ impl Coinstr {
         let db = Store::open(
             util::dir::user_db(base_path, network, keys.public_key())?,
             &keys,
+            network,
         )?;
 
         let opts = Options::new()
@@ -773,8 +774,8 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        Ok(self.db.get_proposals()?)
+    pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
+        Ok(self.db.get_proposals().await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -970,6 +971,7 @@ impl Coinstr {
                 proposal_id,
                 policy_id,
                 proposal,
+                signed: false,
             })
         } else {
             Err(Error::UnexpectedProposal)

@@ -333,6 +333,7 @@ pub fn print_proposal(proposal: GetProposal) {
         proposal_id,
         policy_id,
         proposal,
+        signed,
     } = proposal;
     println!();
     println!("- Proposal id: {proposal_id}");
@@ -348,6 +349,7 @@ pub fn print_proposal(proposal: GetProposal) {
             println!("- Description: {description}");
             println!("- To address: {}", to_address.assume_checked());
             println!("- Amount: {amount}");
+            println!("- Signed: {signed}");
         }
         Proposal::ProofOfReserve { message, .. } => {
             println!("- Type: proof-of-reserve");
@@ -367,7 +369,8 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
         "Type",
         "Desc/Msg",
         "Address",
-        "Amount"
+        "Amount",
+        "Signed",
     ]);
 
     for (
@@ -376,6 +379,7 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
             proposal_id,
             policy_id,
             proposal,
+            signed,
         },
     ) in proposals.into_iter().enumerate()
     {
@@ -393,7 +397,8 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
                     "spending",
                     description,
                     to_address.assume_checked(),
-                    format!("{} sat", format::number(amount))
+                    format!("{} sat", format::number(amount)),
+                    signed
                 ]);
             }
             Proposal::ProofOfReserve { message, .. } => {
@@ -404,7 +409,8 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
                     "proof-of-reserve",
                     message,
                     "-",
-                    "-"
+                    "-",
+                    signed,
                 ]);
             }
         }

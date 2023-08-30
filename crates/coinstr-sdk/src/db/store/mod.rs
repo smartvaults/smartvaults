@@ -13,7 +13,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use coinstr_core::bitcoin::Txid;
+use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
 use coinstr_protocol::v1::util::serde::Serde;
@@ -80,6 +80,7 @@ impl BlockHeight {
 pub struct Store {
     pool: SqlitePool,
     keys: Keys,
+    network: Network,
     pub(crate) block_height: BlockHeight,
     nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
 }
@@ -90,7 +91,7 @@ impl Drop for Store {
 
 impl Store {
     /// Open new database
-    pub fn open<P>(user_db_path: P, keys: &Keys) -> Result<Self, Error>
+    pub fn open<P>(user_db_path: P, keys: &Keys, network: Network) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
@@ -102,6 +103,7 @@ impl Store {
         Ok(Self {
             pool,
             keys: keys.clone(),
+            network,
             nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
             block_height: BlockHeight::default(),
         })
@@ -217,23 +219,35 @@ impl Store {
         Ok(())
     }
 
-    pub fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
-        let mut rows = stmt.query([])?;
-        let mut proposals = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let proposal_id: String = row.get(0)?;
-            let policy_id: String = row.get(1)?;
-            let proposal: String = row.get(2)?;
-            proposals.push(GetProposal {
-                proposal_id: EventId::from_hex(proposal_id)?,
-                policy_id: EventId::from_hex(policy_id)?,
-                proposal: Proposal::decrypt_with_keys(&self.keys, proposal)?,
-            });
-        }
-        Ok(proposals)
+    pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
+        let this = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let conn = this.pool.get()?;
+            let mut stmt =
+                conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
+            let mut rows = stmt.query([])?;
+            let mut proposals = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let proposal_id: String = row.get(0)?;
+                let policy_id: String = row.get(1)?;
+                let proposal: String = row.get(2)?;
+
+                let proposal_id = EventId::from_hex(proposal_id)?;
+                let policy_id = EventId::from_hex(policy_id)?;
+                let proposal = Proposal::decrypt_with_keys(&this.keys, proposal)?;
+                let approved_proposals =
+                    this.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+
+                proposals.push(GetProposal {
+                    proposal_id,
+                    policy_id,
+                    signed: proposal.finalize(approved_proposals, this.network).is_ok(),
+                    proposal,
+                });
+            }
+            Ok(proposals)
+        })
+        .await?
     }
 
     fn get_proposal_ids_by_policy_id(&self, policy_id: EventId) -> Result<Vec<EventId>, Error> {
@@ -261,10 +275,17 @@ impl Store {
         while let Ok(Some(row)) = rows.next() {
             let proposal_id: String = row.get(0)?;
             let proposal: String = row.get(1)?;
+
+            let proposal_id = EventId::from_hex(proposal_id)?;
+            let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
+            let approved_proposals =
+                self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+
             proposals.push(GetProposal {
-                proposal_id: EventId::from_hex(proposal_id)?,
+                proposal_id,
                 policy_id,
-                proposal: Proposal::decrypt_with_keys(&self.keys, proposal)?,
+                signed: proposal.finalize(approved_proposals, self.network).is_ok(),
+                proposal,
             });
         }
         Ok(proposals)
@@ -279,10 +300,16 @@ impl Store {
         let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
         let policy_id: String = row.get(0)?;
         let proposal: String = row.get(1)?;
+
+        let policy_id = EventId::from_hex(policy_id)?;
+        let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
+        let approved_proposals = self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+
         Ok(GetProposal {
             proposal_id,
-            policy_id: EventId::from_hex(policy_id)?,
-            proposal: Proposal::decrypt_with_keys(&self.keys, proposal)?,
+            policy_id,
+            signed: proposal.finalize(approved_proposals, self.network).is_ok(),
+            proposal,
         })
     }
 
@@ -338,20 +365,22 @@ impl Store {
         Ok(approvals)
     }
 
-    pub fn save_approved_proposal(
+    #[tracing::instrument(skip_all, level = "trace")]
+    fn get_approved_proposals_by_proposal_id(
         &self,
         proposal_id: EventId,
-        author: XOnlyPublicKey,
-        approval_id: EventId,
-        approved_proposal: ApprovedProposal,
-        timestamp: Timestamp,
-    ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
-            (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt_with_keys(&self.keys)?, timestamp.as_u64()),
+        conn: &PooledConnection,
+    ) -> Result<Vec<ApprovedProposal>, Error> {
+        let mut stmt = conn.prepare_cached(
+            "SELECT approved_proposal FROM approved_proposals WHERE proposal_id = ?;",
         )?;
-        Ok(())
+        let mut rows = stmt.query([proposal_id.to_hex()])?;
+        let mut approvals = Vec::new();
+        while let Ok(Some(row)) = rows.next() {
+            let json: String = row.get(0)?;
+            approvals.push(ApprovedProposal::decrypt_with_keys(&self.keys, json)?);
+        }
+        Ok(approvals)
     }
 
     pub fn get_approved_proposals_by_id(
@@ -376,6 +405,22 @@ impl Store {
                 )
                 .collect(),
         })
+    }
+
+    pub fn save_approved_proposal(
+        &self,
+        proposal_id: EventId,
+        author: XOnlyPublicKey,
+        approval_id: EventId,
+        approved_proposal: ApprovedProposal,
+        timestamp: Timestamp,
+    ) -> Result<(), Error> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
+            (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt_with_keys(&self.keys)?, timestamp.as_u64()),
+        )?;
+        Ok(())
     }
 
     pub fn get_policy_id_by_approval_id(&self, approval_id: EventId) -> Result<EventId, Error> {

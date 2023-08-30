@@ -467,7 +467,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     let proposals = coinstr.get_completed_proposals()?;
                     util::print_completed_proposals(proposals);
                 } else {
-                    let proposals = coinstr.get_proposals()?;
+                    let proposals = coinstr.get_proposals().await?;
                     util::print_proposals(proposals);
                 }
                 Ok(())

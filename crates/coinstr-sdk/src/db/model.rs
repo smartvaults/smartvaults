@@ -83,6 +83,7 @@ pub struct GetProposal {
     pub proposal_id: EventId,
     pub policy_id: EventId,
     pub proposal: Proposal,
+    pub signed: bool,
 }
 
 #[derive(Debug, Clone)]

@@ -22,12 +22,11 @@ use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
-    LoadProposal(Proposal, EventId, Vec<GetApproval>, Option<Signer>),
+    LoadProposal(Proposal, bool, EventId, Vec<GetApproval>, Option<Signer>),
     Approve,
     Finalize,
     Signed(bool),
     Reload,
-    CheckPsbts,
     ExportPsbt,
     RevokeApproval(EventId),
     AskDeleteConfirmation,
@@ -87,6 +86,7 @@ impl State for ProposalState {
                     let GetProposal {
                         policy_id,
                         proposal,
+                        signed,
                         ..
                     } = client.get_proposal_by_id(proposal_id).ok()?;
                     let signer = client
@@ -94,6 +94,7 @@ impl State for ProposalState {
                         .ok();
                     Some((
                         proposal,
+                        signed,
                         policy_id,
                         client
                             .get_approvals_by_proposal_id(proposal_id)
@@ -105,8 +106,9 @@ impl State for ProposalState {
                 }
             },
             |res| match res {
-                Some((proposal, policy_id, approvals, signer)) => {
-                    ProposalMessage::LoadProposal(proposal, policy_id, approvals, signer).into()
+                Some((proposal, signed, policy_id, approvals, signer)) => {
+                    ProposalMessage::LoadProposal(proposal, signed, policy_id, approvals, signer)
+                        .into()
                 }
                 None => Message::View(Stage::Dashboard),
             },
@@ -120,14 +122,14 @@ impl State for ProposalState {
 
         if let Message::Proposal(msg) = message {
             match msg {
-                ProposalMessage::LoadProposal(proposal, policy_id, approvals, signer) => {
+                ProposalMessage::LoadProposal(proposal, signed, policy_id, approvals, signer) => {
                     self.proposal = Some(proposal);
                     self.policy_id = Some(policy_id);
+                    self.signed = signed;
                     self.approved_proposals = approvals;
                     self.signer = signer;
                     self.loading = false;
                     self.loaded = true;
-                    return Command::perform(async {}, |_| ProposalMessage::CheckPsbts.into());
                 }
                 ProposalMessage::ErrorChanged(error) => {
                     self.loading = false;
@@ -206,28 +208,6 @@ impl State for ProposalState {
                 ProposalMessage::Reload => {
                     self.loading = false;
                     return self.load(ctx);
-                }
-                ProposalMessage::CheckPsbts => {
-                    if let Some(proposal) = &self.proposal {
-                        let client = ctx.client.clone();
-                        let proposal = proposal.clone();
-                        let approved_proposals = self
-                            .approved_proposals
-                            .iter()
-                            .map(
-                                |GetApproval {
-                                     approved_proposal, ..
-                                 }| { approved_proposal.clone() },
-                            )
-                            .collect();
-                        return Command::perform(
-                            async move { proposal.finalize(approved_proposals, client.network()) },
-                            |res| match res {
-                                Ok(_) => ProposalMessage::Signed(true).into(),
-                                Err(_) => ProposalMessage::Signed(false).into(),
-                            },
-                        );
-                    }
                 }
                 ProposalMessage::ExportPsbt => {
                     if let Some(proposal) = &self.proposal {

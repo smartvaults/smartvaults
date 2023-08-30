@@ -81,4 +81,8 @@ impl GetProposal {
     pub fn proposal(&self) -> Proposal {
         self.inner.proposal.clone().into()
     }
+
+    pub fn is_signed(&self) -> bool {
+        self.inner.signed
+    }
 }

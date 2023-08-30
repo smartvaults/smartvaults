@@ -373,6 +373,7 @@ interface GetProposal {
     EventId proposal_id();
     EventId policy_id();
     Proposal proposal();
+    boolean is_signed();
 };
 
 [Enum]
@@ -516,8 +517,6 @@ interface Coinstr {
     sequence<GetProposal> get_proposals();
     [Throws=FFIError]
     sequence<GetProposal> get_proposals_by_policy_id(EventId policy_id);
-    [Throws=FFIError]
-    boolean is_proposal_signed(EventId proposal_id);
     [Throws=FFIError]
     sequence<GetApproval> get_approvals_by_proposal_id(EventId proposal_id);
     [Throws=FFIError]

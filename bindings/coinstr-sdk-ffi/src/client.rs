@@ -16,7 +16,6 @@ use coinstr_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_sdk::core::bitcoin::{Address, Txid};
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::{FeeRate, Priority, WordCount};
-use coinstr_sdk::db::model::{GetApproval as GetApprovalSdk, GetProposal as GetProposalSdk};
 use coinstr_sdk::nostr::block_on;
 use nostr_sdk_ffi::{EventId, Keys, Metadata, PublicKey};
 
@@ -300,8 +299,10 @@ impl Coinstr {
     }
 
     pub fn get_proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
-        let proposals = self.inner.get_proposals()?;
-        Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
+        block_on(async move {
+            let proposals = self.inner.get_proposals().await?;
+            Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
+        })
     }
 
     pub fn get_proposals_by_policy_id(
@@ -310,21 +311,6 @@ impl Coinstr {
     ) -> Result<Vec<Arc<GetProposal>>> {
         let proposals = self.inner.get_proposals_by_policy_id(**policy_id)?;
         Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
-    }
-
-    pub fn is_proposal_signed(&self, proposal_id: Arc<EventId>) -> Result<bool> {
-        let GetProposalSdk { proposal, .. } = self.inner.get_proposal_by_id(**proposal_id)?;
-        let approvals = self
-            .inner
-            .get_approvals_by_proposal_id(**proposal_id)?
-            .iter()
-            .map(
-                |GetApprovalSdk {
-                     approved_proposal, ..
-                 }| { approved_proposal.clone() },
-            )
-            .collect();
-        Ok(proposal.finalize(approvals, self.inner.network()).is_ok())
     }
 
     pub fn get_approvals_by_proposal_id(

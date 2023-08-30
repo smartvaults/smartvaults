@@ -61,6 +61,7 @@ impl PendingProposalsList {
                             .view(),
                     )
                     .push(Text::new("Description").bold().width(Length::Fill).view())
+                    .push(Text::new("Signed").bold().width(Length::Fill).view())
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
@@ -76,6 +77,7 @@ impl PendingProposalsList {
                 proposal_id,
                 policy_id,
                 proposal,
+                signed,
             } in self.map.iter()
             {
                 let row = match proposal {
@@ -105,6 +107,7 @@ impl PendingProposalsList {
                                 .view(),
                         )
                         .push(Text::new(description).width(Length::Fill).view())
+                        .push(Text::new(signed.to_string()).width(Length::Fill).view())
                         .push(
                             Button::new()
                                 .icon(FULLSCREEN)
