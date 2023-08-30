@@ -934,12 +934,7 @@ impl Coinstr {
             )
             .await?;
 
-        if let Proposal::Spending {
-            amount,
-            description,
-            ..
-        } = &proposal
-        {
+        if let Proposal::Spending { .. } = &proposal {
             // Get shared keys
             let shared_key: Keys = self.db.get_shared_key(policy_id)?;
 
@@ -950,7 +945,8 @@ impl Coinstr {
             let proposal_id = self.send_event(event).await?;
 
             // Send DM msg
-            let sender = self.client.keys().public_key();
+            // TODO: send withoud wait for OK
+            /* let sender = self.client.keys().public_key();
             let mut msg = String::from("New spending proposal:\n");
             msg.push_str(&format!(
                 "- Amount: {} sat\n",
@@ -961,7 +957,7 @@ impl Coinstr {
                 if sender != pubkey {
                     self.client.send_direct_msg(pubkey, &msg, None).await?;
                 }
-            }
+            } */
 
             // Cache proposal
             self.db
@@ -1286,14 +1282,15 @@ impl Coinstr {
         let proposal_id = self.send_event(event).await?;
 
         // Send DM msg
-        let sender = self.client.keys().public_key();
+        // TODO: send withoud wait for OK
+        /* let sender = self.client.keys().public_key();
         let mut msg = String::from("New Proof of Reserve request:\n");
         msg.push_str(&format!("- Message: {message}"));
         for pubkey in nostr_pubkeys.into_iter() {
             if sender != pubkey {
                 self.client.send_direct_msg(pubkey, &msg, None).await?;
             }
-        }
+        } */
 
         // Cache proposal
         self.db
