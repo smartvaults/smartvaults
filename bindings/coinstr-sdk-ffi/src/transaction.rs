@@ -7,7 +7,7 @@ use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bitcoin::{self, Address};
 use coinstr_sdk::db::model::{self, GetUtxo};
-use nostr_sdk_ffi::Timestamp;
+use nostr_sdk_ffi::{EventId, Timestamp};
 
 use crate::error::Result;
 use crate::Network;
@@ -238,6 +238,10 @@ impl From<model::GetTransaction> for GetTransaction {
 }
 
 impl GetTransaction {
+    pub fn policy_id(&self) -> Arc<EventId> {
+        Arc::new(self.inner.policy_id.into())
+    }
+
     pub fn tx(&self) -> Arc<TransactionDetails> {
         Arc::new(self.inner.tx.clone().into())
     }

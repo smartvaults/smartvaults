@@ -240,6 +240,7 @@ interface TransactionDetails {
 };
 
 interface GetTransaction {
+    EventId policy_id();
     TransactionDetails tx();
     string? label();
 };
