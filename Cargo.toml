@@ -21,7 +21,7 @@ keywords = ["coinstr", "bitcoin", "nostr"]
 
 [workspace.dependencies]
 once_cell = "1.18"
-serde = "=1.0.171"
+serde = "1.0"
 thiserror = "1.0"
 tracing = "0.1"
 
@@ -29,6 +29,7 @@ tracing = "0.1"
 electrum-client = { git = "https://github.com/yukibtc/rust-electrum-client", rev = "ee2e522cb808ed17a8ded9811323dc480459c4ed" }
 
 [profile.release]
-lto = true
+opt-level = 3
+lto = "fat"
 codegen-units = 1
 panic = "abort"
