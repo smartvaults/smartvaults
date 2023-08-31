@@ -81,11 +81,11 @@ bindings-swift: ios-universal
 	rm bindings-swift/Sources/CoinstrSDK/coinstr_sdkFFI.h
 	rm bindings-swift/Sources/CoinstrSDK/coinstr_sdkFFI.modulemap
 
-python-dev:
+python:
 	rm -rf bindings-python/dist
 	pip install -r bindings-python/requirements.txt
-	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr_sdk.udl --language python --no-format -o bindings-python/src/coinstr-sdk/
 	cargo build --release
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/coinstr_sdk.udl --language python --no-format -o bindings-python/src/coinstr-sdk/
 	cp ../../target/release/libcoinstr_sdk_ffi.so bindings-python/src/coinstr-sdk/ | true
 	cp ../../target/release/libcoinstr_sdk_ffi.dylib bindings-python/src/coinstr-sdk/ | true
 	cd bindings-python && python setup.py --verbose bdist_wheel

@@ -233,7 +233,7 @@ impl Coinstr {
     }
 
     pub fn get_profile(&self) -> Result<Arc<Metadata>> {
-        Ok(Arc::new(self.inner.get_profile()?.into()))
+        block_on(async move { Ok(Arc::new(self.inner.get_profile().await?.into())) })
     }
 
     pub fn get_public_key_metadata(&self, public_key: Arc<PublicKey>) -> Result<Arc<Metadata>> {
@@ -248,12 +248,15 @@ impl Coinstr {
     }
 
     pub fn get_contacts(&self) -> Result<Vec<Arc<GetContact>>> {
-        Ok(self
-            .inner
-            .get_contacts()?
-            .into_iter()
-            .map(|(pk, m)| Arc::new((pk, m).into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_contacts()
+                .await?
+                .into_iter()
+                .map(|(pk, m)| Arc::new((pk, m).into()))
+                .collect())
+        })
     }
 
     /// Add new contact
@@ -267,28 +270,41 @@ impl Coinstr {
     }
 
     pub fn get_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<Arc<GetPolicy>> {
-        Ok(Arc::new(self.inner.get_policy_by_id(**policy_id)?.into()))
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner.get_policy_by_id(**policy_id).await?.into(),
+            ))
+        })
     }
 
     pub fn get_proposal_by_id(&self, proposal_id: Arc<EventId>) -> Result<Arc<GetProposal>> {
-        Ok(Arc::new(
-            self.inner.get_proposal_by_id(**proposal_id)?.into(),
-        ))
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner.get_proposal_by_id(**proposal_id).await?.into(),
+            ))
+        })
     }
 
     pub fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: Arc<EventId>,
     ) -> Result<Arc<GetCompletedProposal>> {
-        Ok(Arc::new(
-            self.inner
-                .get_completed_proposal_by_id(**completed_proposal_id)?
-                .into(),
-        ))
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner
+                    .get_completed_proposal_by_id(**completed_proposal_id)
+                    .await?
+                    .into(),
+            ))
+        })
     }
 
     pub fn get_signer_by_id(&self, signer_id: Arc<EventId>) -> Result<Arc<Signer>> {
-        Ok(Arc::new(self.inner.get_signer_by_id(**signer_id)?.into()))
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner.get_signer_by_id(**signer_id).await?.into(),
+            ))
+        })
     }
 
     pub fn delete_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<()> {
@@ -333,28 +349,35 @@ impl Coinstr {
         &self,
         policy_id: Arc<EventId>,
     ) -> Result<Vec<Arc<GetProposal>>> {
-        let proposals = self.inner.get_proposals_by_policy_id(**policy_id)?;
-        Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
+        block_on(async move {
+            let proposals = self.inner.get_proposals_by_policy_id(**policy_id).await?;
+            Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
+        })
     }
 
     pub fn get_approvals_by_proposal_id(
         &self,
         proposal_id: Arc<EventId>,
     ) -> Result<Vec<Arc<GetApproval>>> {
-        Ok(self
-            .inner
-            .get_approvals_by_proposal_id(**proposal_id)?
-            .into_iter()
-            .map(|res| Arc::new(res.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_approvals_by_proposal_id(**proposal_id)
+                .await?
+                .into_iter()
+                .map(|res| Arc::new(res.into()))
+                .collect())
+        })
     }
 
     pub fn get_completed_proposals(&self) -> Result<Vec<Arc<GetCompletedProposal>>> {
-        let completed_proposals = self.inner.get_completed_proposals()?;
-        Ok(completed_proposals
-            .into_iter()
-            .map(|p| Arc::new(p.into()))
-            .collect())
+        block_on(async move {
+            let completed_proposals = self.inner.get_completed_proposals().await?;
+            Ok(completed_proposals
+                .into_iter()
+                .map(|p| Arc::new(p.into()))
+                .collect())
+        })
     }
 
     pub fn save_policy(
@@ -523,7 +546,7 @@ impl Coinstr {
     // TODO: add save_signer
 
     pub fn coinstr_signer_exists(&self) -> Result<bool> {
-        Ok(self.inner.coinstr_signer_exists()?)
+        block_on(async move { Ok(self.inner.coinstr_signer_exists().await?) })
     }
 
     pub fn save_coinstr_signer(&self) -> Result<Arc<EventId>> {
@@ -533,12 +556,15 @@ impl Coinstr {
     // TODO: add get_all_signers
 
     pub fn get_signers(&self) -> Result<Vec<Arc<GetSigner>>> {
-        Ok(self
-            .inner
-            .get_signers()?
-            .into_iter()
-            .map(|s| Arc::new(s.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_signers()
+                .await?
+                .into_iter()
+                .map(|s| Arc::new(s.into()))
+                .collect())
+        })
     }
 
     pub fn share_signer(
@@ -579,36 +605,45 @@ impl Coinstr {
     }
 
     pub fn get_shared_signers(&self) -> Result<Vec<Arc<GetSharedSigner>>> {
-        Ok(self
-            .inner
-            .get_shared_signers()?
-            .into_iter()
-            .map(|s| Arc::new(s.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_shared_signers()
+                .await?
+                .into_iter()
+                .map(|s| Arc::new(s.into()))
+                .collect())
+        })
     }
 
     pub fn get_shared_signers_public_keys(
         &self,
         include_contacts: bool,
     ) -> Result<Vec<Arc<PublicKey>>> {
-        Ok(self
-            .inner
-            .get_shared_signers_public_keys(include_contacts)?
-            .into_iter()
-            .map(|p| Arc::new(p.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_shared_signers_public_keys(include_contacts)
+                .await?
+                .into_iter()
+                .map(|p| Arc::new(p.into()))
+                .collect())
+        })
     }
 
     pub fn get_shared_signers_by_public_key(
         &self,
         public_key: Arc<PublicKey>,
     ) -> Result<Vec<Arc<GetSharedSigner>>> {
-        Ok(self
-            .inner
-            .get_shared_signers_by_public_key(**public_key)?
-            .into_iter()
-            .map(|s| Arc::new(s.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_shared_signers_by_public_key(**public_key)
+                .await?
+                .into_iter()
+                .map(|s| Arc::new(s.into()))
+                .collect())
+        })
     }
 
     pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
@@ -714,15 +749,18 @@ impl Coinstr {
     }
 
     pub fn get_nostr_connect_sessions(&self) -> Result<Vec<NostrConnectSession>> {
-        Ok(self
-            .inner
-            .get_nostr_connect_sessions()?
-            .into_iter()
-            .map(|(uri, timestamp)| NostrConnectSession {
-                uri: Arc::new(uri.into()),
-                timestamp: timestamp.as_u64(),
-            })
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_nostr_connect_sessions()
+                .await?
+                .into_iter()
+                .map(|(uri, timestamp)| NostrConnectSession {
+                    uri: Arc::new(uri.into()),
+                    timestamp: timestamp.as_u64(),
+                })
+                .collect())
+        })
     }
 
     pub fn disconnect_nostr_connect_session(&self, app_public_key: Arc<PublicKey>) -> Result<()> {
@@ -738,12 +776,15 @@ impl Coinstr {
         &self,
         approved: bool,
     ) -> Result<Vec<Arc<NostrConnectRequest>>> {
-        Ok(self
-            .inner
-            .get_nostr_connect_requests(approved)?
-            .into_iter()
-            .map(|req| Arc::new(req.into()))
-            .collect())
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_nostr_connect_requests(approved)
+                .await?
+                .into_iter()
+                .map(|req| Arc::new(req.into()))
+                .collect())
+        })
     }
 
     pub fn approve_nostr_connect_request(&self, event_id: Arc<EventId>) -> Result<()> {
