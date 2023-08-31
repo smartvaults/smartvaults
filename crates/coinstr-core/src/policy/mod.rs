@@ -53,6 +53,10 @@ pub enum Error {
     NotTaprootDescriptor,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
+    #[error("no utxos selected")]
+    NoUtxosSelected,
+    #[error("No UTXOs available: {0}")]
+    NoUtxosAvailable(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -260,13 +264,29 @@ impl Policy {
         D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
+        // Check available UTXOs
+        if wallet.list_unspent().count() == 0 {
+            return Err(Error::NoUtxosAvailable(String::from(
+                "wallet not contains any UTXO",
+            )));
+        }
+
+        if let Some(frozen_utxos) = &frozen_utxos {
+            if wallet
+                .list_unspent()
+                .filter(|utxo| !frozen_utxos.contains(&utxo.outpoint))
+                .count()
+                == 0
+            {
+                return Err(Error::NoUtxosAvailable(String::from(
+                    "frozen by other proposals",
+                )));
+            }
+        }
+
         // Build the PSBT
         let (psbt, details) = {
             let mut builder = wallet.build_tx();
-
-            if let Some(path) = policy_path {
-                builder.policy_path(path, KeychainKind::External);
-            }
 
             if let Some(frozen_utxos) = frozen_utxos {
                 for unspendable in frozen_utxos.into_iter() {
@@ -275,8 +295,15 @@ impl Policy {
             }
 
             if let Some(utxos) = utxos {
+                if utxos.is_empty() {
+                    return Err(Error::NoUtxosSelected);
+                }
                 builder.manually_selected_only();
                 builder.add_utxos(&utxos)?;
+            }
+
+            if let Some(path) = policy_path {
+                builder.policy_path(path, KeychainKind::External);
             }
 
             builder.fee_rate(fee_rate).enable_rbf();
