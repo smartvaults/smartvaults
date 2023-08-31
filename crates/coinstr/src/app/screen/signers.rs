@@ -41,8 +41,8 @@ impl State for SignersState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let signers = client.get_signers().unwrap();
-                let shared_signers = client.get_shared_signers().unwrap();
+                let signers = client.get_signers().await.unwrap();
+                let shared_signers = client.get_shared_signers().await.unwrap();
                 (signers, shared_signers)
             },
             |signers| SignersMessage::LoadSigners(signers).into(),
@@ -255,9 +255,10 @@ impl State for SignersState {
                                     .view(),
                             )
                             .push(
-                                Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
-                                    .width(Length::Fill)
-                                    .view(),
+                                // TODO
+                                Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
+                                                                              .width(Length::Fill)
+                                                                              .view() */
                             )
                             .push(
                                 Button::new()

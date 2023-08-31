@@ -48,7 +48,7 @@ impl State for ContactsState {
 
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_contacts().unwrap() }, |p| {
+        Command::perform(async move { client.get_contacts().await.unwrap() }, |p| {
             ContactsMessage::LoadContacts(p).into()
         })
     }

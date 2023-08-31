@@ -63,9 +63,9 @@ impl State for ConnectState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let sessions = client.get_nostr_connect_sessions().unwrap();
-                let pending_requests = client.get_nostr_connect_requests(false).unwrap();
-                let approved_requests = client.get_nostr_connect_requests(true).unwrap();
+                let sessions = client.get_nostr_connect_sessions().await.unwrap();
+                let pending_requests = client.get_nostr_connect_requests(false).await.unwrap();
+                let approved_requests = client.get_nostr_connect_requests(true).await.unwrap();
                 let authorizations = client.get_nostr_connect_pre_authorizations().await;
                 (
                     sessions,

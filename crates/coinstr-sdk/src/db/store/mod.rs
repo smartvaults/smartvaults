@@ -13,19 +13,18 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use chacha20poly1305::aead::{Aead, AeadCore, KeyInit, OsRng};
-use chacha20poly1305::{XChaCha20Poly1305, XNonce};
+use chacha20poly1305::aead::KeyInit;
+use chacha20poly1305::XChaCha20Poly1305;
 use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
 use coinstr_protocol::v1::util::serde::Serde;
-use coinstr_protocol::v1::util::Encryption;
 use deadpool_sqlite::{Config, Object, Pool, Runtime};
 use nostr_sdk::event::id::EventId;
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
 use nostr_sdk::{Event, Keys, Timestamp};
 use rusqlite::config::DbConfig;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::Connection;
 use tokio::sync::RwLock;
 
 mod connect;
@@ -37,6 +36,7 @@ mod signers;
 mod timechain;
 mod utxos;
 
+use super::encryption::StoreEncryption;
 use super::migration::{self, STARTUP_SQL};
 use super::model::{
     GetApproval, GetApprovedProposals, GetCompletedProposal, GetNotifications, GetProposal,
@@ -48,7 +48,7 @@ use crate::types::Notification;
 #[derive(Clone)]
 pub struct Store {
     pool: Pool,
-    chiper: XChaCha20Poly1305,
+    cipher: XChaCha20Poly1305,
     public_key: XOnlyPublicKey,
     network: Network,
     nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
@@ -77,7 +77,7 @@ impl Store {
         let key: [u8; 32] = keys.secret_key()?.secret_bytes();
         Ok(Self {
             pool,
-            chiper: XChaCha20Poly1305::new(&key.into()),
+            cipher: XChaCha20Poly1305::new(&key.into()),
             public_key: keys.public_key(),
             network,
             nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
@@ -94,7 +94,7 @@ impl Store {
     }
 
     pub async fn wipe(&self) -> Result<(), Error> {
-        let mut conn = self.acquire().await?;
+        let conn = self.acquire().await?;
 
         conn.interact(|conn| {
             // Reset DB
@@ -109,7 +109,7 @@ impl Store {
         })
         .await??;
 
-        migration::run(&mut conn).await?;
+        migration::run(&conn).await?;
 
         Ok(())
     }
@@ -132,12 +132,13 @@ impl Store {
 
     pub async fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             conn.execute(
                 "INSERT OR IGNORE INTO shared_keys (policy_id, shared_key) VALUES (?, ?);",
                 (
                     policy_id.to_hex(),
-                    shared_key.secret_key()?.encrypt_with_keys(&self.keys)?,
+                    shared_key.secret_key()?.encrypt(&cipher)?,
                 ),
             )?;
             Ok(())
@@ -147,13 +148,14 @@ impl Store {
 
     pub async fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
             let mut rows = stmt.query([policy_id.to_hex()])?;
             let row = rows.next()?.ok_or(Error::NotFound("shared_key".into()))?;
-            let sk: String = row.get(0)?;
-            let sk = SecretKey::decrypt_with_keys(&self.keys, sk)?;
+            let sk: Vec<u8> = row.get(0)?;
+            let sk = SecretKey::decrypt(&cipher, sk)?;
             Ok(Keys::new(sk))
         })
         .await?
@@ -201,14 +203,15 @@ impl Store {
         proposal: Proposal,
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
-        let cipher = self.chiper.clone();
+        let cipher = self.cipher.clone();
+        let psbt = proposal.psbt();
         conn.interact(move |conn| {
             conn.execute(
             "INSERT OR IGNORE INTO proposals (proposal_id, policy_id, proposal) VALUES (?, ?, ?);",
             (
                 proposal_id.to_hex(),
                 policy_id.to_hex(),
-                //proposal.encrypt_with_keys(&self.keys)?,
+                proposal.encrypt(&cipher)?,
             ),
         )?;
             Ok::<(), Error>(())
@@ -216,7 +219,7 @@ impl Store {
         .await??;
 
         // Freeze UTXOs
-        for txin in proposal.psbt().unsigned_tx.input.into_iter() {
+        for txin in psbt.unsigned_tx.input.into_iter() {
             self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))
                 .await?;
         }
@@ -227,6 +230,7 @@ impl Store {
 
     pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
         let conn = self.acquire().await?;
+        let this = self.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
@@ -235,18 +239,18 @@ impl Store {
             while let Ok(Some(row)) = rows.next() {
                 let proposal_id: String = row.get(0)?;
                 let policy_id: String = row.get(1)?;
-                let proposal: String = row.get(2)?;
+                let proposal: Vec<u8> = row.get(2)?;
 
                 let proposal_id = EventId::from_hex(proposal_id)?;
                 let policy_id = EventId::from_hex(policy_id)?;
-                let proposal = Proposal::decrypt_with_keys(&this.keys, proposal)?;
+                let proposal = Proposal::decrypt(&this.cipher, proposal)?;
                 let approved_proposals =
-                    self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+                    this.get_approved_proposals_by_proposal_id(proposal_id, conn)?;
 
                 proposals.push(GetProposal {
                     proposal_id,
                     policy_id,
-                    signed: proposal.finalize(approved_proposals, self.network).is_ok(),
+                    signed: proposal.finalize(approved_proposals, this.network).is_ok(),
                     proposal,
                 });
             }
@@ -279,6 +283,7 @@ impl Store {
         policy_id: EventId,
     ) -> Result<Vec<GetProposal>, Error> {
         let conn = self.acquire().await?;
+        let this = self.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached(
                 "SELECT proposal_id, proposal FROM proposals WHERE policy_id = ?;",
@@ -287,17 +292,17 @@ impl Store {
             let mut proposals = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 let proposal_id: String = row.get(0)?;
-                let proposal: String = row.get(1)?;
+                let proposal: Vec<u8> = row.get(1)?;
 
                 let proposal_id = EventId::from_hex(proposal_id)?;
-                let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
+                let proposal = Proposal::decrypt(&this.cipher, proposal)?;
                 let approved_proposals =
-                    self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+                    this.get_approved_proposals_by_proposal_id(proposal_id, conn)?;
 
                 proposals.push(GetProposal {
                     proposal_id,
                     policy_id,
-                    signed: proposal.finalize(approved_proposals, self.network).is_ok(),
+                    signed: proposal.finalize(approved_proposals, this.network).is_ok(),
                     proposal,
                 });
             }
@@ -308,6 +313,7 @@ impl Store {
 
     pub async fn get_proposal(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
         let conn = self.acquire().await?;
+        let this = self.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached(
                 "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
@@ -315,17 +321,17 @@ impl Store {
             let mut rows = stmt.query([proposal_id.to_hex()])?;
             let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
             let policy_id: String = row.get(0)?;
-            let proposal: String = row.get(1)?;
+            let proposal: Vec<u8> = row.get(1)?;
 
             let policy_id = EventId::from_hex(policy_id)?;
-            let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
+            let proposal = Proposal::decrypt(&this.cipher, proposal)?;
             let approved_proposals =
-                self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+                this.get_approved_proposals_by_proposal_id(proposal_id, conn)?;
 
             Ok(GetProposal {
                 proposal_id,
                 policy_id,
-                signed: proposal.finalize(approved_proposals, self.network).is_ok(),
+                signed: proposal.finalize(approved_proposals, this.network).is_ok(),
                 proposal,
             })
         })
@@ -369,23 +375,24 @@ impl Store {
         proposal_id: EventId,
     ) -> Result<Vec<GetApproval>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
-        let mut rows = stmt.query([proposal_id.to_hex()])?;
-        let mut approvals = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let approval_id: String = row.get(0)?;
-            let public_key: String = row.get(1)?;
-            let json: String = row.get(2)?;
-            let timestamp: u64 = row.get(3)?;
-            approvals.push(GetApproval {
-                approval_id: EventId::from_hex(approval_id)?,
-                public_key: XOnlyPublicKey::from_str(&public_key)?,
-                approved_proposal: ApprovedProposal::decrypt_with_keys(&self.keys, json)?,
-                timestamp: Timestamp::from(timestamp),
-            });
-        }
-        Ok(approvals)
+            let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
+            let mut rows = stmt.query([proposal_id.to_hex()])?;
+            let mut approvals = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let approval_id: String = row.get(0)?;
+                let public_key: String = row.get(1)?;
+                let approved_proposal: Vec<u8> = row.get(2)?;
+                let timestamp: u64 = row.get(3)?;
+                approvals.push(GetApproval {
+                    approval_id: EventId::from_hex(approval_id)?,
+                    public_key: XOnlyPublicKey::from_str(&public_key)?,
+                    approved_proposal: ApprovedProposal::decrypt(&cipher, approved_proposal)?,
+                    timestamp: Timestamp::from(timestamp),
+                });
+            }
+            Ok(approvals)
         }).await?
     }
 
@@ -401,8 +408,8 @@ let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_pro
         let mut rows = stmt.query([proposal_id.to_hex()])?;
         let mut approvals = Vec::new();
         while let Ok(Some(row)) = rows.next() {
-            let json: String = row.get(0)?;
-            approvals.push(ApprovedProposal::decrypt_with_keys(&self.keys, json)?);
+            let approval: Vec<u8> = row.get(0)?;
+            approvals.push(ApprovedProposal::decrypt(&self.cipher, approval)?);
         }
         Ok(approvals)
     }
@@ -440,12 +447,13 @@ let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_pro
         timestamp: Timestamp,
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-conn.execute(
-            "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
-            (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt_with_keys(&self.keys)?, timestamp.as_u64()),
-        )?;
-        Ok(())
+            conn.execute(
+                "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
+                (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt(&cipher)?, timestamp.as_u64()),
+            )?;
+            Ok(())
         }).await?
     }
 
@@ -514,14 +522,14 @@ conn.execute(
     ) -> Result<bool, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
-let mut stmt =
-            conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);")?;
-        let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
-        let exists: u8 = match rows.next()? {
-            Some(row) => row.get(0)?,
-            None => 0,
-        };
-        Ok(exists == 1)
+        let mut stmt =
+                    conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);")?;
+                let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
+                let exists: u8 = match rows.next()? {
+                    Some(row) => row.get(0)?,
+                    None => 0,
+                };
+                Ok(exists == 1)
         }).await?
     }
 
@@ -532,18 +540,20 @@ let mut stmt =
         completed_proposal: CompletedProposal,
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-conn.execute(
-            "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
-            (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.encrypt_with_keys(&self.keys)?),
-        )?;
-        tracing::info!("Completed proposal {completed_proposal_id} saved");
-        Ok(())
+            conn.execute(
+                        "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
+                        (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.encrypt(&cipher)?),
+                    )?;
+                    tracing::info!("Completed proposal {completed_proposal_id} saved");
+                    Ok(())
         }).await?
     }
 
     pub async fn completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached(
             "SELECT completed_proposal_id, policy_id, completed_proposal FROM completed_proposals;",
@@ -553,11 +563,11 @@ conn.execute(
             while let Ok(Some(row)) = rows.next() {
                 let proposal_id: String = row.get(0)?;
                 let policy_id: String = row.get(1)?;
-                let proposal: String = row.get(2)?;
+                let proposal: Vec<u8> = row.get(2)?;
                 proposals.push(GetCompletedProposal {
                     policy_id: EventId::from_hex(policy_id)?,
                     completed_proposal_id: EventId::from_hex(proposal_id)?,
-                    proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
+                    proposal: CompletedProposal::decrypt(&cipher, proposal)?,
                 });
             }
             Ok(proposals)
@@ -570,22 +580,23 @@ conn.execute(
         policy_id: EventId,
     ) -> Result<Vec<GetCompletedProposal>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-let mut stmt = conn.prepare_cached(
-            "SELECT completed_proposal_id, completed_proposal FROM completed_proposals WHERE policy_id = ?;",
-        )?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut proposals = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let proposal_id: String = row.get(0)?;
-            let proposal: String = row.get(1)?;
-            proposals.push(GetCompletedProposal {
-                policy_id,
-                completed_proposal_id: EventId::from_hex(proposal_id)?,
-                proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
-            });
-        }
-        Ok(proposals)
+        let mut stmt = conn.prepare_cached(
+                    "SELECT completed_proposal_id, completed_proposal FROM completed_proposals WHERE policy_id = ?;",
+                )?;
+                let mut rows = stmt.query([policy_id.to_hex()])?;
+                let mut proposals = Vec::new();
+                while let Ok(Some(row)) = rows.next() {
+                    let proposal_id: String = row.get(0)?;
+                    let proposal: Vec<u8> = row.get(1)?;
+                    proposals.push(GetCompletedProposal {
+                        policy_id,
+                        completed_proposal_id: EventId::from_hex(proposal_id)?,
+                        proposal: CompletedProposal::decrypt(&cipher, proposal)?,
+                    });
+                }
+                Ok(proposals)
         }).await?
     }
 
@@ -594,19 +605,20 @@ let mut stmt = conn.prepare_cached(
         completed_proposal_id: EventId,
     ) -> Result<GetCompletedProposal, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-let mut stmt = conn.prepare_cached("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
-        let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
-        let row = rows
-            .next()?
-            .ok_or(Error::NotFound("completed proposal".into()))?;
-        let policy_id: String = row.get(0)?;
-        let proposal: String = row.get(1)?;
-        Ok(GetCompletedProposal {
-            policy_id: EventId::from_hex(policy_id)?,
-            completed_proposal_id,
-            proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
-        })
+            let mut stmt = conn.prepare_cached("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
+            let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
+            let row = rows
+                .next()?
+                .ok_or(Error::NotFound("completed proposal".into()))?;
+            let policy_id: String = row.get(0)?;
+            let proposal: Vec<u8> = row.get(1)?;
+            Ok(GetCompletedProposal {
+                policy_id: EventId::from_hex(policy_id)?,
+                completed_proposal_id,
+                proposal: CompletedProposal::decrypt(&cipher, proposal)?,
+            })
         }).await?
     }
 

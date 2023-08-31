@@ -2,12 +2,11 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::chain::{Append, PersistBackend};
-use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use thiserror::Error;
 use tokio::runtime::Handle;
 
-use crate::db::{Error as DbError, Store};
+use crate::db::{Error as DbError, Store, StoreEncryption};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -34,7 +33,7 @@ impl CoinstrWalletStorage {
 
 impl<K> PersistBackend<K> for CoinstrWalletStorage
 where
-    K: Default + Clone + Append + Encryption + Send,
+    K: Default + Clone + Append + StoreEncryption + Send + 'static,
 {
     type WriteError = Error;
     type LoadError = Error;
@@ -45,18 +44,18 @@ where
         }
 
         let handle = Handle::current();
-        handle.enter();
+        let _ = handle.enter();
         futures::executor::block_on(async {
             match self.db.get_changeset::<K>(self.descriptor_hash).await.ok() {
                 Some(mut keychain_store) => {
                     keychain_store.append(changeset.clone());
                     self.db
-                        .save_changeset(self.descriptor_hash, &keychain_store)
+                        .save_changeset(self.descriptor_hash, keychain_store.clone())
                         .await?
                 }
                 None => {
                     self.db
-                        .save_changeset(self.descriptor_hash, changeset)
+                        .save_changeset(self.descriptor_hash, changeset.clone())
                         .await?
                 }
             };
@@ -67,7 +66,7 @@ where
 
     fn load_from_persistence(&mut self) -> Result<K, Self::LoadError> {
         let handle = Handle::current();
-        handle.enter();
+        let _ = handle.enter();
         futures::executor::block_on(async {
             match self.db.get_changeset::<K>(self.descriptor_hash).await {
                 Ok(k) => Ok(k),

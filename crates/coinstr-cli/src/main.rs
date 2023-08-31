@@ -360,12 +360,12 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 Ok(())
             }
             ConnectCommand::Sessions => {
-                let sessions = coinstr.get_nostr_connect_sessions()?;
+                let sessions = coinstr.get_nostr_connect_sessions().await?;
                 util::print_sessions(sessions);
                 Ok(())
             }
             ConnectCommand::Requests { approved } => {
-                let requests = coinstr.get_nostr_connect_requests(approved)?;
+                let requests = coinstr.get_nostr_connect_requests(approved).await?;
                 util::print_requests(requests)?;
                 Ok(())
             }
@@ -423,7 +423,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             } => {
                 let signer_id = coinstr.save_coinstr_signer().await?;
                 if share_with_contacts {
-                    for public_key in coinstr.get_contacts()?.into_keys() {
+                    for public_key in coinstr.get_contacts().await?.into_keys() {
                         coinstr.share_signer(signer_id, public_key).await?;
                     }
                 }
@@ -438,7 +438,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 let signer = Signer::new(name, None, fingerprint, descriptor, SignerType::AirGap)?;
                 let signer_id = coinstr.save_signer(signer).await?;
                 if share_with_contacts {
-                    for public_key in coinstr.get_contacts()?.into_keys() {
+                    for public_key in coinstr.get_contacts().await?.into_keys() {
                         coinstr.share_signer(signer_id, public_key).await?;
                     }
                 }
@@ -447,7 +447,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         },
         Command::Get { command } => match command {
             GetCommand::Contacts => {
-                let contacts = coinstr.get_contacts()?;
+                let contacts = coinstr.get_contacts().await?;
                 util::print_contacts(contacts);
                 Ok(())
             }
@@ -458,7 +458,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             GetCommand::Policy { policy_id, export } => {
                 // Get policy
-                let GetPolicy { policy, .. } = coinstr.get_policy_by_id(policy_id)?;
+                let GetPolicy { policy, .. } = coinstr.get_policy_by_id(policy_id).await?;
 
                 // Print result
                 if export {
@@ -476,7 +476,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             GetCommand::Proposals { completed } => {
                 if completed {
-                    let proposals = coinstr.get_completed_proposals()?;
+                    let proposals = coinstr.get_completed_proposals().await?;
                     util::print_completed_proposals(proposals);
                 } else {
                     let proposals = coinstr.get_proposals().await?;
@@ -485,12 +485,12 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 Ok(())
             }
             GetCommand::Proposal { proposal_id } => {
-                let proposal = coinstr.get_proposal_by_id(proposal_id)?;
+                let proposal = coinstr.get_proposal_by_id(proposal_id).await?;
                 util::print_proposal(proposal);
                 Ok(())
             }
             GetCommand::Signers => {
-                let signers = coinstr.get_signers()?;
+                let signers = coinstr.get_signers().await?;
                 util::print_signers(signers);
                 Ok(())
             }

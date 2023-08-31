@@ -81,16 +81,20 @@ impl State for ProposalState {
         self.loading = true;
         Command::perform(
             async move {
-                if client.db.proposal_exists(proposal_id).ok()? {
-                    client.mark_notification_as_seen_by_id(proposal_id).ok()?;
+                if client.db.proposal_exists(proposal_id).await.ok()? {
+                    client
+                        .mark_notification_as_seen_by_id(proposal_id)
+                        .await
+                        .ok()?;
                     let GetProposal {
                         policy_id,
                         proposal,
                         signed,
                         ..
-                    } = client.get_proposal_by_id(proposal_id).ok()?;
+                    } = client.get_proposal_by_id(proposal_id).await.ok()?;
                     let signer = client
                         .search_signer_by_descriptor(proposal.descriptor())
+                        .await
                         .ok();
                     Some((
                         proposal,
@@ -98,6 +102,7 @@ impl State for ProposalState {
                         policy_id,
                         client
                             .get_approvals_by_proposal_id(proposal_id)
+                            .await
                             .unwrap_or_default(),
                         signer,
                     ))
@@ -473,9 +478,10 @@ impl State for ProposalState {
                                         .view(),
                                 )
                                 .push(
-                                    Text::new(ctx.client.db.get_public_key_name(*public_key))
-                                        .width(Length::Fill)
-                                        .view(),
+                                    // TODO
+                                    Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*public_key))
+                                                                                  .width(Length::Fill)
+                                                                                  .view() */
                                 )
                                 .spacing(10)
                                 .align_items(Alignment::Center)

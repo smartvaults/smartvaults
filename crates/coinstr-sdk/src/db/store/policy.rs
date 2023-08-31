@@ -2,11 +2,10 @@
 // Distributed under the MIT software license
 
 use coinstr_core::Policy;
-use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{EventId, Timestamp};
 
-use super::Store;
+use super::{Store, StoreEncryption};
 use crate::db::model::GetPolicy;
 use crate::db::Error;
 
@@ -31,14 +30,15 @@ impl Store {
     pub async fn save_policy(
         &self,
         policy_id: EventId,
-        policy: &Policy,
+        policy: Policy,
         nostr_public_keys: Vec<XOnlyPublicKey>,
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             conn.execute(
                 "INSERT OR IGNORE INTO policies (policy_id, policy) VALUES (?, ?);",
-                (policy_id.to_hex(), policy.encrypt_with_keys(&self.keys)?),
+                (policy_id.to_hex(), policy.encrypt(&cipher)?),
             )?;
             // Save nostr public keys
             let mut stmt = conn.prepare_cached(
@@ -54,16 +54,17 @@ impl Store {
 
     pub async fn get_policy(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT policy, last_sync FROM policies WHERE policy_id = ?")?;
             let mut rows = stmt.query([policy_id.to_hex()])?;
             let row = rows.next()?.ok_or(Error::NotFound("policy".into()))?;
-            let policy: String = row.get(0)?;
+            let policy: Vec<u8> = row.get(0)?;
             let last_sync: Option<u64> = row.get(1)?;
             Ok(GetPolicy {
                 policy_id,
-                policy: Policy::decrypt_with_keys(&self.keys, policy)?,
+                policy: Policy::decrypt(&cipher, policy)?,
                 last_sync: last_sync.map(Timestamp::from),
             })
         })
@@ -100,6 +101,7 @@ impl Store {
 
     pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT policy_id, policy, last_sync FROM policies")?;
@@ -107,11 +109,11 @@ impl Store {
             let mut policies = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 let policy_id: String = row.get(0)?;
-                let policy: String = row.get(1)?;
+                let policy: Vec<u8> = row.get(1)?;
                 let last_sync: Option<u64> = row.get(2)?;
                 policies.push(GetPolicy {
                     policy_id: EventId::from_hex(policy_id)?,
-                    policy: Policy::decrypt_with_keys(&this.keys, policy)?,
+                    policy: Policy::decrypt(&cipher, policy)?,
                     last_sync: last_sync.map(Timestamp::from),
                 });
             }

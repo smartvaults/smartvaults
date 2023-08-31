@@ -61,9 +61,12 @@ impl State for AddPolicyState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let mut contacts = client.get_contacts().unwrap();
+                let mut contacts = client.get_contacts().await.unwrap();
                 let public_key = client.keys().public_key();
-                contacts.insert(public_key, client.db.get_metadata(public_key).unwrap());
+                contacts.insert(
+                    public_key,
+                    client.db.get_metadata(public_key).await.unwrap(),
+                );
                 contacts
             },
             |p| AddPolicyMessage::LoadContacts(p).into(),
@@ -145,7 +148,8 @@ impl State for AddPolicyState {
                 public_keys = public_keys.push(
                     Text::new(format!(
                         "- {}{}",
-                        ctx.client.db.get_public_key_name(*public_key),
+                        // TODO: ctx.client.db.get_public_key_name(*public_key),
+                        "TODO",
                         if ctx.client.keys().public_key() == *public_key {
                             " (me)"
                         } else {

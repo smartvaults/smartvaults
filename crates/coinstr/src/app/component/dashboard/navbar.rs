@@ -22,7 +22,9 @@ impl Navbar {
     }
 
     pub fn view<'a>(&self, ctx: &Context) -> Row<'a, Message> {
-        let color: Option<Color> = match ctx.client.count_unseen_notifications() {
+        let color = None;
+        // TODO
+        /* let color: Option<Color> = match ctx.client.count_unseen_notifications() {
             Ok(count) => {
                 if count > 0 {
                     Some(RED)
@@ -34,7 +36,7 @@ impl Navbar {
                 tracing::error!("Impossible to count unseen notifications: {e}");
                 None
             }
-        };
+        }; */
 
         // Identity
         let fingerprint = match ctx

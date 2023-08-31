@@ -70,10 +70,14 @@ impl State for PoliciesState {
                         .save_file();
 
                     if let Some(path) = path {
-                        match ctx.client.save_policy_backup(policy_id, &path) {
-                            Ok(_) => tracing::info!("Exported policy backup to {}", path.display()),
-                            Err(e) => tracing::error!("Impossible to create file: {e}"),
-                        }
+                        let client = ctx.client.clone();
+                        return Command::perform(
+                            async move { client.save_policy_backup(policy_id, &path).await },
+                            move |res| match res {
+                                Ok(_) => PoliciesMessage::Reload.into(),
+                                Err(e) => PoliciesMessage::Reload.into(), /* TODO: replace this with ErrorChanged */
+                            },
+                        );
                     }
                     Command::none()
                 }

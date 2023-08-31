@@ -81,9 +81,10 @@ impl State for PolicyBuilderState {
 
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_all_signers().unwrap() }, |s| {
-            PolicyBuilderMessage::LoadAllSigners(s).into()
-        })
+        Command::perform(
+            async move { client.get_all_signers().await.unwrap() },
+            |s| PolicyBuilderMessage::LoadAllSigners(s).into(),
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -230,7 +231,8 @@ impl State for PolicyBuilderState {
                                         .push(
                                             Text::new(format!(
                                                 "User: {}",
-                                                ctx.client.db.get_public_key_name(*pk)
+                                                "TODO",
+                                                //TODO: ctx.client.db.get_public_key_name(*pk)
                                             ))
                                             .small()
                                             .extra_light()
@@ -487,9 +489,10 @@ fn view_signer_selector<'a>(
                         .view(),
                 )
                 .push(
-                    Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
-                        .width(Length::Fill)
-                        .view(),
+                    // TODO
+                    Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
+                                                                  .width(Length::Fill)
+                                                                  .view() */
                 )
                 .push(if state.is_already_selected(&descriptor) {
                     Button::new()

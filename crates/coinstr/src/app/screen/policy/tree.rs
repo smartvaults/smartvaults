@@ -50,7 +50,7 @@ impl State for PolicyTreeState {
         let policy_id = self.policy_id;
         Command::perform(
             async move {
-                let GetPolicy { policy, .. } = client.get_policy_by_id(policy_id)?;
+                let GetPolicy { policy, .. } = client.get_policy_by_id(policy_id).await?;
                 let item = policy.satisfiable_item(client.network())?;
                 Ok::<SatisfiableItem, Box<dyn std::error::Error>>(item)
             },

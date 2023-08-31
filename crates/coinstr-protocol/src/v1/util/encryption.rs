@@ -58,7 +58,6 @@ impl Serde for SecretKey {}
 impl Encryption for SecretKey {}
 
 impl Serde for ChangeSet {}
-impl Encryption for ChangeSet {}
 
 impl Serde for Policy {}
 impl Encryption for Policy {}

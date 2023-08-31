@@ -40,7 +40,7 @@ impl State for AddSignerState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.coinstr_signer_exists().unwrap() },
+            async move { client.coinstr_signer_exists().await.unwrap() },
             |value| AddSignerMessage::LoadCoinstrSigner(value).into(),
         )
     }

@@ -4,9 +4,9 @@
 use std::collections::HashMap;
 
 use coinstr_core::bitcoin::{OutPoint, ScriptBuf};
-use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::EventId;
 
+use super::StoreEncryption;
 use super::{Error, Store};
 use crate::types::{Label, LabelData, LabelKind};
 
@@ -18,9 +18,10 @@ impl Store {
         label: Label,
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let kind: LabelKind = label.kind();
-        let label: String = label.encrypt_with_keys(&self.keys)?;
+        let label: Vec<u8> = label.encrypt(&cipher)?;
         conn.execute(
             "INSERT INTO labels (id, policy_id, kind, label) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET label = ?;",
             (
@@ -40,14 +41,15 @@ impl Store {
         policy_id: EventId,
     ) -> Result<HashMap<ScriptBuf, Label>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT label FROM labels WHERE policy_id = ? AND kind = ?;")?;
             let mut rows = stmt.query((policy_id.to_hex(), LabelKind::Address.to_string()))?;
             let mut labels = HashMap::new();
             while let Ok(Some(row)) = rows.next() {
-                let label: String = row.get(0)?;
-                let label = Label::decrypt_with_keys(&self.keys, label)?;
+                let label: Vec<u8> = row.get(0)?;
+                let label = Label::decrypt(&cipher, label)?;
                 if let LabelData::Address(addr) = label.data() {
                     labels.insert(addr.payload.script_pubkey(), label);
                 };
@@ -62,14 +64,15 @@ impl Store {
         policy_id: EventId,
     ) -> Result<HashMap<OutPoint, Label>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT label FROM labels WHERE policy_id = ? AND kind = ?;")?;
             let mut rows = stmt.query((policy_id.to_hex(), LabelKind::Utxo.to_string()))?;
             let mut labels = HashMap::new();
             while let Ok(Some(row)) = rows.next() {
-                let label: String = row.get(0)?;
-                let label = Label::decrypt_with_keys(&self.keys, label)?;
+                let label: Vec<u8> = row.get(0)?;
+                let label = Label::decrypt(&cipher, label)?;
                 if let LabelData::Utxo(utxo) = label.data() {
                     labels.insert(utxo, label);
                 };
@@ -81,14 +84,15 @@ impl Store {
 
     pub async fn get_label_by_identifier(&self, identifier: String) -> Result<Label, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached("SELECT label FROM labels WHERE id = ? ;")?;
             let mut rows = stmt.query([identifier])?;
             let row = rows
                 .next()?
                 .ok_or(Error::NotFound("label identifier".into()))?;
-            let label: String = row.get(0)?;
-            Ok(Label::decrypt_with_keys(&self.keys, label)?)
+            let label: Vec<u8> = row.get(0)?;
+            Ok(Label::decrypt(&cipher, label)?)
         })
         .await?
     }

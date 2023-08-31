@@ -11,8 +11,8 @@ use crate::types::Label;
 
 impl Coinstr {
     pub async fn save_label(&self, policy_id: EventId, label: Label) -> Result<EventId, Error> {
-        let shared_key: Keys = self.db.get_shared_key(policy_id)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let shared_key: Keys = self.db.get_shared_key(policy_id).await?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
 
         // TODO: check if address or UTXO actually belong to the policy
 
@@ -31,7 +31,7 @@ impl Coinstr {
         let event_id = self.send_event(event).await?;
 
         // Save to db
-        self.db.save_label(identifier, policy_id, label)?;
+        self.db.save_label(identifier, policy_id, label).await?;
 
         Ok(event_id)
     }

@@ -61,6 +61,7 @@ impl State for SignerState {
             async move {
                 client
                     .get_my_shared_signers_by_signer_id(signer_id)
+                    .await
                     .unwrap()
             },
             |signers| SignerMessage::LoadMySharedSigners(signers).into(),
@@ -182,9 +183,10 @@ impl State for SignerState {
                                 .view(),
                         )
                         .push(
-                            Text::new(ctx.client.db.get_public_key_name(*public_key))
-                                .width(Length::Fill)
-                                .view(),
+                            // TODO
+                            Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*public_key))
+                                                                          .width(Length::Fill)
+                                                                          .view() */
                         )
                         .push(
                             Button::new()

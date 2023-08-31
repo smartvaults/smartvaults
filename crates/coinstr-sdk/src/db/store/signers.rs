@@ -7,10 +7,9 @@ use std::str::FromStr;
 use coinstr_core::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::{SharedSigner, Signer};
-use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::EventId;
 
-use super::{Error, Store};
+use super::{Error, Store, StoreEncryption};
 use crate::db::model::{GetSharedSigner, GetSigner};
 
 impl Store {
@@ -32,11 +31,12 @@ impl Store {
 
     pub async fn save_signer(&self, signer_id: EventId, signer: Signer) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached(
                 "INSERT OR IGNORE INTO signers (signer_id, signer) VALUES (?, ?);",
             )?;
-            stmt.execute((signer_id.to_hex(), signer.encrypt_with_keys(&self.keys)?))?;
+            stmt.execute((signer_id.to_hex(), signer.encrypt(&cipher)?))?;
             tracing::info!("Saved signer {signer_id}");
             Ok(())
         })
@@ -45,16 +45,17 @@ impl Store {
 
     pub(crate) async fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached("SELECT signer_id, signer FROM signers;")?;
             let mut rows = stmt.query([])?;
             let mut list = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 let signer_id: String = row.get(0)?;
-                let signer: String = row.get(1)?;
+                let signer: Vec<u8> = row.get(1)?;
                 list.push(GetSigner {
                     signer_id: EventId::from_hex(signer_id)?,
-                    signer: Signer::decrypt_with_keys(&self.keys, signer)?,
+                    signer: Signer::decrypt(&cipher, signer)?,
                 });
             }
             Ok(list)
@@ -77,13 +78,14 @@ impl Store {
 
     pub async fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT signer FROM signers WHERE signer_id = ?;")?;
             let mut rows = stmt.query([signer_id.to_hex()])?;
             let row = rows.next()?.ok_or(Error::NotFound("signer".into()))?;
-            let signer: String = row.get(0)?;
-            Ok(Signer::decrypt_with_keys(&self.keys, signer)?)
+            let signer: Vec<u8> = row.get(0)?;
+            Ok(Signer::decrypt(&cipher, signer)?)
         })
         .await?
     }
@@ -214,16 +216,17 @@ let mut stmt = conn
         shared_signer: SharedSigner,
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-let mut stmt = conn
-            .prepare_cached("INSERT OR IGNORE INTO shared_signers (shared_signer_id, owner_public_key, shared_signer) VALUES (?, ?, ?);")?;
-        stmt.execute((
-            shared_signer_id.to_hex(),
-            owner_public_key.to_string(),
-            shared_signer.encrypt_with_keys(&self.keys)?,
-        ))?;
-        tracing::info!("Saved shared signer {shared_signer_id}");
-        Ok(())
+            let mut stmt = conn
+                .prepare_cached("INSERT OR IGNORE INTO shared_signers (shared_signer_id, owner_public_key, shared_signer) VALUES (?, ?, ?);")?;
+            stmt.execute((
+                shared_signer_id.to_hex(),
+                owner_public_key.to_string(),
+                shared_signer.encrypt(&cipher)?,
+            ))?;
+            tracing::info!("Saved shared signer {shared_signer_id}");
+            Ok(())
         }).await?
     }
 
@@ -311,6 +314,7 @@ let mut stmt = conn
 
     pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached(
                 "SELECT shared_signer_id, owner_public_key, shared_signer FROM shared_signers;",
@@ -320,11 +324,11 @@ let mut stmt = conn
             while let Ok(Some(row)) = rows.next() {
                 let shared_signer_id: String = row.get(0)?;
                 let public_key: String = row.get(1)?;
-                let shared_signer: String = row.get(2)?;
+                let shared_signer: Vec<u8> = row.get(2)?;
                 list.push(GetSharedSigner {
                     shared_signer_id: EventId::from_hex(shared_signer_id)?,
                     owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
-                    shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
+                    shared_signer: SharedSigner::decrypt(&cipher, shared_signer)?,
                 });
             }
             Ok(list)
@@ -352,22 +356,23 @@ let mut stmt = conn
         public_key: XOnlyPublicKey,
     ) -> Result<Vec<GetSharedSigner>, Error> {
         let conn = self.acquire().await?;
+        let cipher = self.cipher.clone();
         conn.interact(move |conn| {
-let mut stmt = conn.prepare_cached(
-            "SELECT shared_signer_id, shared_signer FROM shared_signers WHERE owner_public_key = ?;",
-        )?;
-        let mut rows = stmt.query([public_key.to_string()])?;
-        let mut list = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let shared_signer_id: String = row.get(0)?;
-            let shared_signer: String = row.get(1)?;
-            list.push(GetSharedSigner {
-                shared_signer_id: EventId::from_hex(shared_signer_id)?,
-                owner_public_key: public_key,
-                shared_signer: SharedSigner::decrypt_with_keys(&self.keys, shared_signer)?,
-            });
-        }
-        Ok(list)
+            let mut stmt = conn.prepare_cached(
+                "SELECT shared_signer_id, shared_signer FROM shared_signers WHERE owner_public_key = ?;",
+            )?;
+            let mut rows = stmt.query([public_key.to_string()])?;
+            let mut list = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let shared_signer_id: String = row.get(0)?;
+                let shared_signer: Vec<u8> = row.get(1)?;
+                list.push(GetSharedSigner {
+                    shared_signer_id: EventId::from_hex(shared_signer_id)?,
+                    owner_public_key: public_key,
+                    shared_signer: SharedSigner::decrypt(&cipher, shared_signer)?,
+                });
+            }
+            Ok(list)
         }).await?
     }
 }

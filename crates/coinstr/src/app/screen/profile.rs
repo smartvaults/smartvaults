@@ -37,9 +37,10 @@ impl State for ProfileState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loaded = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_profile().unwrap() }, |metadata| {
-            ProfileMessage::LoadProfile { metadata }.into()
-        })
+        Command::perform(
+            async move { client.get_profile().await.unwrap() },
+            |metadata| ProfileMessage::LoadProfile { metadata }.into(),
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {

@@ -184,7 +184,8 @@ impl Coinstr {
             util::dir::user_db(base_path, network, keys.public_key())?,
             &keys,
             network,
-        )?;
+        )
+        .await?;
 
         let opts = Options::new()
             .wait_for_connection(false)
@@ -409,7 +410,7 @@ impl Coinstr {
         self.client
             .handle_notifications(|notification: RelayPoolNotification| async move {
                 if let RelayPoolNotification::Stop = notification {
-                    self.db.wipe()?;
+                    self.db.wipe().await?;
                     self.client.clear_already_seen_events().await;
                     self.client.start().await;
                     self.sync();
@@ -437,12 +438,12 @@ impl Coinstr {
         S: Into<String>,
     {
         let url = Url::parse(&url.into())?;
-        self.db.insert_relay(&url, proxy)?;
-        self.db.enable_relay(&url)?;
+        self.db.insert_relay(url.clone(), proxy).await?;
+        self.db.enable_relay(url.clone()).await?;
         self.client.add_relay(url.as_str(), proxy).await?;
 
         let relay = self.client.relay(&url).await?;
-        let last_sync: Timestamp = match self.db.get_last_relay_sync(&url) {
+        let last_sync: Timestamp = match self.db.get_last_relay_sync(url.clone()).await {
             Ok(ts) => ts,
             Err(_) => Timestamp::from(0),
         };
@@ -475,7 +476,7 @@ impl Coinstr {
     }
 
     async fn load_nostr_connect_relays(&self) -> Result<(), Error> {
-        let relays = self.db.get_nostr_connect_sessions_relays()?;
+        let relays = self.db.get_nostr_connect_sessions_relays().await?;
         let relays = relays.into_iter().map(|r| (r, None)).collect();
         self.client.add_relays(relays).await?;
         Ok(())
@@ -484,7 +485,7 @@ impl Coinstr {
     /// Restore relays
     #[tracing::instrument(skip_all, level = "trace")]
     async fn restore_relays(&self) -> Result<(), Error> {
-        let relays = self.db.get_relays(true)?;
+        let relays = self.db.get_relays(true).await?;
         for (url, proxy) in relays.into_iter() {
             self.client.add_relay(url, proxy).await?;
         }
@@ -509,7 +510,7 @@ impl Coinstr {
         S: Into<String>,
     {
         let url = Url::parse(&url.into())?;
-        self.db.delete_relay(&url)?;
+        self.db.delete_relay(url.clone()).await?;
         Ok(self.client.remove_relay(url).await?)
     }
 
@@ -518,7 +519,7 @@ impl Coinstr {
         S: Into<String>,
     {
         let url = Url::parse(&url.into())?;
-        self.db.enable_relay(&url)?;
+        self.db.enable_relay(url.clone()).await?;
         self.client.connect_relay(url).await?;
         Ok(())
     }
@@ -528,7 +529,7 @@ impl Coinstr {
         S: Into<String>,
     {
         let url = Url::parse(&url.into())?;
-        self.db.disable_relay(&url)?;
+        self.db.disable_relay(url.clone()).await?;
         self.client.disconnect_relay(url).await?;
         Ok(())
     }
@@ -542,7 +543,7 @@ impl Coinstr {
     }
 
     async fn send_event(&self, event: Event) -> Result<EventId, Error> {
-        self.db.save_event(&event)?;
+        self.db.save_event(event.clone()).await?;
         Ok(self.client.send_event(event).await?)
     }
 
@@ -574,13 +575,13 @@ impl Coinstr {
         let keys = self.keys();
         let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
         self.send_event(event).await?;
-        self.db.set_metadata(keys.public_key(), metadata)?;
+        self.db.set_metadata(keys.public_key(), metadata).await?;
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_profile(&self) -> Result<Metadata, Error> {
-        Ok(self.db.get_metadata(self.keys().public_key())?)
+    pub async fn get_profile(&self) -> Result<Metadata, Error> {
+        Ok(self.db.get_metadata(self.keys().public_key()).await?)
     }
 
     /// Get [`Metadata`] of [`XOnlyPublicKey`]
@@ -607,8 +608,8 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
-        Ok(self.db.get_contacts_with_metadata()?)
+    pub async fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
+        Ok(self.db.get_contacts_with_metadata().await?)
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
@@ -616,14 +617,15 @@ impl Coinstr {
             // Add contact
             let mut contacts: Vec<Contact> = self
                 .db
-                .get_contacts_public_keys()?
+                .get_contacts_public_keys()
+                .await?
                 .into_iter()
                 .map(|p| Contact::new::<String>(p, None, None))
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
             let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
             self.send_event(event).await?;
-            self.db.save_contact(public_key)?;
+            self.db.save_contact(public_key).await?;
 
             // Request contact metadata
             self.client
@@ -643,45 +645,49 @@ impl Coinstr {
     pub async fn remove_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
         let contacts: Vec<Contact> = self
             .db
-            .get_contacts_public_keys()?
+            .get_contacts_public_keys()
+            .await?
             .into_iter()
             .filter(|p| p != &public_key)
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
         let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
         self.send_event(event).await?;
-        self.db.delete_contact(public_key)?;
+        self.db.delete_contact(public_key).await?;
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
-        Ok(self.db.get_policy(policy_id)?)
+    pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
+        Ok(self.db.get_policy(policy_id).await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
-        Ok(self.db.get_proposal(proposal_id)?)
+    pub async fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
+        Ok(self.db.get_proposal(proposal_id).await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_completed_proposal_by_id(
+    pub async fn get_completed_proposal_by_id(
         &self,
         completed_proposal_id: EventId,
     ) -> Result<GetCompletedProposal, Error> {
-        Ok(self.db.get_completed_proposal(completed_proposal_id)?)
+        Ok(self
+            .db
+            .get_completed_proposal(completed_proposal_id)
+            .await?)
     }
 
     pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
-        let Event { pubkey, .. } = self.db.get_event_by_id(policy_id)?;
+        let Event { pubkey, .. } = self.db.get_event_by_id(policy_id).await?;
 
         // Get nostr pubkeys and shared keys
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
-        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id).await?;
 
         if pubkey == shared_keys.public_key() {
             // Get all events linked to the policy
-            let event_ids = self.db.get_event_ids_linked_to_policy(policy_id)?;
+            let event_ids = self.db.get_event_ids_linked_to_policy(policy_id).await?;
 
             let mut tags: Vec<Tag> = nostr_pubkeys
                 .into_iter()
@@ -695,7 +701,7 @@ impl Coinstr {
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
             self.send_event(event).await?;
 
-            self.db.delete_policy(policy_id)?;
+            self.db.delete_policy(policy_id).await?;
 
             self.manager.unload_policy(policy_id).await?;
 
@@ -707,7 +713,7 @@ impl Coinstr {
 
     pub async fn delete_proposal_by_id(&self, proposal_id: EventId) -> Result<(), Error> {
         // Get the proposal
-        let proposal_event = self.db.get_event_by_id(proposal_id)?;
+        let proposal_event = self.db.get_event_by_id(proposal_id).await?;
         if proposal_event.kind != PROPOSAL_KIND {
             return Err(Error::ProposalNotFound);
         }
@@ -716,7 +722,7 @@ impl Coinstr {
             util::extract_first_event_id(&proposal_event).ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
-        let shared_keys = self.db.get_shared_key(policy_id)?;
+        let shared_keys = self.db.get_shared_key(policy_id).await?;
 
         if proposal_event.pubkey == shared_keys.public_key() {
             // Extract `p` tags from proposal event to notify users about proposal deletion
@@ -741,7 +747,7 @@ impl Coinstr {
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
             self.send_event(event).await?;
 
-            self.db.delete_proposal(proposal_id)?;
+            self.db.delete_proposal(proposal_id).await?;
 
             Ok(())
         } else {
@@ -754,7 +760,7 @@ impl Coinstr {
         completed_proposal_id: EventId,
     ) -> Result<(), Error> {
         // Get the completed proposal
-        let proposal_event = self.db.get_event_by_id(completed_proposal_id)?;
+        let proposal_event = self.db.get_event_by_id(completed_proposal_id).await?;
         if proposal_event.kind != COMPLETED_PROPOSAL_KIND {
             return Err(Error::ProposalNotFound);
         }
@@ -772,7 +778,7 @@ impl Coinstr {
             .ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
-        let shared_keys = self.db.get_shared_key(*policy_id)?;
+        let shared_keys = self.db.get_shared_key(*policy_id).await?;
 
         if proposal_event.pubkey == shared_keys.public_key() {
             // Extract `p` tags from proposal event to notify users about proposal deletion
@@ -786,7 +792,9 @@ impl Coinstr {
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
             self.send_event(event).await?;
 
-            self.db.delete_completed_proposal(completed_proposal_id)?;
+            self.db
+                .delete_completed_proposal(completed_proposal_id)
+                .await?;
 
             Ok(())
         } else {
@@ -828,24 +836,24 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_proposals_by_policy_id(
+    pub async fn get_proposals_by_policy_id(
         &self,
         policy_id: EventId,
     ) -> Result<Vec<GetProposal>, Error> {
-        Ok(self.db.get_proposals_by_policy_id(policy_id)?)
+        Ok(self.db.get_proposals_by_policy_id(policy_id).await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_approvals_by_proposal_id(
+    pub async fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
     ) -> Result<Vec<GetApproval>, Error> {
-        Ok(self.db.get_approvals_by_proposal_id(proposal_id)?)
+        Ok(self.db.get_approvals_by_proposal_id(proposal_id).await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
-        Ok(self.db.completed_proposals()?)
+    pub async fn get_completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
+        Ok(self.db.completed_proposals().await?)
     }
 
     pub async fn save_policy<S>(
@@ -880,7 +888,7 @@ impl Coinstr {
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
-            self.db.save_event(&event)?;
+            self.db.save_event(event.clone()).await?;
             self.client
                 .pool()
                 .send_msg(ClientMessage::new_event(event), None)
@@ -892,8 +900,10 @@ impl Coinstr {
         self.send_event(policy_event).await?;
 
         // Cache policy
-        self.db.save_shared_key(policy_id, shared_key)?;
-        self.db.save_policy(policy_id, &policy, nostr_pubkeys)?;
+        self.db.save_shared_key(policy_id, shared_key).await?;
+        self.db
+            .save_policy(policy_id, policy.clone(), nostr_pubkeys)
+            .await?;
 
         // Load policy
         self.manager.load_policy(policy_id, policy).await?;
@@ -962,7 +972,7 @@ impl Coinstr {
         let mut frozen_utxos: Option<Vec<OutPoint>> = None;
         if skip_frozen_utxos {
             let mut list = Vec::new();
-            let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id)?;
+            let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id).await?;
             for local_utxo in self.manager.get_utxos(policy_id).await?.into_iter() {
                 let hash = Sha256Hash::hash(local_utxo.outpoint.to_string().as_bytes());
                 if hashed_frozen_utxos.contains(&hash) {
@@ -989,10 +999,10 @@ impl Coinstr {
 
         if let Proposal::Spending { .. } = &proposal {
             // Get shared keys
-            let shared_key: Keys = self.db.get_shared_key(policy_id)?;
+            let shared_key: Keys = self.db.get_shared_key(policy_id).await?;
 
             // Compose the event
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
             let event: Event =
                 EventBuilder::proposal(&shared_key, policy_id, &proposal, &nostr_pubkeys)?;
             let proposal_id = self.send_event(event).await?;
@@ -1014,7 +1024,8 @@ impl Coinstr {
 
             // Cache proposal
             self.db
-                .save_proposal(proposal_id, policy_id, proposal.clone())?;
+                .save_proposal(proposal_id, policy_id, proposal.clone())
+                .await?;
 
             Ok(GetProposal {
                 proposal_id,
@@ -1079,8 +1090,8 @@ impl Coinstr {
             policy_id,
             proposal,
             ..
-        } = self.get_proposal_by_id(proposal_id)?;
-        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id)?;
+        } = self.get_proposal_by_id(proposal_id).await?;
+        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id).await?;
 
         // Sign PSBT
         // Custom signer
@@ -1095,11 +1106,11 @@ impl Coinstr {
         let approved_proposal = proposal.approve(&seed, vec![signer], self.network)?;
 
         // Get shared keys
-        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id).await?;
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
             .map(|p| Tag::PubKey(p, None))
@@ -1117,13 +1128,15 @@ impl Coinstr {
         let event_id = self.send_event(event).await?;
 
         // Cache approved proposal
-        self.db.save_approved_proposal(
-            proposal_id,
-            keys.public_key(),
-            event_id,
-            approved_proposal.clone(),
-            timestamp,
-        )?;
+        self.db
+            .save_approved_proposal(
+                proposal_id,
+                keys.public_key(),
+                event_id,
+                approved_proposal.clone(),
+                timestamp,
+            )
+            .await?;
 
         Ok((event_id, approved_proposal))
     }
@@ -1140,16 +1153,16 @@ impl Coinstr {
             policy_id,
             proposal,
             ..
-        } = self.get_proposal_by_id(proposal_id)?;
+        } = self.get_proposal_by_id(proposal_id).await?;
 
         let approved_proposal = proposal.approve_with_signed_psbt(signed_psbt)?;
 
         // Get shared keys
-        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id).await?;
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
             .map(|p| Tag::PubKey(p, None))
@@ -1167,13 +1180,15 @@ impl Coinstr {
         let event_id = self.send_event(event).await?;
 
         // Cache approved proposal
-        self.db.save_approved_proposal(
-            proposal_id,
-            keys.public_key(),
-            event_id,
-            approved_proposal.clone(),
-            timestamp,
-        )?;
+        self.db
+            .save_approved_proposal(
+                proposal_id,
+                keys.public_key(),
+                event_id,
+                approved_proposal.clone(),
+                timestamp,
+            )
+            .await?;
 
         Ok((event_id, approved_proposal))
     }
@@ -1195,11 +1210,11 @@ impl Coinstr {
         let approved_proposal = proposal.approve_with_hwi_signer(signer, self.network)?;
 
         // Get shared keys
-        let shared_keys: Keys = self.db.get_shared_key(policy_id)?;
+        let shared_keys: Keys = self.db.get_shared_key(policy_id).await?;
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
             .map(|p| Tag::PubKey(p, None))
@@ -1229,13 +1244,13 @@ impl Coinstr {
     } */
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        let Event { pubkey, .. } = self.db.get_event_by_id(approval_id)?;
+        let Event { pubkey, .. } = self.db.get_event_by_id(approval_id).await?;
         let keys = self.keys();
         if pubkey == keys.public_key() {
-            let policy_id = self.db.get_policy_id_by_approval_id(approval_id)?;
+            let policy_id = self.db.get_policy_id_by_approval_id(approval_id).await?;
 
             // Get nostr pubkeys linked to policy
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+            let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
 
             let mut tags: Vec<Tag> = nostr_pubkeys
                 .into_iter()
@@ -1246,7 +1261,7 @@ impl Coinstr {
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
             self.send_event(event).await?;
 
-            self.db.delete_approval(approval_id)?;
+            self.db.delete_approval(approval_id).await?;
 
             Ok(())
         } else {
@@ -1260,10 +1275,10 @@ impl Coinstr {
             policy_id,
             proposal,
             approved_proposals,
-        } = self.db.get_approved_proposals_by_id(proposal_id)?;
+        } = self.db.get_approved_proposals_by_id(proposal_id).await?;
 
-        let shared_keys = self.db.get_shared_key(policy_id)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let shared_keys = self.db.get_shared_key(policy_id).await?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
 
         // Finalize proposal
         let completed_proposal: CompletedProposal =
@@ -1302,9 +1317,10 @@ impl Coinstr {
         }
 
         // Cache
-        self.db.delete_proposal(proposal_id)?;
+        self.db.delete_proposal(proposal_id).await?;
         self.db
-            .save_completed_proposal(event_id, policy_id, completed_proposal.clone())?;
+            .save_completed_proposal(event_id, policy_id, completed_proposal.clone())
+            .await?;
 
         Ok(completed_proposal)
     }
@@ -1323,10 +1339,10 @@ impl Coinstr {
         let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message).await?;
 
         // Get shared keys
-        let shared_keys = self.db.get_shared_key(policy_id)?;
+        let shared_keys = self.db.get_shared_key(policy_id).await?;
 
         // Compose the event
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .iter()
             .map(|p| Tag::PubKey(*p, None))
@@ -1350,7 +1366,8 @@ impl Coinstr {
 
         // Cache proposal
         self.db
-            .save_proposal(proposal_id, policy_id, proposal.clone())?;
+            .save_proposal(proposal_id, policy_id, proposal.clone())
+            .await?;
 
         Ok((proposal_id, proposal, policy_id))
     }
@@ -1360,7 +1377,9 @@ impl Coinstr {
             proposal,
             policy_id,
             ..
-        } = self.get_completed_proposal_by_id(completed_proposal_id)?;
+        } = self
+            .get_completed_proposal_by_id(completed_proposal_id)
+            .await?;
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
             Ok(self.manager.verify_proof(policy_id, &psbt, message).await?)
         } else {
@@ -1398,8 +1417,9 @@ impl Coinstr {
             });
         }
 
-        let descriptions: HashMap<Txid, String> = self.db.get_txs_descriptions(policy_id)?;
-        let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
+        let descriptions: HashMap<Txid, String> = self.db.get_txs_descriptions(policy_id).await?;
+        let script_labels: HashMap<ScriptBuf, Label> =
+            self.db.get_addresses_labels(policy_id).await?;
 
         let mut list: Vec<GetTransaction> = Vec::new();
 
@@ -1437,7 +1457,7 @@ impl Coinstr {
             let mut label = None;
             for txout in tx.output.iter() {
                 if wallet.is_mine(&txout.script_pubkey).await {
-                    let shared_key = self.db.get_shared_key(policy_id)?;
+                    let shared_key = self.db.get_shared_key(policy_id).await?;
                     let address = Address::from_script(&txout.script_pubkey, self.network)?;
                     let identifier: String =
                         LabelData::Address(Address::new(self.network, address.payload))
@@ -1445,6 +1465,7 @@ impl Coinstr {
                     label = self
                         .db
                         .get_label_by_identifier(identifier)
+                        .await
                         .ok()
                         .map(|l| l.text());
                     break;
@@ -1453,7 +1474,7 @@ impl Coinstr {
             label
         } else {
             // TODO: try to get UTXO label?
-            self.db.get_description_by_txid(policy_id, txid)?
+            self.db.get_description_by_txid(policy_id, txid).await?
         };
 
         Ok(GetTransaction {
@@ -1471,13 +1492,14 @@ impl Coinstr {
     ) -> Result<GetAddress, Error> {
         let address = self.manager.get_address(policy_id, index).await?.address;
 
-        let shared_key = self.db.get_shared_key(policy_id)?;
+        let shared_key = self.db.get_shared_key(policy_id).await?;
         let address = Address::new(self.network, address.payload);
         let identifier: String =
             LabelData::Address(address.clone()).generate_identifier(&shared_key)?;
         let label = self
             .db
             .get_label_by_identifier(identifier)
+            .await
             .ok()
             .map(|l| l.text());
         Ok(GetAddress { address, label })
@@ -1490,7 +1512,8 @@ impl Coinstr {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
-        let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
+        let script_labels: HashMap<ScriptBuf, Label> =
+            self.db.get_addresses_labels(policy_id).await?;
         Ok(self
             .manager
             .get_addresses(policy_id)
@@ -1517,9 +1540,10 @@ impl Coinstr {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         // Get labels
-        let script_labels: HashMap<ScriptBuf, Label> = self.db.get_addresses_labels(policy_id)?;
-        let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id)?;
-        let frozen_utxos: HashSet<Sha256Hash> = self.db.get_frozen_utxos(policy_id)?;
+        let script_labels: HashMap<ScriptBuf, Label> =
+            self.db.get_addresses_labels(policy_id).await?;
+        let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id).await?;
+        let frozen_utxos: HashSet<Sha256Hash> = self.db.get_frozen_utxos(policy_id).await?;
 
         // Compose output
         Ok(self
@@ -1598,7 +1622,7 @@ impl Coinstr {
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {
         let pool = self.client.pool();
-        let events: Vec<Event> = self.db.get_events()?;
+        let events: Vec<Event> = self.db.get_events().await?;
         for event in events.into_iter() {
             pool.send_msg(ClientMessage::new_event(event), None).await?;
         }
@@ -1612,7 +1636,7 @@ impl Coinstr {
     {
         let url: String = url.into();
         let pool = self.client.pool();
-        let events: Vec<Event> = self.db.get_events()?;
+        let events: Vec<Event> = self.db.get_events().await?;
         for event in events.into_iter() {
             pool.send_msg_to(&*url, ClientMessage::new_event(event), None)
                 .await?;
@@ -1623,8 +1647,8 @@ impl Coinstr {
 
     pub async fn republish_shared_key_for_policy(&self, policy_id: EventId) -> Result<(), Error> {
         let keys = self.client.keys();
-        let shared_key = self.db.get_shared_key(policy_id)?;
-        let pubkeys = self.db.get_nostr_pubkeys(policy_id)?;
+        let shared_key = self.db.get_shared_key(policy_id).await?;
+        let pubkeys = self.db.get_nostr_pubkeys(policy_id).await?;
         // Publish the shared key
         for pubkey in pubkeys.iter() {
             let encrypted_shared_key = nips::nip04::encrypt(
@@ -1644,7 +1668,7 @@ impl Coinstr {
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
-            self.db.save_event(&event)?;
+            self.db.save_event(event.clone()).await?;
             self.client
                 .pool()
                 .send_msg(ClientMessage::new_event(event), None)
@@ -1655,9 +1679,9 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
-        let GetPolicy { policy, .. } = self.db.get_policy(policy_id)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id)?;
+    pub async fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
+        let GetPolicy { policy, .. } = self.db.get_policy(policy_id).await?;
+        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         Ok(PolicyBackup::new(
             policy.name,
             policy.description,
@@ -1667,37 +1691,37 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn save_policy_backup<P>(&self, policy_id: EventId, path: P) -> Result<(), Error>
+    pub async fn save_policy_backup<P>(&self, policy_id: EventId, path: P) -> Result<(), Error>
     where
         P: AsRef<Path>,
     {
-        let backup = self.export_policy_backup(policy_id)?;
+        let backup = self.export_policy_backup(policy_id).await?;
         backup.save(path)?;
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
-        Ok(self.db.get_notifications()?)
+    pub async fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
+        Ok(self.db.get_notifications().await?)
     }
 
-    pub fn count_unseen_notifications(&self) -> Result<usize, Error> {
-        Ok(self.db.count_unseen_notifications()?)
+    pub async fn count_unseen_notifications(&self) -> Result<usize, Error> {
+        Ok(self.db.count_unseen_notifications().await?)
     }
 
-    pub fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
-        Ok(self.db.mark_all_notifications_as_seen()?)
+    pub async fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
+        Ok(self.db.mark_all_notifications_as_seen().await?)
     }
 
-    pub fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
-        Ok(self.db.mark_notification_as_seen_by_id(event_id)?)
+    pub async fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
+        Ok(self.db.mark_notification_as_seen_by_id(event_id).await?)
     }
 
-    pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
-        Ok(self.db.mark_notification_as_seen(notification)?)
+    pub async fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
+        Ok(self.db.mark_notification_as_seen(notification).await?)
     }
 
-    pub fn delete_all_notifications(&self) -> Result<(), Error> {
-        Ok(self.db.delete_all_notifications()?)
+    pub async fn delete_all_notifications(&self) -> Result<(), Error> {
+        Ok(self.db.delete_all_notifications().await?)
     }
 }

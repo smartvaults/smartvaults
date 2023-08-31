@@ -38,7 +38,7 @@ impl State for HistoryState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.get_completed_proposals().unwrap() },
+            async move { client.get_completed_proposals().await.unwrap() },
             |p| HistoryMessage::LoadCompletedProposals(p).into(),
         )
     }

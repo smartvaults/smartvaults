@@ -89,15 +89,19 @@ impl State for PolicyState {
         self.loading = true;
         Command::perform(
             async move {
-                client.mark_notification_as_seen_by_id(policy_id).ok()?;
+                client
+                    .mark_notification_as_seen_by_id(policy_id)
+                    .await
+                    .ok()?;
                 let GetPolicy {
                     policy, last_sync, ..
-                } = client.get_policy_by_id(policy_id).ok()?;
+                } = client.get_policy_by_id(policy_id).await.ok()?;
                 let balance = client.get_balance(policy_id).await;
                 let list = client.get_txs(policy_id, true).await.ok()?;
-                let proposals = client.get_proposals_by_policy_id(policy_id).ok()?;
+                let proposals = client.get_proposals_by_policy_id(policy_id).await.ok()?;
                 let signer = client
                     .search_signer_by_descriptor(policy.descriptor.clone())
+                    .await
                     .ok();
                 Some((policy, proposals, signer, balance, list, last_sync))
             },
@@ -152,10 +156,15 @@ impl State for PolicyState {
                         .save_file();
 
                     if let Some(path) = path {
-                        match ctx.client.save_policy_backup(self.policy_id, &path) {
-                            Ok(_) => tracing::info!("Exported policy backup to {}", path.display()),
-                            Err(e) => tracing::error!("Impossible to create file: {e}"),
-                        }
+                        let policy_id = self.policy_id;
+                        let client = ctx.client.clone();
+                        return Command::perform(
+                            async move { client.save_policy_backup(policy_id, path).await },
+                            move |res| match res {
+                                Ok(_) => PolicyMessage::Reload.into(),
+                                Err(e) => PolicyMessage::ErrorChanged(Some(e.to_string())).into(),
+                            },
+                        );
                     }
                 }
                 PolicyMessage::Delete => {
@@ -174,7 +183,7 @@ impl State for PolicyState {
                         self.loading = true;
                         return Command::perform(
                             async move {
-                                client.save_policy_backup(policy_id, &path)?;
+                                client.save_policy_backup(policy_id, &path).await?;
                                 client.delete_policy_by_id(policy_id).await?;
                                 Ok::<(), Box<dyn std::error::Error>>(())
                             },

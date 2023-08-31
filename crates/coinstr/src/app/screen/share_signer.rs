@@ -61,12 +61,13 @@ impl State for ShareSignerState {
         let signer_id = self.signer_id;
         Command::perform(
             async move {
-                let contacts = client.get_contacts().unwrap();
+                let contacts = client.get_contacts().await.unwrap();
                 let mut already_shared_with: Vec<XOnlyPublicKey> = Vec::new();
                 for public_key in contacts.keys() {
                     if client
                         .db
                         .my_shared_signer_already_shared(signer_id, *public_key)
+                        .await
                         .unwrap()
                     {
                         already_shared_with.push(*public_key);

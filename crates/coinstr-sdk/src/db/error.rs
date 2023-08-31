@@ -3,11 +3,11 @@
 
 use coinstr_core::policy;
 use coinstr_protocol::v1::util::serde::Error as SerdeError;
-use coinstr_protocol::v1::util::EncryptionError;
 use deadpool_sqlite::{CreatePoolError, InteractError, PoolError};
 use nostr_sdk::event;
 use nostr_sdk::event::id;
 
+use super::encryption::Error as EncryptionError;
 use super::migration::MigrationError;
 
 /// Store error

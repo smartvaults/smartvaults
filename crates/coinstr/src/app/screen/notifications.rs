@@ -41,13 +41,16 @@ impl State for NotificationsState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         let client = ctx.client.clone();
         self.loading = true;
-        Command::perform(async move { client.get_notifications() }, |res| match res {
-            Ok(list) => NotificationsMessage::LoadNotifications(list).into(),
-            Err(e) => {
-                tracing::error!("Impossible to load notifications: {e}");
-                Message::View(Stage::Dashboard)
-            }
-        })
+        Command::perform(
+            async move { client.get_notifications().await },
+            |res| match res {
+                Ok(list) => NotificationsMessage::LoadNotifications(list).into(),
+                Err(e) => {
+                    tracing::error!("Impossible to load notifications: {e}");
+                    Message::View(Stage::Dashboard)
+                }
+            },
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -66,7 +69,10 @@ impl State for NotificationsState {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move {
-                            client.mark_notification_as_seen(notification).unwrap();
+                            client
+                                .mark_notification_as_seen(notification)
+                                .await
+                                .unwrap();
                             match notification {
                                 Notification::NewPolicy(id) => Message::View(Stage::Policy(id)),
                                 Notification::NewProposal(id) => Message::View(Stage::Proposal(id)),
@@ -87,14 +93,14 @@ impl State for NotificationsState {
                 NotificationsMessage::MarkAllAsSeen => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.mark_all_notifications_as_seen().unwrap() },
+                        async move { client.mark_all_notifications_as_seen().await.unwrap() },
                         |_| NotificationsMessage::Reload.into(),
                     );
                 }
                 NotificationsMessage::DeleteAll => {
                     let client = ctx.client.clone();
                     return Command::perform(
-                        async move { client.delete_all_notifications().unwrap() },
+                        async move { client.delete_all_notifications().await.unwrap() },
                         |_| NotificationsMessage::Reload.into(),
                     );
                 }

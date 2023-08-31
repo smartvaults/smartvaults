@@ -20,7 +20,7 @@ impl Coinstr {
         let relay = self.client.relay(&relay_url).await?;
         relay.connect(true).await;
 
-        let last_sync: Timestamp = match self.db.get_last_relay_sync(&relay_url) {
+        let last_sync: Timestamp = match self.db.get_last_relay_sync(relay_url.clone()).await {
             Ok(ts) => ts,
             Err(e) => {
                 tracing::error!("Impossible to get last relay sync: {e}");
@@ -37,14 +37,16 @@ impl Coinstr {
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
         self.client.send_event_to(relay_url, nip46_event).await?;
 
-        self.db.save_nostr_connect_uri(uri)?;
+        self.db.save_nostr_connect_uri(uri).await?;
 
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_nostr_connect_sessions(&self) -> Result<Vec<(NostrConnectURI, Timestamp)>, Error> {
-        Ok(self.db.get_nostr_connect_sessions()?)
+    pub async fn get_nostr_connect_sessions(
+        &self,
+    ) -> Result<Vec<(NostrConnectURI, Timestamp)>, Error> {
+        Ok(self.db.get_nostr_connect_sessions().await?)
     }
 
     pub(crate) async fn _disconnect_nostr_connect_session(
@@ -52,7 +54,7 @@ impl Coinstr {
         app_public_key: XOnlyPublicKey,
         wait: bool,
     ) -> Result<(), Error> {
-        let uri = self.db.get_nostr_connect_session(app_public_key)?;
+        let uri = self.db.get_nostr_connect_session(app_public_key).await?;
         let keys = self.client.keys();
         let msg = NIP46Message::request(NIP46Request::Disconnect);
         let nip46_event =
@@ -67,7 +69,7 @@ impl Coinstr {
                 .send_msg_to(uri.relay_url, ClientMessage::new_event(nip46_event), None)
                 .await?;
         }
-        self.db.delete_nostr_connect_session(app_public_key)?;
+        self.db.delete_nostr_connect_session(app_public_key).await?;
         Ok(())
     }
 
@@ -80,11 +82,11 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_nostr_connect_requests(
+    pub async fn get_nostr_connect_requests(
         &self,
         approved: bool,
     ) -> Result<Vec<NostrConnectRequest>, Error> {
-        Ok(self.db.get_nostr_connect_requests(approved)?)
+        Ok(self.db.get_nostr_connect_requests(approved).await?)
     }
 
     pub async fn approve_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
@@ -93,9 +95,9 @@ impl Coinstr {
             message,
             approved,
             ..
-        } = self.db.get_nostr_connect_request(event_id)?;
+        } = self.db.get_nostr_connect_request(event_id).await?;
         if !approved {
-            let uri = self.db.get_nostr_connect_session(app_public_key)?;
+            let uri = self.db.get_nostr_connect_session(app_public_key).await?;
             let keys = self.client.keys();
             let msg = message
                 .generate_response(&keys)?
@@ -105,7 +107,9 @@ impl Coinstr {
             self.client
                 .send_event_to(uri.relay_url, nip46_event)
                 .await?;
-            self.db.set_nostr_connect_request_as_approved(event_id)?;
+            self.db
+                .set_nostr_connect_request_as_approved(event_id)
+                .await?;
             Ok(())
         } else {
             Err(Error::NostrConnectRequestAlreadyApproved)
@@ -118,9 +122,9 @@ impl Coinstr {
             message,
             approved,
             ..
-        } = self.db.get_nostr_connect_request(event_id)?;
+        } = self.db.get_nostr_connect_request(event_id).await?;
         if !approved {
-            let uri = self.db.get_nostr_connect_session(app_public_key)?;
+            let uri = self.db.get_nostr_connect_session(app_public_key).await?;
             let keys = self.client.keys();
             let msg = message.generate_error_response("Request rejected")?; // TODO: better error msg
             let nip46_event =
@@ -128,7 +132,7 @@ impl Coinstr {
             self.client
                 .send_event_to(uri.relay_url, nip46_event)
                 .await?;
-            self.db.delete_nostr_connect_request(event_id)?;
+            self.db.delete_nostr_connect_request(event_id).await?;
             Ok(())
         } else {
             Err(Error::NostrConnectRequestAlreadyApproved)

@@ -106,10 +106,13 @@ impl Coinstr {
                                         match manager.sync(policy_id, endpoint, proxy).await {
                                             Ok(_) => {
                                                 tracing::info!("Policy {policy_id} synced");
-                                                if let Err(e) = db.update_last_sync(
-                                                    policy_id,
-                                                    Some(Timestamp::now()),
-                                                ) {
+                                                if let Err(e) = db
+                                                    .update_last_sync(
+                                                        policy_id,
+                                                        Some(Timestamp::now()),
+                                                    )
+                                                    .await
+                                                {
                                                     tracing::error!(
                                                         "Impossible to save last policy sync: {e}"
                                                     );
@@ -144,7 +147,7 @@ impl Coinstr {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                match this.db.get_pending_events() {
+                match this.db.get_pending_events().await {
                     Ok(events) => {
                         for event in events.into_iter() {
                             let event_id = event.id;
@@ -267,13 +270,14 @@ impl Coinstr {
                 let rebroadcaster = this.rebroadcaster();
 
                 for (relay_url, relay) in this.client.relays().await {
-                    let last_sync: Timestamp = match this.db.get_last_relay_sync(&relay_url) {
-                        Ok(ts) => ts,
-                        Err(e) => {
-                            tracing::error!("Impossible to get last relay sync: {e}");
-                            Timestamp::from(0)
-                        }
-                    };
+                    let last_sync: Timestamp =
+                        match this.db.get_last_relay_sync(relay_url.clone()).await {
+                            Ok(ts) => ts,
+                            Err(e) => {
+                                tracing::error!("Impossible to get last relay sync: {e}");
+                                Timestamp::from(0)
+                            }
+                        };
                     let filters = this.sync_filters(last_sync);
                     if let Err(e) = relay.subscribe(filters, None).await {
                         tracing::error!("Impossible to subscribe to {relay_url}: {e}");
@@ -300,7 +304,7 @@ impl Coinstr {
                                             if subscription.id() == subscription_id {
                                                 if let Err(e) = this
                                                     .db
-                                                    .save_last_relay_sync(&relay_url, Timestamp::now())
+                                                    .save_last_relay_sync(relay_url, Timestamp::now()).await
                                                 {
                                                     tracing::error!("Impossible to save last relay sync: {e}");
                                                 }
@@ -331,13 +335,13 @@ impl Coinstr {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        if self.db.event_was_deleted(event.id)? {
+        if self.db.event_was_deleted(event.id).await? {
             tracing::warn!("Received an event that was deleted: {}", event.id);
             return Ok(());
         }
 
         if event.kind != Kind::NostrConnect {
-            if let Err(e) = self.db.save_event(&event) {
+            if let Err(e) = self.db.save_event(event.clone()).await {
                 tracing::error!("Impossible to save event {}: {e}", event.id);
             }
         }
@@ -349,12 +353,12 @@ impl Coinstr {
                 let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
-                self.db.save_shared_key(policy_id, shared_key)?;
+                self.db.save_shared_key(policy_id, shared_key).await?;
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::SharedKey(event.id)))?;
             }
-        } else if event.kind == POLICY_KIND && !self.db.policy_exists(event.id)? {
-            if let Ok(shared_key) = self.db.get_shared_key(event.id) {
+        } else if event.kind == POLICY_KIND && !self.db.policy_exists(event.id).await? {
+            if let Ok(shared_key) = self.db.get_shared_key(event.id).await {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
                 for tag in event.tags.iter() {
@@ -365,57 +369,61 @@ impl Coinstr {
                 if nostr_pubkeys.is_empty() {
                     tracing::error!("Policy {} not contains any nostr pubkey", event.id);
                 } else {
-                    self.db.save_policy(event.id, &policy, nostr_pubkeys)?;
+                    self.db
+                        .save_policy(event.id, policy.clone(), nostr_pubkeys)
+                        .await?;
                     self.manager.load_policy(event.id, policy).await?;
                     let notification = Notification::NewPolicy(event.id);
-                    self.db.save_notification(event.id, notification)?;
+                    self.db.save_notification(event.id, notification).await?;
                     self.sync_channel
                         .send(Message::Notification(notification))?;
                     self.sync_channel
                         .send(Message::EventHandled(EventHandled::Policy(event.id)))?;
                 }
             } else {
-                self.db.save_pending_event(&event)?;
+                self.db.save_pending_event(event.clone()).await?;
             }
-        } else if event.kind == PROPOSAL_KIND && !self.db.proposal_exists(event.id)? {
+        } else if event.kind == PROPOSAL_KIND && !self.db.proposal_exists(event.id).await? {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
-                if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
+                if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
-                    self.db.save_proposal(event.id, policy_id, proposal)?;
+                    self.db.save_proposal(event.id, policy_id, proposal).await?;
                     let notification = Notification::NewProposal(event.id);
-                    self.db.save_notification(event.id, notification)?;
+                    self.db.save_notification(event.id, notification).await?;
                     self.sync_channel
                         .send(Message::Notification(notification))?;
                     self.sync_channel
                         .send(Message::EventHandled(EventHandled::Proposal(event.id)))?;
                 } else {
-                    self.db.save_pending_event(&event)?;
+                    self.db.save_pending_event(event.clone()).await?;
                 }
             } else {
                 tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
         } else if event.kind == APPROVED_PROPOSAL_KIND
-            && !self.db.approved_proposal_exists(event.id)?
+            && !self.db.approved_proposal_exists(event.id).await?
         {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
-                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {
+                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
                         let approved_proposal =
                             ApprovedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db.save_approved_proposal(
-                            proposal_id,
-                            event.pubkey,
-                            event.id,
-                            approved_proposal,
-                            event.created_at,
-                        )?;
+                        self.db
+                            .save_approved_proposal(
+                                proposal_id,
+                                event.pubkey,
+                                event.id,
+                                approved_proposal,
+                                event.created_at,
+                            )
+                            .await?;
                         let notification = Notification::NewApproval {
                             proposal_id,
                             public_key: event.pubkey,
                         };
-                        self.db.save_notification(event.id, notification)?;
+                        self.db.save_notification(event.id, notification).await?;
                         self.sync_channel
                             .send(Message::Notification(notification))?;
                         self.sync_channel
@@ -423,7 +431,7 @@ impl Coinstr {
                                 proposal_id,
                             }))?;
                     } else {
-                        self.db.save_pending_event(&event)?;
+                        self.db.save_pending_event(event.clone()).await?;
                     }
                 } else {
                     tracing::error!("Impossible to find policy id in proposal {}", event.id);
@@ -435,10 +443,10 @@ impl Coinstr {
                 );
             }
         } else if event.kind == COMPLETED_PROPOSAL_KIND
-            && !self.db.completed_proposal_exists(event.id)?
+            && !self.db.completed_proposal_exists(event.id).await?
         {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
-                self.db.delete_proposal(proposal_id)?;
+                self.db.delete_proposal(proposal_id).await?;
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
@@ -452,23 +460,21 @@ impl Coinstr {
                         }
                     } */
 
-                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id) {
+                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
                         let completed_proposal =
                             CompletedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db.save_completed_proposal(
-                            event.id,
-                            *policy_id,
-                            completed_proposal,
-                        )?;
+                        self.db
+                            .save_completed_proposal(event.id, *policy_id, completed_proposal)
+                            .await?;
                         let notification = Notification::NewCompletedProposal(event.id);
-                        self.db.save_notification(event.id, notification)?;
+                        self.db.save_notification(event.id, notification).await?;
                         self.sync_channel
                             .send(Message::Notification(notification))?;
                         self.sync_channel.send(Message::EventHandled(
                             EventHandled::CompletedProposal(event.id),
                         ))?;
                     } else {
-                        self.db.save_pending_event(&event)?;
+                        self.db.save_pending_event(event.clone()).await?;
                     }
                 } else {
                     tracing::error!(
@@ -480,7 +486,7 @@ impl Coinstr {
         } else if event.kind == SIGNERS_KIND {
             let keys = self.client.keys();
             let signer = Signer::decrypt_with_keys(&keys, event.content)?;
-            self.db.save_signer(event.id, signer)?;
+            self.db.save_signer(event.id, signer).await?;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Signer(event.id)))?;
         } else if event.kind == SHARED_SIGNERS_KIND {
@@ -491,7 +497,8 @@ impl Coinstr {
                 let signer_id =
                     util::extract_first_event_id(&event).ok_or(Error::SignerIdNotFound)?;
                 self.db
-                    .save_my_shared_signer(signer_id, event.id, public_key)?;
+                    .save_my_shared_signer(signer_id, event.id, public_key)
+                    .await?;
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::MySharedSigner(
                         event.id,
@@ -501,12 +508,13 @@ impl Coinstr {
                     nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
                 let shared_signer = SharedSigner::from_json(shared_signer)?;
                 self.db
-                    .save_shared_signer(event.id, event.pubkey, shared_signer)?;
+                    .save_shared_signer(event.id, event.pubkey, shared_signer)
+                    .await?;
                 let notification = Notification::NewSharedSigner {
                     shared_signer_id: event.id,
                     owner_public_key: event.pubkey,
                 };
-                self.db.save_notification(event.id, notification)?;
+                self.db.save_notification(event.id, notification).await?;
                 self.sync_channel
                     .send(Message::Notification(notification))?;
                 self.sync_channel
@@ -515,13 +523,13 @@ impl Coinstr {
         } else if event.kind == LABELS_KIND {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
                 if let Some(identifier) = util::extract_first_identifier(&event) {
-                    if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
+                    if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                         let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
                         self.db.save_label(identifier, policy_id, label).await?;
                         self.sync_channel
                             .send(Message::EventHandled(EventHandled::Label))?;
                     } else {
-                        self.db.save_pending_event(&event)?;
+                        self.db.save_pending_event(event.clone()).await?;
                     }
                 } else {
                     tracing::error!("Label identifier not found in event {}", event.id);
@@ -532,9 +540,9 @@ impl Coinstr {
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event(event_id, ..) = tag {
-                    if let Ok(Event { pubkey, .. }) = self.db.get_event_by_id(*event_id) {
+                    if let Ok(Event { pubkey, .. }) = self.db.get_event_by_id(*event_id).await {
                         if pubkey == event.pubkey {
-                            self.db.delete_generic_event_id(*event_id)?;
+                            self.db.delete_generic_event_id(*event_id).await?;
                         } else {
                             tracing::warn!(
                                 "{pubkey} tried to delete an event not owned by him: {event_id}"

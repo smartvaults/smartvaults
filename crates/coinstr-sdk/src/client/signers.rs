@@ -17,14 +17,17 @@ use crate::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
 
 impl Coinstr {
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        Ok(self.db.get_signer_by_id(signer_id)?)
+    pub async fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
+        Ok(self.db.get_signer_by_id(signer_id).await?)
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
         let keys = self.client.keys();
 
-        let my_shared_signers = self.db.get_my_shared_signers_by_signer_id(signer_id)?;
+        let my_shared_signers = self
+            .db
+            .get_my_shared_signers_by_signer_id(signer_id)
+            .await?;
         let mut tags: Vec<Tag> = Vec::new();
 
         tags.push(Tag::Event(signer_id, None, None));
@@ -37,7 +40,7 @@ impl Coinstr {
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
         self.send_event(event).await?;
 
-        self.db.delete_signer(signer_id)?;
+        self.db.delete_signer(signer_id).await?;
 
         Ok(())
     }
@@ -45,7 +48,11 @@ impl Coinstr {
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
         let keys = self.client.keys();
 
-        if self.db.signer_descriptor_exists(signer.descriptor())? {
+        if self
+            .db
+            .signer_descriptor_exists(signer.descriptor())
+            .await?
+        {
             return Err(Error::SignerDescriptorAlreadyExists);
         }
 
@@ -59,14 +66,17 @@ impl Coinstr {
         let signer_id = self.send_event(event).await?;
 
         // Save signer in db
-        self.db.save_signer(signer_id, signer)?;
+        self.db.save_signer(signer_id, signer).await?;
 
         Ok(signer_id)
     }
 
-    pub fn coinstr_signer_exists(&self) -> Result<bool, Error> {
+    pub async fn coinstr_signer_exists(&self) -> Result<bool, Error> {
         let signer = coinstr_signer(self.keechain.keychain.seed(), self.network)?;
-        Ok(self.db.signer_descriptor_exists(signer.descriptor())?)
+        Ok(self
+            .db
+            .signer_descriptor_exists(signer.descriptor())
+            .await?)
     }
 
     pub async fn save_coinstr_signer(&self) -> Result<EventId, Error> {
@@ -75,25 +85,25 @@ impl Coinstr {
     }
 
     /// Get all own signers and contacts shared signers
-    pub fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
+    pub async fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
         Ok(GetAllSigners {
-            my: self.get_signers()?,
-            contacts: self.get_shared_signers()?,
+            my: self.get_signers().await?,
+            contacts: self.get_shared_signers().await?,
         })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
-        Ok(self.db.get_signers()?)
+    pub async fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
+        Ok(self.db.get_signers().await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn search_signer_by_descriptor(
+    pub async fn search_signer_by_descriptor(
         &self,
         descriptor: Descriptor<String>,
     ) -> Result<Signer, Error> {
         let descriptor: String = descriptor.to_string();
-        for GetSigner { signer, .. } in self.db.get_signers()?.into_iter() {
+        for GetSigner { signer, .. } in self.db.get_signers().await?.into_iter() {
             let signer_descriptor = signer.descriptor_public_key()?.to_string();
             if descriptor.contains(&signer_descriptor) {
                 return Ok(signer);
@@ -109,10 +119,11 @@ impl Coinstr {
     ) -> Result<EventId, Error> {
         if !self
             .db
-            .my_shared_signer_already_shared(signer_id, public_key)?
+            .my_shared_signer_already_shared(signer_id, public_key)
+            .await?
         {
             let keys: Keys = self.client.keys();
-            let signer: Signer = self.get_signer_by_id(signer_id)?;
+            let signer: Signer = self.get_signer_by_id(signer_id).await?;
             let shared_signer: SharedSigner = signer.to_shared_signer();
             let content: String =
                 nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
@@ -124,7 +135,8 @@ impl Coinstr {
                 EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
             let event_id = self.send_event(event).await?;
             self.db
-                .save_my_shared_signer(signer_id, event_id, public_key)?;
+                .save_my_shared_signer(signer_id, event_id, public_key)
+                .await?;
             Ok(event_id)
         } else {
             Err(Error::SignerAlreadyShared)
@@ -141,13 +153,14 @@ impl Coinstr {
         }
 
         let keys: Keys = self.client.keys();
-        let signer: Signer = self.get_signer_by_id(signer_id)?;
+        let signer: Signer = self.get_signer_by_id(signer_id).await?;
         let shared_signer: SharedSigner = signer.to_shared_signer();
 
         for public_key in public_keys.into_iter() {
             if self
                 .db
-                .my_shared_signer_already_shared(signer_id, public_key)?
+                .my_shared_signer_already_shared(signer_id, public_key)
+                .await?
             {
                 tracing::warn!("Signer {signer_id} already shared with {public_key}");
             } else {
@@ -162,14 +175,15 @@ impl Coinstr {
                 let event_id: EventId = event.id;
 
                 // TODO: use send_batch_event method from nostr-sdk
-                self.db.save_event(&event)?;
+                self.db.save_event(event.clone()).await?;
                 self.client
                     .pool()
                     .send_msg(ClientMessage::new_event(event), None)
                     .await?;
 
                 self.db
-                    .save_my_shared_signer(signer_id, event_id, public_key)?;
+                    .save_my_shared_signer(signer_id, event_id, public_key)
+                    .await?;
             }
         }
 
@@ -178,14 +192,14 @@ impl Coinstr {
 
     pub async fn revoke_all_shared_signers(&self) -> Result<(), Error> {
         let keys = self.client.keys();
-        for (shared_signer_id, public_key) in self.db.get_my_shared_signers()?.into_iter() {
+        for (shared_signer_id, public_key) in self.db.get_my_shared_signers().await?.into_iter() {
             let tags = &[
                 Tag::PubKey(public_key, None),
                 Tag::Event(shared_signer_id, None, None),
             ];
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
             self.send_event(event).await?;
-            self.db.delete_shared_signer(shared_signer_id)?;
+            self.db.delete_shared_signer(shared_signer_id).await?;
         }
         Ok(())
     }
@@ -194,48 +208,52 @@ impl Coinstr {
         let keys = self.client.keys();
         let public_key = self
             .db
-            .get_public_key_for_my_shared_signer(shared_signer_id)?;
+            .get_public_key_for_my_shared_signer(shared_signer_id)
+            .await?;
         let tags = &[
             Tag::PubKey(public_key, None),
             Tag::Event(shared_signer_id, None, None),
         ];
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
         self.send_event(event).await?;
-        self.db.delete_shared_signer(shared_signer_id)?;
+        self.db.delete_shared_signer(shared_signer_id).await?;
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_my_shared_signers_by_signer_id(
+    pub async fn get_my_shared_signers_by_signer_id(
         &self,
         signer_id: EventId,
     ) -> Result<BTreeMap<EventId, XOnlyPublicKey>, Error> {
-        Ok(self.db.get_my_shared_signers_by_signer_id(signer_id)?)
+        Ok(self
+            .db
+            .get_my_shared_signers_by_signer_id(signer_id)
+            .await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
-        Ok(self.db.get_shared_signers()?)
+    pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
+        Ok(self.db.get_shared_signers().await?)
     }
 
-    pub fn get_shared_signers_public_keys(
+    pub async fn get_shared_signers_public_keys(
         &self,
         include_contacts: bool,
     ) -> Result<Vec<XOnlyPublicKey>, Error> {
-        let public_keys: HashSet<XOnlyPublicKey> = self.db.get_shared_signers_public_keys()?;
+        let public_keys: HashSet<XOnlyPublicKey> = self.db.get_shared_signers_public_keys().await?;
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
-            let contacts: HashSet<XOnlyPublicKey> = self.db.get_contacts_public_keys()?;
+            let contacts: HashSet<XOnlyPublicKey> = self.db.get_contacts_public_keys().await?;
             Ok(public_keys.difference(&contacts).copied().collect())
         }
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_shared_signers_by_public_key(
+    pub async fn get_shared_signers_by_public_key(
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Vec<GetSharedSigner>, Error> {
-        Ok(self.db.get_shared_signers_by_public_key(public_key)?)
+        Ok(self.db.get_shared_signers_by_public_key(public_key).await?)
     }
 }

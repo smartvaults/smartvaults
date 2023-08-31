@@ -142,7 +142,8 @@ impl State for RestorePolicyState {
                 public_keys = public_keys.push(
                     Text::new(format!(
                         "- {}",
-                        ctx.client.db.get_public_key_name(*public_key)
+                        "TODO",
+                        //ctx.client.db.get_public_key_name(*public_key)
                     ))
                     .small()
                     .view(),
