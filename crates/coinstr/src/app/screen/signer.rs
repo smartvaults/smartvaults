@@ -175,7 +175,7 @@ impl State for SignerState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (shared_signer_id, public_key) in self.my_shared_signers.iter() {
+                for (shared_signer_id, _public_key) in self.my_shared_signers.iter() {
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*shared_signer_id))

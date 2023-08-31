@@ -75,7 +75,7 @@ impl State for PoliciesState {
                             async move { client.save_policy_backup(policy_id, &path).await },
                             move |res| match res {
                                 Ok(_) => PoliciesMessage::Reload.into(),
-                                Err(e) => PoliciesMessage::Reload.into(), /* TODO: replace this with ErrorChanged */
+                                Err(_e) => PoliciesMessage::Reload.into(), /* TODO: replace this with ErrorChanged */
                             },
                         );
                     }

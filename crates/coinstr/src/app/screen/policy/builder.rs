@@ -223,7 +223,7 @@ impl State for PolicyBuilderState {
 
             for (index, value) in self.policy.iter().enumerate() {
                 match value {
-                    Some((pk, desc)) => {
+                    Some((_pk, desc)) => {
                         pks = pks.push(
                             Row::new()
                                 .push(

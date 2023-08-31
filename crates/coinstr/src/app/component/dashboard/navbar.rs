@@ -5,12 +5,12 @@ use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::SECP256K1;
 use coinstr_sdk::util::format;
 use iced::widget::Row;
-use iced::{Alignment, Color, Length};
+use iced::{Alignment, Length};
 
 use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Button, ButtonStyle, Icon, Text};
-use crate::theme::color::{DARK_RED, RED};
+use crate::theme::color::DARK_RED;
 use crate::theme::icon::{BELL, BOX, EYE, EYE_SLASH, FINGERPRINT, PERSON_CIRCLE};
 
 #[derive(Clone, Default)]

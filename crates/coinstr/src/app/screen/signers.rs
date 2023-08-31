@@ -239,7 +239,7 @@ impl State for SignersState {
 
                     for GetSharedSigner {
                         shared_signer_id,
-                        owner_public_key,
+                        owner_public_key: _,
                         shared_signer,
                     } in self.shared_signers.iter()
                     {

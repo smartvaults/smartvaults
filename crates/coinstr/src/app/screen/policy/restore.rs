@@ -138,7 +138,7 @@ impl State for RestorePolicyState {
         if self.public_keys.is_empty() {
             public_keys = public_keys.push(Text::new("No public keys").small().view())
         } else {
-            for public_key in self.public_keys.iter() {
+            for _public_key in self.public_keys.iter() {
                 public_keys = public_keys.push(
                     Text::new(format!(
                         "- {}",
