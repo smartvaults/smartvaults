@@ -3,13 +3,13 @@
 
 use std::cmp::Ordering;
 
+use deadpool_sqlite::Object;
 use rusqlite::Connection;
 
-use super::store::PooledConnection;
 use super::Error;
 
 /// Latest database version
-pub const DB_VERSION: usize = 7;
+pub const DB_VERSION: usize = 1;
 
 /// Startup DB Pragmas
 pub const STARTUP_SQL: &str = r##"
@@ -37,105 +37,78 @@ pub fn curr_db_version(conn: &mut Connection) -> Result<usize, Error> {
 }
 
 /// Upgrade DB to latest version, and execute pragma settings
-pub fn run(conn: &mut PooledConnection) -> Result<(), Error> {
-    // check the version.
-    let mut curr_version = curr_db_version(conn)?;
-    tracing::info!("DB version = {:?}", curr_version);
+pub(crate) async fn run(conn: &Object) -> Result<(), Error> {
+    conn.interact(|conn| {
+        // check the version.
+        let mut curr_version = curr_db_version(conn)?;
+        tracing::info!("DB version = {:?}", curr_version);
 
-    match curr_version.cmp(&DB_VERSION) {
-        // Database is new or not current
-        Ordering::Less => {
-            // initialize from scratch
-            if curr_version == 0 {
-                curr_version = mig_init(conn)?;
+        match curr_version.cmp(&DB_VERSION) {
+            // Database is new or not current
+            Ordering::Less => {
+                // initialize from scratch
+                if curr_version == 0 {
+                    curr_version = mig_init(conn)?;
+                }
+
+                // for initialized but out-of-date schemas, proceed to
+                // upgrade sequentially until we are current.
+                /* if curr_version == 1 {
+                    curr_version = mig_1_to_2(conn)?;
+                }
+
+                if curr_version == 2 {
+                    curr_version = mig_2_to_3(conn)?;
+                }
+
+                if curr_version == 3 {
+                    curr_version = mig_3_to_4(conn)?;
+                }
+
+                if curr_version == 4 {
+                    curr_version = mig_4_to_5(conn)?;
+                }
+
+                if curr_version == 5 {
+                    curr_version = mig_5_to_6(conn)?;
+                }
+
+                if curr_version == 6 {
+                    curr_version = mig_6_to_7(conn)?;
+                } */
+
+                if curr_version == DB_VERSION {
+                    tracing::info!("All migration scripts completed successfully (v{DB_VERSION})");
+                }
             }
-
-            // for initialized but out-of-date schemas, proceed to
-            // upgrade sequentially until we are current.
-            if curr_version == 1 {
-                curr_version = mig_1_to_2(conn)?;
+            // Database is current, all is good
+            Ordering::Equal => {
+                tracing::debug!("Database version was already current (v{DB_VERSION})");
             }
-
-            if curr_version == 2 {
-                curr_version = mig_2_to_3(conn)?;
-            }
-
-            if curr_version == 3 {
-                curr_version = mig_3_to_4(conn)?;
-            }
-
-            if curr_version == 4 {
-                curr_version = mig_4_to_5(conn)?;
-            }
-
-            if curr_version == 5 {
-                curr_version = mig_5_to_6(conn)?;
-            }
-
-            if curr_version == 6 {
-                curr_version = mig_6_to_7(conn)?;
-            }
-
-            if curr_version == DB_VERSION {
-                tracing::info!("All migration scripts completed successfully (v{DB_VERSION})");
+            // Database is newer than what this code understands, abort
+            Ordering::Greater => {
+                return Err(Error::Migration(MigrationError::NewerDbVersion {
+                    current: curr_version,
+                }));
             }
         }
-        // Database is current, all is good
-        Ordering::Equal => {
-            tracing::debug!("Database version was already current (v{DB_VERSION})");
-        }
-        // Database is newer than what this code understands, abort
-        Ordering::Greater => {
-            return Err(Error::Migration(MigrationError::NewerDbVersion {
-                current: curr_version,
-            }));
-        }
-    }
 
-    // Setup PRAGMA
-    conn.execute_batch(STARTUP_SQL)?;
-    tracing::debug!("SQLite PRAGMA startup completed");
-    Ok(())
+        // Setup PRAGMA
+        conn.execute_batch(STARTUP_SQL)?;
+        tracing::debug!("SQLite PRAGMA startup completed");
+        Ok(())
+    })
+    .await?
 }
 
-fn mig_init(conn: &mut PooledConnection) -> Result<usize, Error> {
+fn mig_init(conn: &mut Connection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/001_init.sql"))?;
     tracing::info!("database schema initialized to v1");
     Ok(1)
 }
 
-fn mig_1_to_2(conn: &mut PooledConnection) -> Result<usize, Error> {
+/* fn mig_1_to_2(conn: &mut Connection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../../migrations/002_notifications.sql"))?;
     tracing::info!("database schema upgraded v1 -> v2");
     Ok(2)
-}
-
-fn mig_2_to_3(conn: &mut PooledConnection) -> Result<usize, Error> {
-    conn.execute_batch(include_str!("../../migrations/003_nostr_connect.sql"))?;
-    tracing::info!("database schema upgraded v2 -> v3");
-    Ok(3)
-}
-
-fn mig_3_to_4(conn: &mut PooledConnection) -> Result<usize, Error> {
-    conn.execute_batch(include_str!("../../migrations/004_relays.sql"))?;
-    tracing::info!("database schema upgraded v3 -> v4");
-    Ok(4)
-}
-
-fn mig_4_to_5(conn: &mut PooledConnection) -> Result<usize, Error> {
-    conn.execute_batch(include_str!("../../migrations/005_labels.sql"))?;
-    tracing::info!("database schema upgraded v4 -> v5");
-    Ok(5)
-}
-
-fn mig_5_to_6(conn: &mut PooledConnection) -> Result<usize, Error> {
-    conn.execute_batch(include_str!("../../migrations/006_timechain.sql"))?;
-    tracing::info!("database schema upgraded v5 -> v6");
-    Ok(6)
-}
-
-fn mig_6_to_7(conn: &mut PooledConnection) -> Result<usize, Error> {
-    conn.execute_batch(include_str!("../../migrations/007_frozen_utxos.sql"))?;
-    tracing::info!("database schema upgraded v6 -> v7");
-    Ok(7)
-}
+} */

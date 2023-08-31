@@ -166,7 +166,7 @@ impl Coinstr {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                match this.db.get_unsynced_metadata_pubkeys() {
+                match this.db.get_unsynced_metadata_pubkeys().await {
                     Ok(public_keys) => {
                         if !public_keys.is_empty() {
                             let timeout = Duration::from_secs(10 * public_keys.len() as u64);
@@ -344,7 +344,7 @@ impl Coinstr {
 
         if event.kind == SHARED_KEY_KIND {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
-            if !self.db.shared_key_exists_for_policy(policy_id)? {
+            if !self.db.shared_key_exists_for_policy(policy_id).await? {
                 let keys = self.client.keys();
                 let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
@@ -517,7 +517,7 @@ impl Coinstr {
                 if let Some(identifier) = util::extract_first_identifier(&event) {
                     if let Ok(shared_key) = self.db.get_shared_key(policy_id) {
                         let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db.save_label(identifier, policy_id, label)?;
+                        self.db.save_label(identifier, policy_id, label).await?;
                         self.sync_channel
                             .send(Message::EventHandled(EventHandled::Label))?;
                     } else {
@@ -552,16 +552,16 @@ impl Coinstr {
                     contacts.insert(pk);
                 }
             }
-            self.db.save_contacts(contacts)?;
+            self.db.save_contacts(contacts).await?;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Contacts))?;
         } else if event.kind == Kind::Metadata {
             let metadata = Metadata::from_json(event.content)?;
-            self.db.set_metadata(event.pubkey, metadata)?;
+            self.db.set_metadata(event.pubkey, metadata).await?;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
         } else if event.kind == Kind::NostrConnect
-            && self.db.nostr_connect_session_exists(event.pubkey)?
+            && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
             let keys = self.client.keys();
             let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
@@ -573,7 +573,7 @@ impl Coinstr {
                             .await?;
                     }
                     NIP46Request::GetPublicKey => {
-                        let uri = self.db.get_nostr_connect_session(event.pubkey)?;
+                        let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
                         let msg = msg
                             .generate_response(&keys)?
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
@@ -591,7 +591,7 @@ impl Coinstr {
                             .is_nostr_connect_session_pre_authorized(event.pubkey)
                             .await
                         {
-                            let uri = self.db.get_nostr_connect_session(event.pubkey)?;
+                            let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
                             let keys = self.client.keys();
                             let req_message = msg.clone();
                             let msg = msg
@@ -608,26 +608,30 @@ impl Coinstr {
                                     None,
                                 )
                                 .await?;
-                            self.db.save_nostr_connect_request(
-                                event.id,
-                                event.pubkey,
-                                req_message,
-                                event.created_at,
-                                true,
-                            )?;
+                            self.db
+                                .save_nostr_connect_request(
+                                    event.id,
+                                    event.pubkey,
+                                    req_message,
+                                    event.created_at,
+                                    true,
+                                )
+                                .await?;
                             tracing::info!(
                                 "Auto approved nostr connect request {} for app {}",
                                 event.id,
                                 event.pubkey
                             )
                         } else {
-                            self.db.save_nostr_connect_request(
-                                event.id,
-                                event.pubkey,
-                                msg,
-                                event.created_at,
-                                false,
-                            )?;
+                            self.db
+                                .save_nostr_connect_request(
+                                    event.id,
+                                    event.pubkey,
+                                    msg,
+                                    event.created_at,
+                                    false,
+                                )
+                                .await?;
                             // TODO: save/send notification
                         }
                     }

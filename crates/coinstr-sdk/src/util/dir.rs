@@ -59,9 +59,9 @@ pub(crate) fn user_db<P>(
 where
     P: AsRef<Path>,
 {
-    let path = cache_path(base_path, network)?.join("users");
+    let path = network_path(base_path, network)?.join("users");
     std::fs::create_dir_all(path.as_path())?;
-    Ok(path.join(format!("{public_key}.db")))
+    Ok(path.join(format!("{public_key}.sqlite3")))
 }
 
 pub(crate) fn get_keychains_list<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>

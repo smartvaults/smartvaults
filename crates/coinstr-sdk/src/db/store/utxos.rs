@@ -11,14 +11,15 @@ use nostr_sdk::EventId;
 use super::{Error, Store};
 
 impl Store {
-    pub fn freeze_utxo(
+    pub async fn freeze_utxo(
         &self,
         utxo: OutPoint,
         policy_id: EventId,
         proposal_id: Option<EventId>,
     ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let utxo = Sha256Hash::hash(utxo.to_string().as_bytes());
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let utxo = Sha256Hash::hash(utxo.to_string().as_bytes());
         conn.execute(
             "INSERT OR IGNORE INTO frozen_utxos (utxo_hash, policy_id, proposal_id) VALUES (?, ?, ?);",
             (
@@ -28,18 +29,22 @@ impl Store {
             ),
         )?;
         Ok(())
+        }).await?
     }
 
-    pub fn get_frozen_utxos(&self, policy_id: EventId) -> Result<HashSet<Sha256Hash>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("SELECT utxo_hash FROM frozen_utxos WHERE policy_id = ?;")?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut utxos = HashSet::new();
-        while let Ok(Some(row)) = rows.next() {
-            let utxo_hash: String = row.get(0)?;
-            utxos.insert(Sha256Hash::from_str(&utxo_hash)?);
-        }
-        Ok(utxos)
+    pub async fn get_frozen_utxos(&self, policy_id: EventId) -> Result<HashSet<Sha256Hash>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("SELECT utxo_hash FROM frozen_utxos WHERE policy_id = ?;")?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let mut utxos = HashSet::new();
+            while let Ok(Some(row)) = rows.next() {
+                let utxo_hash: String = row.get(0)?;
+                utxos.insert(Sha256Hash::from_str(&utxo_hash)?);
+            }
+            Ok(utxos)
+        })
+        .await?
     }
 }

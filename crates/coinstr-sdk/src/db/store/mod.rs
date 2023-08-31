@@ -7,21 +7,25 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::ops::Add;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use chacha20poly1305::aead::{Aead, AeadCore, KeyInit, OsRng};
+use chacha20poly1305::{XChaCha20Poly1305, XNonce};
 use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
 use coinstr_protocol::v1::util::serde::Serde;
 use coinstr_protocol::v1::util::Encryption;
+use deadpool_sqlite::{Config, Object, Pool, Runtime};
 use nostr_sdk::event::id::EventId;
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
 use nostr_sdk::{Event, Keys, Timestamp};
-use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::config::DbConfig;
-use rusqlite::OpenFlags;
+use rusqlite::{Connection, OpenFlags};
 use tokio::sync::RwLock;
 
 mod connect;
@@ -40,16 +44,20 @@ use super::model::{
 use super::Error;
 use crate::types::Notification;
 
-pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
-pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
-
 /// Store
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Store {
-    pool: SqlitePool,
-    keys: Keys,
+    pool: Pool,
+    chiper: XChaCha20Poly1305,
+    public_key: XOnlyPublicKey,
     network: Network,
     nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
+}
+
+impl Debug for Store {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<sensitive>")
+    }
 }
 
 impl Drop for Store {
@@ -58,21 +66,26 @@ impl Drop for Store {
 
 impl Store {
     /// Open new database
-    pub fn open<P>(user_db_path: P, keys: &Keys, network: Network) -> Result<Self, Error>
+    pub async fn open<P>(user_db_path: P, keys: &Keys, network: Network) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
-        let manager = SqliteConnectionManager::file(user_db_path.as_ref())
-            .with_flags(OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE)
-            .with_init(|c| c.execute_batch(STARTUP_SQL));
-        let pool = r2d2::Pool::new(manager)?;
-        migration::run(&mut pool.get()?)?;
+        let cfg = Config::new(user_db_path.as_ref());
+        let pool = cfg.create_pool(Runtime::Tokio1)?;
+        let conn = pool.get().await?;
+        migration::run(&conn).await?;
+        let key: [u8; 32] = keys.secret_key()?.secret_bytes();
         Ok(Self {
             pool,
-            keys: keys.clone(),
+            chiper: XChaCha20Poly1305::new(&key.into()),
+            public_key: keys.public_key(),
             network,
             nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
         })
+    }
+
+    async fn acquire(&self) -> Result<Object, Error> {
+        Ok(self.pool.get().await?)
     }
 
     /// Close db
@@ -80,101 +93,132 @@ impl Store {
         drop(self);
     }
 
-    pub fn wipe(&self) -> Result<(), Error> {
-        let mut conn = self.pool.get()?;
+    pub async fn wipe(&self) -> Result<(), Error> {
+        let mut conn = self.acquire().await?;
 
-        // Reset DB
-        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_RESET_DATABASE, true)?;
-        conn.execute("VACUUM;", [])?;
-        conn.set_db_config(DbConfig::SQLITE_DBCONFIG_RESET_DATABASE, false)?;
+        conn.interact(|conn| {
+            // Reset DB
+            conn.set_db_config(DbConfig::SQLITE_DBCONFIG_RESET_DATABASE, true)?;
+            conn.execute("VACUUM;", [])?;
+            conn.set_db_config(DbConfig::SQLITE_DBCONFIG_RESET_DATABASE, false)?;
 
-        // Execute migrations
-        conn.execute_batch(STARTUP_SQL)?;
-        migration::run(&mut conn)?;
+            // Execute migrations
+            conn.execute_batch(STARTUP_SQL)?;
+
+            Ok::<(), Error>(())
+        })
+        .await??;
+
+        migration::run(&mut conn).await?;
 
         Ok(())
     }
 
-    pub fn shared_key_exists_for_policy(&self, policy_id: EventId) -> Result<bool, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare("SELECT EXISTS(SELECT 1 FROM shared_keys WHERE policy_id = ? LIMIT 1);")?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let exists: u8 = match rows.next()? {
-            Some(row) => row.get(0)?,
-            None => 0,
-        };
-        Ok(exists == 1)
+    pub async fn shared_key_exists_for_policy(&self, policy_id: EventId) -> Result<bool, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT EXISTS(SELECT 1 FROM shared_keys WHERE policy_id = ? LIMIT 1);",
+            )?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let exists: u8 = match rows.next()? {
+                Some(row) => row.get(0)?,
+                None => 0,
+            };
+            Ok(exists == 1)
+        })
+        .await?
     }
 
-    pub fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
-            "INSERT OR IGNORE INTO shared_keys (policy_id, shared_key) VALUES (?, ?);",
-            (
-                policy_id.to_hex(),
-                shared_key.secret_key()?.encrypt_with_keys(&self.keys)?,
-            ),
-        )?;
-        Ok(())
+    pub async fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            conn.execute(
+                "INSERT OR IGNORE INTO shared_keys (policy_id, shared_key) VALUES (?, ?);",
+                (
+                    policy_id.to_hex(),
+                    shared_key.secret_key()?.encrypt_with_keys(&self.keys)?,
+                ),
+            )?;
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound("shared_key".into()))?;
-        let sk: String = row.get(0)?;
-        let sk = SecretKey::decrypt_with_keys(&self.keys, sk)?;
-        Ok(Keys::new(sk))
+    pub async fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let row = rows.next()?.ok_or(Error::NotFound("shared_key".into()))?;
+            let sk: String = row.get(0)?;
+            let sk = SecretKey::decrypt_with_keys(&self.keys, sk)?;
+            Ok(Keys::new(sk))
+        })
+        .await?
     }
 
-    pub fn get_nostr_pubkeys(&self, policy_id: EventId) -> Result<Vec<XOnlyPublicKey>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("SELECT public_key FROM nostr_public_keys WHERE policy_id = ?;")?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut pubkeys = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let public_key: String = row.get(0)?;
-            pubkeys.push(XOnlyPublicKey::from_str(&public_key)?);
-        }
-        Ok(pubkeys)
+    pub async fn get_nostr_pubkeys(
+        &self,
+        policy_id: EventId,
+    ) -> Result<Vec<XOnlyPublicKey>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn
+                .prepare_cached("SELECT public_key FROM nostr_public_keys WHERE policy_id = ?;")?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let mut pubkeys = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let public_key: String = row.get(0)?;
+                pubkeys.push(XOnlyPublicKey::from_str(&public_key)?);
+            }
+            Ok(pubkeys)
+        })
+        .await?
     }
 
-    pub fn proposal_exists(&self, proposal_id: EventId) -> Result<bool, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
-            "SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);",
-        )?;
-        let mut rows = stmt.query([proposal_id.to_hex()])?;
-        let exists: u8 = match rows.next()? {
-            Some(row) => row.get(0)?,
-            None => 0,
-        };
-        Ok(exists == 1)
+    pub async fn proposal_exists(&self, proposal_id: EventId) -> Result<bool, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);",
+            )?;
+            let mut rows = stmt.query([proposal_id.to_hex()])?;
+            let exists: u8 = match rows.next()? {
+                Some(row) => row.get(0)?,
+                None => 0,
+            };
+            Ok(exists == 1)
+        })
+        .await?
     }
 
-    pub fn save_proposal(
+    pub async fn save_proposal(
         &self,
         proposal_id: EventId,
         policy_id: EventId,
         proposal: Proposal,
     ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
+        let conn = self.acquire().await?;
+        let cipher = self.chiper.clone();
+        conn.interact(move |conn| {
+            conn.execute(
             "INSERT OR IGNORE INTO proposals (proposal_id, policy_id, proposal) VALUES (?, ?, ?);",
             (
                 proposal_id.to_hex(),
                 policy_id.to_hex(),
-                proposal.encrypt_with_keys(&self.keys)?,
+                //proposal.encrypt_with_keys(&self.keys)?,
             ),
         )?;
+            Ok::<(), Error>(())
+        })
+        .await??;
 
         // Freeze UTXOs
         for txin in proposal.psbt().unsigned_tx.input.into_iter() {
-            self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))?;
+            self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))
+                .await?;
         }
 
         tracing::info!("Spending proposal {proposal_id} saved");
@@ -182,9 +226,8 @@ impl Store {
     }
 
     pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        let this = self.clone();
-        tokio::task::spawn_blocking(move || {
-            let conn = this.pool.get()?;
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
             let mut stmt =
                 conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
             let mut rows = stmt.query([])?;
@@ -198,12 +241,12 @@ impl Store {
                 let policy_id = EventId::from_hex(policy_id)?;
                 let proposal = Proposal::decrypt_with_keys(&this.keys, proposal)?;
                 let approved_proposals =
-                    this.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+                    self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
 
                 proposals.push(GetProposal {
                     proposal_id,
                     policy_id,
-                    signed: proposal.finalize(approved_proposals, this.network).is_ok(),
+                    signed: proposal.finalize(approved_proposals, self.network).is_ok(),
                     proposal,
                 });
             }
@@ -212,104 +255,122 @@ impl Store {
         .await?
     }
 
-    fn get_proposal_ids_by_policy_id(&self, policy_id: EventId) -> Result<Vec<EventId>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("SELECT proposal_id FROM proposals WHERE policy_id = ?;")?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut ids = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let proposal_id: String = row.get(0)?;
-            ids.push(EventId::from_hex(proposal_id)?);
-        }
-        Ok(ids)
+    async fn get_proposal_ids_by_policy_id(
+        &self,
+        policy_id: EventId,
+    ) -> Result<Vec<EventId>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("SELECT proposal_id FROM proposals WHERE policy_id = ?;")?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let mut ids = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let proposal_id: String = row.get(0)?;
+                ids.push(EventId::from_hex(proposal_id)?);
+            }
+            Ok(ids)
+        })
+        .await?
     }
 
-    pub fn get_proposals_by_policy_id(
+    pub async fn get_proposals_by_policy_id(
         &self,
         policy_id: EventId,
     ) -> Result<Vec<GetProposal>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn
-            .prepare_cached("SELECT proposal_id, proposal FROM proposals WHERE policy_id = ?;")?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut proposals = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let proposal_id: String = row.get(0)?;
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT proposal_id, proposal FROM proposals WHERE policy_id = ?;",
+            )?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let mut proposals = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let proposal_id: String = row.get(0)?;
+                let proposal: String = row.get(1)?;
+
+                let proposal_id = EventId::from_hex(proposal_id)?;
+                let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
+                let approved_proposals =
+                    self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
+
+                proposals.push(GetProposal {
+                    proposal_id,
+                    policy_id,
+                    signed: proposal.finalize(approved_proposals, self.network).is_ok(),
+                    proposal,
+                });
+            }
+            Ok(proposals)
+        })
+        .await?
+    }
+
+    pub async fn get_proposal(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
+            )?;
+            let mut rows = stmt.query([proposal_id.to_hex()])?;
+            let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
+            let policy_id: String = row.get(0)?;
             let proposal: String = row.get(1)?;
 
-            let proposal_id = EventId::from_hex(proposal_id)?;
+            let policy_id = EventId::from_hex(policy_id)?;
             let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
             let approved_proposals =
                 self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
 
-            proposals.push(GetProposal {
+            Ok(GetProposal {
                 proposal_id,
                 policy_id,
                 signed: proposal.finalize(approved_proposals, self.network).is_ok(),
                 proposal,
-            });
-        }
-        Ok(proposals)
-    }
-
-    pub fn get_proposal(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
-            "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
-        )?;
-        let mut rows = stmt.query([proposal_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
-        let policy_id: String = row.get(0)?;
-        let proposal: String = row.get(1)?;
-
-        let policy_id = EventId::from_hex(policy_id)?;
-        let proposal = Proposal::decrypt_with_keys(&self.keys, proposal)?;
-        let approved_proposals = self.get_approved_proposals_by_proposal_id(proposal_id, &conn)?;
-
-        Ok(GetProposal {
-            proposal_id,
-            policy_id,
-            signed: proposal.finalize(approved_proposals, self.network).is_ok(),
-            proposal,
+            })
         })
+        .await?
     }
 
-    pub fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
-        self.set_event_as_deleted(proposal_id)?;
+    pub async fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(proposal_id).await?;
 
         // Delete notification
-        self.delete_notification(proposal_id)?;
+        self.delete_notification(proposal_id).await?;
 
         // Delete proposal
-        let conn = self.pool.get()?;
-        conn.execute(
-            "DELETE FROM proposals WHERE proposal_id = ?;",
-            [proposal_id.to_hex()],
-        )?;
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            conn.execute(
+                "DELETE FROM proposals WHERE proposal_id = ?;",
+                [proposal_id.to_hex()],
+            )?;
 
-        // Delete approvals
-        conn.execute(
-            "DELETE FROM approved_proposals WHERE proposal_id = ?;",
-            [proposal_id.to_hex()],
-        )?;
+            // Delete approvals
+            conn.execute(
+                "DELETE FROM approved_proposals WHERE proposal_id = ?;",
+                [proposal_id.to_hex()],
+            )?;
 
-        // Delete frozen UTXOs
-        conn.execute(
-            "DELETE FROM frozen_utxos WHERE proposal_id = ?;",
-            [proposal_id.to_hex()],
-        )?;
+            // Delete frozen UTXOs
+            conn.execute(
+                "DELETE FROM frozen_utxos WHERE proposal_id = ?;",
+                [proposal_id.to_hex()],
+            )?;
 
-        tracing::info!("Deleted proposal {proposal_id}");
-        Ok(())
+            tracing::info!("Deleted proposal {proposal_id}");
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn get_approvals_by_proposal_id(
+    pub async fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
     ) -> Result<Vec<GetApproval>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
         let mut rows = stmt.query([proposal_id.to_hex()])?;
         let mut approvals = Vec::new();
         while let Ok(Some(row)) = rows.next() {
@@ -325,13 +386,14 @@ impl Store {
             });
         }
         Ok(approvals)
+        }).await?
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
     fn get_approved_proposals_by_proposal_id(
         &self,
         proposal_id: EventId,
-        conn: &PooledConnection,
+        conn: &Connection,
     ) -> Result<Vec<ApprovedProposal>, Error> {
         let mut stmt = conn.prepare_cached(
             "SELECT approved_proposal FROM approved_proposals WHERE proposal_id = ?;",
@@ -345,7 +407,7 @@ impl Store {
         Ok(approvals)
     }
 
-    pub fn get_approved_proposals_by_id(
+    pub async fn get_approved_proposals_by_id(
         &self,
         proposal_id: EventId,
     ) -> Result<GetApprovedProposals, Error> {
@@ -353,8 +415,8 @@ impl Store {
             policy_id,
             proposal,
             ..
-        } = self.get_proposal(proposal_id)?;
-        let approved_proposals = self.get_approvals_by_proposal_id(proposal_id)?;
+        } = self.get_proposal(proposal_id).await?;
+        let approved_proposals = self.get_approvals_by_proposal_id(proposal_id).await?;
         Ok(GetApprovedProposals {
             policy_id,
             proposal,
@@ -369,7 +431,7 @@ impl Store {
         })
     }
 
-    pub fn save_approved_proposal(
+    pub async fn save_approved_proposal(
         &self,
         proposal_id: EventId,
         author: XOnlyPublicKey,
@@ -377,109 +439,139 @@ impl Store {
         approved_proposal: ApprovedProposal,
         timestamp: Timestamp,
     ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+conn.execute(
             "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
             (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt_with_keys(&self.keys)?, timestamp.as_u64()),
         )?;
         Ok(())
+        }).await?
     }
 
-    pub fn get_policy_id_by_approval_id(&self, approval_id: EventId) -> Result<EventId, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
-            "SELECT proposal_id FROM approved_proposals WHERE approval_id = ? LIMIT 1;",
-        )?;
-        let mut rows = stmt.query([approval_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound("approval".into()))?;
-        let proposal_id: String = row.get(0)?;
-        let proposal_id = EventId::from_hex(proposal_id)?;
-        let GetProposal { policy_id, .. } = self.get_proposal(proposal_id)?;
+    pub async fn get_policy_id_by_approval_id(
+        &self,
+        approval_id: EventId,
+    ) -> Result<EventId, Error> {
+        let conn = self.acquire().await?;
+        let proposal_id = conn
+            .interact(move |conn| {
+                let mut stmt = conn.prepare_cached(
+                    "SELECT proposal_id FROM approved_proposals WHERE approval_id = ? LIMIT 1;",
+                )?;
+                let mut rows = stmt.query([approval_id.to_hex()])?;
+                let row = rows.next()?.ok_or(Error::NotFound("approval".into()))?;
+                let proposal_id: String = row.get(0)?;
+                let proposal_id = EventId::from_hex(proposal_id)?;
+                Ok::<EventId, Error>(proposal_id)
+            })
+            .await??;
+        let GetProposal { policy_id, .. } = self.get_proposal(proposal_id).await?;
         Ok(policy_id)
     }
 
-    pub fn approved_proposal_exists(&self, approved_proposal_id: EventId) -> Result<bool, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
-            "SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);",
-        )?;
-        let mut rows = stmt.query([approved_proposal_id.to_hex()])?;
-        let exists: u8 = match rows.next()? {
-            Some(row) => row.get(0)?,
-            None => 0,
-        };
-        Ok(exists == 1)
+    pub async fn approved_proposal_exists(
+        &self,
+        approved_proposal_id: EventId,
+    ) -> Result<bool, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);",
+            )?;
+            let mut rows = stmt.query([approved_proposal_id.to_hex()])?;
+            let exists: u8 = match rows.next()? {
+                Some(row) => row.get(0)?,
+                None => 0,
+            };
+            Ok(exists == 1)
+        })
+        .await?
     }
 
-    pub fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        self.set_event_as_deleted(approval_id)?;
+    pub async fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
+        self.set_event_as_deleted(approval_id).await?;
 
         // Delete notification
-        self.delete_notification(approval_id)?;
+        self.delete_notification(approval_id).await?;
 
         // Delete policy
-        let conn = self.pool.get()?;
-        conn.execute(
-            "DELETE FROM approved_proposals WHERE approval_id = ?;",
-            [approval_id.to_hex()],
-        )?;
-        tracing::info!("Deleted approval {approval_id}");
-        Ok(())
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            conn.execute(
+                "DELETE FROM approved_proposals WHERE approval_id = ?;",
+                [approval_id.to_hex()],
+            )?;
+            tracing::info!("Deleted approval {approval_id}");
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn completed_proposal_exists(&self, completed_proposal_id: EventId) -> Result<bool, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);")?;
+    pub async fn completed_proposal_exists(
+        &self,
+        completed_proposal_id: EventId,
+    ) -> Result<bool, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+let mut stmt =
+            conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);")?;
         let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
         let exists: u8 = match rows.next()? {
             Some(row) => row.get(0)?,
             None => 0,
         };
         Ok(exists == 1)
+        }).await?
     }
 
-    pub fn save_completed_proposal(
+    pub async fn save_completed_proposal(
         &self,
         completed_proposal_id: EventId,
         policy_id: EventId,
         completed_proposal: CompletedProposal,
     ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        conn.execute(
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+conn.execute(
             "INSERT OR IGNORE INTO completed_proposals (completed_proposal_id, policy_id, completed_proposal) VALUES (?, ?, ?);",
             (completed_proposal_id.to_hex(), policy_id.to_hex(), completed_proposal.encrypt_with_keys(&self.keys)?),
         )?;
         tracing::info!("Completed proposal {completed_proposal_id} saved");
         Ok(())
+        }).await?
     }
 
-    pub fn completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
+    pub async fn completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
             "SELECT completed_proposal_id, policy_id, completed_proposal FROM completed_proposals;",
         )?;
-        let mut rows = stmt.query([])?;
-        let mut proposals = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let proposal_id: String = row.get(0)?;
-            let policy_id: String = row.get(1)?;
-            let proposal: String = row.get(2)?;
-            proposals.push(GetCompletedProposal {
-                policy_id: EventId::from_hex(policy_id)?,
-                completed_proposal_id: EventId::from_hex(proposal_id)?,
-                proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
-            });
-        }
-        Ok(proposals)
+            let mut rows = stmt.query([])?;
+            let mut proposals = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let proposal_id: String = row.get(0)?;
+                let policy_id: String = row.get(1)?;
+                let proposal: String = row.get(2)?;
+                proposals.push(GetCompletedProposal {
+                    policy_id: EventId::from_hex(policy_id)?,
+                    completed_proposal_id: EventId::from_hex(proposal_id)?,
+                    proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
+                });
+            }
+            Ok(proposals)
+        })
+        .await?
     }
 
-    pub fn completed_proposals_by_policy_id(
+    pub async fn completed_proposals_by_policy_id(
         &self,
         policy_id: EventId,
     ) -> Result<Vec<GetCompletedProposal>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+let mut stmt = conn.prepare_cached(
             "SELECT completed_proposal_id, completed_proposal FROM completed_proposals WHERE policy_id = ?;",
         )?;
         let mut rows = stmt.query([policy_id.to_hex()])?;
@@ -494,14 +586,16 @@ impl Store {
             });
         }
         Ok(proposals)
+        }).await?
     }
 
-    pub fn get_completed_proposal(
+    pub async fn get_completed_proposal(
         &self,
         completed_proposal_id: EventId,
     ) -> Result<GetCompletedProposal, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+let mut stmt = conn.prepare_cached("SELECT policy_id, completed_proposal FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1;")?;
         let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
         let row = rows
             .next()?
@@ -513,44 +607,55 @@ impl Store {
             completed_proposal_id,
             proposal: CompletedProposal::decrypt_with_keys(&self.keys, proposal)?,
         })
+        }).await?
     }
 
-    fn get_completed_proposal_ids_by_policy_id(
+    async fn get_completed_proposal_ids_by_policy_id(
         &self,
         policy_id: EventId,
     ) -> Result<Vec<EventId>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
-            "SELECT completed_proposal_id FROM completed_proposals WHERE policy_id = ?;",
-        )?;
-        let mut rows = stmt.query([policy_id.to_hex()])?;
-        let mut ids = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let completed_proposal_id: String = row.get(0)?;
-            ids.push(EventId::from_hex(completed_proposal_id)?);
-        }
-        Ok(ids)
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT completed_proposal_id FROM completed_proposals WHERE policy_id = ?;",
+            )?;
+            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let mut ids = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let completed_proposal_id: String = row.get(0)?;
+                ids.push(EventId::from_hex(completed_proposal_id)?);
+            }
+            Ok(ids)
+        })
+        .await?
     }
 
-    pub fn delete_completed_proposal(&self, completed_proposal_id: EventId) -> Result<(), Error> {
-        self.set_event_as_deleted(completed_proposal_id)?;
+    pub async fn delete_completed_proposal(
+        &self,
+        completed_proposal_id: EventId,
+    ) -> Result<(), Error> {
+        self.set_event_as_deleted(completed_proposal_id).await?;
 
-        let conn = self.pool.get()?;
-        conn.execute(
-            "DELETE FROM completed_proposals WHERE completed_proposal_id = ?;",
-            [completed_proposal_id.to_hex()],
-        )?;
-        tracing::info!("Deleted completed proposal {completed_proposal_id}");
-        Ok(())
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            conn.execute(
+                "DELETE FROM completed_proposals WHERE completed_proposal_id = ?;",
+                [completed_proposal_id.to_hex()],
+            )?;
+            tracing::info!("Deleted completed proposal {completed_proposal_id}");
+            Ok(())
+        })
+        .await?
     }
 
-    pub(crate) fn get_description_by_txid(
+    pub(crate) async fn get_description_by_txid(
         &self,
         policy_id: EventId,
         txid: Txid,
     ) -> Result<Option<String>, Error> {
         for GetCompletedProposal { proposal, .. } in self
-            .completed_proposals_by_policy_id(policy_id)?
+            .completed_proposals_by_policy_id(policy_id)
+            .await?
             .into_iter()
         {
             if let CompletedProposal::Spending {
@@ -565,13 +670,14 @@ impl Store {
         Ok(None)
     }
 
-    pub(crate) fn get_txs_descriptions(
+    pub(crate) async fn get_txs_descriptions(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<Txid, String>, Error> {
         let mut map = HashMap::new();
         for GetCompletedProposal { proposal, .. } in self
-            .completed_proposals_by_policy_id(policy_id)?
+            .completed_proposals_by_policy_id(policy_id)
+            .await?
             .into_iter()
         {
             if let CompletedProposal::Spending {
@@ -586,107 +692,133 @@ impl Store {
         Ok(map)
     }
 
-    pub fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
-        if self.policy_exists(event_id)? {
-            self.delete_policy(event_id)?;
-        } else if self.proposal_exists(event_id)? {
-            self.delete_proposal(event_id)?;
-        } else if self.approved_proposal_exists(event_id)? {
-            self.delete_approval(event_id)?;
-        } else if self.completed_proposal_exists(event_id)? {
-            self.delete_completed_proposal(event_id)?;
-        } else if self.signer_exists(event_id)? {
-            self.delete_signer(event_id)?;
-        } else if self.my_shared_signer_exists(event_id)? || self.shared_signer_exists(event_id)? {
-            self.delete_shared_signer(event_id)?;
+    pub async fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
+        if self.policy_exists(event_id).await? {
+            self.delete_policy(event_id).await?;
+        } else if self.proposal_exists(event_id).await? {
+            self.delete_proposal(event_id).await?;
+        } else if self.approved_proposal_exists(event_id).await? {
+            self.delete_approval(event_id).await?;
+        } else if self.completed_proposal_exists(event_id).await? {
+            self.delete_completed_proposal(event_id).await?;
+        } else if self.signer_exists(event_id).await? {
+            self.delete_signer(event_id).await?;
+        } else if self.my_shared_signer_exists(event_id).await?
+            || self.shared_signer_exists(event_id).await?
+        {
+            self.delete_shared_signer(event_id).await?;
         } else {
-            self.set_event_as_deleted(event_id)?;
+            self.set_event_as_deleted(event_id).await?;
         };
 
         Ok(())
     }
 
-    pub fn save_event(&self, event: &Event) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("INSERT OR IGNORE INTO events (event_id, event) VALUES (?, ?);")?;
-        stmt.execute((event.id.to_hex(), event.as_json()))?;
-        Ok(())
+    pub async fn save_event(&self, event: Event) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn
+                .prepare_cached("INSERT OR IGNORE INTO events (event_id, event) VALUES (?, ?);")?;
+            stmt.execute((event.id.to_hex(), event.as_json()))?;
+            Ok(())
+        })
+        .await?
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_events(&self) -> Result<Vec<Event>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT event FROM events;")?;
-        let mut rows = stmt.query([])?;
-        let mut events: Vec<Event> = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let json: String = row.get(0)?;
-            let event: Event = Event::from_json(json)?;
-            events.push(event);
-        }
-        Ok(events)
+    pub async fn get_events(&self) -> Result<Vec<Event>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached("SELECT event FROM events;")?;
+            let mut rows = stmt.query([])?;
+            let mut events: Vec<Event> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let json: String = row.get(0)?;
+                let event: Event = Event::from_json(json)?;
+                events.push(event);
+            }
+            Ok(events)
+        })
+        .await?
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub fn get_event_by_id(&self, event_id: EventId) -> Result<Event, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT event FROM events WHERE event_id = ? LIMIT 1;")?;
-        let mut rows = stmt.query([event_id.to_hex()])?;
-        let row = rows.next()?.ok_or(Error::NotFound("event".into()))?;
-        let json: String = row.get(0)?;
-        Ok(Event::from_json(json)?)
-    }
-
-    pub fn event_was_deleted(&self, event_id: EventId) -> Result<bool, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
-            "SELECT EXISTS(SELECT 1 FROM events WHERE event_id = ? AND deleted = 1 LIMIT 1);",
-        )?;
-        let mut rows = stmt.query([event_id.to_hex()])?;
-        let exists: u8 = match rows.next()? {
-            Some(row) => row.get(0)?,
-            None => 0,
-        };
-        Ok(exists == 1)
-    }
-
-    pub fn set_event_as_deleted(&self, event_id: EventId) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("UPDATE events SET deleted = 1 WHERE event_id = ?")?;
-        stmt.execute([event_id.to_hex()])?;
-        Ok(())
-    }
-
-    pub fn save_pending_event(&self, event: &Event) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("INSERT OR IGNORE INTO pending_events (event) VALUES (?);")?;
-        stmt.execute([event.as_json()])?;
-        tracing::info!("Saved pending event {} (kind={:?})", event.id, event.kind);
-        Ok(())
-    }
-
-    pub fn get_pending_events(&self) -> Result<Vec<Event>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT event FROM pending_events;")?;
-        let mut rows = stmt.query([])?;
-        let mut events: Vec<Event> = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
+    pub async fn get_event_by_id(&self, event_id: EventId) -> Result<Event, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("SELECT event FROM events WHERE event_id = ? LIMIT 1;")?;
+            let mut rows = stmt.query([event_id.to_hex()])?;
+            let row = rows.next()?.ok_or(Error::NotFound("event".into()))?;
             let json: String = row.get(0)?;
-            let event: Event = Event::from_json(json)?;
-            events.push(event);
-        }
-        Ok(events)
+            Ok(Event::from_json(json)?)
+        })
+        .await?
     }
 
-    pub fn save_notification(
+    pub async fn event_was_deleted(&self, event_id: EventId) -> Result<bool, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT EXISTS(SELECT 1 FROM events WHERE event_id = ? AND deleted = 1 LIMIT 1);",
+            )?;
+            let mut rows = stmt.query([event_id.to_hex()])?;
+            let exists: u8 = match rows.next()? {
+                Some(row) => row.get(0)?,
+                None => 0,
+            };
+            Ok(exists == 1)
+        })
+        .await?
+    }
+
+    pub async fn set_event_as_deleted(&self, event_id: EventId) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("UPDATE events SET deleted = 1 WHERE event_id = ?")?;
+            stmt.execute([event_id.to_hex()])?;
+            Ok(())
+        })
+        .await?
+    }
+
+    pub async fn save_pending_event(&self, event: Event) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("INSERT OR IGNORE INTO pending_events (event) VALUES (?);")?;
+            stmt.execute([event.as_json()])?;
+            tracing::info!("Saved pending event {} (kind={:?})", event.id, event.kind);
+            Ok(())
+        })
+        .await?
+    }
+
+    pub async fn get_pending_events(&self) -> Result<Vec<Event>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached("SELECT event FROM pending_events;")?;
+            let mut rows = stmt.query([])?;
+            let mut events: Vec<Event> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let json: String = row.get(0)?;
+                let event: Event = Event::from_json(json)?;
+                events.push(event);
+            }
+            Ok(events)
+        })
+        .await?
+    }
+
+    pub async fn save_notification(
         &self,
         event_id: EventId,
         notification: Notification,
     ) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached(
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+let mut stmt = conn.prepare_cached(
             "INSERT OR IGNORE INTO notifications (event_id, notification, timestamp) VALUES (?, ?, ?);",
         )?;
         stmt.execute((
@@ -695,75 +827,98 @@ impl Store {
             Timestamp::now().as_u64(),
         ))?;
         Ok(())
+        }).await?
     }
 
-    pub fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare(
-            "SELECT notification, timestamp, seen FROM notifications ORDER BY timestamp DESC;",
-        )?;
-        let mut rows = stmt.query([])?;
-        let mut notifications: Vec<GetNotifications> = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let json: String = row.get(0)?;
-            let notification: Notification = Notification::from_json(json)?;
-            let timestamp: u64 = row.get(1)?;
-            let timestamp = Timestamp::from(timestamp);
-            let seen: bool = row.get(2)?;
-            notifications.push(GetNotifications {
-                notification,
-                timestamp,
-                seen,
-            });
-        }
-        Ok(notifications)
+    pub async fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT notification, timestamp, seen FROM notifications ORDER BY timestamp DESC;",
+            )?;
+            let mut rows = stmt.query([])?;
+            let mut notifications: Vec<GetNotifications> = Vec::new();
+            while let Ok(Some(row)) = rows.next() {
+                let json: String = row.get(0)?;
+                let notification: Notification = Notification::from_json(json)?;
+                let timestamp: u64 = row.get(1)?;
+                let timestamp = Timestamp::from(timestamp);
+                let seen: bool = row.get(2)?;
+                notifications.push(GetNotifications {
+                    notification,
+                    timestamp,
+                    seen,
+                });
+            }
+            Ok(notifications)
+        })
+        .await?
     }
 
-    pub fn count_unseen_notifications(&self) -> Result<usize, Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM notifications WHERE seen = 0;")?;
-        let mut rows = stmt.query([])?;
-        let row = rows
-            .next()?
-            .ok_or(Error::NotFound("count notifications".into()))?;
-        let count: usize = row.get(0)?;
-        Ok(count)
+    pub async fn count_unseen_notifications(&self) -> Result<usize, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("SELECT COUNT(*) FROM notifications WHERE seen = 0;")?;
+            let mut rows = stmt.query([])?;
+            let row = rows
+                .next()?
+                .ok_or(Error::NotFound("count notifications".into()))?;
+            let count: usize = row.get(0)?;
+            Ok(count)
+        })
+        .await?
     }
 
-    pub fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE event_id = ?")?;
-        stmt.execute([event_id.to_hex()])?;
-        Ok(())
+    pub async fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE event_id = ?")?;
+            stmt.execute([event_id.to_hex()])?;
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt =
-            conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE notification = ?")?;
-        stmt.execute([notification.as_json()])?;
-        Ok(())
+    pub async fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE notification = ?")?;
+            stmt.execute([notification.as_json()])?;
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("UPDATE notifications SET seen = 1;")?;
-        stmt.execute([])?;
-        Ok(())
+    pub async fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached("UPDATE notifications SET seen = 1;")?;
+            stmt.execute([])?;
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn delete_all_notifications(&self) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("DELETE FROM notifications;")?;
-        stmt.execute([])?;
-        Ok(())
+    pub async fn delete_all_notifications(&self) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached("DELETE FROM notifications;")?;
+            stmt.execute([])?;
+            Ok(())
+        })
+        .await?
     }
 
-    pub fn delete_notification(&self, event_id: EventId) -> Result<(), Error> {
-        let conn = self.pool.get()?;
-        let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE event_id = ?")?;
-        stmt.execute([event_id.to_hex()])?;
-        Ok(())
+    pub async fn delete_notification(&self, event_id: EventId) -> Result<(), Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE event_id = ?")?;
+            stmt.execute([event_id.to_hex()])?;
+            Ok(())
+        })
+        .await?
     }
 }

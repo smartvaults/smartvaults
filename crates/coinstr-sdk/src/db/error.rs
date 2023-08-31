@@ -4,6 +4,7 @@
 use coinstr_core::policy;
 use coinstr_protocol::v1::util::serde::Error as SerdeError;
 use coinstr_protocol::v1::util::EncryptionError;
+use deadpool_sqlite::{CreatePoolError, InteractError, PoolError};
 use nostr_sdk::event;
 use nostr_sdk::event::id;
 
@@ -15,9 +16,15 @@ pub enum Error {
     /// Sqlite error
     #[error(transparent)]
     Sqlite(#[from] rusqlite::Error),
-    /// Sqlite Pool error
+    /// Pool error
     #[error(transparent)]
-    Pool(#[from] r2d2::Error),
+    CreateDeadPool(#[from] CreatePoolError),
+    /// Pool error
+    #[error(transparent)]
+    DeadPool(#[from] PoolError),
+    /// Pool error
+    #[error(transparent)]
+    DeadPoolInteract(#[from] InteractError),
     /// Migration error
     #[error(transparent)]
     Migration(#[from] MigrationError),

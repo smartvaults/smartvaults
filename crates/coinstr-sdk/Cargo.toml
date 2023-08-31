@@ -17,13 +17,14 @@ blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 [dependencies]
 async-utility = "0.1"
 bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "2867e88b64b4a8cf7136cc562ec61c077737a087" }
+chacha20poly1305 = "0.10"
 coinstr-core = { path = "../coinstr-core", features = ["reserves"] }
 coinstr-protocol = { path = "../coinstr-protocol" }
+deadpool-sqlite = "0.5"
+futures = "0.3"
 futures-util = "0.3"
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "38621e54e994d4c5b263c739eb16778fbca9620e", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
-r2d2 = "0.8"
-r2d2_sqlite = "0.22"
-rusqlite = { version = "0.29", features = ["bundled", "serde_json", "url"] }
+rusqlite = { version = "0.28", features = ["bundled", "serde_json", "url"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"

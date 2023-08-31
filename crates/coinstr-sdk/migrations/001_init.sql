@@ -60,7 +60,10 @@ CREATE TABLE IF NOT EXISTS completed_proposals (
 CREATE TABLE IF NOT EXISTS relays (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     url TEXT NOT NULL,
-    last_sync BIGINT DEFAULT NULL
+    proxy BLOB DEFAULT NULL,
+    last_sync BIGINT DEFAULT NULL,
+    enabled BOOLEAN DEFAULT TRUE
+
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS relays_index ON relays(url);
@@ -75,6 +78,7 @@ CREATE TABLE IF NOT EXISTS events (
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id BLOB NOT NULL,
     notification BLOB NOT NULL,
     timestamp BIGINT NOT NULL,
     seen BOOLEAN NOT NULL DEFAULT FALSE
@@ -114,4 +118,38 @@ CREATE TABLE IF NOT EXISTS shared_signers (
     shared_signer_id BLOB PRIMARY KEY NOT NULL,
     owner_public_key BLOB NOT NULL,
     shared_signer BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS nostr_connect_sessions (
+    app_public_key BLOB PRIMARY KEY NOT NULL,
+    uri BLOB NOT NULL,
+    timestamp BIGINT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS nostr_connect_sessions_index ON nostr_connect_sessions(uri);
+
+CREATE TABLE IF NOT EXISTS nostr_connect_requests (
+    event_id BLOB PRIMARY KEY NOT NULL,
+    app_public_key BLOB NOT NULL,
+    message BLOB NOT NULL,
+    timestamp BIGINT NOT NULL,
+    approved BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS labels (
+    id BLOB PRIMARY KEY NOT NULL,
+    policy_id BLOB NOT NULL,
+    kind BLOB NOT NULL,
+    label BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS timechain (
+    descriptor_hash BLOB PRIMARY KEY NOT NULL,
+    data BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS frozen_utxos (
+    utxo_hash BLOB PRIMARY KEY NOT NULL,
+    policy_id BLOB NOT NULL,
+    proposal_id BLOB
 );

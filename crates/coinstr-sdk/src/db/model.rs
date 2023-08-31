@@ -20,9 +20,11 @@ use crate::types::Notification;
 pub struct GetPolicy {
     pub policy_id: EventId,
     pub policy: Policy,
+    // TODO: add balance?
     pub last_sync: Option<Timestamp>,
 }
 
+// TODO: remove this
 #[derive(Debug, Clone)]
 pub struct GetDetailedPolicy {
     pub policy: Policy,

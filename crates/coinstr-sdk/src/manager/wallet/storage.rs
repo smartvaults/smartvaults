@@ -5,6 +5,7 @@ use coinstr_core::bdk::chain::{Append, PersistBackend};
 use coinstr_protocol::v1::util::Encryption;
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use thiserror::Error;
+use tokio::runtime::Handle;
 
 use crate::db::{Error as DbError, Store};
 
@@ -33,7 +34,7 @@ impl CoinstrWalletStorage {
 
 impl<K> PersistBackend<K> for CoinstrWalletStorage
 where
-    K: Default + Clone + Append + Encryption,
+    K: Default + Clone + Append + Encryption + Send,
 {
     type WriteError = Error;
     type LoadError = Error;
@@ -43,29 +44,42 @@ where
             return Ok(());
         }
 
-        match self.db.get_changeset::<K>(self.descriptor_hash).ok() {
-            Some(mut keychain_store) => {
-                keychain_store.append(changeset.clone());
-                self.db
-                    .save_changeset(self.descriptor_hash, &keychain_store)?
-            }
-            None => self.db.save_changeset(self.descriptor_hash, changeset)?,
-        };
+        let handle = Handle::current();
+        handle.enter();
+        futures::executor::block_on(async {
+            match self.db.get_changeset::<K>(self.descriptor_hash).await.ok() {
+                Some(mut keychain_store) => {
+                    keychain_store.append(changeset.clone());
+                    self.db
+                        .save_changeset(self.descriptor_hash, &keychain_store)
+                        .await?
+                }
+                None => {
+                    self.db
+                        .save_changeset(self.descriptor_hash, changeset)
+                        .await?
+                }
+            };
 
-        Ok(())
+            Ok(())
+        })
     }
 
     fn load_from_persistence(&mut self) -> Result<K, Self::LoadError> {
-        match self.db.get_changeset::<K>(self.descriptor_hash) {
-            Ok(k) => Ok(k),
-            Err(DbError::NotFound(_)) => {
-                tracing::warn!("Change set not found, using the default one");
-                Ok(K::default())
+        let handle = Handle::current();
+        handle.enter();
+        futures::executor::block_on(async {
+            match self.db.get_changeset::<K>(self.descriptor_hash).await {
+                Ok(k) => Ok(k),
+                Err(DbError::NotFound(_)) => {
+                    tracing::warn!("Change set not found, using the default one");
+                    Ok(K::default())
+                }
+                Err(e) => {
+                    tracing::error!("Impossible to load changeset: {e}");
+                    Ok(K::default())
+                }
             }
-            Err(e) => {
-                tracing::error!("Impossible to load changeset: {e}");
-                Ok(K::default())
-            }
-        }
+        })
     }
 }

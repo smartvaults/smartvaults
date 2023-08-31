@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+mod encryption;
 mod error;
 mod migration;
 pub mod model;
