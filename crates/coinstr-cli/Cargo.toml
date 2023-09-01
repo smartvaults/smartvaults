@@ -12,7 +12,7 @@ keywords.workspace = true
 categories = ["command-line-utilities"]
 
 [dependencies]
-clap = { version = "4.2", features = ["derive"] }
+clap = { version = "4.4", features = ["derive"] }
 coinstr-sdk = { path = "../coinstr-sdk" }
 dialoguer = "0.10"
 dirs = "5.0"
