@@ -119,9 +119,6 @@ impl Store {
     pub async fn delete_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
         self.set_event_as_deleted(shared_signer_id).await?;
 
-        // Delete notification
-        self.delete_notification(shared_signer_id).await?;
-
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             conn.execute(

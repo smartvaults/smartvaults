@@ -8,7 +8,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::Add;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -18,7 +17,6 @@ use chacha20poly1305::XChaCha20Poly1305;
 use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
-use coinstr_protocol::v1::util::serde::Serde;
 use deadpool_sqlite::{Config, Object, Pool, Runtime};
 use nostr_sdk::event::id::EventId;
 use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -38,11 +36,8 @@ mod utxos;
 
 use super::encryption::StoreEncryption;
 use super::migration::{self, STARTUP_SQL};
-use super::model::{
-    GetApproval, GetApprovedProposals, GetCompletedProposal, GetNotifications, GetProposal,
-};
+use super::model::{GetApproval, GetApprovedProposals, GetCompletedProposal, GetProposal};
 use super::Error;
-use crate::types::Notification;
 
 /// Store
 #[derive(Clone)]
@@ -341,9 +336,6 @@ impl Store {
     pub async fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
         self.set_event_as_deleted(proposal_id).await?;
 
-        // Delete notification
-        self.delete_notification(proposal_id).await?;
-
         // Delete proposal
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
@@ -499,9 +491,6 @@ impl Store {
 
     pub async fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
         self.set_event_as_deleted(approval_id).await?;
-
-        // Delete notification
-        self.delete_notification(approval_id).await?;
 
         // Delete policy
         let conn = self.acquire().await?;
@@ -819,117 +808,6 @@ impl Store {
                 events.push(event);
             }
             Ok(events)
-        })
-        .await?
-    }
-
-    pub async fn save_notification(
-        &self,
-        event_id: EventId,
-        notification: Notification,
-    ) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-let mut stmt = conn.prepare_cached(
-            "INSERT OR IGNORE INTO notifications (event_id, notification, timestamp) VALUES (?, ?, ?);",
-        )?;
-        stmt.execute((
-            event_id.to_hex(),
-            notification.as_json(),
-            Timestamp::now().as_u64(),
-        ))?;
-        Ok(())
-        }).await?
-    }
-
-    pub async fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT notification, timestamp, seen FROM notifications ORDER BY timestamp DESC;",
-            )?;
-            let mut rows = stmt.query([])?;
-            let mut notifications: Vec<GetNotifications> = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let json: String = row.get(0)?;
-                let notification: Notification = Notification::from_json(json)?;
-                let timestamp: u64 = row.get(1)?;
-                let timestamp = Timestamp::from(timestamp);
-                let seen: bool = row.get(2)?;
-                notifications.push(GetNotifications {
-                    notification,
-                    timestamp,
-                    seen,
-                });
-            }
-            Ok(notifications)
-        })
-        .await?
-    }
-
-    pub async fn count_unseen_notifications(&self) -> Result<usize, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT COUNT(*) FROM notifications WHERE seen = 0;")?;
-            let mut rows = stmt.query([])?;
-            let row = rows
-                .next()?
-                .ok_or(Error::NotFound("count notifications".into()))?;
-            let count: usize = row.get(0)?;
-            Ok(count)
-        })
-        .await?
-    }
-
-    pub async fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE event_id = ?")?;
-            stmt.execute([event_id.to_hex()])?;
-            Ok(())
-        })
-        .await?
-    }
-
-    pub async fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("UPDATE notifications SET seen = 1 WHERE notification = ?")?;
-            stmt.execute([notification.as_json()])?;
-            Ok(())
-        })
-        .await?
-    }
-
-    pub async fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached("UPDATE notifications SET seen = 1;")?;
-            stmt.execute([])?;
-            Ok(())
-        })
-        .await?
-    }
-
-    pub async fn delete_all_notifications(&self) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached("DELETE FROM notifications;")?;
-            stmt.execute([])?;
-            Ok(())
-        })
-        .await?
-    }
-
-    pub async fn delete_notification(&self, event_id: EventId) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached("DELETE FROM notifications WHERE event_id = ?")?;
-            stmt.execute([event_id.to_hex()])?;
-            Ok(())
         })
         .await?
     }

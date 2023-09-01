@@ -20,10 +20,10 @@ use self::screen::{
     AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
     AddRelayState, AddSignerState, AddressesState, ChangePasswordState, CompletedProposalState,
     ConfigState, ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState,
-    NewProofState, NotificationsState, PoliciesState, PolicyBuilderState, PolicyState,
-    PolicyTreeState, ProfileState, ProposalState, ProposalsState, ReceiveState, RecoveryKeysState,
-    RelaysState, RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState,
-    ShareSignerState, SignerState, SignersState, SpendState, TransactionState, TransactionsState,
+    NewProofState, PoliciesState, PolicyBuilderState, PolicyState, PolicyTreeState, ProfileState,
+    ProposalState, ProposalsState, ReceiveState, RecoveryKeysState, RelaysState,
+    RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState,
+    SignerState, SignersState, SpendState, TransactionState, TransactionsState,
 };
 use self::sync::CoinstrSync;
 
@@ -74,7 +74,6 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
         Stage::Contacts => ContactsState::new().into(),
         Stage::AddContact => AddContactState::new().into(),
-        Stage::Notifications => NotificationsState::new().into(),
         Stage::Profile => ProfileState::new().into(),
         Stage::EditProfile => EditProfileState::new().into(),
         Stage::Settings => SettingsState::new().into(),

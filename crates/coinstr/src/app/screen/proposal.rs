@@ -82,10 +82,6 @@ impl State for ProposalState {
         Command::perform(
             async move {
                 if client.db.proposal_exists(proposal_id).await.ok()? {
-                    client
-                        .mark_notification_as_seen_by_id(proposal_id)
-                        .await
-                        .ok()?;
                     let GetProposal {
                         policy_id,
                         proposal,

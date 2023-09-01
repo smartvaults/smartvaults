@@ -5,13 +5,11 @@ use std::any::TypeId;
 use std::hash::Hash;
 
 use async_stream::stream;
-use coinstr_sdk::client::Message;
 use coinstr_sdk::Coinstr;
 use iced::advanced::subscription::{EventStream, Recipe};
 use iced::advanced::Hasher;
 use iced::Subscription;
 use iced_futures::BoxStream;
-use notify_rust::Notification as DesktopNotification;
 
 pub struct CoinstrSync {
     client: Coinstr,
@@ -27,12 +25,8 @@ impl Recipe for CoinstrSync {
     fn stream(self: Box<Self>, _input: EventStream) -> BoxStream<Self::Output> {
         let mut receiver = self.client.sync_notifications();
         let stream = stream! {
-            while let Ok(item) = receiver.recv().await {
-                if let Message::Notification(notification) = item {
-                    if let Err(e) = DesktopNotification::new().summary("Coinstr").body(&notification.to_string()).show() {
-                        tracing::error!("Impossible to send desktop notification: {e}");
-                    };
-                }
+            while let Ok(_msg) = receiver.recv().await {
+                // TODO
                 yield ();
             }
         };

@@ -89,10 +89,6 @@ impl State for PolicyState {
         self.loading = true;
         Command::perform(
             async move {
-                client
-                    .mark_notification_as_seen_by_id(policy_id)
-                    .await
-                    .ok()?;
                 let GetPolicy {
                     policy, last_sync, ..
                 } = client.get_policy_by_id(policy_id).await.ok()?;

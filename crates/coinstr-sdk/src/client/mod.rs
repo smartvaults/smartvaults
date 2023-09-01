@@ -50,11 +50,11 @@ use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::db::model::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicy,
-    GetNotifications, GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    GetPolicy, GetProposal, GetTransaction, GetUtxo,
 };
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
-use crate::types::{Notification, PolicyBackup};
+use crate::types::PolicyBackup;
 use crate::{util, Label, LabelData};
 
 #[derive(Debug, thiserror::Error)]
@@ -1698,30 +1698,5 @@ impl Coinstr {
         let backup = self.export_policy_backup(policy_id).await?;
         backup.save(path)?;
         Ok(())
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_notifications(&self) -> Result<Vec<GetNotifications>, Error> {
-        Ok(self.db.get_notifications().await?)
-    }
-
-    pub async fn count_unseen_notifications(&self) -> Result<usize, Error> {
-        Ok(self.db.count_unseen_notifications().await?)
-    }
-
-    pub async fn mark_all_notifications_as_seen(&self) -> Result<(), Error> {
-        Ok(self.db.mark_all_notifications_as_seen().await?)
-    }
-
-    pub async fn mark_notification_as_seen_by_id(&self, event_id: EventId) -> Result<(), Error> {
-        Ok(self.db.mark_notification_as_seen_by_id(event_id).await?)
-    }
-
-    pub async fn mark_notification_as_seen(&self, notification: Notification) -> Result<(), Error> {
-        Ok(self.db.mark_notification_as_seen(notification).await?)
-    }
-
-    pub async fn delete_all_notifications(&self) -> Result<(), Error> {
-        Ok(self.db.delete_all_notifications().await?)
     }
 }

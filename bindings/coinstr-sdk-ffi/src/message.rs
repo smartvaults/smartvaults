@@ -63,13 +63,11 @@ pub enum Message {
     EvH { event: EventHandled },
     WalletSyncCompleted { policy_id: String },
     BlockHeightUpdated(),
-    Null(),
 }
 
 impl From<MessageSdk> for Message {
     fn from(value: MessageSdk) -> Self {
         match value {
-            MessageSdk::Notification(..) => Self::Null(),
             MessageSdk::EventHandled(event) => Self::EvH {
                 event: event.into(),
             },

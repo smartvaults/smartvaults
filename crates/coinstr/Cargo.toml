@@ -21,7 +21,6 @@ iced = { git = "https://github.com/yukibtc/iced", rev = "304aa3badb885c7c8bb5bcd
 iced_aw = { git = "https://github.com/yukibtc/iced_aw", rev = "c09b5eeac27db1bef7329db418a75397096cd9bc", default-features = false, features = ["card", "modal"] }
 iced_futures = { git = "https://github.com/yukibtc/iced", rev = "304aa3badb885c7c8bb5bcd6160dc5c9c7b950b2" }
 lyon_algorithms = "1.0"
-notify-rust = "4.8"
 once_cell = { workspace = true }
 rfd = "0.11"
 tokio = { version = "1", features = ["full"] }

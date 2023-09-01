@@ -141,9 +141,6 @@ impl Store {
 
         self.set_event_as_deleted(policy_id).await?;
 
-        // Delete notification
-        self.delete_notification(policy_id).await?;
-
         // Delete policy
         let conn = self.acquire().await?;
         conn.interact(move |conn| {

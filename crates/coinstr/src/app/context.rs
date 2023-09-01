@@ -38,7 +38,6 @@ pub enum Stage {
     ShareSigner(EventId),
     Contacts,
     AddContact,
-    Notifications,
     Profile,
     EditProfile,
     Settings,
@@ -81,7 +80,6 @@ impl fmt::Display for Stage {
             Self::ShareSigner(id) => write!(f, "Share signer #{}", util::cut_event_id(*id)),
             Self::Contacts => write!(f, "Contacts"),
             Self::AddContact => write!(f, "Add"),
-            Self::Notifications => write!(f, "Notifications"),
             Self::Profile => write!(f, "Profile"),
             Self::EditProfile => write!(f, "Edit profile"),
             Self::Settings => write!(f, "Settings"),
@@ -113,7 +111,6 @@ impl Stage {
                 | Stage::Signers
                 | Stage::Contacts
                 | Stage::Settings
-                | Stage::Notifications
                 | Stage::Profile
                 | Stage::NostrConnect
         )

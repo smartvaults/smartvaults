@@ -3,8 +3,6 @@
 
 pub mod backup;
 pub mod label;
-pub mod notification;
 
 pub use self::backup::PolicyBackup;
 pub use self::label::{Label, LabelData, LabelKind};
-pub use self::notification::Notification;

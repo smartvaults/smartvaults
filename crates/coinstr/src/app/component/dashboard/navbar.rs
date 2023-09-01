@@ -11,7 +11,7 @@ use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Button, ButtonStyle, Icon, Text};
 use crate::theme::color::DARK_RED;
-use crate::theme::icon::{BELL, BOX, EYE, EYE_SLASH, FINGERPRINT, PERSON_CIRCLE};
+use crate::theme::icon::{BOX, EYE, EYE_SLASH, FINGERPRINT, PERSON_CIRCLE};
 
 #[derive(Clone, Default)]
 pub struct Navbar;
@@ -22,22 +22,6 @@ impl Navbar {
     }
 
     pub fn view<'a>(&self, ctx: &Context) -> Row<'a, Message> {
-        let color = None;
-        // TODO
-        /* let color: Option<Color> = match ctx.client.count_unseen_notifications() {
-            Ok(count) => {
-                if count > 0 {
-                    Some(RED)
-                } else {
-                    None
-                }
-            }
-            Err(e) => {
-                tracing::error!("Impossible to count unseen notifications: {e}");
-                None
-            }
-        }; */
-
         // Identity
         let fingerprint = match ctx
             .client
@@ -89,14 +73,6 @@ impl Navbar {
                 Row::new()
                     .push(rule::vertical())
                     .height(Length::Fixed(40.0)),
-            )
-            .push(
-                Button::new()
-                    .icon(BELL)
-                    .style(ButtonStyle::Transparent { text_color: color })
-                    .on_press(Message::View(Stage::Notifications))
-                    .width(Length::Fixed(40.0))
-                    .view(),
             )
             .push(
                 Button::new()

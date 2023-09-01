@@ -30,7 +30,7 @@ use crate::constants::WALLET_SYNC_INTERVAL;
 use crate::db::model::GetPolicy;
 use crate::manager::{Error as ManagerError, WalletError};
 use crate::types::Label;
-use crate::{util, Notification};
+use crate::util;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -51,7 +51,6 @@ pub enum EventHandled {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
-    Notification(Notification),
     EventHandled(EventHandled),
     WalletSyncCompleted(EventId),
     BlockHeightUpdated,
@@ -373,10 +372,6 @@ impl Coinstr {
                         .save_policy(event.id, policy.clone(), nostr_pubkeys)
                         .await?;
                     self.manager.load_policy(event.id, policy).await?;
-                    let notification = Notification::NewPolicy(event.id);
-                    self.db.save_notification(event.id, notification).await?;
-                    self.sync_channel
-                        .send(Message::Notification(notification))?;
                     self.sync_channel
                         .send(Message::EventHandled(EventHandled::Policy(event.id)))?;
                 }
@@ -388,10 +383,6 @@ impl Coinstr {
                 if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
                     self.db.save_proposal(event.id, policy_id, proposal).await?;
-                    let notification = Notification::NewProposal(event.id);
-                    self.db.save_notification(event.id, notification).await?;
-                    self.sync_channel
-                        .send(Message::Notification(notification))?;
                     self.sync_channel
                         .send(Message::EventHandled(EventHandled::Proposal(event.id)))?;
                 } else {
@@ -419,13 +410,6 @@ impl Coinstr {
                                 event.created_at,
                             )
                             .await?;
-                        let notification = Notification::NewApproval {
-                            proposal_id,
-                            public_key: event.pubkey,
-                        };
-                        self.db.save_notification(event.id, notification).await?;
-                        self.sync_channel
-                            .send(Message::Notification(notification))?;
                         self.sync_channel
                             .send(Message::EventHandled(EventHandled::Approval {
                                 proposal_id,
@@ -466,10 +450,6 @@ impl Coinstr {
                         self.db
                             .save_completed_proposal(event.id, *policy_id, completed_proposal)
                             .await?;
-                        let notification = Notification::NewCompletedProposal(event.id);
-                        self.db.save_notification(event.id, notification).await?;
-                        self.sync_channel
-                            .send(Message::Notification(notification))?;
                         self.sync_channel.send(Message::EventHandled(
                             EventHandled::CompletedProposal(event.id),
                         ))?;
@@ -510,13 +490,6 @@ impl Coinstr {
                 self.db
                     .save_shared_signer(event.id, event.pubkey, shared_signer)
                     .await?;
-                let notification = Notification::NewSharedSigner {
-                    shared_signer_id: event.id,
-                    owner_public_key: event.pubkey,
-                };
-                self.db.save_notification(event.id, notification).await?;
-                self.sync_channel
-                    .send(Message::Notification(notification))?;
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::SharedSigner(event.id)))?;
             }

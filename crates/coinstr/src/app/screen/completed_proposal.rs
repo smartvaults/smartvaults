@@ -80,28 +80,15 @@ impl State for CompletedProposalState {
         self.loading = true;
         Command::perform(
             async move {
-                if client
-                    .db
-                    .completed_proposal_exists(completed_proposal_id)
+                let GetCompletedProposal {
+                    policy_id,
+                    proposal,
+                    ..
+                } = client
+                    .get_completed_proposal_by_id(completed_proposal_id)
                     .await
-                    .ok()?
-                {
-                    client
-                        .mark_notification_as_seen_by_id(completed_proposal_id)
-                        .await
-                        .ok()?;
-                    let GetCompletedProposal {
-                        policy_id,
-                        proposal,
-                        ..
-                    } = client
-                        .get_completed_proposal_by_id(completed_proposal_id)
-                        .await
-                        .ok()?;
-                    Some((proposal, policy_id))
-                } else {
-                    None
-                }
+                    .ok()?;
+                Some((proposal, policy_id))
             },
             |res| match res {
                 Some((proposal, policy_id)) => {

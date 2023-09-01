@@ -75,15 +75,6 @@ CREATE TABLE IF NOT EXISTS events (
     event BLOB NOT NULL
 );
 
--- Notifications
-CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id BLOB NOT NULL,
-    notification BLOB NOT NULL,
-    timestamp BIGINT NOT NULL,
-    seen BOOLEAN NOT NULL DEFAULT FALSE
-);
-
 CREATE UNIQUE INDEX IF NOT EXISTS notifications_index ON notifications(notification);
 
 -- Contacts

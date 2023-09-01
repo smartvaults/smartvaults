@@ -627,7 +627,6 @@ interface Message {
   EvH(EventHandled event);
   WalletSyncCompleted(string policy_id);
   BlockHeightUpdated();
-  Null();
 };
 
 callback interface SyncHandler {
