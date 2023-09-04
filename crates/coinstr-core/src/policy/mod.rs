@@ -71,7 +71,7 @@ pub enum Error {
     RelativeTimelockNotSatisfied,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Policy {
     pub name: String,
     pub description: String,

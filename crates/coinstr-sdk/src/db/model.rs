@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::cmp::Ordering;
 use std::ops::Deref;
 
 use coinstr_core::bdk::wallet::Balance;
@@ -15,10 +16,23 @@ use nostr_sdk::{EventId, Timestamp};
 
 use crate::manager::wallet::TransactionDetails;
 
+#[derive(PartialEq, Eq)]
 pub(crate) struct InternalGetPolicy {
     pub policy_id: EventId,
     pub policy: Policy,
     pub last_sync: Option<Timestamp>,
+}
+
+impl Ord for InternalGetPolicy {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.policy.cmp(&other.policy)
+    }
+}
+
+impl PartialOrd for InternalGetPolicy {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[derive(Debug, Clone)]

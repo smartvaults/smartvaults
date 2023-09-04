@@ -117,6 +117,9 @@ impl Store {
                     last_sync: last_sync.map(Timestamp::from),
                 });
             }
+
+            policies.sort();
+
             Ok(policies)
         })
         .await?
