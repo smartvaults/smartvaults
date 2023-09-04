@@ -1,11 +1,9 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::core::bdk::wallet::Balance;
-use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::db::model::{GetPolicy, GetProposal, GetTransaction};
-use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -31,12 +29,10 @@ pub enum PolicyMessage {
     SavePolicyBackup,
     Delete,
     LoadPolicy(
-        Policy,
+        GetPolicy,
         Vec<GetProposal>,
         Option<Signer>,
-        Option<Balance>,
         Vec<GetTransaction>,
-        Option<Timestamp>,
     ),
     ErrorChanged(Option<String>),
     Reload,
@@ -48,12 +44,10 @@ pub struct PolicyState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
-    policy: Option<Policy>,
+    policy: Option<GetPolicy>,
     proposals: Vec<GetProposal>,
     signer: Option<Signer>,
-    balance: Option<Balance>,
     transactions: Vec<GetTransaction>,
-    last_sync: Option<Timestamp>,
     error: Option<String>,
 }
 
@@ -66,9 +60,7 @@ impl PolicyState {
             policy: None,
             proposals: Vec::new(),
             signer: None,
-            balance: None,
             transactions: Vec::new(),
-            last_sync: None,
             error: None,
         }
     }
@@ -89,22 +81,18 @@ impl State for PolicyState {
         self.loading = true;
         Command::perform(
             async move {
-                let GetPolicy {
-                    policy, last_sync, ..
-                } = client.get_policy_by_id(policy_id).await.ok()?;
-                let balance = client.get_balance(policy_id).await;
+                let policy = client.get_policy_by_id(policy_id).await.ok()?;
                 let list = client.get_txs(policy_id, true).await.ok()?;
                 let proposals = client.get_proposals_by_policy_id(policy_id).await.ok()?;
                 let signer = client
-                    .search_signer_by_descriptor(policy.descriptor.clone())
+                    .search_signer_by_descriptor(policy.policy.descriptor.clone())
                     .await
                     .ok();
-                Some((policy, proposals, signer, balance, list, last_sync))
+                Some((policy, proposals, signer, list))
             },
             |res| match res {
-                Some((policy, proposals, signer, balance, list, last_sync)) => {
-                    PolicyMessage::LoadPolicy(policy, proposals, signer, balance, list, last_sync)
-                        .into()
+                Some((policy, proposals, signer, list)) => {
+                    PolicyMessage::LoadPolicy(policy, proposals, signer, list).into()
                 }
                 None => Message::View(Stage::Policies),
             },
@@ -122,7 +110,9 @@ impl State for PolicyState {
                     let policy_id = self.policy_id;
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
-                        Some(policy) => Message::View(Stage::Spend(Some((policy_id, policy)))),
+                        Some(policy) => {
+                            Message::View(Stage::Spend(Some((policy_id, policy.policy))))
+                        }
                         None => Message::View(Stage::Policies),
                     });
                 }
@@ -130,7 +120,9 @@ impl State for PolicyState {
                     let policy_id = self.policy_id;
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
-                        Some(policy) => Message::View(Stage::Receive(Some((policy_id, policy)))),
+                        Some(policy) => {
+                            Message::View(Stage::Receive(Some((policy_id, policy.policy))))
+                        }
                         None => Message::View(Stage::Policies),
                     });
                 }
@@ -138,7 +130,9 @@ impl State for PolicyState {
                     let policy_id = self.policy_id;
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
-                        Some(policy) => Message::View(Stage::NewProof(Some((policy_id, policy)))),
+                        Some(policy) => {
+                            Message::View(Stage::NewProof(Some((policy_id, policy.policy))))
+                        }
                         None => Message::View(Stage::Policies),
                     });
                 }
@@ -190,13 +184,11 @@ impl State for PolicyState {
                         );
                     }
                 }
-                PolicyMessage::LoadPolicy(policy, proposals, signer, balance, list, last_sync) => {
+                PolicyMessage::LoadPolicy(policy, proposals, signer, list) => {
                     self.policy = Some(policy);
                     self.proposals = proposals;
                     self.signer = signer;
-                    self.balance = balance;
                     self.transactions = list;
-                    self.last_sync = last_sync;
                     self.loading = false;
                     self.loaded = true;
                 }
@@ -228,168 +220,160 @@ impl State for PolicyState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        if self.last_sync.is_some() {
-            content = content
-                .push(Space::with_height(Length::Fixed(20.0)))
-                .push(
-                    Row::new()
-                        .push(
-                            Column::new()
-                                .push(
-                                    Text::new(format!(
-                                        "Name: {}",
-                                        self.policy
-                                            .as_ref()
-                                            .map(|p| p.name.as_str())
-                                            .unwrap_or("Unavailable")
-                                    ))
-                                    .view(),
-                                )
-                                .push(
-                                    Text::new(format!(
-                                        "Description: {}",
-                                        self.policy
-                                            .as_ref()
-                                            .map(|p| p.description.as_str())
-                                            .unwrap_or("Unavailable")
-                                    ))
-                                    .view(),
-                                )
-                                .push(
-                                    Text::new(format!(
-                                        "Signer: {}",
-                                        self.signer
-                                            .as_ref()
-                                            .map(|s| s.to_string())
-                                            .unwrap_or_else(|| String::from("Unavailable"))
-                                    ))
-                                    .view(),
-                                )
-                                .push(
-                                    Text::new(format!(
-                                        "Last sync: {}",
-                                        self.last_sync
-                                            .as_ref()
-                                            .map(|t| t.to_human_datetime())
-                                            .unwrap_or_else(|| String::from("Not synced"))
-                                    ))
-                                    .view(),
-                                )
-                                .push(
-                                    Row::new()
-                                        .push(
-                                            Button::new()
-                                                .style(ButtonStyle::Bordered)
-                                                .icon(CLIPBOARD)
-                                                .on_press(Message::Clipboard(
-                                                    self.policy_id.to_string(),
-                                                ))
-                                                .width(Length::Fixed(40.0))
-                                                .view(),
-                                        )
-                                        .push(
-                                            Button::new()
-                                                .style(ButtonStyle::Bordered)
-                                                .icon(PATCH_CHECK)
-                                                .on_press(PolicyMessage::NewProofOfReserve.into())
-                                                .width(Length::Fixed(40.0))
-                                                .view(),
-                                        )
-                                        .push(
-                                            Button::new()
-                                                .style(ButtonStyle::Bordered)
-                                                .icon(SAVE)
-                                                .on_press(PolicyMessage::SavePolicyBackup.into())
-                                                .width(Length::Fixed(40.0))
-                                                .view(),
-                                        )
-                                        .push(
-                                            Button::new()
-                                                .style(ButtonStyle::Bordered)
-                                                .icon(BINOCULARS)
-                                                .width(Length::Fixed(40.0))
-                                                .on_press(Message::View(Stage::PolicyTree(
-                                                    self.policy_id,
-                                                )))
-                                                .loading(self.loading)
-                                                .view(),
-                                        )
-                                        .push(
-                                            Button::new()
-                                                .style(ButtonStyle::Bordered)
-                                                .icon(GLOBE)
-                                                .width(Length::Fixed(40.0))
-                                                .on_press(PolicyMessage::RepublishSharedKeys.into())
-                                                .loading(self.loading)
-                                                .view(),
-                                        )
-                                        .push(
-                                            Button::new()
-                                                .style(ButtonStyle::BorderedDanger)
-                                                .icon(TRASH)
-                                                .width(Length::Fixed(40.0))
-                                                .on_press(PolicyMessage::Delete.into())
-                                                .loading(self.loading)
-                                                .view(),
-                                        )
-                                        .spacing(10),
-                                )
-                                .spacing(10)
-                                .max_width(300),
-                        )
-                        .push(Space::with_width(Length::Fixed(10.0)))
-                        .push(
-                            Column::new()
-                                .push(rule::vertical())
-                                .height(Length::Fixed(135.0))
-                                .align_items(Alignment::Center),
-                        )
-                        .push(Space::with_width(Length::Fixed(10.0)))
-                        .push(
-                            Balances::new(self.balance.clone())
-                                .hide(ctx.hide_balances)
-                                .on_send(PolicyMessage::Send.into())
-                                .on_deposit(PolicyMessage::Deposit.into())
-                                .view(),
-                        )
-                        .spacing(20)
-                        .width(Length::Fill)
-                        .align_items(Alignment::Center),
-                )
-                .push(if let Some(error) = &self.error {
-                    Text::new(error).color(RED).view()
-                } else {
-                    Text::new("").view()
-                });
+        let is_loading =
+            self.policy.is_some() && self.policy.as_ref().map(|p| p.last_sync).is_some();
 
-            if !self.proposals.is_empty() {
+        if !is_loading {
+            if let Some(policy) = &self.policy {
                 content = content
                     .push(Space::with_height(Length::Fixed(20.0)))
-                    .push(Text::new("Pending proposals").bold().big().view())
+                    .push(
+                        Row::new()
+                            .push(
+                                Column::new()
+                                    .push(
+                                        Text::new(format!("Name: {}", policy.policy.name.as_str()))
+                                            .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!(
+                                            "Description: {}",
+                                            policy.policy.description.as_str()
+                                        ))
+                                        .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!(
+                                            "Signer: {}",
+                                            self.signer
+                                                .as_ref()
+                                                .map(|s| s.to_string())
+                                                .unwrap_or_else(|| String::from("Unavailable"))
+                                        ))
+                                        .view(),
+                                    )
+                                    .push(
+                                        Row::new()
+                                            .push(
+                                                Button::new()
+                                                    .style(ButtonStyle::Bordered)
+                                                    .icon(CLIPBOARD)
+                                                    .on_press(Message::Clipboard(
+                                                        self.policy_id.to_string(),
+                                                    ))
+                                                    .width(Length::Fixed(40.0))
+                                                    .view(),
+                                            )
+                                            .push(
+                                                Button::new()
+                                                    .style(ButtonStyle::Bordered)
+                                                    .icon(PATCH_CHECK)
+                                                    .on_press(
+                                                        PolicyMessage::NewProofOfReserve.into(),
+                                                    )
+                                                    .width(Length::Fixed(40.0))
+                                                    .view(),
+                                            )
+                                            .push(
+                                                Button::new()
+                                                    .style(ButtonStyle::Bordered)
+                                                    .icon(SAVE)
+                                                    .on_press(
+                                                        PolicyMessage::SavePolicyBackup.into(),
+                                                    )
+                                                    .width(Length::Fixed(40.0))
+                                                    .view(),
+                                            )
+                                            .push(
+                                                Button::new()
+                                                    .style(ButtonStyle::Bordered)
+                                                    .icon(BINOCULARS)
+                                                    .width(Length::Fixed(40.0))
+                                                    .on_press(Message::View(Stage::PolicyTree(
+                                                        self.policy_id,
+                                                    )))
+                                                    .loading(self.loading)
+                                                    .view(),
+                                            )
+                                            .push(
+                                                Button::new()
+                                                    .style(ButtonStyle::Bordered)
+                                                    .icon(GLOBE)
+                                                    .width(Length::Fixed(40.0))
+                                                    .on_press(
+                                                        PolicyMessage::RepublishSharedKeys.into(),
+                                                    )
+                                                    .loading(self.loading)
+                                                    .view(),
+                                            )
+                                            .push(
+                                                Button::new()
+                                                    .style(ButtonStyle::BorderedDanger)
+                                                    .icon(TRASH)
+                                                    .width(Length::Fixed(40.0))
+                                                    .on_press(PolicyMessage::Delete.into())
+                                                    .loading(self.loading)
+                                                    .view(),
+                                            )
+                                            .spacing(10),
+                                    )
+                                    .spacing(10)
+                                    .max_width(300),
+                            )
+                            .push(Space::with_width(Length::Fixed(10.0)))
+                            .push(
+                                Column::new()
+                                    .push(rule::vertical())
+                                    .height(Length::Fixed(135.0))
+                                    .align_items(Alignment::Center),
+                            )
+                            .push(Space::with_width(Length::Fixed(10.0)))
+                            .push(
+                                Balances::new(policy.balance.clone())
+                                    .hide(ctx.hide_balances)
+                                    .on_send(PolicyMessage::Send.into())
+                                    .on_deposit(PolicyMessage::Deposit.into())
+                                    .view(),
+                            )
+                            .spacing(20)
+                            .width(Length::Fill)
+                            .align_items(Alignment::Center),
+                    )
+                    .push(if let Some(error) = &self.error {
+                        Text::new(error).color(RED).view()
+                    } else {
+                        Text::new("").view()
+                    });
+
+                if !self.proposals.is_empty() {
+                    content = content
+                        .push(Space::with_height(Length::Fixed(20.0)))
+                        .push(Text::new("Pending proposals").bold().big().view())
+                        .push(Space::with_height(Length::Fixed(5.0)))
+                        .push(
+                            PendingProposalsList::new(self.proposals.clone())
+                                .hide_policy_id()
+                                .take(3)
+                                .view(),
+                        );
+                }
+
+                content = content
+                    .push(Space::with_height(Length::Fixed(20.0)))
+                    .push(Text::new("Transactions").bold().big().view())
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(
-                        PendingProposalsList::new(self.proposals.clone())
+                        TransactionsList::new(self.transactions.clone())
+                            .take(5)
+                            .policy_id(self.policy_id)
                             .hide_policy_id()
-                            .take(3)
-                            .view(),
+                            .view(ctx),
                     );
             }
-
-            content = content
-                .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Transactions").bold().big().view())
-                .push(Space::with_height(Length::Fixed(5.0)))
-                .push(
-                    TransactionsList::new(self.transactions.clone())
-                        .take(5)
-                        .policy_id(self.policy_id)
-                        .hide_policy_id()
-                        .view(ctx),
-                );
         }
 
         Dashboard::new()
-            .loaded(self.last_sync.is_some())
+            .loaded(is_loading)
             .view(ctx, content, false, false)
     }
 }

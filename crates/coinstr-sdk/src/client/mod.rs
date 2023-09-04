@@ -49,8 +49,8 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::db::model::{
-    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetDetailedPolicy,
-    GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
+    GetTransaction, GetUtxo, InternalGetPolicy,
 };
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
@@ -659,7 +659,17 @@ impl Coinstr {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
-        Ok(self.db.get_policy(policy_id).await?)
+        let InternalGetPolicy {
+            policy_id,
+            policy,
+            last_sync,
+        } = self.db.get_policy(policy_id).await?;
+        Ok(GetPolicy {
+            policy_id,
+            policy,
+            balance: self.get_balance(policy_id).await,
+            last_sync,
+        })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -804,29 +814,22 @@ impl Coinstr {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
-        Ok(self.db.get_policies().await?)
-    }
+        let mut policies = Vec::new();
 
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_detailed_policies(
-        &self,
-    ) -> Result<BTreeMap<EventId, GetDetailedPolicy>, Error> {
-        let mut policies = BTreeMap::new();
-        for GetPolicy {
+        for InternalGetPolicy {
             policy_id,
             policy,
             last_sync,
-        } in self.get_policies().await?.into_iter()
+        } in self.db.get_policies().await?.into_iter()
         {
-            policies.insert(
+            policies.push(GetPolicy {
                 policy_id,
-                GetDetailedPolicy {
-                    policy,
-                    balance: self.get_balance(policy_id).await,
-                    last_sync,
-                },
-            );
+                policy,
+                balance: self.get_balance(policy_id).await,
+                last_sync,
+            });
         }
+
         Ok(policies)
     }
 
@@ -1586,7 +1589,7 @@ impl Coinstr {
     pub async fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
         let mut txs = Vec::new();
         let mut already_seen = Vec::new();
-        for GetPolicy {
+        for InternalGetPolicy {
             policy_id, policy, ..
         } in self.db.get_policies().await?.into_iter()
         {
@@ -1680,7 +1683,7 @@ impl Coinstr {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
-        let GetPolicy { policy, .. } = self.db.get_policy(policy_id).await?;
+        let InternalGetPolicy { policy, .. } = self.db.get_policy(policy_id).await?;
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         Ok(PolicyBackup::new(
             policy.name,

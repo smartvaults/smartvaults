@@ -27,7 +27,7 @@ use tokio::sync::broadcast::Receiver;
 
 use super::{Coinstr, Error};
 use crate::constants::WALLET_SYNC_INTERVAL;
-use crate::db::model::GetPolicy;
+use crate::db::model::InternalGetPolicy;
 use crate::manager::{Error as ManagerError, WalletError};
 use crate::types::Label;
 use crate::util;
@@ -84,10 +84,10 @@ impl Coinstr {
         thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint().await {
-                    Ok(endpoint) => match this.get_policies().await {
+                    Ok(endpoint) => match this.db.get_policies().await {
                         Ok(policies) => {
                             let proxy = this.config.proxy().await.ok();
-                            for GetPolicy {
+                            for InternalGetPolicy {
                                 policy_id,
                                 last_sync,
                                 ..

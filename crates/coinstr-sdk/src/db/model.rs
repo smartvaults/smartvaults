@@ -14,19 +14,16 @@ use nostr_sdk::nips::nip46::Message;
 use nostr_sdk::{EventId, Timestamp};
 
 use crate::manager::wallet::TransactionDetails;
-use crate::types::Notification;
+
+pub(crate) struct InternalGetPolicy {
+    pub policy_id: EventId,
+    pub policy: Policy,
+    pub last_sync: Option<Timestamp>,
+}
 
 #[derive(Debug, Clone)]
 pub struct GetPolicy {
     pub policy_id: EventId,
-    pub policy: Policy,
-    // TODO: add balance?
-    pub last_sync: Option<Timestamp>,
-}
-
-// TODO: remove this
-#[derive(Debug, Clone)]
-pub struct GetDetailedPolicy {
     pub policy: Policy,
     pub balance: Option<Balance>,
     pub last_sync: Option<Timestamp>,

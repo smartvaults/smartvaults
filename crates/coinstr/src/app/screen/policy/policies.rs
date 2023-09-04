@@ -1,10 +1,9 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
 use std::time::Duration;
 
-use coinstr_sdk::db::model::GetDetailedPolicy;
+use coinstr_sdk::db::model::GetPolicy;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
@@ -18,7 +17,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(BTreeMap<EventId, GetDetailedPolicy>),
+    LoadPolicies(Vec<GetPolicy>),
     SavePolicyBackup(EventId),
     Reload,
 }
@@ -27,7 +26,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: BTreeMap<EventId, GetDetailedPolicy>,
+    policies: Vec<GetPolicy>,
 }
 
 impl PoliciesState {
@@ -44,10 +43,9 @@ impl State for PoliciesState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(
-            async move { client.get_detailed_policies().await.unwrap() },
-            |p| PoliciesMessage::LoadPolicies(p).into(),
-        )
+        Command::perform(async move { client.get_policies().await.unwrap() }, |p| {
+            PoliciesMessage::LoadPolicies(p).into()
+        })
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -152,14 +150,12 @@ impl State for PoliciesState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (
+                for GetPolicy {
                     policy_id,
-                    GetDetailedPolicy {
-                        policy,
-                        balance,
-                        last_sync,
-                    },
-                ) in self.policies.iter()
+                    policy,
+                    balance,
+                    last_sync,
+                } in self.policies.iter()
                 {
                     let balance = if last_sync.is_some() {
                         let balance: String = match balance {

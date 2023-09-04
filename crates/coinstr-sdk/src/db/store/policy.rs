@@ -6,7 +6,7 @@ use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{EventId, Timestamp};
 
 use super::{Store, StoreEncryption};
-use crate::db::model::GetPolicy;
+use crate::db::model::InternalGetPolicy;
 use crate::db::Error;
 
 impl Store {
@@ -52,7 +52,7 @@ impl Store {
         .await?
     }
 
-    pub async fn get_policy(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
+    pub(crate) async fn get_policy(&self, policy_id: EventId) -> Result<InternalGetPolicy, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -62,7 +62,7 @@ impl Store {
             let row = rows.next()?.ok_or(Error::NotFound("policy".into()))?;
             let policy: Vec<u8> = row.get(0)?;
             let last_sync: Option<u64> = row.get(1)?;
-            Ok(GetPolicy {
+            Ok(InternalGetPolicy {
                 policy_id,
                 policy: Policy::decrypt(&cipher, policy)?,
                 last_sync: last_sync.map(Timestamp::from),
@@ -99,7 +99,7 @@ impl Store {
         .await?
     }
 
-    pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
+    pub(crate) async fn get_policies(&self) -> Result<Vec<InternalGetPolicy>, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -111,7 +111,7 @@ impl Store {
                 let policy_id: String = row.get(0)?;
                 let policy: Vec<u8> = row.get(1)?;
                 let last_sync: Option<u64> = row.get(2)?;
-                policies.push(GetPolicy {
+                policies.push(InternalGetPolicy {
                     policy_id: EventId::from_hex(policy_id)?,
                     policy: Policy::decrypt(&cipher, policy)?,
                     last_sync: last_sync.map(Timestamp::from),
