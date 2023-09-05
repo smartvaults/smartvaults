@@ -9,14 +9,16 @@ use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, Wallet};
+use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
-use keechain_core::bitcoin::{Address, Network, OutPoint};
+use keechain_core::bitcoin::{Address, Network, OutPoint, Transaction};
 use keechain_core::miniscript::descriptor::DescriptorType;
 use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
 use keechain_core::secp256k1::XOnlyPublicKey;
+use keechain_core::util;
 use serde::{Deserialize, Serialize};
 
 pub mod template;
@@ -39,6 +41,8 @@ pub enum Error {
     #[error(transparent)]
     Miniscript(#[from] keechain_core::miniscript::Error),
     #[error(transparent)]
+    AbsoluteTimelock(#[from] absolute::Error),
+    #[error(transparent)]
     Psbt(#[from] keechain_core::bitcoin::psbt::Error),
     #[cfg(feature = "reserves")]
     #[error(transparent)]
@@ -57,6 +61,10 @@ pub enum Error {
     NoUtxosSelected,
     #[error("No UTXOs available: {0}")]
     NoUtxosAvailable(String),
+    #[error("Absolute timelock not satisfied")]
+    AbsoluteTimelockNotSatisfied,
+    #[error("Checkpoint not avilable")]
+    CheckpointNotAvailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -152,6 +160,23 @@ impl Policy {
         Self::from_policy(name.into(), description.into(), policy.to_string(), network)
     }
 
+    /// Check if [`Policy`] has an `absolute` or `relative` timelock
+    pub fn has_timelock(&self) -> bool {
+        self.has_absolute_timelock() || self.has_relative_timelock()
+    }
+
+    /// Check if [`Policy`] has a `absolute` timelock
+    pub fn has_absolute_timelock(&self) -> bool {
+        let descriptor = self.descriptor.to_string();
+        descriptor.contains("after")
+    }
+
+    /// Check if [`Policy`] has a `relative` timelock
+    pub fn has_relative_timelock(&self) -> bool {
+        let descriptor = self.descriptor.to_string();
+        descriptor.contains("older")
+    }
+
     pub fn spending_policy(&self, network: Network) -> Result<SpendingPolicy, Error> {
         let wallet = Wallet::new_no_persist(&self.descriptor.to_string(), None, network)?;
         wallet
@@ -159,15 +184,10 @@ impl Policy {
             .ok_or(Error::WalletSpendingPolicyNotFound)
     }
 
+    /// Get [`SatisfiableItem`]
     pub fn satisfiable_item(&self, network: Network) -> Result<SatisfiableItem, Error> {
         let policy = self.spending_policy(network)?;
         Ok(policy.item)
-    }
-
-    /// Check if [`Policy`] has a timelock
-    pub fn has_timelock(&self) -> bool {
-        let descriptor = self.descriptor.to_string();
-        descriptor.contains("after") || descriptor.contains("older")
     }
 
     #[allow(clippy::type_complexity)]
@@ -271,71 +291,91 @@ impl Policy {
             )));
         }
 
-        if let Some(frozen_utxos) = &frozen_utxos {
-            if wallet
-                .list_unspent()
-                .filter(|utxo| !frozen_utxos.contains(&utxo.outpoint))
-                .count()
-                == 0
-            {
-                return Err(Error::NoUtxosAvailable(String::from(
-                    "frozen by other proposals",
-                )));
+        match wallet.latest_checkpoint() {
+            Some(checkpoint) => {
+                let block_height: u32 = checkpoint.height();
+                let timestamp: u64 = util::time::timestamp();
+
+                if let Some(frozen_utxos) = &frozen_utxos {
+                    if wallet
+                        .list_unspent()
+                        .filter(|utxo| !frozen_utxos.contains(&utxo.outpoint))
+                        .count()
+                        == 0
+                    {
+                        return Err(Error::NoUtxosAvailable(String::from(
+                            "frozen by other proposals",
+                        )));
+                    }
+                }
+
+                // Build the PSBT
+                let (psbt, details) = {
+                    let mut builder = wallet.build_tx();
+
+                    if let Some(frozen_utxos) = frozen_utxos {
+                        for unspendable in frozen_utxos.into_iter() {
+                            builder.add_unspendable(unspendable);
+                        }
+                    }
+
+                    if let Some(utxos) = utxos {
+                        if utxos.is_empty() {
+                            return Err(Error::NoUtxosSelected);
+                        }
+                        builder.manually_selected_only();
+                        builder.add_utxos(&utxos)?;
+                    }
+
+                    if let Some(path) = policy_path {
+                        builder.policy_path(path, KeychainKind::External);
+                    }
+
+                    builder
+                        .fee_rate(fee_rate)
+                        .enable_rbf()
+                        .current_height(block_height);
+                    match amount {
+                        Amount::Max => builder
+                            .drain_wallet()
+                            .drain_to(address.payload.script_pubkey()),
+                        Amount::Custom(amount) => {
+                            builder.add_recipient(address.payload.script_pubkey(), amount)
+                        }
+                    };
+                    builder.finish()?
+                };
+
+                // Check if PSBT timelock is satisfied
+                let unsigned_tx: &Transaction = &psbt.unsigned_tx;
+                if !unsigned_tx.is_absolute_timelock_satisfied(
+                    Height::from_consensus(block_height)?,
+                    Time::from_consensus(timestamp as u32)?,
+                ) {
+                    return Err(Error::AbsoluteTimelockNotSatisfied);
+                }
+
+                let amount: u64 = match amount {
+                    Amount::Max => {
+                        let fee: u64 = psbt.fee()?.to_sat();
+                        details
+                            .sent
+                            .saturating_sub(details.received)
+                            .saturating_sub(fee)
+                    }
+                    Amount::Custom(amount) => amount,
+                };
+
+                Ok(Proposal::spending(
+                    self.descriptor.clone(),
+                    address,
+                    amount,
+                    description,
+                    psbt,
+                ))
             }
+            None => Err(Error::CheckpointNotAvailable),
         }
-
-        // Build the PSBT
-        let (psbt, details) = {
-            let mut builder = wallet.build_tx();
-
-            if let Some(frozen_utxos) = frozen_utxos {
-                for unspendable in frozen_utxos.into_iter() {
-                    builder.add_unspendable(unspendable);
-                }
-            }
-
-            if let Some(utxos) = utxos {
-                if utxos.is_empty() {
-                    return Err(Error::NoUtxosSelected);
-                }
-                builder.manually_selected_only();
-                builder.add_utxos(&utxos)?;
-            }
-
-            if let Some(path) = policy_path {
-                builder.policy_path(path, KeychainKind::External);
-            }
-
-            builder.fee_rate(fee_rate).enable_rbf();
-            match amount {
-                Amount::Max => builder
-                    .drain_wallet()
-                    .drain_to(address.payload.script_pubkey()),
-                Amount::Custom(amount) => {
-                    builder.add_recipient(address.payload.script_pubkey(), amount)
-                }
-            };
-            builder.finish()?
-        };
-
-        let amount: u64 = match amount {
-            Amount::Max => {
-                let fee: u64 = psbt.fee()?.to_sat();
-                details
-                    .sent
-                    .saturating_sub(details.received)
-                    .saturating_sub(fee)
-            }
-            Amount::Custom(amount) => amount,
-        };
-
-        Ok(Proposal::spending(
-            self.descriptor.clone(),
-            address,
-            amount,
-            description,
-            psbt,
-        ))
     }
 
     #[cfg(feature = "reserves")]
