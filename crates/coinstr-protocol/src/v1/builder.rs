@@ -7,8 +7,9 @@ use nostr::nips::nip04;
 use nostr::{Event, EventBuilder, EventId, Keys, Tag};
 use thiserror::Error;
 
-use super::constants::{POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND};
+use super::constants::{LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND};
 use super::util::{Encryption, EncryptionError};
+use super::Label;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -20,6 +21,8 @@ pub enum Error {
     NIP04(#[from] nostr::nips::nip04::Error),
     #[error(transparent)]
     Encryption(#[from] EncryptionError),
+    #[error(transparent)]
+    Label(#[from] super::label::Error),
 }
 
 pub trait CoinstrEventBuilder {
@@ -72,6 +75,23 @@ pub trait CoinstrEventBuilder {
         tags.push(Tag::Event(policy_id, None, None));
         let content: String = proposal.encrypt_with_keys(shared_key)?;
         Ok(EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(shared_key)?)
+    }
+
+    fn label(
+        shared_key: &Keys,
+        policy_id: EventId,
+        label: &Label,
+        nostr_pubkeys: &[XOnlyPublicKey],
+    ) -> Result<Event, Error> {
+        let identifier: String = label.generate_identifier(shared_key)?;
+        let content: String = label.encrypt_with_keys(shared_key)?;
+        let mut tags: Vec<Tag> = nostr_pubkeys
+            .iter()
+            .map(|p| Tag::PubKey(*p, None))
+            .collect();
+        tags.push(Tag::Identifier(identifier));
+        tags.push(Tag::Event(policy_id, None, None));
+        Ok(EventBuilder::new(LABELS_KIND, content, &tags).to_event(shared_key)?)
     }
 }
 
