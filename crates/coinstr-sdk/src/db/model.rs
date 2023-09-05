@@ -125,6 +125,7 @@ pub struct GetTransaction {
     pub policy_id: EventId,
     pub tx: TransactionDetails,
     pub label: Option<String>,
+    pub block_explorer: Option<String>,
 }
 
 impl Deref for GetTransaction {

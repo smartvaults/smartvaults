@@ -250,4 +250,8 @@ impl GetTransaction {
     pub fn label(&self) -> Option<String> {
         self.inner.label.clone()
     }
+
+    pub fn block_explorer(&self) -> Option<String> {
+        self.inner.block_explorer.clone()
+    }
 }

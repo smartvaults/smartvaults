@@ -244,6 +244,7 @@ interface GetTransaction {
     EventId policy_id();
     TransactionDetails tx();
     string? label();
+    string? block_explorer();
 };
 
 interface BlockTime {

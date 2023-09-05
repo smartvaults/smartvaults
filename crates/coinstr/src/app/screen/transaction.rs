@@ -16,7 +16,7 @@ use crate::theme::color::{GREEN, RED};
 
 #[derive(Debug, Clone)]
 pub enum TransactionMessage {
-    LoadTx(GetTransaction),
+    LoadTx(Box<GetTransaction>),
     Reload,
 }
 
@@ -54,7 +54,7 @@ impl State for TransactionState {
         Command::perform(
             async move { client.get_tx(policy_id, txid).await.ok() },
             |res| match res {
-                Some(tx) => TransactionMessage::LoadTx(tx).into(),
+                Some(tx) => TransactionMessage::LoadTx(Box::new(tx)).into(),
                 None => Message::View(Stage::Transactions(None)),
             },
         )
@@ -68,7 +68,7 @@ impl State for TransactionState {
         if let Message::Transaction(msg) = message {
             match msg {
                 TransactionMessage::LoadTx(tx) => {
-                    self.tx = Some(tx);
+                    self.tx = Some(*tx);
                     self.loading = false;
                     self.loaded = true;
                 }

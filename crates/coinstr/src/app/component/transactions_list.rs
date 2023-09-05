@@ -108,6 +108,7 @@ impl TransactionsList {
                 policy_id,
                 tx,
                 label,
+                block_explorer,
             } in self.list()
             {
                 let status = if tx.confirmation_time.is_confirmed() {
@@ -179,16 +180,14 @@ impl TransactionsList {
                             .view(),
                     )
                     .push({
-                        let btn = Button::new()
+                        let mut btn = Button::new()
                             .icon(BROWSER)
                             .style(ButtonStyle::Bordered)
                             .width(Length::Fixed(40.0));
 
-                        // TODO
-                        /* if let Ok(url) = ctx.client.config().block_explorer().await {
-                            btn = btn
-                                .on_press(Message::OpenInBrowser(format!("{url}/tx/{}", tx.txid)));
-                        } */
+                        if let Some(url) = block_explorer {
+                            btn = btn.on_press(Message::OpenInBrowser(url));
+                        }
 
                         btn.view()
                     })

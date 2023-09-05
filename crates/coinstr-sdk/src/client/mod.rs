@@ -1424,9 +1424,13 @@ impl Coinstr {
         let script_labels: HashMap<ScriptBuf, Label> =
             self.db.get_addresses_labels(policy_id).await?;
 
+        let block_explorer = self.config.block_explorer().await.ok();
+
         let mut list: Vec<GetTransaction> = Vec::new();
 
         for tx in txs.into_iter() {
+            let txid: Txid = tx.txid();
+
             let label: Option<String> = if tx.received > tx.sent {
                 let mut label = None;
                 for txout in tx.output.iter() {
@@ -1438,13 +1442,16 @@ impl Coinstr {
                 label
             } else {
                 // TODO: try to get UTXO label?
-                descriptions.get(&tx.txid()).cloned()
+                descriptions.get(&txid).cloned()
             };
 
             list.push(GetTransaction {
                 policy_id,
                 label,
                 tx,
+                block_explorer: block_explorer
+                    .as_ref()
+                    .map(|url| format!("{url}/tx/{txid}")),
             })
         }
 
@@ -1480,10 +1487,15 @@ impl Coinstr {
             self.db.get_description_by_txid(policy_id, txid).await?
         };
 
+        let block_explorer = self.config.block_explorer().await.ok();
+
         Ok(GetTransaction {
             policy_id,
             tx,
             label,
+            block_explorer: block_explorer
+                .as_ref()
+                .map(|url| format!("{url}/tx/{txid}")),
         })
     }
 
