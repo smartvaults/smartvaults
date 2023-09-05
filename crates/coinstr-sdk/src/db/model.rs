@@ -4,7 +4,7 @@
 use std::ops::Deref;
 
 use coinstr_core::bdk::wallet::Balance;
-use coinstr_core::bdk::{LocalUtxo, TransactionDetails};
+use coinstr_core::bdk::LocalUtxo;
 use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::Address;
 use coinstr_core::secp256k1::XOnlyPublicKey;
@@ -13,6 +13,7 @@ use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use nostr_sdk::nips::nip46::Message;
 use nostr_sdk::{EventId, Timestamp};
 
+use crate::manager::wallet::TransactionDetails;
 use crate::types::Notification;
 
 #[derive(Debug, Clone)]

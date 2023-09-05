@@ -179,7 +179,7 @@ pub fn print_txs(txs: Vec<GetTransaction>, limit: usize) {
         };
         table.add_row(row![
             index + 1,
-            tx.txid,
+            tx.txid(),
             format!("{} sat", format::number(tx.sent)),
             format!("{} sat", format::number(tx.received)),
             format!(

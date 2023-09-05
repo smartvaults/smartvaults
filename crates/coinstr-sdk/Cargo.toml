@@ -16,7 +16,7 @@ blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 
 [dependencies]
 async-utility = "0.1"
-bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "d6bcd9b725a63b5db9157fb11a827a472ddcf73d" }
+bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "2867e88b64b4a8cf7136cc562ec61c077737a087" }
 coinstr-core = { path = "../coinstr-core", features = ["reserves"] }
 coinstr-protocol = { path = "../coinstr-protocol" }
 futures-util = "0.3"

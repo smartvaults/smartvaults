@@ -111,7 +111,7 @@ where
         let out_script_unspendable =
             Address::new(self.network(), Payload::PubkeyHash(pkh)).script_pubkey();
 
-        let (psbt, _details) = {
+        let psbt = {
             let mut builder = self.build_tx();
             builder
                 .drain_wallet()
@@ -143,8 +143,8 @@ where
             .map(|utxo| {
                 if max_block_height.is_none() {
                     Ok((utxo, None))
-                } else if let Some(tx_details) = self.get_tx(utxo.outpoint.txid, false) {
-                    match tx_details.confirmation_time {
+                } else if let Some(tx_details) = self.get_tx(utxo.outpoint.txid) {
+                    match tx_details.chain_position.cloned().into() {
                         ConfirmationTime::Confirmed { height, .. } => Ok((utxo, Some(height))),
                         ConfirmationTime::Unconfirmed { .. } => Ok((utxo, None)),
                     }

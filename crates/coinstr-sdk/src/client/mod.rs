@@ -1350,18 +1350,16 @@ impl Coinstr {
         for tx in txs.into_iter() {
             let label: Option<String> = if tx.received > tx.sent {
                 let mut label = None;
-                if let Some(transaction) = tx.transaction.as_ref() {
-                    for txout in transaction.output.iter() {
-                        if wallet.is_mine(&txout.script_pubkey).await {
-                            label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
-                            break;
-                        }
+                for txout in tx.output.iter() {
+                    if wallet.is_mine(&txout.script_pubkey).await {
+                        label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
+                        break;
                     }
                 }
                 label
             } else {
                 // TODO: try to get UTXO label?
-                descriptions.get(&tx.txid).cloned()
+                descriptions.get(&tx.txid()).cloned()
             };
 
             list.push(GetTransaction {
@@ -1381,13 +1379,7 @@ impl Coinstr {
 
         let label: Option<String> = if tx.received > tx.sent {
             let mut label = None;
-            for txout in tx
-                .transaction
-                .as_ref()
-                .ok_or(Error::NotFound)?
-                .output
-                .iter()
-            {
+            for txout in tx.output.iter() {
                 if wallet.is_mine(&txout.script_pubkey).await {
                     let shared_key = self.db.get_shared_key(policy_id)?;
                     let address = Address::from_script(&txout.script_pubkey, self.network)?;

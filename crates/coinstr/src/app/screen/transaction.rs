@@ -93,17 +93,17 @@ impl State for TransactionState {
                 (tot.unsigned_abs(), positive)
             };
 
-            let (inputs, outputs) = if let Some(transaction) = &tx.transaction {
+            let (inputs, outputs) = {
                 let mut inputs = Column::new()
                     .push(
-                        Text::new(format!("{} inputs", transaction.input.len()))
+                        Text::new(format!("{} inputs", tx.input.len()))
                             .bold()
                             .size(20)
                             .view(),
                     )
                     .push(rule::horizontal_bold());
 
-                for txin in transaction.input.iter() {
+                for txin in tx.input.iter() {
                     let txid: String = txin.previous_output.txid.to_string();
                     inputs = inputs
                         .push(
@@ -124,14 +124,14 @@ impl State for TransactionState {
 
                 let mut outputs = Column::new()
                     .push(
-                        Text::new(format!("{} outputs", transaction.output.len()))
+                        Text::new(format!("{} outputs", tx.output.len()))
                             .bold()
                             .size(20)
                             .view(),
                     )
                     .push(rule::horizontal_bold());
 
-                for txout in transaction.output.iter() {
+                for txout in tx.output.iter() {
                     outputs = outputs
                         .push(
                             Column::new()
@@ -160,11 +160,6 @@ impl State for TransactionState {
                 }
 
                 (inputs, outputs)
-            } else {
-                (
-                    Column::new().push(Text::new("Inputs unavailable").bold().size(20).view()),
-                    Column::new().push(Text::new("Outputs unavailable").bold().size(20).view()),
-                )
             };
 
             let txid: String = self.txid.to_string();
@@ -187,140 +182,130 @@ impl State for TransactionState {
                 ),
             };
 
-            content =
-                content
-                    .push(Text::new(title).size(40).bold().view())
-                    .push(Space::with_height(Length::Fixed(10.0)))
-                    .push(
-                        Row::new()
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Block").big().extra_light().view())
-                                    .push(Text::new(confirmed_at_block).big().view())
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Confirmations").big().extra_light().view())
-                                    .push(Text::new(confirmations).big().view())
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Lock time").big().extra_light().view())
-                                    .push(
-                                        Text::new(
-                                            tx.transaction
-                                                .as_ref()
-                                                .map(|t| {
-                                                    format::number(
-                                                        t.lock_time.to_consensus_u32() as u64
-                                                    )
-                                                })
-                                                .unwrap_or_else(|| "00000000".to_string()),
-                                        )
-                                        .big()
-                                        .view(),
-                                    )
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .spacing(10)
-                            .width(Length::Fill),
-                    )
-                    .push(
-                        Row::new()
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Incoming").big().extra_light().view())
-                                    .push(
-                                        Text::new(format!("{} sat", format::number(tx.received)))
-                                            .big()
-                                            .view(),
-                                    )
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Outcoming").big().extra_light().view())
-                                    .push(
-                                        Text::new(format!("{} sat", format::number(tx.sent)))
-                                            .big()
-                                            .view(),
-                                    )
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Net").big().extra_light().view())
-                                    .push(
-                                        Text::new(format!(
-                                            "{}{} sat",
-                                            if positive { "+" } else { "-" },
-                                            format::number(total)
-                                        ))
-                                        .color(if positive { GREEN } else { RED })
-                                        .big()
-                                        .view(),
-                                    )
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .spacing(10)
-                            .width(Length::Fill),
-                    )
-                    .push(
-                        Row::new()
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Fee").big().extra_light().view())
-                                    .push(
-                                        Text::new(match tx.fee {
-                                            Some(fee) => format!("{} sat", format::number(fee)),
-                                            None => String::from("-"),
-                                        })
-                                        .color(RED)
-                                        .big()
-                                        .view(),
-                                    )
-                                    .spacing(10)
-                                    .width(Length::Fill),
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Date/Time").big().extra_light().view())
-                                    .push(Text::new(confirmed_at_time).big().view())
-                                    .spacing(10)
-                                    .width(Length::FillPortion(2)),
-                            ),
-                    )
-                    .push(
-                        Row::new().push(
+            content = content
+                .push(Text::new(title).size(40).bold().view())
+                .push(Space::with_height(Length::Fixed(10.0)))
+                .push(
+                    Row::new()
+                        .push(
                             Column::new()
-                                .push(Text::new("Description").big().extra_light().view())
+                                .push(Text::new("Block").big().extra_light().view())
+                                .push(Text::new(confirmed_at_block).big().view())
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Confirmations").big().extra_light().view())
+                                .push(Text::new(confirmations).big().view())
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Lock time").big().extra_light().view())
                                 .push(
-                                    Text::new(
-                                        label.as_ref().map(|s| s.as_str()).unwrap_or_default(),
-                                    )
+                                    Text::new(format::number(
+                                        tx.lock_time.to_consensus_u32() as u64
+                                    ))
                                     .big()
                                     .view(),
                                 )
                                 .spacing(10)
                                 .width(Length::Fill),
+                        )
+                        .spacing(10)
+                        .width(Length::Fill),
+                )
+                .push(
+                    Row::new()
+                        .push(
+                            Column::new()
+                                .push(Text::new("Incoming").big().extra_light().view())
+                                .push(
+                                    Text::new(format!("{} sat", format::number(tx.received)))
+                                        .big()
+                                        .view(),
+                                )
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Outcoming").big().extra_light().view())
+                                .push(
+                                    Text::new(format!("{} sat", format::number(tx.sent)))
+                                        .big()
+                                        .view(),
+                                )
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Net").big().extra_light().view())
+                                .push(
+                                    Text::new(format!(
+                                        "{}{} sat",
+                                        if positive { "+" } else { "-" },
+                                        format::number(total)
+                                    ))
+                                    .color(if positive { GREEN } else { RED })
+                                    .big()
+                                    .view(),
+                                )
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .spacing(10)
+                        .width(Length::Fill),
+                )
+                .push(
+                    Row::new()
+                        .push(
+                            Column::new()
+                                .push(Text::new("Fee").big().extra_light().view())
+                                .push(
+                                    Text::new(match tx.fee {
+                                        Some(fee) => format!("{} sat", format::number(fee)),
+                                        None => String::from("-"),
+                                    })
+                                    .color(RED)
+                                    .big()
+                                    .view(),
+                                )
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Date/Time").big().extra_light().view())
+                                .push(Text::new(confirmed_at_time).big().view())
+                                .spacing(10)
+                                .width(Length::FillPortion(2)),
                         ),
-                    )
-                    .push(Space::with_height(Length::Fixed(10.0)))
-                    .push(
-                        Row::new()
-                            .push(inputs.spacing(10).width(Length::Fill))
-                            .push(outputs.spacing(10).width(Length::Fill))
-                            .spacing(50)
+                )
+                .push(
+                    Row::new().push(
+                        Column::new()
+                            .push(Text::new("Description").big().extra_light().view())
+                            .push(
+                                Text::new(label.as_ref().map(|s| s.as_str()).unwrap_or_default())
+                                    .big()
+                                    .view(),
+                            )
+                            .spacing(10)
                             .width(Length::Fill),
-                    )
+                    ),
+                )
+                .push(Space::with_height(Length::Fixed(10.0)))
+                .push(
+                    Row::new()
+                        .push(inputs.spacing(10).width(Length::Fill))
+                        .push(outputs.spacing(10).width(Length::Fill))
+                        .spacing(50)
+                        .width(Length::Fill),
+                )
         }
 
         Dashboard::new()

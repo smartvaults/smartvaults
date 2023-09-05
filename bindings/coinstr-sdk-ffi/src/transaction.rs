@@ -7,6 +7,7 @@ use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bitcoin::{self, Address};
 use coinstr_sdk::db::model::{self, GetUtxo};
+use coinstr_sdk::manager::wallet;
 use nostr_sdk_ffi::{EventId, Timestamp};
 
 use crate::error::Result;
@@ -180,18 +181,18 @@ impl Transaction {
 }
 
 pub struct TransactionDetails {
-    inner: bdk::TransactionDetails,
+    inner: wallet::TransactionDetails,
 }
 
-impl From<bdk::TransactionDetails> for TransactionDetails {
-    fn from(inner: bdk::TransactionDetails) -> Self {
+impl From<wallet::TransactionDetails> for TransactionDetails {
+    fn from(inner: wallet::TransactionDetails) -> Self {
         Self { inner }
     }
 }
 
 impl TransactionDetails {
     pub fn txid(&self) -> String {
-        self.inner.txid.to_string()
+        self.inner.txid().to_string()
     }
 
     pub fn received(&self) -> u64 {
@@ -222,8 +223,8 @@ impl TransactionDetails {
         }
     }
 
-    pub fn transaction(&self) -> Option<Arc<Transaction>> {
-        self.inner.transaction.clone().map(|tx| Arc::new(tx.into()))
+    pub fn transaction(&self) -> Arc<Transaction> {
+        Arc::new(self.inner.transaction.clone().into())
     }
 }
 

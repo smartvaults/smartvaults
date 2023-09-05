@@ -174,7 +174,7 @@ impl TransactionsList {
                         Button::new()
                             .icon(CLIPBOARD)
                             .style(ButtonStyle::Bordered)
-                            .on_press(Message::Clipboard(tx.txid.to_string()))
+                            .on_press(Message::Clipboard(tx.txid().to_string()))
                             .width(Length::Fixed(40.0))
                             .view(),
                     )
@@ -197,7 +197,7 @@ impl TransactionsList {
                             .icon(FULLSCREEN)
                             .on_press(Message::View(Stage::Transaction {
                                 policy_id,
-                                txid: tx.txid,
+                                txid: tx.txid(),
                             }))
                             .width(Length::Fixed(40.0))
                             .view(),

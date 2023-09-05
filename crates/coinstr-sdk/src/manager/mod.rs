@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
-use coinstr_core::bdk::{FeeRate, LocalUtxo, TransactionDetails, Wallet};
+use coinstr_core::bdk::{FeeRate, LocalUtxo, Wallet};
 use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
@@ -20,7 +20,9 @@ use tokio::sync::RwLock;
 
 pub mod wallet;
 
-pub use self::wallet::{CoinstrWallet, CoinstrWalletStorage, Error as WalletError, StorageError};
+pub use self::wallet::{
+    CoinstrWallet, CoinstrWalletStorage, Error as WalletError, StorageError, TransactionDetails,
+};
 use crate::db::Store;
 
 #[derive(Debug, Error)]

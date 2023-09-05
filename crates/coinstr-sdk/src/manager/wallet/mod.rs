@@ -3,6 +3,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -11,12 +12,12 @@ use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::ElectrumExt;
-use coinstr_core::bdk::chain::{ConfirmationTimeAnchor, TxGraph};
+use coinstr_core::bdk::chain::{ConfirmationTime, ConfirmationTimeAnchor, TxGraph};
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
-use coinstr_core::bdk::{FeeRate, KeychainKind, LocalUtxo, TransactionDetails, Wallet};
+use coinstr_core::bdk::{FeeRate, KeychainKind, LocalUtxo, Wallet};
 use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Txid};
+use coinstr_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Transaction, Txid};
 use coinstr_core::reserves::ProofOfReserves;
 use coinstr_core::{Amount, Policy, Proposal};
 use thiserror::Error;
@@ -49,6 +50,22 @@ pub enum Error {
     NotFound,
     #[error("already syncing")]
     AlreadySyncing,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransactionDetails {
+    pub transaction: Transaction,
+    pub received: u64,
+    pub sent: u64,
+    pub fee: Option<u64>,
+    pub confirmation_time: ConfirmationTime,
+}
+
+impl Deref for TransactionDetails {
+    type Target = Transaction;
+    fn deref(&self) -> &Self::Target {
+        &self.transaction
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -166,18 +183,37 @@ impl CoinstrWallet {
 
     pub async fn get_txs(&self) -> Vec<TransactionDetails> {
         let wallet = self.wallet.read().await;
-        wallet
-            .transactions()
-            .filter_map(|t| wallet.get_tx(t.tx_node.txid, true))
-            .collect()
+        let mut txs = Vec::new();
+        for canonical_tx in wallet.transactions() {
+            let tx: &Transaction = canonical_tx.tx_node.tx;
+            let confirmation_time: ConfirmationTime = canonical_tx.chain_position.cloned().into();
+            let (sent, received) = wallet.sent_and_received(tx);
+            let fee: Option<u64> = wallet.calculate_fee(tx).ok();
+            txs.push(TransactionDetails {
+                transaction: tx.clone(),
+                received,
+                sent,
+                fee,
+                confirmation_time,
+            })
+        }
+        txs
     }
 
     pub async fn get_tx(&self, txid: Txid) -> Result<TransactionDetails, Error> {
-        self.wallet
-            .read()
-            .await
-            .get_tx(txid, true)
-            .ok_or(Error::NotFound)
+        let wallet = self.wallet.read().await;
+        let canonical_tx = wallet.get_tx(txid).ok_or(Error::NotFound)?;
+        let tx: &Transaction = canonical_tx.tx_node.tx;
+        let confirmation_time: ConfirmationTime = canonical_tx.chain_position.cloned().into();
+        let (sent, received) = wallet.sent_and_received(tx);
+        let fee: Option<u64> = wallet.calculate_fee(tx).ok();
+        Ok(TransactionDetails {
+            transaction: tx.clone(),
+            received,
+            sent,
+            fee,
+            confirmation_time,
+        })
     }
 
     pub async fn get_utxos(&self) -> Vec<LocalUtxo> {
