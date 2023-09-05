@@ -85,12 +85,24 @@ pub struct NostrConnectRequest {
     pub approved: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetProposal {
     pub proposal_id: EventId,
     pub policy_id: EventId,
     pub proposal: Proposal,
     pub signed: bool,
+}
+
+impl PartialOrd for GetProposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetProposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.proposal.cmp(&other.proposal)
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::cmp::Ordering;
 use std::fmt;
 
 use keechain_core::bdk::signer::SignerWrapper;
@@ -86,6 +87,18 @@ pub enum Proposal {
         )]
         psbt: PartiallySignedTransaction,
     },
+}
+
+impl PartialOrd for Proposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Proposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.psbt().unsigned_tx.cmp(&self.psbt().unsigned_tx)
+    }
 }
 
 impl Proposal {

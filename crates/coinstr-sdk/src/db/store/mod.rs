@@ -231,6 +231,7 @@ impl Store {
                 conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
             let mut rows = stmt.query([])?;
             let mut proposals = Vec::new();
+
             while let Ok(Some(row)) = rows.next() {
                 let proposal_id: String = row.get(0)?;
                 let policy_id: String = row.get(1)?;
@@ -249,6 +250,9 @@ impl Store {
                     proposal,
                 });
             }
+
+            proposals.sort();
+
             Ok(proposals)
         })
         .await?
