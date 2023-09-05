@@ -1,24 +1,24 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
 
-use bdk::chain::PersistBackend;
+use bdk::chain::{ConfirmationTime, PersistBackend};
 use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
 use bdk::wallet::ChangeSet;
-use bdk::{FeeRate, KeychainKind, Wallet};
+use bdk::{FeeRate, KeychainKind, LocalUtxo, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
-use keechain_core::bitcoin::{Address, Network, OutPoint, Transaction};
+use keechain_core::bitcoin::{Address, Network, OutPoint, Sequence};
 use keechain_core::miniscript::descriptor::DescriptorType;
 use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
 use keechain_core::secp256k1::XOnlyPublicKey;
-use keechain_core::util;
+use keechain_core::util::time;
 use serde::{Deserialize, Serialize};
 
 pub mod template;
@@ -61,10 +61,12 @@ pub enum Error {
     NoUtxosSelected,
     #[error("No UTXOs available: {0}")]
     NoUtxosAvailable(String),
-    #[error("Absolute timelock not satisfied")]
-    AbsoluteTimelockNotSatisfied,
     #[error("Checkpoint not avilable")]
     CheckpointNotAvailable,
+    #[error("Absolute timelock not satisfied")]
+    AbsoluteTimelockNotSatisfied,
+    #[error("Relative timelock not satisfied")]
+    RelativeTimelockNotSatisfied,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -284,8 +286,13 @@ impl Policy {
         D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
+        let wallet_utxos: HashMap<OutPoint, LocalUtxo> = wallet
+            .list_unspent()
+            .map(|utxo| (utxo.outpoint, utxo))
+            .collect();
+
         // Check available UTXOs
-        if wallet.list_unspent().count() == 0 {
+        if wallet_utxos.is_empty() {
             return Err(Error::NoUtxosAvailable(String::from(
                 "wallet not contains any UTXO",
             )));
@@ -293,8 +300,8 @@ impl Policy {
 
         match wallet.latest_checkpoint() {
             Some(checkpoint) => {
-                let block_height: u32 = checkpoint.height();
-                let timestamp: u64 = util::time::timestamp();
+                let current_height: u32 = checkpoint.height();
+                let timestamp: u64 = time::timestamp();
 
                 if let Some(frozen_utxos) = &frozen_utxos {
                     if wallet
@@ -310,7 +317,7 @@ impl Policy {
                 }
 
                 // Build the PSBT
-                let (psbt, details) = {
+                let psbt = {
                     let mut builder = wallet.build_tx();
 
                     if let Some(frozen_utxos) = frozen_utxos {
@@ -331,10 +338,11 @@ impl Policy {
                         builder.policy_path(path, KeychainKind::External);
                     }
 
+                    // TODO: add custom coin selection alorithm (to exclude UTXOs with timelock enabled)
                     builder
                         .fee_rate(fee_rate)
                         .enable_rbf()
-                        .current_height(block_height);
+                        .current_height(current_height);
                     match amount {
                         Amount::Max => builder
                             .drain_wallet()
@@ -346,22 +354,41 @@ impl Policy {
                     builder.finish()?
                 };
 
-                // Check if PSBT timelock is satisfied
-                let unsigned_tx: &Transaction = &psbt.unsigned_tx;
-                if !unsigned_tx.is_absolute_timelock_satisfied(
-                    Height::from_consensus(block_height)?,
-                    Time::from_consensus(timestamp as u32)?,
-                ) {
-                    return Err(Error::AbsoluteTimelockNotSatisfied);
+                if self.has_timelock() {
+                    // Check if absolute timelock is satisfied
+                    if !psbt.unsigned_tx.is_absolute_timelock_satisfied(
+                        Height::from_consensus(current_height)?,
+                        Time::from_consensus(timestamp as u32)?,
+                    ) {
+                        return Err(Error::AbsoluteTimelockNotSatisfied);
+                    }
+
+                    for txin in psbt.unsigned_tx.input.iter() {
+                        let sequence: Sequence = txin.sequence;
+
+                        // Check if relative timelock is satisfied
+                        if sequence.is_height_locked() || sequence.is_time_locked() {
+                            if let Some(utxo) = wallet_utxos.get(&txin.previous_output) {
+                                match utxo.confirmation_time {
+                                    ConfirmationTime::Confirmed { height, .. } => {
+                                        if current_height.saturating_sub(height) < sequence.0 {
+                                            return Err(Error::RelativeTimelockNotSatisfied);
+                                        }
+                                    }
+                                    ConfirmationTime::Unconfirmed { .. } => {
+                                        return Err(Error::RelativeTimelockNotSatisfied);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 let amount: u64 = match amount {
                     Amount::Max => {
                         let fee: u64 = psbt.fee()?.to_sat();
-                        details
-                            .sent
-                            .saturating_sub(details.received)
-                            .saturating_sub(fee)
+                        let (sent, received) = wallet.sent_and_received(&psbt.unsigned_tx);
+                        sent.saturating_sub(received).saturating_sub(fee)
                     }
                     Amount::Custom(amount) => amount,
                 };
