@@ -2,6 +2,8 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
+use coinstr_sdk::core::bitcoin::absolute::LockTime as AbsoluteLockTime;
+use coinstr_sdk::nostr::Timestamp;
 use iced::widget::{Column, Row, Space};
 use iced::Length;
 
@@ -71,7 +73,13 @@ fn add_node(item: &SatisfiableItem, counter: usize) -> Column<'static, Message> 
             child = child.push(Text::new(format!("Double-RIPEMD160 Preimage of {hash}")).view());
         }
         SatisfiableItem::AbsoluteTimelock { value } => {
-            child = child.push(Text::new(format!("{} {value}", "Absolute Timelock of ")).view());
+            let timelock: String = match value {
+                AbsoluteLockTime::Blocks(blocks) => format!("{blocks} block height"),
+                AbsoluteLockTime::Seconds(time) => {
+                    Timestamp::from(time.to_consensus_u32() as u64).to_human_datetime()
+                }
+            };
+            child = child.push(Text::new(format!("Absolute Timelock: {timelock}")).view());
         }
         SatisfiableItem::RelativeTimelock { value } => {
             child = child.push(Text::new(format!("{} {value}", "Relative Timelock of")).view());

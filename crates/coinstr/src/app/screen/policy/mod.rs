@@ -261,6 +261,16 @@ impl State for PolicyState {
                                     .view(),
                                 )
                                 .push(
+                                    Text::new(format!(
+                                        "Last sync: {}",
+                                        self.last_sync
+                                            .as_ref()
+                                            .map(|t| t.to_human_datetime())
+                                            .unwrap_or_else(|| String::from("Not synced"))
+                                    ))
+                                    .view(),
+                                )
+                                .push(
                                     Row::new()
                                         .push(
                                             Button::new()
