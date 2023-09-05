@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 
+use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bdk::LocalUtxo;
 use coinstr_sdk::core::bitcoin::OutPoint;
 use coinstr_sdk::db::model::GetUtxo;
@@ -70,6 +71,13 @@ impl Component<Message, Renderer> for UtxoSelector {
                     )
                     .push(Text::new("Value").bold().big().width(Length::Fill).view())
                     .push(Text::new("Label").bold().big().width(Length::Fill).view())
+                    .push(
+                        Text::new("Block Height")
+                            .bold()
+                            .big()
+                            .width(Length::Fill)
+                            .view(),
+                    )
                     .push(Space::with_width(Length::Fixed(130.0)))
                     .spacing(20)
                     .align_items(Alignment::Center)
@@ -84,7 +92,10 @@ impl Component<Message, Renderer> for UtxoSelector {
         } in self.utxos.iter()
         {
             let LocalUtxo {
-                outpoint, txout, ..
+                outpoint,
+                txout,
+                confirmation_time,
+                ..
             } = utxo;
             let selected: bool = self.selected_utxos.contains(outpoint);
             let txid: String = outpoint.txid.to_string();
@@ -110,6 +121,16 @@ impl Component<Message, Renderer> for UtxoSelector {
                             Text::new(label.clone().unwrap_or_else(|| String::from("-")))
                                 .width(Length::Fill)
                                 .view(),
+                        )
+                        .push(
+                            Text::new(match confirmation_time {
+                                ConfirmationTime::Confirmed { height, .. } => {
+                                    format::number(*height as u64)
+                                }
+                                ConfirmationTime::Unconfirmed { .. } => String::from("Pending"),
+                            })
+                            .width(Length::Fill)
+                            .view(),
                         )
                         .push(if *frozen {
                             Button::new()

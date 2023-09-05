@@ -119,6 +119,13 @@ pub struct GetUtxo {
     pub frozen: bool,
 }
 
+impl Deref for GetUtxo {
+    type Target = LocalUtxo;
+    fn deref(&self) -> &Self::Target {
+        &self.utxo
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GetAddress {
     pub address: Address<NetworkUnchecked>,

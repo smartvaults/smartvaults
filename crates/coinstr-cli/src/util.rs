@@ -202,7 +202,14 @@ pub fn print_txs(txs: Vec<GetTransaction>, limit: usize) {
 pub fn print_utxos(utxos: Vec<GetUtxo>, limit: usize) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "UTXO", "Value", "Label", "Frozen"]);
+    table.set_titles(row![
+        "#",
+        "UTXO",
+        "Value",
+        "Label",
+        "Block Height",
+        "Frozen"
+    ]);
 
     for (
         index,
@@ -218,6 +225,10 @@ pub fn print_utxos(utxos: Vec<GetUtxo>, limit: usize) {
             utxo.outpoint.to_string(),
             format!("{} sat", format::number(utxo.txout.value)),
             label.unwrap_or_else(|| String::from("-")),
+            match utxo.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => format::number(height as u64),
+                ConfirmationTime::Unconfirmed { .. } => String::from("Pending"),
+            },
             frozen
         ]);
     }
