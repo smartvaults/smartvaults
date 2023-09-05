@@ -3,7 +3,9 @@
 
 pub mod builder;
 pub mod constants;
+pub mod label;
 pub mod util;
 
 pub use self::builder::{CoinstrEventBuilder, Error as CoinstrEventBuilderError};
+pub use self::label::{Label, LabelData, LabelKind};
 pub use self::util::{Encryption, EncryptionError, Serde, SerdeSer};

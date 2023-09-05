@@ -62,7 +62,7 @@ pub enum Error {
     Join(#[from] tokio::task::JoinError),
     /// Label error
     #[error(transparent)]
-    Label(#[from] crate::types::label::Error),
+    Label(#[from] coinstr_protocol::v1::label::Error),
     /// Not found
     #[error("sqlite: {0} not found")]
     NotFound(String),

@@ -14,7 +14,7 @@ use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::nostr::prelude::address::NetworkUnchecked;
 use coinstr_sdk::nostr::prelude::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Url};
-use coinstr_sdk::types::LabelData;
+use coinstr_sdk::protocol::v1::LabelData;
 
 pub mod batch;
 pub mod io;

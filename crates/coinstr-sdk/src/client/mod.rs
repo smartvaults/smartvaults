@@ -32,7 +32,7 @@ use coinstr_protocol::v1::constants::{
     SHARED_KEY_KIND,
 };
 use coinstr_protocol::v1::util::{Encryption, EncryptionError};
-use coinstr_protocol::v1::{CoinstrEventBuilder, CoinstrEventBuilderError};
+use coinstr_protocol::v1::{CoinstrEventBuilder, CoinstrEventBuilderError, Label, LabelData};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -55,7 +55,7 @@ use crate::db::model::{
 use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::PolicyBackup;
-use crate::{util, Label, LabelData};
+use crate::util;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -114,7 +114,7 @@ pub enum Error {
     #[error(transparent)]
     Store(#[from] crate::db::Error),
     #[error(transparent)]
-    Label(#[from] crate::types::label::Error),
+    Label(#[from] coinstr_protocol::v1::label::Error),
     #[error("password not match")]
     PasswordNotMatch,
     #[error("not enough public keys")]

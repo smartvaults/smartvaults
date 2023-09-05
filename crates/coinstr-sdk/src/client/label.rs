@@ -3,11 +3,10 @@
 
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_protocol::v1::constants::LABELS_KIND;
-use coinstr_protocol::v1::util::Encryption;
+use coinstr_protocol::v1::{Encryption, Label};
 use nostr_sdk::{Event, EventBuilder, EventId, Keys, Tag};
 
 use super::{Coinstr, Error};
-use crate::types::Label;
 
 impl Coinstr {
     pub async fn save_label(&self, policy_id: EventId, label: Label) -> Result<EventId, Error> {

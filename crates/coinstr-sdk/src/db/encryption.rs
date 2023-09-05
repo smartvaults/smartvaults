@@ -9,9 +9,7 @@ use coinstr_core::bdk::wallet::ChangeSet;
 use coinstr_core::secp256k1::SecretKey;
 use coinstr_core::util::serde::deserialize;
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer};
-use coinstr_protocol::v1::Serde;
-
-use crate::Label;
+use coinstr_protocol::v1::{Label, Serde};
 
 /// Error
 #[derive(Debug, PartialEq, Eq)]

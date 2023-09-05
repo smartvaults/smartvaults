@@ -17,7 +17,7 @@ use coinstr_sdk::core::types::Priority;
 use coinstr_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
 use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::Metadata;
-use coinstr_sdk::types::Label;
+use coinstr_sdk::protocol::v1::Label;
 use coinstr_sdk::util::format;
 use coinstr_sdk::{logger, Coinstr};
 use rustyline::error::ReadlineError;

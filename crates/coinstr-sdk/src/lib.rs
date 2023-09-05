@@ -20,4 +20,4 @@ pub mod types;
 pub mod util;
 
 pub use self::client::{Coinstr, EventHandled, Message};
-pub use self::types::{Label, LabelData, LabelKind, PolicyBackup};
+pub use self::types::PolicyBackup;

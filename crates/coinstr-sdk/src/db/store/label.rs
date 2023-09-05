@@ -4,11 +4,11 @@
 use std::collections::HashMap;
 
 use coinstr_core::bitcoin::{OutPoint, ScriptBuf};
+use coinstr_protocol::v1::{Label, LabelData, LabelKind};
 use nostr_sdk::EventId;
 
 use super::StoreEncryption;
 use super::{Error, Store};
-use crate::types::{Label, LabelData, LabelKind};
 
 impl Store {
     pub async fn save_label(

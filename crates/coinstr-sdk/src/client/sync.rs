@@ -14,8 +14,7 @@ use coinstr_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
-use coinstr_protocol::v1::util::Encryption;
-use coinstr_protocol::v1::util::Serde;
+use coinstr_protocol::v1::{Encryption, Label, Serde};
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -29,7 +28,6 @@ use super::{Coinstr, Error};
 use crate::constants::WALLET_SYNC_INTERVAL;
 use crate::db::model::InternalGetPolicy;
 use crate::manager::{Error as ManagerError, WalletError};
-use crate::types::Label;
 use crate::util;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

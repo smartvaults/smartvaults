@@ -7,15 +7,16 @@ use std::str::FromStr;
 use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::{Address, OutPoint};
 use coinstr_core::crypto::hash;
-use coinstr_protocol::v1::util::{Encryption, Serde};
-use nostr_sdk::Keys;
+use nostr::Keys;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+use super::util::{Encryption, Serde};
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    Keys(#[from] nostr_sdk::key::Error),
+    Keys(#[from] nostr::key::Error),
     #[error("unknown label kind")]
     UnknownLabelKind,
     #[error("unknown label data")]
@@ -143,7 +144,7 @@ mod test {
     use std::str::FromStr;
 
     use coinstr_core::bitcoin::Txid;
-    use nostr_sdk::secp256k1::SecretKey;
+    use nostr::secp256k1::SecretKey;
 
     use super::*;
 
