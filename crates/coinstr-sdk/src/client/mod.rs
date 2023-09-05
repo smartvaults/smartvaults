@@ -541,7 +541,7 @@ impl Coinstr {
     }
 
     pub fn block_height(&self) -> u32 {
-        self.db.block_height()
+        self.manager.block_height()
     }
 
     pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {

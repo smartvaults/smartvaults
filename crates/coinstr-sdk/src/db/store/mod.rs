@@ -7,10 +7,8 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::ops::Add;
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 use coinstr_core::bitcoin::{Network, Txid};
@@ -40,40 +38,10 @@ use super::model::{
     GetApproval, GetApprovedProposals, GetCompletedProposal, GetNotifications, GetProposal,
 };
 use super::Error;
-use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
 use crate::types::Notification;
 
 pub(crate) type SqlitePool = r2d2::Pool<SqliteConnectionManager>;
 pub(crate) type PooledConnection = r2d2::PooledConnection<SqliteConnectionManager>;
-
-#[derive(Debug, Clone, Default)]
-pub struct BlockHeight {
-    height: Arc<AtomicU32>,
-    last_sync: Arc<RwLock<Option<Timestamp>>>,
-}
-
-impl BlockHeight {
-    pub fn block_height(&self) -> u32 {
-        self.height.load(Ordering::SeqCst)
-    }
-
-    pub fn set_block_height(&self, block_height: u32) {
-        let _ = self
-            .height
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(block_height));
-    }
-
-    pub async fn is_synced(&self) -> bool {
-        let last_sync = self.last_sync.read().await;
-        let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
-        last_sync.add(BLOCK_HEIGHT_SYNC_INTERVAL) > Timestamp::now()
-    }
-
-    pub async fn just_synced(&self) {
-        let mut last_sync = self.last_sync.write().await;
-        *last_sync = Some(Timestamp::now());
-    }
-}
 
 /// Store
 #[derive(Debug, Clone)]
@@ -81,7 +49,6 @@ pub struct Store {
     pool: SqlitePool,
     keys: Keys,
     network: Network,
-    pub(crate) block_height: BlockHeight,
     nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
 }
 
@@ -105,7 +72,6 @@ impl Store {
             keys: keys.clone(),
             network,
             nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
-            block_height: BlockHeight::default(),
         })
     }
 
@@ -127,10 +93,6 @@ impl Store {
         migration::run(&mut conn)?;
 
         Ok(())
-    }
-
-    pub fn block_height(&self) -> u32 {
-        self.block_height.block_height()
     }
 
     pub fn shared_key_exists_for_policy(&self, policy_id: EventId) -> Result<bool, Error> {

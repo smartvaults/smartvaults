@@ -4,8 +4,14 @@
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
+use std::ops::Add;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
+use bdk_electrum::electrum_client::ElectrumApi;
+use bdk_electrum::electrum_client::{
+    self, Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
+};
 use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
 use coinstr_core::bdk::{FeeRate, LocalUtxo, Wallet};
 use coinstr_core::bitcoin::address::NetworkUnchecked;
@@ -14,7 +20,7 @@ use coinstr_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
-use nostr_sdk::EventId;
+use nostr_sdk::{EventId, Timestamp};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -23,12 +29,15 @@ pub mod wallet;
 pub use self::wallet::{
     CoinstrWallet, CoinstrWalletStorage, Error as WalletError, StorageError, TransactionDetails,
 };
+use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
 use crate::db::Store;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
     BdkStore(#[from] NewError<StorageError>),
+    #[error(transparent)]
+    Electrum(#[from] electrum_client::Error),
     #[error(transparent)]
     Wallet(#[from] WalletError),
     #[error(transparent)]
@@ -39,11 +48,41 @@ pub enum Error {
     NotLoaded(EventId),
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct BlockHeight {
+    height: Arc<AtomicU32>,
+    last_sync: Arc<RwLock<Option<Timestamp>>>,
+}
+
+impl BlockHeight {
+    pub fn block_height(&self) -> u32 {
+        self.height.load(Ordering::SeqCst)
+    }
+
+    pub fn set_block_height(&self, block_height: u32) {
+        let _ = self
+            .height
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(block_height));
+    }
+
+    pub async fn is_synced(&self) -> bool {
+        let last_sync = self.last_sync.read().await;
+        let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
+        last_sync.add(BLOCK_HEIGHT_SYNC_INTERVAL) > Timestamp::now()
+    }
+
+    pub async fn just_synced(&self) {
+        let mut last_sync = self.last_sync.write().await;
+        *last_sync = Some(Timestamp::now());
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Manager {
     db: Store,
     network: Network,
     wallets: Arc<RwLock<HashMap<EventId, CoinstrWallet>>>,
+    block_height: BlockHeight,
 }
 
 impl Manager {
@@ -52,6 +91,7 @@ impl Manager {
             db,
             network,
             wallets: Arc::new(RwLock::new(HashMap::new())),
+            block_height: BlockHeight::default(),
         }
     }
 
@@ -84,6 +124,40 @@ impl Manager {
             Some(_) => Ok(()),
             None => Err(Error::NotLoaded(policy_id)),
         }
+    }
+
+    pub fn block_height(&self) -> u32 {
+        self.block_height.block_height()
+    }
+
+    pub async fn sync_block_height<S>(
+        &self,
+        endpoint: S,
+        proxy: Option<SocketAddr>,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        if !self.block_height.is_synced().await {
+            let endpoint: String = endpoint.into();
+
+            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+            let config = ElectrumConfig::builder().socks5(proxy).build();
+            let client = ElectrumClient::from_config(&endpoint, config)?;
+
+            let HeaderNotification { height, .. } = client.block_headers_subscribe()?;
+            let height: u32 = height as u32;
+
+            if self.block_height() != height {
+                self.block_height.set_block_height(height);
+                self.block_height.just_synced().await;
+
+                tracing::info!("Block height synced")
+            }
+        }
+
+        Ok(())
     }
 
     pub async fn wallet(&self, policy_id: EventId) -> Result<CoinstrWallet, Error> {

@@ -2,17 +2,12 @@
 // Distributed under the MIT software license
 
 use std::collections::HashSet;
-use std::net::SocketAddr;
 use std::ops::Add;
 use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use async_utility::thread;
-use bdk_electrum::electrum_client::ElectrumApi;
-use bdk_electrum::electrum_client::{
-    Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
-};
 use coinstr_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
 use coinstr_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer};
 use coinstr_protocol::v1::constants::{
@@ -63,34 +58,21 @@ pub enum Message {
 }
 
 impl Coinstr {
-    async fn _block_height_syncer(&self) -> Result<(), Error> {
-        if !self.db.block_height.is_synced().await {
-            let endpoint = self.config.electrum_endpoint().await?;
-            let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
-
-            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
-            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy).build();
-            let client = ElectrumClient::from_config(&endpoint, config)?;
-
-            let HeaderNotification { height, .. } = client.block_headers_subscribe()?;
-            self.db.block_height.set_block_height(height as u32);
-            self.db.block_height.just_synced().await;
-
-            let _ = self.sync_channel.send(Message::BlockHeightUpdated);
-
-            tracing::info!("Block height synced")
-        }
-
-        Ok(())
-    }
-
     fn block_height_syncer(&self) -> AbortHandle {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                if let Err(e) = this._block_height_syncer().await {
-                    tracing::error!("Impossible to sync block height: {e}");
+                match this.config.electrum_endpoint().await {
+                    Ok(endpoint) => {
+                        let proxy = this.config.proxy().await.ok();
+                        match this.manager.sync_block_height(endpoint, proxy).await {
+                            Ok(_) => {
+                                let _ = this.sync_channel.send(Message::BlockHeightUpdated);
+                            }
+                            Err(e) => tracing::error!("Impossible to sync block height: {e}"),
+                        }
+                    }
+                    Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
                 thread::sleep(Duration::from_secs(10)).await;
