@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::chain::Append;
-use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
+use coinstr_core::hashes::sha256::Hash as Sha256Hash;
 
 use super::{Error, Store, StoreEncryption};
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::db::model::{GetSharedSigner, GetSigner};
+use coinstr_sdk::types::{GetSharedSigner, GetSigner};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};

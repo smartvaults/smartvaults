@@ -102,7 +102,7 @@ pub(crate) async fn run(conn: &Object) -> Result<(), Error> {
 }
 
 fn mig_init(conn: &mut Connection) -> Result<usize, Error> {
-    conn.execute_batch(include_str!("../../migrations/001_init.sql"))?;
+    conn.execute_batch(include_str!("../migrations/001_init.sql"))?;
     tracing::info!("database schema initialized to v1");
     Ok(1)
 }

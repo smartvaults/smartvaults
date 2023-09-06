@@ -934,15 +934,13 @@ version = "0.3.0"
 dependencies = [
  "async-utility",
  "bdk_electrum",
- "chacha20poly1305",
  "coinstr-core",
  "coinstr-protocol",
- "deadpool-sqlite",
+ "coinstr-sdk-sqlite",
  "futures",
  "futures-util",
  "nostr-sdk",
  "paranoid-android",
- "rusqlite",
  "serde",
  "serde_json",
  "thiserror",
@@ -962,6 +960,20 @@ dependencies = [
  "tokio",
  "tracing",
  "uniffi",
+]
+
+[[package]]
+name = "coinstr-sdk-sqlite"
+version = "0.3.0"
+dependencies = [
+ "chacha20poly1305",
+ "coinstr-core",
+ "coinstr-protocol",
+ "deadpool-sqlite",
+ "rusqlite",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

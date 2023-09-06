@@ -3,10 +3,9 @@
 
 use std::net::SocketAddr;
 
-use nostr_sdk::{Timestamp, Url};
+use coinstr_protocol::nostr::{Timestamp, Url};
 
-use super::Store;
-use crate::db::Error;
+use crate::{Error, Store};
 
 impl Store {
     pub async fn save_last_relay_sync(

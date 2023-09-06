@@ -1,8 +1,4 @@
-# Coinstr Protocol
-
-## Description
-
-Implementation of the `Coinstr` protocol
+# Coinstr SDK SQLite
 
 ## State
 

@@ -5,9 +5,9 @@ use coinstr_sdk::core::proposal::Proposal;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::core::types::Psbt;
 use coinstr_sdk::core::CompletedProposal;
-use coinstr_sdk::db::model::{GetApproval, GetProposal};
 use coinstr_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::{GetApproval, GetProposal};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -81,30 +81,26 @@ impl State for ProposalState {
         self.loading = true;
         Command::perform(
             async move {
-                if client.db.proposal_exists(proposal_id).await.ok()? {
-                    let GetProposal {
-                        policy_id,
-                        proposal,
-                        signed,
-                        ..
-                    } = client.get_proposal_by_id(proposal_id).await.ok()?;
-                    let signer = client
-                        .search_signer_by_descriptor(proposal.descriptor())
+                let GetProposal {
+                    policy_id,
+                    proposal,
+                    signed,
+                    ..
+                } = client.get_proposal_by_id(proposal_id).await.ok()?;
+                let signer = client
+                    .search_signer_by_descriptor(proposal.descriptor())
+                    .await
+                    .ok();
+                Some((
+                    proposal,
+                    signed,
+                    policy_id,
+                    client
+                        .get_approvals_by_proposal_id(proposal_id)
                         .await
-                        .ok();
-                    Some((
-                        proposal,
-                        signed,
-                        policy_id,
-                        client
-                            .get_approvals_by_proposal_id(proposal_id)
-                            .await
-                            .unwrap_or_default(),
-                        signer,
-                    ))
-                } else {
-                    None
-                }
+                        .unwrap_or_default(),
+                    signer,
+                ))
             },
             |res| match res {
                 Some((proposal, signed, policy_id, approvals, signer)) => {

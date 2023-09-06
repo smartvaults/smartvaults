@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::wallet;
-use coinstr_sdk::db::model;
+use coinstr_sdk::types;
 
 pub enum AddressIndex {
     New,
@@ -21,11 +21,11 @@ impl From<AddressIndex> for wallet::AddressIndex {
 }
 
 pub struct GetAddress {
-    inner: model::GetAddress,
+    inner: types::GetAddress,
 }
 
-impl From<model::GetAddress> for GetAddress {
-    fn from(inner: model::GetAddress) -> Self {
+impl From<types::GetAddress> for GetAddress {
+    fn from(inner: types::GetAddress) -> Self {
         Self { inner }
     }
 }

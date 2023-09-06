@@ -4,13 +4,13 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI};
-use nostr_sdk::secp256k1::XOnlyPublicKey;
-use nostr_sdk::{EventId, Timestamp, Url};
+use coinstr_protocol::nostr::nips::nip46::{Message as NIP46Message, NostrConnectURI};
+use coinstr_protocol::nostr::secp256k1::XOnlyPublicKey;
+use coinstr_protocol::nostr::{EventId, Timestamp, Url};
 
 use super::super::model::NostrConnectRequest;
 use super::Store;
-use crate::db::Error;
+use crate::Error;
 
 impl Store {
     pub async fn save_nostr_connect_uri(&self, uri: NostrConnectURI) -> Result<(), Error> {

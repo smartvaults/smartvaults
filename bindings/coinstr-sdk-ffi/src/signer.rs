@@ -4,18 +4,18 @@
 use std::sync::Arc;
 
 use coinstr_sdk::core::signer::{self, SignerType};
-use coinstr_sdk::db::model;
+use coinstr_sdk::types;
 use nostr_sdk_ffi::{EventId, PublicKey};
 
 use crate::error::Result;
 use crate::Descriptor;
 
 pub struct GetSigner {
-    inner: model::GetSigner,
+    inner: types::GetSigner,
 }
 
-impl From<model::GetSigner> for GetSigner {
-    fn from(inner: model::GetSigner) -> Self {
+impl From<types::GetSigner> for GetSigner {
+    fn from(inner: types::GetSigner) -> Self {
         Self { inner }
     }
 }
@@ -63,11 +63,11 @@ impl Signer {
 }
 
 pub struct GetSharedSigner {
-    inner: model::GetSharedSigner,
+    inner: types::GetSharedSigner,
 }
 
-impl From<model::GetSharedSigner> for GetSharedSigner {
-    fn from(inner: model::GetSharedSigner) -> Self {
+impl From<types::GetSharedSigner> for GetSharedSigner {
+    fn from(inner: types::GetSharedSigner) -> Self {
         Self { inner }
     }
 }

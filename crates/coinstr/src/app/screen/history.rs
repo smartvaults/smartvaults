@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use coinstr_sdk::db::model::GetCompletedProposal;
+use coinstr_sdk::types::GetCompletedProposal;
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 

@@ -14,12 +14,12 @@ use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result, SECP256K1};
-use coinstr_sdk::db::model::{
+use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
+use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url};
+use coinstr_sdk::types::{
     GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, GetUtxo,
     NostrConnectRequest,
 };
-use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
-use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url};
 use coinstr_sdk::util::{self, format};
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};

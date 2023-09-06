@@ -6,8 +6,8 @@ use std::fmt;
 
 use coinstr_sdk::core::bitcoin::ScriptBuf;
 use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::db::model::{GetAddress, GetPolicy};
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::{GetAddress, GetPolicy};
 use coinstr_sdk::util;
 use iced::alignment::Horizontal;
 use iced::widget::{Column, PickList, Row, Space};

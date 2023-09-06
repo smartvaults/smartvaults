@@ -6,8 +6,8 @@ use std::sync::Arc;
 use coinstr_sdk::core::bdk;
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bitcoin::{self, Address};
-use coinstr_sdk::db::model::{self, GetUtxo};
 use coinstr_sdk::manager::wallet;
+use coinstr_sdk::types::{self, GetUtxo};
 use nostr_sdk_ffi::{EventId, Timestamp};
 
 use crate::error::Result;
@@ -229,11 +229,11 @@ impl TransactionDetails {
 }
 
 pub struct GetTransaction {
-    inner: model::GetTransaction,
+    inner: types::GetTransaction,
 }
 
-impl From<model::GetTransaction> for GetTransaction {
-    fn from(inner: model::GetTransaction) -> Self {
+impl From<types::GetTransaction> for GetTransaction {
+    fn from(inner: types::GetTransaction) -> Self {
         Self { inner }
     }
 }

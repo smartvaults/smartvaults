@@ -7,10 +7,10 @@ use std::str::FromStr;
 use coinstr_core::miniscript::{Descriptor, DescriptorPublicKey};
 use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::{SharedSigner, Signer};
-use nostr_sdk::EventId;
+use coinstr_protocol::nostr::EventId;
 
 use super::{Error, Store, StoreEncryption};
-use crate::db::model::{GetSharedSigner, GetSigner};
+use crate::model::{GetSharedSigner, GetSigner};
 
 impl Store {
     pub async fn signer_exists(&self, signer_id: EventId) -> Result<bool, Error> {
@@ -43,7 +43,7 @@ impl Store {
         .await?
     }
 
-    pub(crate) async fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
+    pub async fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -63,7 +63,7 @@ impl Store {
         .await?
     }
 
-    pub(crate) async fn signer_descriptor_exists(
+    pub async fn signer_descriptor_exists(
         &self,
         descriptor: Descriptor<DescriptorPublicKey>,
     ) -> Result<bool, Error> {
@@ -174,15 +174,15 @@ impl Store {
     ) -> Result<bool, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
-let mut stmt = conn.prepare_cached(
-            "SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE signer_id = ? AND public_key = ? LIMIT 1);",
-        )?;
-        let mut rows = stmt.query([signer_id.to_hex(), public_key.to_string()])?;
-        let exists: u8 = match rows.next()? {
-            Some(row) => row.get(0)?,
-            None => 0,
-        };
-        Ok(exists == 1)
+            let mut stmt = conn.prepare_cached(
+                "SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE signer_id = ? AND public_key = ? LIMIT 1);",
+            )?;
+            let mut rows = stmt.query([signer_id.to_hex(), public_key.to_string()])?;
+            let exists: u8 = match rows.next()? {
+                Some(row) => row.get(0)?,
+                None => 0,
+            };
+            Ok(exists == 1)
         }).await?
     }
 
@@ -194,15 +194,15 @@ let mut stmt = conn.prepare_cached(
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
-let mut stmt = conn
-            .prepare_cached("INSERT OR IGNORE INTO my_shared_signers (signer_id, shared_signer_id, public_key) VALUES (?, ?, ?);")?;
-        stmt.execute((
-            signer_id.to_hex(),
-            shared_signer_id.to_hex(),
-            public_key.to_string(),
-        ))?;
-        tracing::info!("Saved my shared signer {shared_signer_id} (signer {signer_id})");
-        Ok(())
+            let mut stmt = conn
+                .prepare_cached("INSERT OR IGNORE INTO my_shared_signers (signer_id, shared_signer_id, public_key) VALUES (?, ?, ?);")?;
+            stmt.execute((
+                signer_id.to_hex(),
+                shared_signer_id.to_hex(),
+                public_key.to_string(),
+            ))?;
+            tracing::info!("Saved my shared signer {shared_signer_id} (signer {signer_id})");
+            Ok(())
         }).await?
     }
 

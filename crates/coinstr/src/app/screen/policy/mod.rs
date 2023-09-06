@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::signer::Signer;
-use coinstr_sdk::db::model::{GetPolicy, GetProposal, GetTransaction};
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::{GetPolicy, GetProposal, GetTransaction};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};

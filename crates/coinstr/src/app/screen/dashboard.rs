@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::wallet::Balance;
-use coinstr_sdk::db::model::{GetProposal, GetTransaction};
+use coinstr_sdk::types::{GetProposal, GetTransaction};
 use iced::widget::{Column, Space};
 use iced::{Command, Element, Length};
 

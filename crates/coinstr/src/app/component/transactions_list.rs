@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
-use coinstr_sdk::db::model::GetTransaction;
 use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::types::GetTransaction;
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};

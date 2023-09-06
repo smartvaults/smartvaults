@@ -18,6 +18,7 @@ use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
 use coinstr_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
+use coinstr_sdk_sqlite::Store;
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
 use nostr_sdk::{EventId, Timestamp};
@@ -30,7 +31,6 @@ pub use self::wallet::{
     CoinstrWallet, CoinstrWalletStorage, Error as WalletError, StorageError, TransactionDetails,
 };
 use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
-use crate::db::Store;
 
 #[derive(Debug, Error)]
 pub enum Error {

@@ -5,8 +5,8 @@ use std::fmt;
 
 use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::{Amount, FeeRate};
-use coinstr_sdk::db::model::{GetPolicy, GetProposal};
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::{GetPolicy, GetProposal};
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};

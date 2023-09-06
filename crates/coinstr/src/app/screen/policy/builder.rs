@@ -4,7 +4,7 @@
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::PolicyTemplate;
-use coinstr_sdk::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
+use coinstr_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};

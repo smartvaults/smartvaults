@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
-use coinstr_sdk::db::model::NostrConnectRequest;
 use coinstr_sdk::nostr::nips::nip46::NostrConnectURI;
 use coinstr_sdk::nostr::{EventId, Timestamp};
+use coinstr_sdk::types::NostrConnectRequest;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};

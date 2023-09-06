@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use coinstr_sdk::db::model;
+use coinstr_sdk::types;
 use nostr_sdk_ffi::{EventId, PublicKey};
 
 use crate::NostrConnectURI;
@@ -14,11 +14,11 @@ pub struct NostrConnectSession {
 }
 
 pub struct NostrConnectRequest {
-    inner: model::NostrConnectRequest,
+    inner: types::NostrConnectRequest,
 }
 
-impl From<model::NostrConnectRequest> for NostrConnectRequest {
-    fn from(inner: model::NostrConnectRequest) -> Self {
+impl From<types::NostrConnectRequest> for NostrConnectRequest {
+    fn from(inner: types::NostrConnectRequest) -> Self {
         Self { inner }
     }
 }

@@ -13,7 +13,7 @@ use nostr_sdk::nips::nip04;
 use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Tag};
 
 use super::{Coinstr, Error};
-use crate::db::model::{GetAllSigners, GetSharedSigner, GetSigner};
+use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
 
 impl Coinstr {
     #[tracing::instrument(skip_all, level = "trace")]
@@ -218,6 +218,18 @@ impl Coinstr {
         self.send_event(event).await?;
         self.db.delete_shared_signer(shared_signer_id).await?;
         Ok(())
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub async fn my_shared_signer_already_shared(
+        &self,
+        signer_id: EventId,
+        public_key: XOnlyPublicKey,
+    ) -> Result<bool, Error> {
+        Ok(self
+            .db
+            .my_shared_signer_already_shared(signer_id, public_key)
+            .await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]

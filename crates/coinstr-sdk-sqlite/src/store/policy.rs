@@ -1,13 +1,13 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use coinstr_core::secp256k1::XOnlyPublicKey;
 use coinstr_core::Policy;
-use nostr_sdk::secp256k1::XOnlyPublicKey;
-use nostr_sdk::{EventId, Timestamp};
+use coinstr_protocol::nostr::{EventId, Timestamp};
 
-use super::{Store, StoreEncryption};
-use crate::db::model::InternalGetPolicy;
-use crate::db::Error;
+use crate::encryption::StoreEncryption;
+use crate::model::InternalGetPolicy;
+use crate::{Error, Store};
 
 impl Store {
     pub async fn policy_exists(&self, policy_id: EventId) -> Result<bool, Error> {
@@ -52,7 +52,7 @@ impl Store {
         .await?
     }
 
-    pub(crate) async fn get_policy(&self, policy_id: EventId) -> Result<InternalGetPolicy, Error> {
+    pub async fn get_policy(&self, policy_id: EventId) -> Result<InternalGetPolicy, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -99,7 +99,7 @@ impl Store {
         .await?
     }
 
-    pub(crate) async fn get_policies(&self) -> Result<Vec<InternalGetPolicy>, Error> {
+    pub async fn get_policies(&self) -> Result<Vec<InternalGetPolicy>, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {

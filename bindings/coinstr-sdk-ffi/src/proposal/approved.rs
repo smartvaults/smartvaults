@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use coinstr_sdk::core::proposal;
-use coinstr_sdk::db::model;
+use coinstr_sdk::types;
 use nostr_sdk_ffi::{EventId, PublicKey, Timestamp};
 
 #[derive(Clone)]
@@ -27,11 +27,11 @@ impl From<proposal::ApprovedProposal> for ApprovedProposal {
 }
 
 pub struct GetApproval {
-    inner: model::GetApproval,
+    inner: types::GetApproval,
 }
 
-impl From<model::GetApproval> for GetApproval {
-    fn from(inner: model::GetApproval) -> Self {
+impl From<types::GetApproval> for GetApproval {
+    fn from(inner: types::GetApproval) -> Self {
         Self { inner }
     }
 }

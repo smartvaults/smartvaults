@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use coinstr_sdk::core::proposal;
-use coinstr_sdk::db::model;
+use coinstr_sdk::types;
 use nostr_sdk_ffi::EventId;
 
 mod approved;
@@ -60,11 +60,11 @@ impl From<proposal::Proposal> for Proposal {
 
 #[derive(Debug, Clone)]
 pub struct GetProposal {
-    inner: model::GetProposal,
+    inner: types::GetProposal,
 }
 
-impl From<model::GetProposal> for GetProposal {
-    fn from(inner: model::GetProposal) -> Self {
+impl From<types::GetProposal> for GetProposal {
+    fn from(inner: types::GetProposal) -> Self {
         Self { inner }
     }
 }

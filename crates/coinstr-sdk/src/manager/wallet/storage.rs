@@ -2,11 +2,10 @@
 // Distributed under the MIT software license
 
 use coinstr_core::bdk::chain::{Append, PersistBackend};
+use coinstr_sdk_sqlite::{Error as DbError, Store, StoreEncryption};
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use thiserror::Error;
 use tokio::runtime::Handle;
-
-use crate::db::{Error as DbError, Store, StoreEncryption};
 
 #[derive(Debug, Error)]
 pub enum Error {

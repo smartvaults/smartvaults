@@ -5,12 +5,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use coinstr_core::secp256k1::XOnlyPublicKey;
+use coinstr_sdk_sqlite::model::NostrConnectRequest;
 use nostr_sdk::nips::nip46::NostrConnectURI;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::{ClientMessage, EventBuilder, EventId, Timestamp, Url};
 
 use super::{Coinstr, Error};
-use crate::db::model::NostrConnectRequest;
 
 impl Coinstr {
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {

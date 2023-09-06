@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
-use coinstr_sdk::db::model::{GetCompletedProposal, GetProposal};
+use coinstr_sdk::types::{GetCompletedProposal, GetProposal};
 use coinstr_sdk::util::{self, format};
 use iced::widget::{Column, Row};
 use iced::{Alignment, Length};

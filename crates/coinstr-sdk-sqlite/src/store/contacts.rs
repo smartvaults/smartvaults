@@ -3,15 +3,13 @@
 
 use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
+use std::time::Duration;
 
-use nostr_sdk::secp256k1::XOnlyPublicKey;
-use nostr_sdk::{Metadata, Timestamp};
+use coinstr_core::secp256k1::XOnlyPublicKey;
+use coinstr_protocol::nostr::{Metadata, Timestamp};
 use rusqlite::Connection;
 
-use super::Store;
-use crate::constants::METADATA_SYNC_INTERVAL;
-use crate::db::Error;
-use crate::util;
+use crate::{Error, Store};
 
 impl Store {
     pub async fn get_contacts_public_keys(&self) -> Result<HashSet<XOnlyPublicKey>, Error> {
@@ -62,10 +60,7 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) async fn save_contacts(
-        &self,
-        contacts: HashSet<XOnlyPublicKey>,
-    ) -> Result<(), Error> {
+    pub async fn save_contacts(&self, contacts: HashSet<XOnlyPublicKey>) -> Result<(), Error> {
         let public_keys = self.get_contacts_public_keys().await?;
 
         for pk in public_keys.difference(&contacts) {
@@ -111,24 +106,6 @@ impl Store {
             .await?
     }
 
-    pub async fn get_public_key_name(&self, public_key: XOnlyPublicKey) -> String {
-        match self.get_metadata(public_key).await {
-            Ok(metadata) => {
-                if let Some(display_name) = metadata.display_name {
-                    display_name
-                } else if let Some(name) = metadata.name {
-                    name
-                } else {
-                    util::cut_public_key(public_key)
-                }
-            }
-            Err(e) => {
-                tracing::error!("{e}");
-                util::cut_public_key(public_key)
-            }
-        }
-    }
-
     pub async fn get_contacts_with_metadata(
         &self,
     ) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
@@ -148,7 +125,10 @@ impl Store {
         .await?
     }
 
-    pub async fn get_unsynced_metadata_pubkeys(&self) -> Result<Vec<XOnlyPublicKey>, Error> {
+    pub async fn get_unsynced_metadata_pubkeys(
+        &self,
+        sync_interval: Duration,
+    ) -> Result<Vec<XOnlyPublicKey>, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached("SELECT public_key, last_sync FROM metadata;")?;
@@ -161,7 +141,7 @@ impl Store {
                 let last_sync: Option<u64> = row.get(1)?;
 
                 if let Some(last_sync) = last_sync {
-                    if last_sync + METADATA_SYNC_INTERVAL.as_secs() < now.as_u64() {
+                    if last_sync + sync_interval.as_secs() < now.as_u64() {
                         public_keys.push(public_key);
                     }
                 } else {

@@ -6,7 +6,7 @@ use std::{collections::HashSet, str::FromStr};
 use coinstr_core::bitcoin::hashes::sha256::Hash as Sha256Hash;
 use coinstr_core::bitcoin::hashes::Hash;
 use coinstr_core::bitcoin::OutPoint;
-use nostr_sdk::EventId;
+use coinstr_protocol::nostr::EventId;
 
 use super::{Error, Store};
 

@@ -62,10 +62,9 @@ impl State for AddPolicyState {
         Command::perform(
             async move {
                 let mut contacts = client.get_contacts().await.unwrap();
-                let public_key = client.keys().public_key();
                 contacts.insert(
-                    public_key,
-                    client.db.get_metadata(public_key).await.unwrap(),
+                    client.keys().public_key(),
+                    client.get_profile().await.unwrap(),
                 );
                 contacts
             },

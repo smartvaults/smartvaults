@@ -65,7 +65,6 @@ impl State for ShareSignerState {
                 let mut already_shared_with: Vec<XOnlyPublicKey> = Vec::new();
                 for public_key in contacts.keys() {
                     if client
-                        .db
                         .my_shared_signer_already_shared(signer_id, *public_key)
                         .await
                         .unwrap()

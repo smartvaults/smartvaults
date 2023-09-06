@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bdk::LocalUtxo;
 use coinstr_sdk::core::bitcoin::OutPoint;
-use coinstr_sdk::db::model::GetUtxo;
+use coinstr_sdk::types::GetUtxo;
 use coinstr_sdk::util::format;
 use iced::widget::{component, Column, Component, Row, Space};
 use iced::{Alignment, Element, Length, Renderer};

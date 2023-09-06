@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use coinstr_sdk::db::model::GetPolicy;
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::GetPolicy;
 use iced::widget::Column;
 use iced::{Command, Element};
 

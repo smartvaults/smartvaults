@@ -33,6 +33,7 @@ use coinstr_protocol::v1::constants::{
 };
 use coinstr_protocol::v1::util::{Encryption, EncryptionError};
 use coinstr_protocol::v1::{CoinstrEventBuilder, CoinstrEventBuilderError, Label, LabelData};
+use coinstr_sdk_sqlite::Store;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
@@ -48,13 +49,11 @@ mod sync;
 pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
-use crate::db::model::{
-    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
-    GetTransaction, GetUtxo, InternalGetPolicy,
-};
-use crate::db::store::Store;
 use crate::manager::{Error as ManagerError, Manager, WalletError};
-use crate::types::PolicyBackup;
+use crate::types::{
+    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
+    GetTransaction, GetUtxo, InternalGetPolicy, PolicyBackup,
+};
 use crate::util;
 
 #[derive(Debug, thiserror::Error)]
@@ -112,7 +111,7 @@ pub enum Error {
     #[error(transparent)]
     Config(#[from] crate::config::Error),
     #[error(transparent)]
-    Store(#[from] crate::db::Error),
+    Store(#[from] coinstr_sdk_sqlite::Error),
     #[error(transparent)]
     Label(#[from] coinstr_protocol::v1::label::Error),
     #[error("password not match")]
@@ -161,7 +160,7 @@ pub struct Coinstr {
     client: Client,
     manager: Manager,
     config: Config,
-    pub db: Store,
+    db: Store,
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Message>,
 }
@@ -1713,5 +1712,23 @@ impl Coinstr {
         let backup = self.export_policy_backup(policy_id).await?;
         backup.save(path)?;
         Ok(())
+    }
+
+    pub async fn get_public_key_name(&self, public_key: XOnlyPublicKey) -> String {
+        match self.db.get_metadata(public_key).await {
+            Ok(metadata) => {
+                if let Some(display_name) = metadata.display_name {
+                    display_name
+                } else if let Some(name) = metadata.name {
+                    name
+                } else {
+                    util::cut_public_key(public_key)
+                }
+            }
+            Err(e) => {
+                tracing::error!("{e}");
+                util::cut_public_key(public_key)
+            }
+        }
     }
 }

@@ -15,6 +15,7 @@ use coinstr_protocol::v1::constants::{
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
 use coinstr_protocol::v1::{Encryption, Label, Serde};
+use coinstr_sdk_sqlite::model::InternalGetPolicy;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -25,8 +26,8 @@ use nostr_sdk::{
 use tokio::sync::broadcast::Receiver;
 
 use super::{Coinstr, Error};
-use crate::constants::WALLET_SYNC_INTERVAL;
-use crate::db::model::InternalGetPolicy;
+use crate::constants::{METADATA_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
+
 use crate::manager::{Error as ManagerError, WalletError};
 use crate::util;
 
@@ -166,7 +167,11 @@ impl Coinstr {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                match this.db.get_unsynced_metadata_pubkeys().await {
+                match this
+                    .db
+                    .get_unsynced_metadata_pubkeys(METADATA_SYNC_INTERVAL)
+                    .await
+                {
                     Ok(public_keys) => {
                         if !public_keys.is_empty() {
                             let timeout = Duration::from_secs(10 * public_keys.len() as u64);

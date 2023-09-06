@@ -10,4 +10,4 @@ Protocol primitives and bitcoin TX building/singning logic
 
 ## License
 
-This project is distributed under the MIT software license - see the [LICENSE](../LICENSE) file for details
+This project is distributed under the MIT software license - see the [LICENSE](../../LICENSE) file for details

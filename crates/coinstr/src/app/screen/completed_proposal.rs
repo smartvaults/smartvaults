@@ -5,8 +5,8 @@ use std::fs::File;
 use std::io::Write;
 
 use coinstr_sdk::core::proposal::CompletedProposal;
-use coinstr_sdk::db::model::GetCompletedProposal;
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::GetCompletedProposal;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Command, Element, Length};

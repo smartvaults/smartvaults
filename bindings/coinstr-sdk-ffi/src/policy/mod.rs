@@ -6,8 +6,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use coinstr_sdk::core::{policy, PolicyTemplateType};
-use coinstr_sdk::db::model;
 use coinstr_sdk::protocol::v1::util::SerdeSer;
+use coinstr_sdk::types;
 use nostr_sdk_ffi::{EventId, Timestamp};
 
 mod template;
@@ -72,11 +72,11 @@ impl Policy {
 
 #[derive(Debug, Clone)]
 pub struct GetPolicy {
-    inner: model::GetPolicy,
+    inner: types::GetPolicy,
 }
 
-impl From<model::GetPolicy> for GetPolicy {
-    fn from(inner: model::GetPolicy) -> Self {
+impl From<types::GetPolicy> for GetPolicy {
+    fn from(inner: types::GetPolicy) -> Self {
         Self { inner }
     }
 }

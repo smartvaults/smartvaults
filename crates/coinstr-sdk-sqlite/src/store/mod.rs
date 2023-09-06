@@ -17,10 +17,10 @@ use chacha20poly1305::XChaCha20Poly1305;
 use coinstr_core::bitcoin::{Network, Txid};
 use coinstr_core::proposal::{CompletedProposal, Proposal};
 use coinstr_core::ApprovedProposal;
+use coinstr_protocol::nostr::event::id::EventId;
+use coinstr_protocol::nostr::secp256k1::{SecretKey, XOnlyPublicKey};
+use coinstr_protocol::nostr::{Event, Keys, Timestamp};
 use deadpool_sqlite::{Config, Object, Pool, Runtime};
-use nostr_sdk::event::id::EventId;
-use nostr_sdk::secp256k1::{SecretKey, XOnlyPublicKey};
-use nostr_sdk::{Event, Keys, Timestamp};
 use rusqlite::config::DbConfig;
 use rusqlite::Connection;
 use tokio::sync::RwLock;
@@ -653,7 +653,7 @@ impl Store {
         .await?
     }
 
-    pub(crate) async fn get_description_by_txid(
+    pub async fn get_description_by_txid(
         &self,
         policy_id: EventId,
         txid: Txid,
@@ -675,7 +675,7 @@ impl Store {
         Ok(None)
     }
 
-    pub(crate) async fn get_txs_descriptions(
+    pub async fn get_txs_descriptions(
         &self,
         policy_id: EventId,
     ) -> Result<HashMap<Txid, String>, Error> {
