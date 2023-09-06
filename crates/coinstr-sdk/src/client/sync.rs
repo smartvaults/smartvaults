@@ -16,6 +16,7 @@ use coinstr_protocol::v1::constants::{
 };
 use coinstr_protocol::v1::{Encryption, Label, Serde};
 use coinstr_sdk_sqlite::model::InternalGetPolicy;
+use coinstr_sdk_sqlite::Type;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -350,7 +351,7 @@ impl Coinstr {
 
         if event.kind == SHARED_KEY_KIND {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
-            if !self.db.shared_key_exists_for_policy(policy_id).await? {
+            if !self.db.exists(Type::SharedKey { policy_id }).await? {
                 let keys = self.client.keys();
                 let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
@@ -359,7 +360,14 @@ impl Coinstr {
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::SharedKey(event.id)))?;
             }
-        } else if event.kind == POLICY_KIND && !self.db.policy_exists(event.id).await? {
+        } else if event.kind == POLICY_KIND
+            && !self
+                .db
+                .exists(Type::Policy {
+                    policy_id: event.id,
+                })
+                .await?
+        {
             if let Ok(shared_key) = self.db.get_shared_key(event.id).await {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
@@ -381,7 +389,14 @@ impl Coinstr {
             } else {
                 self.db.save_pending_event(event.clone()).await?;
             }
-        } else if event.kind == PROPOSAL_KIND && !self.db.proposal_exists(event.id).await? {
+        } else if event.kind == PROPOSAL_KIND
+            && !self
+                .db
+                .exists(Type::Proposal {
+                    proposal_id: event.id,
+                })
+                .await?
+        {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
                 if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
@@ -395,7 +410,12 @@ impl Coinstr {
                 tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
         } else if event.kind == APPROVED_PROPOSAL_KIND
-            && !self.db.approved_proposal_exists(event.id).await?
+            && !self
+                .db
+                .exists(Type::ApprovedProposal {
+                    approval_id: event.id,
+                })
+                .await?
         {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
                 if let Some(Tag::Event(policy_id, ..)) =
@@ -430,7 +450,12 @@ impl Coinstr {
                 );
             }
         } else if event.kind == COMPLETED_PROPOSAL_KIND
-            && !self.db.completed_proposal_exists(event.id).await?
+            && !self
+                .db
+                .exists(Type::CompletedProposal {
+                    completed_proposal_id: event.id,
+                })
+                .await?
         {
             if let Some(proposal_id) = util::extract_first_event_id(&event) {
                 self.db.delete_proposal(proposal_id).await?;

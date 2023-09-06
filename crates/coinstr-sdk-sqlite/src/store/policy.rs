@@ -10,22 +10,6 @@ use crate::model::InternalGetPolicy;
 use crate::{Error, Store};
 
 impl Store {
-    pub async fn policy_exists(&self, policy_id: EventId) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM policies WHERE policy_id = ? LIMIT 1);",
-            )?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
-        })
-        .await?
-    }
-
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn save_policy(
         &self,

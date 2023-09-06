@@ -13,22 +13,6 @@ use super::{Error, Store, StoreEncryption};
 use crate::model::{GetSharedSigner, GetSigner};
 
 impl Store {
-    pub async fn signer_exists(&self, signer_id: EventId) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM signers WHERE signer_id = ? LIMIT 1);",
-            )?;
-            let mut rows = stmt.query([signer_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
-        })
-        .await?
-    }
-
     pub async fn save_signer(&self, signer_id: EventId, signer: Signer) -> Result<(), Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
@@ -131,38 +115,6 @@ impl Store {
             )?;
             tracing::info!("Deleted shared signer {shared_signer_id}");
             Ok(())
-        })
-        .await?
-    }
-
-    pub async fn my_shared_signer_exists(&self, shared_signer_id: EventId) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-            "SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE shared_signer_id = ? LIMIT 1);",
-        )?;
-            let mut rows = stmt.query([shared_signer_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
-        })
-        .await?
-    }
-
-    pub async fn shared_signer_exists(&self, shared_signer_id: EventId) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM shared_signers WHERE shared_signer_id = ? LIMIT 1);",
-            )?;
-            let mut rows = stmt.query([shared_signer_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
         })
         .await?
     }

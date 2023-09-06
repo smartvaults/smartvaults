@@ -39,6 +39,18 @@ use super::migration::{self, STARTUP_SQL};
 use super::model::{GetApproval, GetApprovedProposals, GetCompletedProposal, GetProposal};
 use super::Error;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Type {
+    SharedKey { policy_id: EventId },
+    Policy { policy_id: EventId },
+    Proposal { proposal_id: EventId },
+    ApprovedProposal { approval_id: EventId },
+    CompletedProposal { completed_proposal_id: EventId },
+    Signer { signer_id: EventId },
+    MySharedSigner { my_shared_signer_id: EventId },
+    SharedSigner { shared_signer_id: EventId },
+}
+
 /// Store
 #[derive(Clone)]
 pub struct Store {
@@ -109,13 +121,40 @@ impl Store {
         Ok(())
     }
 
-    pub async fn shared_key_exists_for_policy(&self, policy_id: EventId) -> Result<bool, Error> {
+    pub async fn exists(&self, t: Type) -> Result<bool, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
+            let (sql, params) = match t {
+                Type::SharedKey { policy_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM shared_keys WHERE policy_id = ? LIMIT 1);", [policy_id.to_hex()])
+                }
+                Type::Policy { policy_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM policies WHERE policy_id = ? LIMIT 1);", [policy_id.to_hex()])
+                }
+                Type::Proposal { proposal_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);", [proposal_id.to_hex()])
+                }
+                Type::ApprovedProposal { approval_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);", [approval_id.to_hex()])
+                },
+                Type::CompletedProposal { completed_proposal_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);", [completed_proposal_id.to_hex()])
+                },
+                Type::Signer { signer_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM signers WHERE signer_id = ? LIMIT 1);", [signer_id.to_hex()])
+                },
+                Type::MySharedSigner { my_shared_signer_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE shared_signer_id = ? LIMIT 1);", [my_shared_signer_id.to_hex()])
+                },
+                Type::SharedSigner { shared_signer_id } => {
+                    ("SELECT EXISTS(SELECT 1 FROM shared_signers WHERE shared_signer_id = ? LIMIT 1);", [shared_signer_id.to_hex()])
+                }
+            };
+
             let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM shared_keys WHERE policy_id = ? LIMIT 1);",
+                sql,
             )?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
+            let mut rows = stmt.query(params)?;
             let exists: u8 = match rows.next()? {
                 Some(row) => row.get(0)?,
                 None => 0,
@@ -171,22 +210,6 @@ impl Store {
                 pubkeys.push(XOnlyPublicKey::from_str(&public_key)?);
             }
             Ok(pubkeys)
-        })
-        .await?
-    }
-
-    pub async fn proposal_exists(&self, proposal_id: EventId) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);",
-            )?;
-            let mut rows = stmt.query([proposal_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
         })
         .await?
     }
@@ -474,25 +497,6 @@ impl Store {
         Ok(policy_id)
     }
 
-    pub async fn approved_proposal_exists(
-        &self,
-        approved_proposal_id: EventId,
-    ) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);",
-            )?;
-            let mut rows = stmt.query([approved_proposal_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
-        })
-        .await?
-    }
-
     pub async fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
         self.set_event_as_deleted(approval_id).await?;
 
@@ -507,23 +511,6 @@ impl Store {
             Ok(())
         })
         .await?
-    }
-
-    pub async fn completed_proposal_exists(
-        &self,
-        completed_proposal_id: EventId,
-    ) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-        let mut stmt =
-                    conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);")?;
-                let mut rows = stmt.query([completed_proposal_id.to_hex()])?;
-                let exists: u8 = match rows.next()? {
-                    Some(row) => row.get(0)?,
-                    None => 0,
-                };
-                Ok(exists == 1)
-        }).await?
     }
 
     pub async fn save_completed_proposal(
@@ -698,18 +685,51 @@ impl Store {
     }
 
     pub async fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
-        if self.policy_exists(event_id).await? {
+        if self
+            .exists(Type::Policy {
+                policy_id: event_id,
+            })
+            .await?
+        {
             self.delete_policy(event_id).await?;
-        } else if self.proposal_exists(event_id).await? {
+        } else if self
+            .exists(Type::Proposal {
+                proposal_id: event_id,
+            })
+            .await?
+        {
             self.delete_proposal(event_id).await?;
-        } else if self.approved_proposal_exists(event_id).await? {
+        } else if self
+            .exists(Type::ApprovedProposal {
+                approval_id: event_id,
+            })
+            .await?
+        {
             self.delete_approval(event_id).await?;
-        } else if self.completed_proposal_exists(event_id).await? {
+        } else if self
+            .exists(Type::CompletedProposal {
+                completed_proposal_id: event_id,
+            })
+            .await?
+        {
             self.delete_completed_proposal(event_id).await?;
-        } else if self.signer_exists(event_id).await? {
+        } else if self
+            .exists(Type::Signer {
+                signer_id: event_id,
+            })
+            .await?
+        {
             self.delete_signer(event_id).await?;
-        } else if self.my_shared_signer_exists(event_id).await?
-            || self.shared_signer_exists(event_id).await?
+        } else if self
+            .exists(Type::MySharedSigner {
+                my_shared_signer_id: event_id,
+            })
+            .await?
+            || self
+                .exists(Type::SharedSigner {
+                    shared_signer_id: event_id,
+                })
+                .await?
         {
             self.delete_shared_signer(event_id).await?;
         } else {
