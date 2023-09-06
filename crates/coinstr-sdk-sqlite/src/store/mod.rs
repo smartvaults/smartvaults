@@ -328,6 +328,9 @@ impl Store {
                     proposal,
                 });
             }
+
+            proposals.sort();
+            
             Ok(proposals)
         })
         .await?
