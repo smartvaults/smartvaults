@@ -330,7 +330,7 @@ impl Store {
             }
 
             proposals.sort();
-            
+
             Ok(proposals)
         })
         .await?

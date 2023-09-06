@@ -75,8 +75,6 @@ CREATE TABLE IF NOT EXISTS events (
     event BLOB NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS notifications_index ON notifications(notification);
-
 -- Contacts
 CREATE TABLE IF NOT EXISTS contacts (
     public_key BLOB PRIMARY KEY NOT NULL
