@@ -220,10 +220,9 @@ impl State for PolicyState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        let is_loading =
-            self.policy.is_some() && self.policy.as_ref().map(|p| p.last_sync).is_some();
+        let is_ready = self.policy.is_some() && self.policy.as_ref().map(|p| p.last_sync).is_some();
 
-        if !is_loading {
+        if is_ready {
             if let Some(policy) = &self.policy {
                 content = content
                     .push(Space::with_height(Length::Fixed(20.0)))
@@ -373,7 +372,7 @@ impl State for PolicyState {
         }
 
         Dashboard::new()
-            .loaded(is_loading)
+            .loaded(is_ready)
             .view(ctx, content, false, false)
     }
 }
