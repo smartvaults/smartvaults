@@ -2828,30 +2828,28 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.23.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=38621e54e994d4c5b263c739eb16778fbca9620e#38621e54e994d4c5b263c739eb16778fbca9620e"
+source = "git+https://github.com/rust-nostr/nostr?rev=e5e026178fbce1cdad16302a3bf2566f3c35279f#e5e026178fbce1cdad16302a3bf2566f3c35279f"
 dependencies = [
  "aes",
  "base64 0.21.3",
- "bech32",
  "bip39",
  "bitcoin",
- "bitcoin_hashes 0.12.0",
  "cbc",
  "chacha20",
  "getrandom",
  "instant",
+ "once_cell",
  "reqwest",
- "secp256k1",
  "serde",
  "serde_json",
  "tracing",
- "url",
+ "url-fork",
 ]
 
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=38621e54e994d4c5b263c739eb16778fbca9620e#38621e54e994d4c5b263c739eb16778fbca9620e"
+source = "git+https://github.com/rust-nostr/nostr?rev=e5e026178fbce1cdad16302a3bf2566f3c35279f#e5e026178fbce1cdad16302a3bf2566f3c35279f"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2860,7 +2858,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.23.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=38621e54e994d4c5b263c739eb16778fbca9620e#38621e54e994d4c5b263c739eb16778fbca9620e"
+source = "git+https://github.com/rust-nostr/nostr?rev=e5e026178fbce1cdad16302a3bf2566f3c35279f#e5e026178fbce1cdad16302a3bf2566f3c35279f"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2874,7 +2872,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=38621e54e994d4c5b263c739eb16778fbca9620e#38621e54e994d4c5b263c739eb16778fbca9620e"
+source = "git+https://github.com/rust-nostr/nostr?rev=e5e026178fbce1cdad16302a3bf2566f3c35279f#e5e026178fbce1cdad16302a3bf2566f3c35279f"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2886,7 +2884,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.23.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=38621e54e994d4c5b263c739eb16778fbca9620e#38621e54e994d4c5b263c739eb16778fbca9620e"
+source = "git+https://github.com/rust-nostr/nostr?rev=e5e026178fbce1cdad16302a3bf2566f3c35279f#e5e026178fbce1cdad16302a3bf2566f3c35279f"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -2894,7 +2892,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-socks",
  "tokio-tungstenite",
- "url",
+ "url-fork",
  "webpki-roots 0.25.2",
  "ws_stream_wasm",
 ]
@@ -3733,7 +3731,6 @@ dependencies = [
  "libsqlite3-sys",
  "serde_json",
  "smallvec",
- "url",
 ]
 
 [[package]]
@@ -4988,7 +4985,19 @@ dependencies = [
  "form_urlencoded",
  "idna",
  "percent-encoding",
+]
+
+[[package]]
+name = "url-fork"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "956afc9d7e101f0b718a6776489cd7998d0b17fc79f4cdb6ee6761fb72d1c2ce"
+dependencies = [
+ "form_urlencoded",
+ "percent-encoding",
  "serde",
+ "unicode-bidi",
+ "unicode-normalization",
 ]
 
 [[package]]

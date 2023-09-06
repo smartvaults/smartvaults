@@ -46,6 +46,9 @@ pub enum Error {
     /// NIP46 error
     #[error(transparent)]
     NIP46(#[from] nostr_sdk::nips::nip46::Error),
+    /// Url error
+    #[error(transparent)]
+    Url(#[from] nostr_sdk::url::ParseError),
     /// JSON error
     #[error(transparent)]
     JSON(#[from] SerdeError),

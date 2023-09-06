@@ -23,8 +23,8 @@ coinstr-protocol = { path = "../coinstr-protocol" }
 deadpool-sqlite = "0.5"
 futures = "0.3"
 futures-util = "0.3"
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "38621e54e994d4c5b263c739eb16778fbca9620e", default-features = false, features = ["nip04", "nip06", "nip19", "nip46"] }
-rusqlite = { version = "0.28", features = ["bundled", "serde_json", "url"] }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "e5e026178fbce1cdad16302a3bf2566f3c35279f", default-features = false, features = ["nip04", "nip06", "nip46"] }
+rusqlite = { version = "0.28", features = ["bundled", "serde_json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
