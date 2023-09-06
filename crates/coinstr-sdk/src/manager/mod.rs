@@ -8,6 +8,7 @@ use std::ops::Add;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
+use bdk_electrum::bdk_chain::ConfirmationTime;
 use bdk_electrum::electrum_client::ElectrumApi;
 use bdk_electrum::electrum_client::{
     self, Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
@@ -16,7 +17,7 @@ use coinstr_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
 use coinstr_core::bdk::{FeeRate, LocalUtxo, Wallet};
 use coinstr_core::bitcoin::address::NetworkUnchecked;
 use coinstr_core::bitcoin::psbt::PartiallySignedTransaction;
-use coinstr_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
+use coinstr_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
 use coinstr_core::{Amount, Policy, Proposal};
 use coinstr_sdk_sqlite::Store;
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
@@ -166,6 +167,19 @@ impl Manager {
             .get(&policy_id)
             .ok_or(Error::NotLoaded(policy_id))?
             .clone())
+    }
+
+    pub async fn insert_tx(
+        &self,
+        policy_id: EventId,
+        tx: Transaction,
+        position: ConfirmationTime,
+    ) -> Result<bool, Error> {
+        Ok(self
+            .wallet(policy_id)
+            .await?
+            .insert_tx(tx, position)
+            .await?)
     }
 
     pub async fn get_balance(&self, policy_id: EventId) -> Result<Balance, Error> {

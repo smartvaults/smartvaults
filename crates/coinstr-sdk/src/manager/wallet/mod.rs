@@ -50,6 +50,8 @@ pub enum Error {
     NotFound,
     #[error("already syncing")]
     AlreadySyncing,
+    #[error("impossible to insert tx: {0}")]
+    InsertTx(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,6 +117,19 @@ impl CoinstrWallet {
         keychain: KeychainKind,
     ) -> impl Iterator<Item = (u32, ScriptBuf)> + Clone {
         self.wallet.read().await.spks_of_keychain(keychain)
+    }
+
+    pub async fn insert_tx(
+        &self,
+        tx: Transaction,
+        position: ConfirmationTime,
+    ) -> Result<bool, Error> {
+        let mut wallet = self.wallet.write().await;
+        let res = wallet
+            .insert_tx(tx, position)
+            .map_err(|e| Error::InsertTx(format!("{e:?}")))?;
+        wallet.commit()?;
+        Ok(res)
     }
 
     pub async fn is_mine(&self, script: &Script) -> bool {
@@ -229,18 +244,18 @@ impl CoinstrWallet {
             self.set_syncing(true);
 
             let endpoint: String = endpoint.into();
-            let prev_tip = self.latest_checkpoint().await;
+            let prev_tip: Option<CheckPoint> = self.latest_checkpoint().await;
             let keychain_spks = self.spks().await;
-            let graph = self.graph().await;
+            let graph: TxGraph<ConfirmationTimeAnchor> = self.graph().await;
 
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy).build();
-            let client = ElectrumClient::from_config(&endpoint, config)?;
+            let config: ElectrumConfig = ElectrumConfig::builder().socks5(proxy).build();
+            let client: ElectrumClient = ElectrumClient::from_config(&endpoint, config)?;
 
             let electrum_update =
                 client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
-            let missing = electrum_update.missing_full_txs(&graph);
+            let missing: Vec<Txid> = electrum_update.missing_full_txs(&graph);
             let update = electrum_update.finalize_as_confirmation_time(&client, None, missing)?;
 
             self.apply_update(update).await?;

@@ -1271,6 +1271,7 @@ impl Coinstr {
         }
     }
 
+    /// Finalize [`Proposal`]
     pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {
         // Get PSBTs
         let GetApprovedProposals {
@@ -1295,8 +1296,29 @@ impl Coinstr {
                 .build();
             let blockchain = ElectrumClient::from_config(&endpoint, config)?;
             blockchain.transaction_broadcast(tx)?;
-            // Force sync
-            //TODO: self.manager.sync(policy_id, endpoint, proxy).await?;
+
+            // Try insert transactions into wallet (without wait for the next sync)
+            let txid: Txid = tx.txid();
+            match self
+                .manager
+                .insert_tx(
+                    policy_id,
+                    tx.clone(),
+                    ConfirmationTime::Unconfirmed {
+                        last_seen: Timestamp::now().as_u64(),
+                    },
+                )
+                .await
+            {
+                Ok(res) => {
+                    if res {
+                        tracing::debug!("Tx {txid} added into the wallet");
+                    } else {
+                        tracing::warn!("Tx {txid} not added into the wallet! It will appear in the next policy sync.");
+                    }
+                }
+                Err(e) => tracing::error!("Impossible to insert tx {txid} into wallet: {e}."),
+            }
         }
 
         // Compose the event
