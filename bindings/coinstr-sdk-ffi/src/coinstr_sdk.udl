@@ -3,7 +3,8 @@
 
 namespace coinstr_sdk {
     [Throws=FFIError]
-    void init_logger(string base_path, Network network);
+    void init_desktop_logger(string base_path, Network network);
+    void init_mobile_logger();
     string git_hash_version();
     [Throws=FFIError]
     sequence<string> get_keychains_list(string base_path, Network network);
