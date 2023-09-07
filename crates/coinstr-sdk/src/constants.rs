@@ -13,4 +13,4 @@ pub const WALLET_SYNC_INTERVAL: Duration = Duration::from_secs(60);
 pub const METADATA_SYNC_INTERVAL: Duration = Duration::from_secs(3600);
 
 // Timeout
-pub(crate) const SEND_TIMEOUT: Duration = Duration::from_secs(5);
+pub(crate) const SEND_TIMEOUT: Duration = Duration::from_secs(10);
