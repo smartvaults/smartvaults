@@ -41,7 +41,7 @@ fn targets_filter() -> Targets {
         .with_target("coinstr_sdk_ffi", LevelFilter::OFF)
 }
 
-#[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
+//#[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
 pub fn init<P>(base_path: P, network: Network, stdout: bool) -> Result<(), Error>
 where
     P: AsRef<Path>,
