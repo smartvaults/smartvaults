@@ -22,3 +22,14 @@ impl AbortHandle {
         self.inner.is_aborted()
     }
 }
+
+impl Drop for AbortHandle {
+    fn drop(&mut self) {
+        if self.is_aborted() {
+            tracing::warn!("AbortHanlde already aborted");
+        } else {
+            self.abort();
+            tracing::debug!("AbortHandle dropped");
+        }
+    }
+}
