@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::ProposalType;
 use crate::util::{deserialize_psbt, serialize_psbt};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ApprovedProposal {
     Spending {
         #[serde(

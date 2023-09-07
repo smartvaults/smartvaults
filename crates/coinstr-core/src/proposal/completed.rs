@@ -10,7 +10,7 @@ use crate::util::{deserialize_psbt, serialize_psbt};
 
 use super::ProposalType;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CompletedProposal {
     Spending {
         tx: Transaction,

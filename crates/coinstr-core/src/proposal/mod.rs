@@ -65,7 +65,7 @@ impl fmt::Display for ProposalType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Proposal {
     Spending {
         descriptor: Descriptor<String>,

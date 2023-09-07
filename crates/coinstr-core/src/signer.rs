@@ -27,7 +27,7 @@ pub enum Error {
     NotTaprootDescriptor,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum SignerType {
     Seed,
     Hardware,
@@ -44,7 +44,7 @@ impl fmt::Display for SignerType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Signer {
     name: String,
     description: Option<String>,
