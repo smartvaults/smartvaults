@@ -58,17 +58,26 @@ async fn run() -> Result<()> {
         CliCommand::Generate {
             name,
             word_count,
-            password,
             passphrase,
         } => {
+            let password_from_env: Option<String> = io::get_password_from_env();
+            let confirm_password_from_env: Option<String> = password_from_env.clone();
+
             let coinstr = Coinstr::generate(
                 base_path,
                 name,
                 || {
-                    if let Some(password) = password {
+                    if let Some(password) = password_from_env {
                         Ok(password)
                     } else {
-                        io::get_password_with_confirmation()
+                        io::get_password()
+                    }
+                },
+                || {
+                    if let Some(password) = confirm_password_from_env {
+                        Ok(password)
+                    } else {
+                        io::get_confirmation_password()
                     }
                 },
                 word_count.into(),
@@ -97,7 +106,8 @@ async fn run() -> Result<()> {
             Coinstr::restore(
                 base_path,
                 name,
-                io::get_password_with_confirmation,
+                io::get_password,
+                io::get_confirmation_password,
                 || Ok(Mnemonic::from_str(&io::get_input("Mnemonic")?)?),
                 || {
                     if io::ask("Do you want to use a passphrase?")? {
@@ -572,9 +582,11 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
         },
         Command::Setting { command } => match command {
             SettingCommand::Rename { new_name } => Ok(coinstr.rename(new_name)?),
-            SettingCommand::ChangePassword => {
-                Ok(coinstr.change_password(io::get_password_with_confirmation)?)
-            }
+            SettingCommand::ChangePassword => Ok(coinstr.change_password(
+                io::get_password,
+                io::get_new_password,
+                io::get_confirmation_password,
+            )?),
         },
         Command::Exit => std::process::exit(0x01),
     }

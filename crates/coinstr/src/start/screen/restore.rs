@@ -64,32 +64,30 @@ impl State for RestoreState {
                     self.error = e;
                 }
                 RestoreMessage::RestoreButtonPressed => {
-                    if self.password.eq(&self.confirm_password) {
-                        let network = ctx.network;
-                        let name = self.name.clone();
-                        let password = self.password.clone();
-                        let mnemonic = self.mnemonic.clone();
-                        let passphrase = self.passphrase.clone();
-                        return Command::perform(
-                            async move {
-                                Coinstr::restore(
-                                    BASE_PATH.as_path(),
-                                    name,
-                                    || Ok(password),
-                                    || Ok(Mnemonic::from_str(&mnemonic)?),
-                                    || Ok(Some(passphrase)),
-                                    network,
-                                )
-                                .await
-                            },
-                            move |res| match res {
-                                Ok(keechain) => Message::OpenResult(keechain),
-                                Err(e) => RestoreMessage::ErrorChanged(Some(e.to_string())).into(),
-                            },
-                        );
-                    } else {
-                        self.error = Some("Passwords not match".to_string())
-                    }
+                    let network = ctx.network;
+                    let name = self.name.clone();
+                    let password = self.password.clone();
+                    let confirm_password = self.confirm_password.clone();
+                    let mnemonic = self.mnemonic.clone();
+                    let passphrase = self.passphrase.clone();
+                    return Command::perform(
+                        async move {
+                            Coinstr::restore(
+                                BASE_PATH.as_path(),
+                                name,
+                                || Ok(password),
+                                || Ok(confirm_password),
+                                || Ok(Mnemonic::from_str(&mnemonic)?),
+                                || Ok(Some(passphrase)),
+                                network,
+                            )
+                            .await
+                        },
+                        move |res| match res {
+                            Ok(keechain) => Message::OpenResult(keechain),
+                            Err(e) => RestoreMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
                 }
             }
         };

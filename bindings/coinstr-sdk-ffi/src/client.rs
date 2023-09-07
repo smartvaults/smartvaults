@@ -74,6 +74,7 @@ impl Coinstr {
         base_path: String,
         name: String,
         password: String,
+        confirm_password: String,
         word_count: WordCount,
         passphrase: Option<String>,
         network: Network,
@@ -84,6 +85,7 @@ impl Coinstr {
                     base_path,
                     name,
                     || Ok(password),
+                    || Ok(confirm_password),
                     word_count,
                     || Ok(passphrase),
                     network.into(),
@@ -99,6 +101,7 @@ impl Coinstr {
         base_path: String,
         name: String,
         password: String,
+        confirm_password: String,
         mnemonic: String,
         passphrase: Option<String>,
         network: Network,
@@ -110,6 +113,7 @@ impl Coinstr {
                     base_path,
                     name,
                     || Ok(password),
+                    || Ok(confirm_password),
                     || Ok(mnemonic),
                     || Ok(passphrase),
                     network.into(),
@@ -140,8 +144,17 @@ impl Coinstr {
     }
 
     /// Change keychain password
-    pub fn change_password(&self, new_password: String) -> Result<()> {
-        Ok(self.inner.change_password(|| Ok(new_password))?)
+    pub fn change_password(
+        &self,
+        password: String,
+        new_password: String,
+        confirm_password: String,
+    ) -> Result<()> {
+        Ok(self.inner.change_password(
+            || Ok(password),
+            || Ok(new_password),
+            || Ok(confirm_password),
+        )?)
     }
 
     /// Permanent delete the keychain

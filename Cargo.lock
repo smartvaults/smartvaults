@@ -2502,7 +2502,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=f022d0959f3b3f07cd1d4b22bea3a4e2d599b7cd#f022d0959f3b3f07cd1d4b22bea3a4e2d599b7cd"
+source = "git+https://github.com/yukibtc/keechain?rev=f35a6d69e15eeb23bfe8e06b7af4d95b290db36a#f35a6d69e15eeb23bfe8e06b7af4d95b290db36a"
 dependencies = [
  "aes",
  "bdk",

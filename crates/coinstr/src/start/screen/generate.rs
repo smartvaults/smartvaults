@@ -60,31 +60,29 @@ impl State for GenerateState {
                     self.error = e;
                 }
                 GenerateMessage::Generate => {
-                    if self.password.eq(&self.confirm_password) {
-                        let network = ctx.network;
-                        let name = self.name.clone();
-                        let password = self.password.clone();
-                        let passphrase = self.passphrase.clone();
-                        return Command::perform(
-                            async move {
-                                Coinstr::generate(
-                                    BASE_PATH.as_path(),
-                                    name,
-                                    || Ok(password),
-                                    WordCount::W12, // TODO: let user choose the len.
-                                    || Ok(Some(passphrase)),
-                                    network,
-                                )
-                                .await
-                            },
-                            move |res| match res {
-                                Ok(keechain) => Message::OpenResult(keechain),
-                                Err(e) => GenerateMessage::ErrorChanged(Some(e.to_string())).into(),
-                            },
-                        );
-                    } else {
-                        self.error = Some("Passwords not match".to_string())
-                    }
+                    let network = ctx.network;
+                    let name = self.name.clone();
+                    let password = self.password.clone();
+                    let confirm_password = self.confirm_password.clone();
+                    let passphrase = self.passphrase.clone();
+                    return Command::perform(
+                        async move {
+                            Coinstr::generate(
+                                BASE_PATH.as_path(),
+                                name,
+                                || Ok(password),
+                                || Ok(confirm_password),
+                                WordCount::W12, // TODO: let user choose the len.
+                                || Ok(Some(passphrase)),
+                                network,
+                            )
+                            .await
+                        },
+                        move |res| match res {
+                            Ok(keechain) => Message::OpenResult(keechain),
+                            Err(e) => GenerateMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
                 }
             }
         };

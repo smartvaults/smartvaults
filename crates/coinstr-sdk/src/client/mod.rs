@@ -235,10 +235,11 @@ impl Coinstr {
     }
 
     /// Generate keychain
-    pub async fn generate<P, S, PSW, PASSP>(
+    pub async fn generate<P, S, PSW, CPSW, PASSP>(
         base_path: P,
         name: S,
         get_password: PSW,
+        get_confirm_password: CPSW,
         word_count: WordCount,
         get_passphrase: PASSP,
         network: Network,
@@ -247,14 +248,21 @@ impl Coinstr {
         P: AsRef<Path>,
         S: Into<String>,
         PSW: FnOnce() -> Result<String>,
+        CPSW: FnOnce() -> Result<String>,
         PASSP: FnOnce() -> Result<Option<String>>,
     {
         let base_path = base_path.as_ref();
 
         // Generate keychain
         let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
-        let mut keechain: KeeChain =
-            KeeChain::generate(keychains_path, name, get_password, word_count, || Ok(None))?;
+        let mut keechain: KeeChain = KeeChain::generate(
+            keychains_path,
+            name,
+            get_password,
+            get_confirm_password,
+            word_count,
+            || Ok(None),
+        )?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
@@ -267,10 +275,11 @@ impl Coinstr {
     }
 
     /// Restore keychain
-    pub async fn restore<P, S, PSW, M, PASSP>(
+    pub async fn restore<P, S, PSW, CPSW, M, PASSP>(
         base_path: P,
         name: S,
         get_password: PSW,
+        get_confirm_password: CPSW,
         get_mnemonic: M,
         get_passphrase: PASSP,
         network: Network,
@@ -279,6 +288,7 @@ impl Coinstr {
         P: AsRef<Path>,
         S: Into<String>,
         PSW: FnOnce() -> Result<String>,
+        CPSW: FnOnce() -> Result<String>,
         M: FnOnce() -> Result<Mnemonic>,
         PASSP: FnOnce() -> Result<Option<String>>,
     {
@@ -286,8 +296,13 @@ impl Coinstr {
 
         // Restore keychain
         let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
-        let mut keechain: KeeChain =
-            KeeChain::restore(keychains_path, name, get_password, get_mnemonic)?;
+        let mut keechain: KeeChain = KeeChain::restore(
+            keychains_path,
+            name,
+            get_password,
+            get_confirm_password,
+            get_mnemonic,
+        )?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
@@ -348,11 +363,22 @@ impl Coinstr {
     }
 
     /// Change keychain password
-    pub fn change_password<NPSW>(&self, get_new_password: NPSW) -> Result<(), Error>
+    pub fn change_password<PSW, NPSW, NCPSW>(
+        &self,
+        get_old_password: PSW,
+        get_new_password: NPSW,
+        get_new_confirm_password: NCPSW,
+    ) -> Result<(), Error>
     where
+        PSW: FnOnce() -> Result<String>,
         NPSW: FnOnce() -> Result<String>,
+        NCPSW: FnOnce() -> Result<String>,
     {
-        Ok(self.keechain.change_password(get_new_password)?)
+        Ok(self.keechain.change_password(
+            get_old_password,
+            get_new_password,
+            get_new_confirm_password,
+        )?)
     }
 
     /// Permanent delete the keychain

@@ -18,17 +18,15 @@ where
 /// If the `COINSTR_PASSWORD` env variable exists, that will be used as the password,
 /// otherwise it will be asked interactively.
 pub fn get_password() -> Result<String> {
-    match get_password_from_env() {
-        Some(psw) => Ok(psw),
-        None => Ok(Password::new().with_prompt("Password").interact()?),
-    }
+    Ok(Password::new().with_prompt("Password").interact()?)
 }
 
-pub fn get_password_with_confirmation() -> Result<String> {
-    Ok(Password::new()
-        .with_prompt("New password")
-        .with_confirmation("Confirm password", "Passwords mismatching")
-        .interact()?)
+pub fn get_new_password() -> Result<String> {
+    Ok(Password::new().with_prompt("New password").interact()?)
+}
+
+pub fn get_confirmation_password() -> Result<String> {
+    Ok(Password::new().with_prompt("Confirm password").interact()?)
 }
 
 pub fn ask<S>(prompt: S) -> Result<bool>

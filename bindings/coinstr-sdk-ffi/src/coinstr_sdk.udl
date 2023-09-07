@@ -446,9 +446,9 @@ interface Coinstr {
     [Throws=FFIError, Name=open]
     constructor(string base_path, string name, string password, Network network);
     [Throws=FFIError, Name=generate]
-    constructor(string base_path, string name, string password, WordCount word_count, string? passphrase, Network network);
+    constructor(string base_path, string name, string password, string confirm_password, WordCount word_count, string? passphrase, Network network);
     [Throws=FFIError, Name=restore]
-    constructor(string base_path, string name, string password, string mnemonic, string? passphrase, Network network);
+    constructor(string base_path, string name, string password, string confirm_password, string mnemonic, string? passphrase, Network network);
 
     string? name();
     [Throws=FFIError]
@@ -458,7 +458,7 @@ interface Coinstr {
     [Throws=FFIError]
     void rename(string new_name);
     [Throws=FFIError]
-    void change_password(string new_password);
+    void change_password(string password, string new_password, string confirm_password);
     [Throws=FFIError]
     void wipe(string password);
     void start();

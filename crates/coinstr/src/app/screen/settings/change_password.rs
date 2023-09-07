@@ -56,26 +56,23 @@ impl State for ChangePasswordState {
                     let client = ctx.client.clone();
                     let password = self.password.clone();
                     let new_password = self.new_password.clone();
-
-                    if client.check_password(password).unwrap_or_default() {
-                        if new_password == self.confirm_new_password {
-                            self.loading = true;
-                            return Command::perform(
-                                async move { client.change_password(|| Ok(new_password)) },
-                                |res| match res {
-                                    Ok(_) => Message::View(Stage::Settings),
-                                    Err(e) => {
-                                        ChangePasswordMessage::ErrorChanged(Some(e.to_string()))
-                                            .into()
-                                    }
-                                },
-                            );
-                        } else {
-                            self.error = Some(String::from("Passwords not match"))
-                        }
-                    } else {
-                        self.error = Some(String::from("Current password is wrong"))
-                    }
+                    let confirm_new_password = self.confirm_new_password.clone();
+                    self.loading = true;
+                    return Command::perform(
+                        async move {
+                            client.change_password(
+                                || Ok(password),
+                                || Ok(new_password),
+                                || Ok(confirm_new_password),
+                            )
+                        },
+                        |res| match res {
+                            Ok(_) => Message::View(Stage::Settings),
+                            Err(e) => {
+                                ChangePasswordMessage::ErrorChanged(Some(e.to_string())).into()
+                            }
+                        },
+                    );
                 }
             }
         };
