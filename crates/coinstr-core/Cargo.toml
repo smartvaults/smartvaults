@@ -18,7 +18,7 @@ reserves = ["dep:bitcoinconsensus"]
 [dependencies]
 bdk = { git = "https://github.com/bitcoindevkit/bdk", rev = "2867e88b64b4a8cf7136cc562ec61c077737a087", default-features = false, features = ["std", "compiler"] }
 bitcoinconsensus = { version = "0.20.2-0.5.0", optional = true }
-keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "f35a6d69e15eeb23bfe8e06b7af4d95b290db36a" }
+keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "ff8c2dceb9a5376683743847df6d32973a60968f" }
 once_cell = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"

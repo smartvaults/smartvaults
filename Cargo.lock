@@ -2503,7 +2503,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=f35a6d69e15eeb23bfe8e06b7af4d95b290db36a#f35a6d69e15eeb23bfe8e06b7af4d95b290db36a"
+source = "git+https://github.com/yukibtc/keechain?rev=ff8c2dceb9a5376683743847df6d32973a60968f#ff8c2dceb9a5376683743847df6d32973a60968f"
 dependencies = [
  "aes",
  "bdk",
@@ -2511,6 +2511,7 @@ dependencies = [
  "cbc",
  "chacha20poly1305",
  "getrandom",
+ "instant",
  "rand_chacha",
  "serde",
  "serde_json",

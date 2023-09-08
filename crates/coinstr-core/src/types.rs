@@ -2,8 +2,9 @@
 // Distributed under the MIT software license
 
 use core::fmt;
-pub use keechain_core::types::*;
 use std::str::FromStr;
+
+pub use keechain_core::types::*;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd)]
 pub enum Priority {
