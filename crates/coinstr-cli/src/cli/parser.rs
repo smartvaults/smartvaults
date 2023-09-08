@@ -8,7 +8,7 @@ static MAIN_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"(?m:\s*(?:([^\s\\'"]+)|'([^']*)'|"((?:[^"\\]|\\.)*)"|(\\.?)|(\S))(\s|\z)?)"#)
         .unwrap()
 });
-static ESCAPE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\\(.)"#).unwrap());
+static ESCAPE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"\\(.)").unwrap());
 static METACHAR_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\\([$`"\\\n])"#).unwrap());
 
 /// Splits a string into a vector of words in the same way the UNIX Bourne shell does.
