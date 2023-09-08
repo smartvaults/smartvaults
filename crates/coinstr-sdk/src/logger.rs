@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use coinstr_core::bitcoin::Network;
 use nostr_sdk::Timestamp;
 use thiserror::Error;
-use tracing::metadata::LevelFilter;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -38,7 +37,7 @@ fn targets_filter() -> Targets {
         .with_target("coinstr_core", Level::DEBUG)
         .with_target("coinstr_sdk", Level::TRACE)
         .with_target("coinstr", Level::DEBUG)
-        .with_target("coinstr_sdk_ffi", LevelFilter::DEBUG)
+        .with_target("coinstr_sdk_ffi", Level::INFO)
 }
 
 //#[cfg(all(not(target_os = "android"), not(target_os = "ios")))]

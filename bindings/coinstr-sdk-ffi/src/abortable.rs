@@ -29,7 +29,7 @@ impl Drop for AbortHandle {
             tracing::warn!("AbortHanlde already aborted");
         } else {
             self.abort();
-            tracing::debug!("AbortHandle dropped");
+            tracing::info!("AbortHandle dropped");
         }
     }
 }

@@ -37,7 +37,7 @@ impl Drop for Coinstr {
         if self.dropped.load(Ordering::SeqCst) {
             tracing::warn!("Coinstr already dropped");
         } else {
-            tracing::debug!("Dropping Coinstr client...");
+            tracing::info!("Dropping Coinstr client...");
             let _ = self
                 .dropped
                 .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(true));
