@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 use core::fmt;
-
 pub use keechain_core::types::*;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd)]
 pub enum Priority {
@@ -88,6 +88,17 @@ pub enum Amount {
     Custom(u64),
 }
 
+impl FromStr for Amount {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "max" => Ok(Amount::Max),
+            _ => Ok(Amount::Custom(s.parse()?)),
+        }
+    }
+}
+
 impl Amount {
     pub fn max() -> Self {
         Self::Max
@@ -125,5 +136,13 @@ mod test {
     fn test_amount_from_btc() {
         let amount: Amount = Amount::from_btc(0.12345);
         assert_eq!(Amount::from_sats(12_345_000), amount)
+    }
+
+    #[test]
+    fn test_amount_from_str() {
+        let amount: Amount = Amount::from_str("max").unwrap();
+        assert_eq!(Amount::Max, amount);
+        let amount: Amount = Amount::from_str("11535").unwrap();
+        assert_eq!(Amount::Custom(11535), amount);
     }
 }
