@@ -1,49 +1,26 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::fmt;
-
-use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::nostr::EventId;
-use coinstr_sdk::types::{GetPolicy, GetProposal};
-use coinstr_sdk::util::{self, format};
+use coinstr_sdk::types::GetProposal;
+use coinstr_sdk::util::format;
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::{Dashboard, FeeSelector};
+use crate::app::component::{Dashboard, FeeSelector, PolicyPicLisk};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
-
-#[derive(Debug, Clone, Eq)]
-pub struct PolicyPicLisk {
-    pub policy_id: EventId,
-    pub name: String,
-}
-
-impl PartialEq for PolicyPicLisk {
-    fn eq(&self, other: &Self) -> bool {
-        self.policy_id == other.policy_id
-    }
-}
-
-impl fmt::Display for PolicyPicLisk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} - #{}", self.name, util::cut_event_id(self.policy_id))
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum SelfTransferMessage {
     LoadPolicies(Vec<PolicyPicLisk>),
     FromPolicySelectd(PolicyPicLisk),
     ToPolicySelectd(PolicyPicLisk),
-    LoadBalance(EventId),
     AmountChanged(Option<u64>),
     SendAllBtnPressed,
     FeeRateChanged(FeeRate),
-    BalanceChanged(Option<Balance>),
     ErrorChanged(Option<String>),
     Review,
     EditProposal,
@@ -58,7 +35,6 @@ pub struct SelfTransferState {
     amount: Option<u64>,
     send_all: bool,
     fee_rate: FeeRate,
-    balance: Option<Balance>,
     reviewing: bool,
     loading: bool,
     loaded: bool,
@@ -124,14 +100,7 @@ impl State for SelfTransferState {
                     .await
                     .unwrap()
                     .into_iter()
-                    .map(
-                        |GetPolicy {
-                             policy_id, policy, ..
-                         }| PolicyPicLisk {
-                            policy_id,
-                            name: policy.name,
-                        },
-                    )
+                    .map(|p| p.into())
                     .collect()
             },
             |p| SelfTransferMessage::LoadPolicies(p).into(),
@@ -145,31 +114,13 @@ impl State for SelfTransferState {
                     self.policies = policies;
                     self.loading = false;
                     self.loaded = true;
-                    if let Some(policy) = self.from_policy.as_ref() {
-                        let policy_id = policy.policy_id;
-                        return Command::perform(async {}, move |_| {
-                            SelfTransferMessage::LoadBalance(policy_id).into()
-                        });
-                    }
                 }
                 SelfTransferMessage::FromPolicySelectd(policy) => {
-                    let policy_id = policy.policy_id;
                     self.from_policy = Some(policy);
-                    return Command::perform(async {}, move |_| {
-                        SelfTransferMessage::LoadBalance(policy_id).into()
-                    });
                 }
                 SelfTransferMessage::ToPolicySelectd(policy) => {
                     self.to_policy = Some(policy);
                 }
-                SelfTransferMessage::LoadBalance(policy_id) => {
-                    let client = ctx.client.clone();
-                    return Command::perform(
-                        async move { client.get_balance(policy_id).await },
-                        |balance| SelfTransferMessage::BalanceChanged(balance).into(),
-                    );
-                }
-                SelfTransferMessage::BalanceChanged(balance) => self.balance = balance,
                 SelfTransferMessage::AmountChanged(value) => self.amount = value,
                 SelfTransferMessage::SendAllBtnPressed => self.send_all = !self.send_all,
                 SelfTransferMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
@@ -378,16 +329,11 @@ impl State for SelfTransferState {
                     )
                 };
 
-                let your_balance = if self.from_policy.is_some() {
-                    Text::new(match &self.balance {
-                        Some(balance) => {
-                            format!(
-                                "Balance: {} sat",
-                                format::number(balance.trusted_spendable())
-                            )
-                        }
-                        None => String::from("Loading..."),
-                    })
+                let your_balance = if let Some(from_policy) = &self.from_policy {
+                    Text::new(format!(
+                        "Balance: {} sat",
+                        format::number(from_policy.balance.trusted_spendable())
+                    ))
                     .extra_light()
                     .small()
                     .width(Length::Fill)

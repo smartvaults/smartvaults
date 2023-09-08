@@ -675,7 +675,7 @@ impl Coinstr {
         Ok(GetPolicy {
             policy_id,
             policy,
-            balance: self.get_balance(policy_id).await,
+            balance: self.manager.get_balance(policy_id).await?,
             last_sync,
         })
     }
@@ -833,7 +833,7 @@ impl Coinstr {
             policies.push(GetPolicy {
                 policy_id,
                 policy,
-                balance: self.get_balance(policy_id).await,
+                balance: self.manager.get_balance(policy_id).await?,
                 last_sync,
             });
         }
@@ -1437,6 +1437,7 @@ impl Coinstr {
         }
     }
 
+    #[deprecated]
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
         self.manager.get_balance(policy_id).await.ok()
@@ -1636,7 +1637,7 @@ impl Coinstr {
         } in self.get_policies().await?.into_iter()
         {
             if !already_seen.contains(&policy.descriptor) {
-                let balance = self.get_balance(policy_id).await.unwrap_or_default();
+                let balance = self.manager.get_balance(policy_id).await?;
                 total_balance = total_balance.add(balance);
                 already_seen.push(policy.descriptor);
             }

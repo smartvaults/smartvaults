@@ -1,39 +1,17 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::fmt;
-
-use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::protocol::v1::Label;
 use coinstr_sdk::types::{GetAddress, GetPolicy};
-use coinstr_sdk::util;
 use iced::widget::qr_code::{self, QRCode};
 use iced::widget::{Column, PickList, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::Dashboard;
+use crate::app::component::{Dashboard, PolicyPicLisk};
 use crate::app::{Context, Message, State};
 use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::theme::icon::CLIPBOARD;
-
-#[derive(Debug, Clone, Eq)]
-pub struct PolicyPicLisk {
-    pub policy_id: EventId,
-    pub name: String,
-}
-
-impl PartialEq for PolicyPicLisk {
-    fn eq(&self, other: &Self) -> bool {
-        self.policy_id == other.policy_id
-    }
-}
-
-impl fmt::Display for PolicyPicLisk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} - #{}", self.name, util::cut_event_id(self.policy_id))
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum ReceiveMessage {
@@ -61,12 +39,9 @@ pub struct ReceiveState {
 }
 
 impl ReceiveState {
-    pub fn new(policy: Option<(EventId, Policy)>) -> Self {
+    pub fn new(policy: Option<GetPolicy>) -> Self {
         Self {
-            policy: policy.map(|(policy_id, policy)| PolicyPicLisk {
-                policy_id,
-                name: policy.name,
-            }),
+            policy: policy.map(|p| p.into()),
             policies: Vec::new(),
             qr_code: None,
             address: None,
@@ -98,14 +73,7 @@ impl State for ReceiveState {
                     .await
                     .unwrap()
                     .into_iter()
-                    .map(
-                        |GetPolicy {
-                             policy_id, policy, ..
-                         }| PolicyPicLisk {
-                            policy_id,
-                            name: policy.name,
-                        },
-                    )
+                    .map(|p| p.into())
                     .collect()
             },
             |p| ReceiveMessage::LoadPolicies(p).into(),

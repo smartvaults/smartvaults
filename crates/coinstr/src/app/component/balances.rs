@@ -11,7 +11,7 @@ use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
 pub struct Balances {
-    balance: Option<Balance>,
+    balance: Balance,
     size: u16,
     hide: bool,
     on_send: Option<Message>,
@@ -19,7 +19,7 @@ pub struct Balances {
 }
 
 impl Balances {
-    pub fn new(balance: Option<Balance>) -> Self {
+    pub fn new(balance: Balance) -> Self {
         Self {
             balance,
             size: 35,
@@ -55,25 +55,21 @@ impl Balances {
         let (balance, pending) = if self.hide {
             (Text::new("***** sat"), None)
         } else {
-            match self.balance {
-                Some(balance) => {
-                    let pending_balance =
-                        balance.untrusted_pending + balance.trusted_pending + balance.immature;
+            let pending_balance = self.balance.untrusted_pending
+                + self.balance.trusted_pending
+                + self.balance.immature;
 
-                    (
-                        Text::new(format!("{} sat", format::number(balance.confirmed))),
-                        if pending_balance > 0 {
-                            Some(Text::new(format!(
-                                "Pending: +{} sat",
-                                format::number(pending_balance)
-                            )))
-                        } else {
-                            None
-                        },
-                    )
-                }
-                None => (Text::new("Unavailable"), None),
-            }
+            (
+                Text::new(format!("{} sat", format::number(self.balance.confirmed))),
+                if pending_balance > 0 {
+                    Some(Text::new(format!(
+                        "Pending: +{} sat",
+                        format::number(pending_balance)
+                    )))
+                } else {
+                    None
+                },
+            )
         };
 
         let btn_size: f32 = self.size as f32 * 3.7 + 30.0;

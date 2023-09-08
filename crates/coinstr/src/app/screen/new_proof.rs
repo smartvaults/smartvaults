@@ -1,37 +1,14 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::fmt;
-
-use coinstr_sdk::core::policy::Policy;
-use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::types::GetPolicy;
-use coinstr_sdk::util;
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::Dashboard;
+use crate::app::component::{Dashboard, PolicyPicLisk};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
-
-#[derive(Debug, Clone, Eq)]
-pub struct PolicyPicLisk {
-    pub policy_id: EventId,
-    pub name: String,
-}
-
-impl PartialEq for PolicyPicLisk {
-    fn eq(&self, other: &Self) -> bool {
-        self.policy_id == other.policy_id
-    }
-}
-
-impl fmt::Display for PolicyPicLisk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} - #{}", self.name, util::cut_event_id(self.policy_id))
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum NewProofMessage {
@@ -53,12 +30,9 @@ pub struct NewProofState {
 }
 
 impl NewProofState {
-    pub fn new(policy: Option<(EventId, Policy)>) -> Self {
+    pub fn new(policy: Option<GetPolicy>) -> Self {
         Self {
-            policy: policy.map(|(policy_id, policy)| PolicyPicLisk {
-                policy_id,
-                name: policy.name,
-            }),
+            policy: policy.map(|p| p.into()),
             policies: Vec::new(),
             message: String::new(),
             loading: false,
@@ -83,14 +57,7 @@ impl State for NewProofState {
                     .await
                     .unwrap()
                     .into_iter()
-                    .map(
-                        |GetPolicy {
-                             policy_id, policy, ..
-                         }| PolicyPicLisk {
-                            policy_id,
-                            name: policy.name,
-                        },
-                    )
+                    .map(|p| p.into())
                     .collect()
             },
             |p| NewProofMessage::LoadPolicies(p).into(),

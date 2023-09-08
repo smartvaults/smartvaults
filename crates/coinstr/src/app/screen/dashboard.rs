@@ -14,7 +14,7 @@ use crate::component::Text;
 pub enum DashboardMessage {
     Send,
     Deposit,
-    Load(Option<Balance>, Vec<GetProposal>, Vec<GetTransaction>),
+    Load(Balance, Vec<GetProposal>, Vec<GetTransaction>),
     Reload,
 }
 
@@ -22,20 +22,14 @@ pub enum DashboardMessage {
 pub struct DashboardState {
     loading: bool,
     loaded: bool,
-    balance: Option<Balance>,
+    balance: Balance,
     proposals: Vec<GetProposal>,
     transactions: Vec<GetTransaction>,
 }
 
 impl DashboardState {
     pub fn new() -> Self {
-        Self {
-            loading: false,
-            loaded: false,
-            balance: None,
-            proposals: Vec::new(),
-            transactions: Vec::new(),
-        }
+        Self::default()
     }
 }
 
@@ -55,9 +49,7 @@ impl State for DashboardState {
 
                 (balance, proposals, txs)
             },
-            |(balance, proposals, txs)| {
-                DashboardMessage::Load(Some(balance), proposals, txs).into()
-            },
+            |(balance, proposals, txs)| DashboardMessage::Load(balance, proposals, txs).into(),
         )
     }
 

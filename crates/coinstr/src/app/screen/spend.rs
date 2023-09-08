@@ -2,48 +2,22 @@
 // Distributed under the MIT software license
 
 use std::collections::{BTreeMap, HashSet};
-use std::fmt;
 use std::str::FromStr;
 
 use coinstr_sdk::core::bdk::descriptor::policy::SatisfiableItem;
-use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::bitcoin::address::NetworkUnchecked;
 use coinstr_sdk::core::bitcoin::{Address, OutPoint};
-use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::{Amount, FeeRate};
 use coinstr_sdk::nostr::EventId;
 use coinstr_sdk::types::{GetPolicy, GetProposal, GetUtxo};
-use coinstr_sdk::util::{self, format};
+use coinstr_sdk::util::format;
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 
-use crate::app::component::{Dashboard, FeeSelector, PolicyTree, UtxoSelector};
+use crate::app::component::{Dashboard, FeeSelector, PolicyPicLisk, PolicyTree, UtxoSelector};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::{DARK_RED, RED};
-
-#[derive(Debug, Clone, Eq)]
-pub struct PolicyPicLisk {
-    pub policy_id: EventId,
-    pub policy: Policy,
-}
-
-impl PartialEq for PolicyPicLisk {
-    fn eq(&self, other: &Self) -> bool {
-        self.policy_id == other.policy_id
-    }
-}
-
-impl fmt::Display for PolicyPicLisk {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} - #{}",
-            self.policy.name,
-            util::cut_event_id(self.policy_id)
-        )
-    }
-}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub enum InternalStageBuild {
@@ -76,7 +50,6 @@ pub enum SpendMessage {
     DescriptionChanged(String),
     FeeRateChanged(FeeRate),
     PolicyLoaded(
-        Option<Balance>,
         Vec<GetUtxo>,
         SatisfiableItem,
         Option<Vec<(String, Vec<String>)>>,
@@ -100,7 +73,6 @@ pub struct SpendState {
     utxos: Vec<GetUtxo>,
     selected_utxos: HashSet<OutPoint>,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    balance: Option<Balance>,
     satisfiable_item: Option<SatisfiableItem>,
     selectable_conditions: Option<Vec<(String, Vec<String>)>>,
     stage: InternalStage,
@@ -110,9 +82,9 @@ pub struct SpendState {
 }
 
 impl SpendState {
-    pub fn new(policy: Option<(EventId, Policy)>) -> Self {
+    pub fn new(policy: Option<GetPolicy>) -> Self {
         Self {
-            policy: policy.map(|(policy_id, policy)| PolicyPicLisk { policy_id, policy }),
+            policy: policy.map(|p| p.into()),
             policies: Vec::new(),
             to_address: String::new(),
             amount: None,
@@ -122,7 +94,6 @@ impl SpendState {
             utxos: Vec::new(),
             selected_utxos: HashSet::new(),
             policy_path: None,
-            balance: None,
             satisfiable_item: None,
             selectable_conditions: None,
             stage: InternalStage::default(),
@@ -194,11 +165,7 @@ impl State for SpendState {
                     .await
                     .unwrap()
                     .into_iter()
-                    .map(
-                        |GetPolicy {
-                             policy_id, policy, ..
-                         }| PolicyPicLisk { policy_id, policy },
-                    )
+                    .map(|p| p.into())
                     .collect()
             },
             |p| SpendMessage::LoadPolicies(p).into(),
@@ -232,26 +199,21 @@ impl State for SpendState {
                         let policy = policy.policy.clone();
                         return Command::perform(
                             async move {
-                                let balance = client.get_balance(policy_id).await;
                                 let utxos = client.get_utxos(policy_id).await?;
                                 let item = policy.satisfiable_item(client.network())?;
                                 let conditions = policy.selectable_conditions(client.network())?;
                                 Ok::<
                                     (
-                                        Option<Balance>,
                                         Vec<GetUtxo>,
                                         SatisfiableItem,
                                         Option<Vec<(String, Vec<String>)>>,
                                     ),
                                     Box<dyn std::error::Error>,
-                                >((
-                                    balance, utxos, item, conditions,
-                                ))
+                                >((utxos, item, conditions))
                             },
                             |res| match res {
-                                Ok((balance, utxos, item, conditions)) => {
-                                    SpendMessage::PolicyLoaded(balance, utxos, item, conditions)
-                                        .into()
+                                Ok((utxos, item, conditions)) => {
+                                    SpendMessage::PolicyLoaded(utxos, item, conditions).into()
                                 }
                                 Err(e) => SpendMessage::ErrorChanged(Some(format!(
                                     "Impossible to load policy: {e}",
@@ -263,8 +225,7 @@ impl State for SpendState {
                         self.error = Some(String::from("Select a policy"));
                     }
                 }
-                SpendMessage::PolicyLoaded(balance, utxos, item, conditions) => {
-                    self.balance = balance;
+                SpendMessage::PolicyLoaded(utxos, item, conditions) => {
                     self.utxos = utxos;
                     self.satisfiable_item = Some(item);
                     self.selectable_conditions = conditions;
@@ -537,16 +498,11 @@ impl SpendState {
             )
         };
 
-        let your_balance = if self.policy.is_some() {
-            Text::new(match &self.balance {
-                Some(balance) => {
-                    format!(
-                        "Balance: {} sat",
-                        format::number(balance.trusted_spendable())
-                    )
-                }
-                None => String::from("Loading..."),
-            })
+        let your_balance = if let Some(policy) = &self.policy {
+            Text::new(format!(
+                "Balance: {} sat",
+                format::number(policy.balance.trusted_spendable())
+            ))
             .extra_light()
             .small()
             .width(Length::Fill)

@@ -458,7 +458,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             }
             GetCommand::Policy { policy_id, export } => {
                 // Get policy
-                let GetPolicy { policy, .. } = coinstr.get_policy_by_id(policy_id).await?;
+                let policy: GetPolicy = coinstr.get_policy_by_id(policy_id).await?;
 
                 // Print result
                 if export {
@@ -466,11 +466,10 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     Ok(())
                 } else {
                     let item = policy.satisfiable_item(coinstr.network())?;
-                    let balance = coinstr.get_balance(policy_id).await;
                     let address = coinstr.get_last_unused_address(policy_id).await?;
                     let txs = coinstr.get_txs(policy_id, true).await.unwrap_or_default();
                     let utxos = coinstr.get_utxos(policy_id).await.unwrap_or_default();
-                    util::print_policy(policy, policy_id, item, balance, address, txs, utxos);
+                    util::print_policy(policy, policy_id, item, address, txs, utxos);
                     Ok(())
                 }
             }

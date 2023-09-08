@@ -648,6 +648,7 @@ impl Coinstr {
 
     pub fn get_balance(&self, policy_id: Arc<EventId>) -> Option<Arc<Balance>> {
         block_on(async move {
+            #[allow(deprecated)]
             self.inner
                 .get_balance(**policy_id)
                 .await

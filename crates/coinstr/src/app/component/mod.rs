@@ -1,6 +1,12 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+use std::fmt;
+use std::ops::Deref;
+
+use coinstr_sdk::types::GetPolicy;
+use coinstr_sdk::util;
+
 mod balances;
 mod breadcrumb;
 mod dashboard;
@@ -17,3 +23,38 @@ pub use self::policy_tree::PolicyTree;
 pub use self::proposals_list::{CompletedProposalsList, PendingProposalsList};
 pub use self::transactions_list::TransactionsList;
 pub use self::utxo_selector::UtxoSelector;
+
+#[derive(Debug, Clone, Eq)]
+pub struct PolicyPicLisk {
+    inner: GetPolicy,
+}
+
+impl PartialEq for PolicyPicLisk {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.policy_id == other.inner.policy_id
+    }
+}
+
+impl fmt::Display for PolicyPicLisk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} - #{}",
+            self.inner.policy.name,
+            util::cut_event_id(self.inner.policy_id)
+        )
+    }
+}
+
+impl Deref for PolicyPicLisk {
+    type Target = GetPolicy;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl From<GetPolicy> for PolicyPicLisk {
+    fn from(inner: GetPolicy) -> Self {
+        Self { inner }
+    }
+}

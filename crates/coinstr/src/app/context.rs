@@ -7,6 +7,7 @@ use coinstr_sdk::core::bitcoin::Txid;
 use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::signer::Signer;
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::GetPolicy;
 use coinstr_sdk::{util, Coinstr};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,10 +19,10 @@ pub enum Stage {
     RestorePolicy,
     Policy(EventId),
     PolicyTree(EventId),
-    Spend(Option<(EventId, Policy)>),
-    Receive(Option<(EventId, Policy)>),
+    Spend(Option<GetPolicy>),
+    Receive(Option<GetPolicy>),
     SelfTransfer,
-    NewProof(Option<(EventId, Policy)>),
+    NewProof(Option<GetPolicy>),
     Proposals,
     Proposal(EventId),
     Transaction { policy_id: EventId, txid: Txid },

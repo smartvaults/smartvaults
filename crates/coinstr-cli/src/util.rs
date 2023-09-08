@@ -5,11 +5,9 @@ use std::collections::{BTreeMap, HashMap};
 
 use coinstr_sdk::core::bdk::chain::ConfirmationTime;
 use coinstr_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
-use coinstr_sdk::core::bdk::wallet::Balance;
 use coinstr_sdk::core::bips::bip32::Bip32;
 use coinstr_sdk::core::bitcoin::bip32::ExtendedPubKey;
 use coinstr_sdk::core::bitcoin::{Network, ScriptBuf};
-use coinstr_sdk::core::policy::Policy;
 use coinstr_sdk::core::proposal::{CompletedProposal, Proposal};
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::Purpose;
@@ -95,10 +93,9 @@ pub fn print_contacts(contacts: Vec<User>) {
 }
 
 pub fn print_policy(
-    policy: Policy,
+    policy: GetPolicy,
     policy_id: EventId,
     item: SatisfiableItem,
-    balance: Option<Balance>,
     address: GetAddress,
     txs: Vec<GetTransaction>,
     utxos: Vec<GetUtxo>,
@@ -113,27 +110,22 @@ pub fn print_policy(
     println!("{tree}");
 
     println!("{}", "Balances".fg::<BlazeOrange>().underline());
-    match balance {
-        Some(balance) => {
-            println!(
-                "- Immature            	: {} sat",
-                format::number(balance.immature)
-            );
-            println!(
-                "- Trusted pending     	: {} sat",
-                format::number(balance.trusted_pending)
-            );
-            println!(
-                "- Untrusted pending   	: {} sat",
-                format::number(balance.untrusted_pending)
-            );
-            println!(
-                "- Confirmed           	: {} sat",
-                format::number(balance.confirmed)
-            );
-        }
-        None => println!("Unavailable"),
-    }
+    println!(
+        "- Immature            	: {} sat",
+        format::number(policy.balance.immature)
+    );
+    println!(
+        "- Trusted pending     	: {} sat",
+        format::number(policy.balance.trusted_pending)
+    );
+    println!(
+        "- Untrusted pending   	: {} sat",
+        format::number(policy.balance.untrusted_pending)
+    );
+    println!(
+        "- Confirmed           	: {} sat",
+        format::number(policy.balance.confirmed)
+    );
 
     println!(
         "\n{}: {}\n",

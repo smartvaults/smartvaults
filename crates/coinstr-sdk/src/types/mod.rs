@@ -57,12 +57,19 @@ impl User {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetPolicy {
     pub policy_id: EventId,
     pub policy: Policy,
-    pub balance: Option<Balance>,
+    pub balance: Balance,
     pub last_sync: Option<Timestamp>,
+}
+
+impl Deref for GetPolicy {
+    type Target = Policy;
+    fn deref(&self) -> &Self::Target {
+        &self.policy
+    }
 }
 
 #[derive(Debug, Clone)]

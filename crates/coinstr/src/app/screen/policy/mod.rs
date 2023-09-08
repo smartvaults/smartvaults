@@ -107,32 +107,23 @@ impl State for PolicyState {
         if let Message::Policy(msg) = message {
             match msg {
                 PolicyMessage::Send => {
-                    let policy_id = self.policy_id;
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
-                        Some(policy) => {
-                            Message::View(Stage::Spend(Some((policy_id, policy.policy))))
-                        }
+                        Some(policy) => Message::View(Stage::Spend(Some(policy))),
                         None => Message::View(Stage::Policies),
                     });
                 }
                 PolicyMessage::Deposit => {
-                    let policy_id = self.policy_id;
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
-                        Some(policy) => {
-                            Message::View(Stage::Receive(Some((policy_id, policy.policy))))
-                        }
+                        Some(policy) => Message::View(Stage::Receive(Some(policy))),
                         None => Message::View(Stage::Policies),
                     });
                 }
                 PolicyMessage::NewProofOfReserve => {
-                    let policy_id = self.policy_id;
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
-                        Some(policy) => {
-                            Message::View(Stage::NewProof(Some((policy_id, policy.policy))))
-                        }
+                        Some(policy) => Message::View(Stage::NewProof(Some(policy))),
                         None => Message::View(Stage::Policies),
                     });
                 }
