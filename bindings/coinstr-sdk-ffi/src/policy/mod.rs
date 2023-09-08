@@ -14,7 +14,7 @@ mod template;
 
 pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, RelativeLockTime};
 use crate::error::Result;
-use crate::Network;
+use crate::{Balance, Network};
 
 #[derive(Clone)]
 pub struct Policy {
@@ -88,6 +88,10 @@ impl GetPolicy {
 
     pub fn policy(&self) -> Arc<Policy> {
         Arc::new(self.inner.policy.clone().into())
+    }
+
+    pub fn balance(&self) -> Arc<Balance> {
+        Arc::new(self.inner.balance.clone().into())
     }
 
     pub fn last_sync(&self) -> Option<Arc<Timestamp>> {

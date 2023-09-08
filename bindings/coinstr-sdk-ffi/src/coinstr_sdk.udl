@@ -283,6 +283,7 @@ interface Policy {
 interface GetPolicy {
     EventId policy_id();
     Policy policy();
+    Balance balance();
     Timestamp? last_sync();
 };
 
