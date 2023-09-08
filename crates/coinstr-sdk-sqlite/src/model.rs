@@ -35,7 +35,7 @@ pub struct GetApprovedProposals {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetApproval {
+pub struct GetApprovalRaw {
     pub approval_id: EventId,
     pub public_key: XOnlyPublicKey,
     pub approved_proposal: ApprovedProposal,
@@ -49,7 +49,7 @@ pub struct GetSigner {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSharedSigner {
+pub struct GetSharedSignerRaw {
     pub shared_signer_id: EventId,
     pub owner_public_key: XOnlyPublicKey,
     pub shared_signer: SharedSigner,

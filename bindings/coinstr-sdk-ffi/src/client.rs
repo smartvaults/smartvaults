@@ -22,9 +22,9 @@ use nostr_sdk_ffi::{EventId, Keys, Metadata, PublicKey};
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
-    GetCompletedProposal, GetContact, GetPolicy, GetProposal, GetSharedSigner, GetSigner,
-    GetTransaction, KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession,
-    NostrConnectURI, OutPoint, PolicyTemplate, Relay, Signer, Utxo,
+    GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
+    KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
+    OutPoint, PolicyTemplate, Relay, Signer, User, Utxo,
 };
 
 pub struct Coinstr {
@@ -232,7 +232,7 @@ impl Coinstr {
         })
     }
 
-    pub fn get_profile(&self) -> Result<Arc<Metadata>> {
+    pub fn get_profile(&self) -> Result<Arc<User>> {
         block_on(async move { Ok(Arc::new(self.inner.get_profile().await?.into())) })
     }
 
@@ -246,15 +246,15 @@ impl Coinstr {
             ))
         })
     }
-
-    pub fn get_contacts(&self) -> Result<Vec<Arc<GetContact>>> {
+    
+    pub fn get_contacts(&self) -> Result<Vec<Arc<User>>> {
         block_on(async move {
             Ok(self
                 .inner
                 .get_contacts()
                 .await?
                 .into_iter()
-                .map(|(pk, m)| Arc::new((pk, m).into()))
+                .map(|user| Arc::new(user.into()))
                 .collect())
         })
     }

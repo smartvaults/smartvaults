@@ -33,6 +33,7 @@ use coinstr_protocol::v1::constants::{
 };
 use coinstr_protocol::v1::util::{Encryption, EncryptionError};
 use coinstr_protocol::v1::{CoinstrEventBuilder, CoinstrEventBuilderError, Label, LabelData};
+use coinstr_sdk_sqlite::model::GetApprovalRaw;
 use coinstr_sdk_sqlite::Store;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::{
@@ -52,7 +53,7 @@ use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
-    GetTransaction, GetUtxo, InternalGetPolicy, PolicyBackup,
+    GetTransaction, GetUtxo, InternalGetPolicy, PolicyBackup, User,
 };
 use crate::util;
 
@@ -579,8 +580,10 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_profile(&self) -> Result<Metadata, Error> {
-        Ok(self.db.get_metadata(self.keys().public_key()).await?)
+    pub async fn get_profile(&self) -> Result<User, Error> {
+        let public_key: XOnlyPublicKey = self.keys().public_key();
+        let metadata = self.db.get_metadata(public_key).await?;
+        Ok(User::new(public_key, metadata))
     }
 
     /// Get [`Metadata`] of [`XOnlyPublicKey`]
@@ -607,8 +610,14 @@ impl Coinstr {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
-        Ok(self.db.get_contacts_with_metadata().await?)
+    pub async fn get_contacts(&self) -> Result<Vec<User>, Error> {
+        Ok(self
+            .db
+            .get_contacts_with_metadata()
+            .await?
+            .into_iter()
+            .map(|(public_key, metadata)| User::new(public_key, metadata))
+            .collect())
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
@@ -850,7 +859,24 @@ impl Coinstr {
         &self,
         proposal_id: EventId,
     ) -> Result<Vec<GetApproval>, Error> {
-        Ok(self.db.get_approvals_by_proposal_id(proposal_id).await?)
+        let mut list = Vec::new();
+        let approvals = self.db.get_approvals_by_proposal_id(proposal_id).await?;
+        for GetApprovalRaw {
+            approval_id,
+            public_key,
+            approved_proposal,
+            timestamp,
+        } in approvals.into_iter()
+        {
+            let metadata: Metadata = self.db.get_metadata(public_key).await?;
+            list.push(GetApproval {
+                approval_id,
+                user: User::new(public_key, metadata),
+                approved_proposal,
+                timestamp,
+            });
+        }
+        Ok(list)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -1736,21 +1762,13 @@ impl Coinstr {
         Ok(())
     }
 
-    pub async fn get_public_key_name(&self, public_key: XOnlyPublicKey) -> String {
-        match self.db.get_metadata(public_key).await {
-            Ok(metadata) => {
-                if let Some(display_name) = metadata.display_name {
-                    display_name
-                } else if let Some(name) = metadata.name {
-                    name
-                } else {
-                    util::cut_public_key(public_key)
-                }
-            }
-            Err(e) => {
-                tracing::error!("{e}");
-                util::cut_public_key(public_key)
-            }
-        }
+    pub async fn get_known_public_keys_with_metadata(&self) -> Result<Vec<User>, Error> {
+        Ok(self
+            .db
+            .get_known_public_keys_with_metadata()
+            .await?
+            .into_iter()
+            .map(|(public_key, metadata)| User::new(public_key, metadata))
+            .collect())
     }
 }

@@ -423,8 +423,8 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
             } => {
                 let signer_id = coinstr.save_coinstr_signer().await?;
                 if share_with_contacts {
-                    for public_key in coinstr.get_contacts().await?.into_keys() {
-                        coinstr.share_signer(signer_id, public_key).await?;
+                    for user in coinstr.get_contacts().await? {
+                        coinstr.share_signer(signer_id, user.public_key()).await?;
                     }
                 }
                 Ok(())
@@ -438,8 +438,8 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                 let signer = Signer::new(name, None, fingerprint, descriptor, SignerType::AirGap)?;
                 let signer_id = coinstr.save_signer(signer).await?;
                 if share_with_contacts {
-                    for public_key in coinstr.get_contacts().await?.into_keys() {
-                        coinstr.share_signer(signer_id, public_key).await?;
+                    for user in coinstr.get_contacts().await? {
+                        coinstr.share_signer(signer_id, user.public_key()).await?;
                     }
                 }
                 Ok(())

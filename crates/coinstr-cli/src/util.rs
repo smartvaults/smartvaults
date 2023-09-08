@@ -15,10 +15,10 @@ use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::types::Purpose;
 use coinstr_sdk::core::{Keychain, Result, SECP256K1};
 use coinstr_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
-use coinstr_sdk::nostr::{EventId, Keys, Metadata, Relay, Timestamp, Url};
+use coinstr_sdk::nostr::{EventId, Keys, Relay, Timestamp, Url};
 use coinstr_sdk::types::{
     GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, GetUtxo,
-    NostrConnectRequest,
+    NostrConnectRequest, User,
 };
 use coinstr_sdk::util::{self, format};
 use owo_colors::colors::css::Lime;
@@ -69,7 +69,7 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     Ok(())
 }
 
-pub fn print_contacts(contacts: BTreeMap<XOnlyPublicKey, Metadata>) {
+pub fn print_contacts(contacts: Vec<User>) {
     let mut table = Table::new();
 
     table.set_titles(row![
@@ -80,10 +80,11 @@ pub fn print_contacts(contacts: BTreeMap<XOnlyPublicKey, Metadata>) {
         "NIP-05",
     ]);
 
-    for (index, (public_key, metadata)) in contacts.into_iter().enumerate() {
+    for (index, user) in contacts.into_iter().enumerate() {
+        let metadata = user.metadata();
         table.add_row(row![
             index + 1,
-            public_key,
+            user.public_key(),
             metadata.name.unwrap_or_default(),
             metadata.display_name.unwrap_or_default(),
             metadata.nip05.unwrap_or_default()

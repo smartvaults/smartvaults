@@ -3,9 +3,9 @@
 
 use std::collections::BTreeMap;
 
-use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::signer::{Signer, SignerType};
 use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::User;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -18,7 +18,7 @@ use crate::theme::icon::TRASH;
 
 #[derive(Debug, Clone)]
 pub enum SignerMessage {
-    LoadMySharedSigners(BTreeMap<EventId, XOnlyPublicKey>),
+    LoadMySharedSigners(BTreeMap<EventId, User>),
     Delete,
     RevokeSharedSigner(EventId),
     Reload,
@@ -31,7 +31,7 @@ pub struct SignerState {
     loaded: bool,
     signer_id: EventId,
     signer: Signer,
-    my_shared_signers: BTreeMap<EventId, XOnlyPublicKey>,
+    my_shared_signers: BTreeMap<EventId, User>,
     error: Option<String>,
 }
 
@@ -175,19 +175,14 @@ impl State for SignerState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (shared_signer_id, _public_key) in self.my_shared_signers.iter() {
+                for (shared_signer_id, user) in self.my_shared_signers.iter() {
                     let row = Row::new()
                         .push(
                             Text::new(util::cut_event_id(*shared_signer_id))
                                 .width(Length::Fixed(115.0))
                                 .view(),
                         )
-                        .push(
-                            // TODO
-                            Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*public_key))
-                                                                          .width(Length::Fill)
-                                                                          .view() */
-                        )
+                        .push(Text::new(user.name()).width(Length::Fill).view())
                         .push(
                             Button::new()
                                 .style(ButtonStyle::BorderedDanger)

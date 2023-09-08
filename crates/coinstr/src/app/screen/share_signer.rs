@@ -1,10 +1,11 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 
 use coinstr_sdk::nostr::secp256k1::XOnlyPublicKey;
-use coinstr_sdk::nostr::{EventId, Metadata};
+use coinstr_sdk::nostr::EventId;
+use coinstr_sdk::types::User;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -17,7 +18,7 @@ use crate::theme::icon::{PLUS, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum ShareSignerMessage {
-    Load(BTreeMap<XOnlyPublicKey, Metadata>, Vec<XOnlyPublicKey>),
+    Load(Vec<User>, Vec<XOnlyPublicKey>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     Share,
@@ -30,7 +31,7 @@ pub struct ShareSignerState {
     loading: bool,
     loaded: bool,
     signer_id: EventId,
-    contacts: BTreeMap<XOnlyPublicKey, Metadata>,
+    contacts: Vec<User>,
     public_keys: HashSet<XOnlyPublicKey>,
     already_shared_with: Vec<XOnlyPublicKey>,
     error: Option<String>,
@@ -42,7 +43,7 @@ impl ShareSignerState {
             loading: false,
             loaded: false,
             signer_id,
-            contacts: BTreeMap::new(),
+            contacts: Vec::new(),
             public_keys: HashSet::new(),
             already_shared_with: Vec::new(),
             error: None,
@@ -63,13 +64,13 @@ impl State for ShareSignerState {
             async move {
                 let contacts = client.get_contacts().await.unwrap();
                 let mut already_shared_with: Vec<XOnlyPublicKey> = Vec::new();
-                for public_key in contacts.keys() {
+                for user in contacts.iter() {
                     if client
-                        .my_shared_signer_already_shared(signer_id, *public_key)
+                        .my_shared_signer_already_shared(signer_id, user.public_key())
                         .await
                         .unwrap()
                     {
-                        already_shared_with.push(*public_key);
+                        already_shared_with.push(user.public_key());
                     }
                 }
                 (contacts, already_shared_with)
@@ -192,23 +193,26 @@ impl State for ShareSignerState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (public_key, metadata) in self.contacts.iter() {
-                    let select_btn = if self.already_shared_with.contains(public_key) {
+                for user in self.contacts.iter() {
+                    let public_key: XOnlyPublicKey = user.public_key();
+                    let metadata = user.metadata();
+
+                    let select_btn = if self.already_shared_with.contains(&public_key) {
                         Button::new().text("Already shared")
-                    } else if self.public_keys.contains(public_key) {
+                    } else if self.public_keys.contains(&public_key) {
                         Button::new()
                             .text("Selected")
-                            .on_press(ShareSignerMessage::RemovePublicKey(*public_key).into())
+                            .on_press(ShareSignerMessage::RemovePublicKey(public_key).into())
                     } else {
                         Button::new()
                             .style(ButtonStyle::Bordered)
                             .text("Select")
-                            .on_press(ShareSignerMessage::AddPublicKey(*public_key).into())
+                            .on_press(ShareSignerMessage::AddPublicKey(public_key).into())
                     };
 
                     let row = Row::new()
                         .push(
-                            Text::new(util::cut_public_key(*public_key))
+                            Text::new(util::cut_public_key(public_key))
                                 .width(Length::Fill)
                                 .view(),
                         )

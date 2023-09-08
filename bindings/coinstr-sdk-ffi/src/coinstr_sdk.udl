@@ -314,7 +314,7 @@ interface SharedSigner {
 
 interface GetSharedSigner {
     EventId shared_signer_id();
-    PublicKey owner_public_key();
+    User owner();
     SharedSigner shared_signer();
 };
 
@@ -399,7 +399,7 @@ interface GetCompletedProposal {
 
 interface GetApproval {
     EventId approval_id();
-    PublicKey public_key();
+    User user();
     ApprovedProposal approved_proposal();
     Timestamp timestamp();
 };
@@ -427,9 +427,10 @@ interface NostrConnectRequest {
     boolean approved();
 };
 
-interface GetContact {
+interface User {
     PublicKey public_key();
     Metadata metadata();
+    string name();
 };
 
 interface Config {
@@ -488,11 +489,11 @@ interface Coinstr {
     [Throws=FFIError]
     void set_metadata(Metadata metadata);
     [Throws=FFIError]
-    Metadata get_profile();
+    User get_profile();
     [Throws=FFIError]
     Metadata get_public_key_metadata(PublicKey public_key);
     [Throws=FFIError]
-    sequence<GetContact> get_contacts();
+    sequence<User> get_contacts();
     [Throws=FFIError]
     void add_contact(PublicKey public_key);
     [Throws=FFIError]

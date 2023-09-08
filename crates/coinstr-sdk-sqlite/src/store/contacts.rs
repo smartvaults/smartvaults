@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -108,19 +108,40 @@ impl Store {
 
     pub async fn get_contacts_with_metadata(
         &self,
-    ) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
+    ) -> Result<Vec<(XOnlyPublicKey, Metadata)>, Error> {
         let conn = self.acquire().await?;
         let this = self.clone();
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached("SELECT public_key FROM contacts;")?;
             let mut rows = stmt.query([])?;
-            let mut contacts = BTreeMap::new();
+            let mut contacts = Vec::new();
             while let Ok(Some(row)) = rows.next() {
                 let public_key: String = row.get(0)?;
                 let public_key = XOnlyPublicKey::from_str(&public_key)?;
-                contacts.insert(public_key, this.get_metadata_with_conn(conn, public_key)?);
+                contacts.push((public_key, this.get_metadata_with_conn(conn, public_key)?));
             }
             Ok(contacts)
+        })
+        .await?
+    }
+
+    pub async fn get_known_public_keys_with_metadata(
+        &self,
+    ) -> Result<HashMap<XOnlyPublicKey, Metadata>, Error> {
+        let conn = self.acquire().await?;
+        conn.interact(move |conn| {
+            let mut stmt = conn.prepare_cached("SELECT public_key, metadata FROM metadata;")?;
+            let mut rows = stmt.query([])?;
+            let mut public_keys = HashMap::new();
+            while let Ok(Some(row)) = rows.next() {
+                let public_key: String = row.get(0)?;
+                let metadata: Option<String> = row.get(1)?;
+                if let Some(metadata) = metadata {
+                    let public_key = XOnlyPublicKey::from_str(&public_key)?;
+                    public_keys.insert(public_key, Metadata::from_json(metadata)?);
+                }
+            }
+            Ok(public_keys)
         })
         .await?
     }

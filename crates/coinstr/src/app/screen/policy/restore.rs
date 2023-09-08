@@ -3,6 +3,8 @@
 
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::types::backup::PolicyBackup;
+use coinstr_sdk::types::User;
+use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -14,6 +16,7 @@ use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
 pub enum RestorePolicyMessage {
+    Load(Vec<User>),
     NameChanged(String),
     DescriptionChanged(String),
     SelectPolicyBackup,
@@ -29,7 +32,9 @@ pub struct RestorePolicyState {
     description: String,
     descriptor: String,
     public_keys: Vec<XOnlyPublicKey>,
+    known_public_keys: Vec<User>,
     loading: bool,
+    loaded: bool,
     error: Option<String>,
 }
 
@@ -50,9 +55,31 @@ impl State for RestorePolicyState {
         String::from("Restore policy")
     }
 
+    fn load(&mut self, ctx: &Context) -> Command<Message> {
+        if self.loading {
+            return Command::none();
+        }
+
+        self.loading = true;
+        let client = ctx.client.clone();
+        Command::perform(
+            async move { client.get_known_public_keys_with_metadata().await.unwrap() },
+            |known_public_keys| RestorePolicyMessage::Load(known_public_keys).into(),
+        )
+    }
+
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
+        if !self.loaded && !self.loading {
+            return self.load(ctx);
+        }
+
         if let Message::RestorePolicy(msg) = message {
             match msg {
+                RestorePolicyMessage::Load(known_public_keys) => {
+                    self.known_public_keys = known_public_keys;
+                    self.loading = false;
+                    self.loaded = true;
+                }
                 RestorePolicyMessage::NameChanged(name) => self.name = name,
                 RestorePolicyMessage::DescriptionChanged(desc) => self.description = desc,
                 RestorePolicyMessage::ErrorChanged(error) => {
@@ -138,12 +165,15 @@ impl State for RestorePolicyState {
         if self.public_keys.is_empty() {
             public_keys = public_keys.push(Text::new("No public keys").small().view())
         } else {
-            for _public_key in self.public_keys.iter() {
+            for public_key in self.public_keys.iter() {
                 public_keys = public_keys.push(
                     Text::new(format!(
                         "- {}",
-                        "TODO",
-                        //ctx.client.db.get_public_key_name(*public_key)
+                        self.known_public_keys
+                            .iter()
+                            .find(|u| u.public_key() == *public_key)
+                            .map(|u| u.name())
+                            .unwrap_or_else(|| util::cut_public_key(*public_key)),
                     ))
                     .small()
                     .view(),
@@ -212,7 +242,9 @@ impl State for RestorePolicyState {
             .padding(20)
             .max_width(400);
 
-        Dashboard::new().view(ctx, content, true, true)
+        Dashboard::new()
+            .loaded(self.loaded)
+            .view(ctx, content, true, true)
     }
 }
 

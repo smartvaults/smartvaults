@@ -1,10 +1,10 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
-use coinstr_sdk::nostr::Metadata;
+use coinstr_sdk::types::User;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -20,7 +20,7 @@ pub enum AddPolicyMessage {
     NameChanged(String),
     DescriptionChanged(String),
     DescriptorChanged(String),
-    LoadContacts(BTreeMap<XOnlyPublicKey, Metadata>),
+    LoadContacts(Vec<User>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     SelectPublicKeys(bool),
@@ -33,7 +33,7 @@ pub struct AddPolicyState {
     name: String,
     description: String,
     descriptor: String,
-    contacts: BTreeMap<XOnlyPublicKey, Metadata>,
+    contacts: Vec<User>,
     public_keys: HashSet<XOnlyPublicKey>,
     loading: bool,
     loaded: bool,
@@ -62,10 +62,7 @@ impl State for AddPolicyState {
         Command::perform(
             async move {
                 let mut contacts = client.get_contacts().await.unwrap();
-                contacts.insert(
-                    client.keys().public_key(),
-                    client.get_profile().await.unwrap(),
-                );
+                contacts.push(client.get_profile().await.unwrap());
                 contacts
             },
             |p| AddPolicyMessage::LoadContacts(p).into(),
@@ -147,8 +144,11 @@ impl State for AddPolicyState {
                 public_keys = public_keys.push(
                     Text::new(format!(
                         "- {}{}",
-                        // TODO: ctx.client.db.get_public_key_name(*public_key),
-                        "TODO",
+                        self.contacts
+                            .iter()
+                            .find(|c| c.public_key() == *public_key)
+                            .map(|u| u.name())
+                            .unwrap_or_else(|| util::cut_public_key(*public_key)),
                         if ctx.client.keys().public_key() == *public_key {
                             " (me)"
                         } else {
@@ -272,24 +272,27 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
             )
             .push(rule::horizontal_bold());
 
-        for (public_key, metadata) in state.contacts.iter() {
-            let select_btn = if state.public_keys.contains(public_key) {
+        for user in state.contacts.iter() {
+            let public_key = user.public_key();
+            let metadata = user.metadata();
+
+            let select_btn = if state.public_keys.contains(&public_key) {
                 Button::new()
                     .text("Selected")
-                    .on_press(AddPolicyMessage::RemovePublicKey(*public_key).into())
+                    .on_press(AddPolicyMessage::RemovePublicKey(public_key).into())
             } else {
                 Button::new()
                     .style(ButtonStyle::Bordered)
                     .text("Select")
-                    .on_press(AddPolicyMessage::AddPublicKey(*public_key).into())
+                    .on_press(AddPolicyMessage::AddPublicKey(public_key).into())
             };
 
             let row = Row::new()
                 .push(
                     Text::new(format!(
                         "{}{}",
-                        util::cut_public_key(*public_key),
-                        if ctx.client.keys().public_key() == *public_key {
+                        util::cut_public_key(public_key),
+                        if ctx.client.keys().public_key() == public_key {
                             " (me)"
                         } else {
                             ""

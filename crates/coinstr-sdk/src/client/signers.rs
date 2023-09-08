@@ -9,11 +9,12 @@ use coinstr_core::signer::{coinstr_signer, SharedSigner, Signer};
 use coinstr_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
 use coinstr_protocol::v1::util::Encryption;
 use coinstr_protocol::v1::util::Serde;
+use coinstr_sdk_sqlite::model::GetSharedSignerRaw;
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Tag};
+use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Metadata, Tag};
 
 use super::{Coinstr, Error};
-use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
+use crate::types::{GetAllSigners, GetSharedSigner, GetSigner, User};
 
 impl Coinstr {
     #[tracing::instrument(skip_all, level = "trace")]
@@ -236,16 +237,37 @@ impl Coinstr {
     pub async fn get_my_shared_signers_by_signer_id(
         &self,
         signer_id: EventId,
-    ) -> Result<BTreeMap<EventId, XOnlyPublicKey>, Error> {
-        Ok(self
+    ) -> Result<BTreeMap<EventId, User>, Error> {
+        let mut map = BTreeMap::new();
+        let ssbs = self
             .db
             .get_my_shared_signers_by_signer_id(signer_id)
-            .await?)
+            .await?;
+        for (key, pk) in ssbs.into_iter() {
+            let metadata: Metadata = self.db.get_metadata(pk).await?;
+            map.insert(key, User::new(pk, metadata));
+        }
+        Ok(map)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
-        Ok(self.db.get_shared_signers().await?)
+        let mut list = Vec::new();
+        let ss = self.db.get_shared_signers().await?;
+        for GetSharedSignerRaw {
+            shared_signer_id,
+            owner_public_key,
+            shared_signer,
+        } in ss.into_iter()
+        {
+            let metadata: Metadata = self.db.get_metadata(owner_public_key).await?;
+            list.push(GetSharedSigner {
+                shared_signer_id,
+                owner: User::new(owner_public_key, metadata),
+                shared_signer,
+            });
+        }
+        Ok(list)
     }
 
     pub async fn get_shared_signers_public_keys(
@@ -266,6 +288,24 @@ impl Coinstr {
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Vec<GetSharedSigner>, Error> {
-        Ok(self.db.get_shared_signers_by_public_key(public_key).await?)
+        let metadata: Metadata = self.db.get_metadata(public_key).await?;
+        let user = User::new(public_key, metadata);
+        Ok(self
+            .db
+            .get_shared_signers_by_public_key(public_key)
+            .await?
+            .into_iter()
+            .map(
+                |GetSharedSignerRaw {
+                     shared_signer_id,
+                     shared_signer,
+                     ..
+                 }| GetSharedSigner {
+                    shared_signer_id,
+                    owner: user.clone(),
+                    shared_signer,
+                },
+            )
+            .collect())
     }
 }

@@ -50,7 +50,7 @@ impl State for EditProfileState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.get_profile().await.unwrap() },
+            async move { client.get_profile().await.unwrap().metadata() },
             |metadata| EditProfileMessage::LoadMetadata(Box::new(metadata)).into(),
         )
     }

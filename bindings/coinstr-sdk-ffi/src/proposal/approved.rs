@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::proposal;
 use coinstr_sdk::types;
-use nostr_sdk_ffi::{EventId, PublicKey, Timestamp};
+use nostr_sdk_ffi::{EventId, Timestamp};
+
+use crate::User;
 
 #[derive(Clone)]
 pub enum ApprovedProposal {
@@ -41,8 +43,8 @@ impl GetApproval {
         Arc::new(self.inner.approval_id.into())
     }
 
-    pub fn public_key(&self) -> Arc<PublicKey> {
-        Arc::new(self.inner.public_key.into())
+    pub fn user(&self) -> Arc<User> {
+        Arc::new(self.inner.user.clone().into())
     }
 
     pub fn approved_proposal(&self) -> ApprovedProposal {

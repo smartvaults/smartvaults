@@ -1,7 +1,15 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
+pub use coinstr_sdk::core::policy::PolicyTemplateType;
+pub use coinstr_sdk::core::signer::SignerType;
+pub use coinstr_sdk::core::types::WordCount;
 use coinstr_sdk::logger;
+pub use coinstr_sdk::nostr::RelayStatus;
+pub use nostr_sdk_ffi::{
+    EventId, Keys, Metadata, NostrConnectURI, PublicKey, Relay, RelayConnectionStats,
+    RelayInformationDocument, SecretKey, Timestamp,
+};
 
 mod abortable;
 mod address;
@@ -9,7 +17,6 @@ mod amount;
 mod balance;
 mod client;
 mod config;
-mod contact;
 mod descriptor;
 mod error;
 mod message;
@@ -20,21 +27,12 @@ mod proposal;
 mod seed;
 mod signer;
 mod transaction;
+mod user;
 
 use self::error::Result;
 
 // Error
 pub use crate::error::FFIError;
-
-// External
-pub use coinstr_sdk::core::policy::PolicyTemplateType;
-pub use coinstr_sdk::core::signer::SignerType;
-pub use coinstr_sdk::core::types::WordCount;
-pub use coinstr_sdk::nostr::RelayStatus;
-pub use nostr_sdk_ffi::{
-    EventId, Keys, Metadata, NostrConnectURI, PublicKey, Relay, RelayConnectionStats,
-    RelayInformationDocument, SecretKey, Timestamp,
-};
 
 // Coinstr
 pub use crate::abortable::AbortHandle;
@@ -43,7 +41,6 @@ pub use crate::amount::Amount;
 pub use crate::balance::Balance;
 pub use crate::client::{Coinstr, SyncHandler};
 pub use crate::config::Config;
-pub use crate::contact::GetContact;
 pub use crate::descriptor::Descriptor;
 pub use crate::message::{EventHandled, Message};
 pub use crate::network::Network;
@@ -59,6 +56,7 @@ pub use crate::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer};
 pub use crate::transaction::{
     BlockTime, GetTransaction, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
 };
+pub use crate::user::User;
 
 pub fn git_hash_version() -> String {
     env!("GIT_HASH").to_string()

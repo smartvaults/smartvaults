@@ -36,7 +36,7 @@ mod utxos;
 
 use super::encryption::StoreEncryption;
 use super::migration::{self, STARTUP_SQL};
-use super::model::{GetApproval, GetApprovedProposals, GetCompletedProposal, GetProposal};
+use super::model::{GetApprovalRaw, GetApprovedProposals, GetCompletedProposal, GetProposal};
 use super::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -395,7 +395,7 @@ impl Store {
     pub async fn get_approvals_by_proposal_id(
         &self,
         proposal_id: EventId,
-    ) -> Result<Vec<GetApproval>, Error> {
+    ) -> Result<Vec<GetApprovalRaw>, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -407,7 +407,7 @@ impl Store {
                 let public_key: String = row.get(1)?;
                 let approved_proposal: Vec<u8> = row.get(2)?;
                 let timestamp: u64 = row.get(3)?;
-                approvals.push(GetApproval {
+                approvals.push(GetApprovalRaw {
                     approval_id: EventId::from_hex(approval_id)?,
                     public_key: XOnlyPublicKey::from_str(&public_key)?,
                     approved_proposal: ApprovedProposal::decrypt(&cipher, approved_proposal)?,
@@ -452,7 +452,7 @@ impl Store {
             approved_proposals: approved_proposals
                 .iter()
                 .map(
-                    |GetApproval {
+                    |GetApprovalRaw {
                          approved_proposal, ..
                      }| approved_proposal.clone(),
                 )

@@ -5,10 +5,10 @@ use std::sync::Arc;
 
 use coinstr_sdk::core::signer::{self, SignerType};
 use coinstr_sdk::types;
-use nostr_sdk_ffi::{EventId, PublicKey};
+use nostr_sdk_ffi::EventId;
 
 use crate::error::Result;
-use crate::Descriptor;
+use crate::{Descriptor, User};
 
 pub struct GetSigner {
     inner: types::GetSigner,
@@ -77,8 +77,8 @@ impl GetSharedSigner {
         Arc::new(self.inner.shared_signer_id.into())
     }
 
-    pub fn owner_public_key(&self) -> Arc<PublicKey> {
-        Arc::new(self.inner.owner_public_key.into())
+    pub fn owner(&self) -> Arc<User> {
+        Arc::new(self.inner.owner.clone().into())
     }
 
     pub fn shared_signer(&self) -> Arc<SharedSigner> {

@@ -4,7 +4,8 @@
 use coinstr_sdk::core::miniscript::DescriptorPublicKey;
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
 use coinstr_sdk::core::PolicyTemplate;
-use coinstr_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner};
+use coinstr_sdk::nostr::Metadata;
+use coinstr_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner, User};
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -21,9 +22,9 @@ pub enum PolicyBuilderMessage {
     DescriptionChanged(String),
     IncreaseThreshold,
     DecreaseThreshold,
-    LoadAllSigners(GetAllSigners),
+    Load((GetAllSigners, Metadata)),
     AddSigner,
-    EditSigner(usize, XOnlyPublicKey, Box<DescriptorPublicKey>),
+    EditSigner(usize, User, Box<DescriptorPublicKey>),
     RemoveSigner(usize),
     SelectingSigner { index: Option<usize> },
     ErrorChanged(Option<String>),
@@ -36,7 +37,8 @@ pub struct PolicyBuilderState {
     description: String,
     signers: GetAllSigners,
     threshold: usize,
-    policy: Vec<Option<(XOnlyPublicKey, DescriptorPublicKey)>>,
+    policy: Vec<Option<(User, DescriptorPublicKey)>>,
+    profile: Metadata,
     loading: bool,
     loaded: bool,
     selecting_signer: Option<usize>,
@@ -59,8 +61,8 @@ impl PolicyBuilderState {
     }
 
     fn pk_is_already_selected(&self, public_key: XOnlyPublicKey) -> bool {
-        for (pk, ..) in self.policy.iter().flatten() {
-            if pk == &public_key {
+        for (user, ..) in self.policy.iter().flatten() {
+            if user.public_key() == public_key {
                 return true;
             }
         }
@@ -82,8 +84,12 @@ impl State for PolicyBuilderState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.get_all_signers().await.unwrap() },
-            |s| PolicyBuilderMessage::LoadAllSigners(s).into(),
+            async move {
+                let signers = client.get_all_signers().await.unwrap();
+                let profile = client.get_profile().await.unwrap().metadata();
+                (signers, profile)
+            },
+            |(s, p)| PolicyBuilderMessage::Load((s, p)).into(),
         )
     }
 
@@ -108,8 +114,9 @@ impl State for PolicyBuilderState {
                     }
                 }
                 PolicyBuilderMessage::ErrorChanged(error) => self.error = error,
-                PolicyBuilderMessage::LoadAllSigners(signers) => {
+                PolicyBuilderMessage::Load((signers, profile)) => {
                     self.signers = signers;
+                    self.profile = profile;
                     self.loading = false;
                     self.loaded = true;
                 }
@@ -148,8 +155,12 @@ impl State for PolicyBuilderState {
                         .flatten()
                         .map(|(_, desc)| desc.clone())
                         .collect();
-                    let public_keys: Vec<XOnlyPublicKey> =
-                        self.policy.iter().flatten().map(|(pk, ..)| *pk).collect();
+                    let public_keys: Vec<XOnlyPublicKey> = self
+                        .policy
+                        .iter()
+                        .flatten()
+                        .map(|(user, ..)| user.public_key())
+                        .collect();
                     return Command::perform(
                         async move {
                             let template: PolicyTemplate =
@@ -223,20 +234,16 @@ impl State for PolicyBuilderState {
 
             for (index, value) in self.policy.iter().enumerate() {
                 match value {
-                    Some((_pk, desc)) => {
+                    Some((user, desc)) => {
                         pks = pks.push(
                             Row::new()
                                 .push(
                                     Column::new()
                                         .push(
-                                            Text::new(format!(
-                                                "User: {}",
-                                                "TODO",
-                                                //TODO: ctx.client.db.get_public_key_name(*pk)
-                                            ))
-                                            .small()
-                                            .extra_light()
-                                            .view(),
+                                            Text::new(format!("User: {}", user.name()))
+                                                .small()
+                                                .extra_light()
+                                                .view(),
                                         )
                                         .push(
                                             Text::new(format!(
@@ -427,7 +434,7 @@ fn view_signer_selector<'a>(
                         .on_press(
                             PolicyBuilderMessage::EditSigner(
                                 index,
-                                public_key,
+                                User::new(public_key, state.profile.clone()),
                                 Box::new(descriptor),
                             )
                             .into(),
@@ -472,7 +479,7 @@ fn view_signer_selector<'a>(
 
     for GetSharedSigner {
         shared_signer_id,
-        owner_public_key,
+        owner,
         shared_signer,
     } in state.signers.contacts.iter()
     {
@@ -488,18 +495,13 @@ fn view_signer_selector<'a>(
                         .width(Length::Fixed(175.0))
                         .view(),
                 )
-                .push(
-                    // TODO
-                    Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
-                                                                  .width(Length::Fill)
-                                                                  .view() */
-                )
+                .push(Text::new(owner.name()).width(Length::Fill).view())
                 .push(if state.is_already_selected(&descriptor) {
                     Button::new()
                         .text("Selected")
                         .width(Length::Fixed(180.0))
                         .view()
-                } else if state.pk_is_already_selected(*owner_public_key) {
+                } else if state.pk_is_already_selected(owner.public_key()) {
                     Button::new()
                         .style(ButtonStyle::Bordered)
                         .text("Select")
@@ -513,7 +515,7 @@ fn view_signer_selector<'a>(
                         .on_press(
                             PolicyBuilderMessage::EditSigner(
                                 index,
-                                *owner_public_key,
+                                owner.clone(),
                                 Box::new(descriptor),
                             )
                             .into(),

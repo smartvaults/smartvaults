@@ -1,10 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
-
 use coinstr_sdk::core::secp256k1::XOnlyPublicKey;
-use coinstr_sdk::nostr::Metadata;
+use coinstr_sdk::types::User;
 use coinstr_sdk::util;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -16,7 +14,7 @@ use crate::theme::icon::{CLIPBOARD, PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ContactsMessage {
-    LoadContacts(BTreeMap<XOnlyPublicKey, Metadata>),
+    LoadContacts(Vec<User>),
     RemovePublicKey(XOnlyPublicKey),
     ErrorChanged(Option<String>),
     Reload,
@@ -26,7 +24,7 @@ pub enum ContactsMessage {
 pub struct ContactsState {
     loading: bool,
     loaded: bool,
-    contacts: BTreeMap<XOnlyPublicKey, Metadata>,
+    contacts: Vec<User>,
     error: Option<String>,
 }
 
@@ -162,10 +160,13 @@ impl State for ContactsState {
                     )
                     .push(rule::horizontal_bold());
 
-                for (public_key, metadata) in self.contacts.iter() {
+                for user in self.contacts.iter() {
+                    let public_key = user.public_key();
+                    let metadata = user.metadata();
+
                     let row = Row::new()
                         .push(
-                            Text::new(util::cut_public_key(*public_key))
+                            Text::new(util::cut_public_key(public_key))
                                 .width(Length::Fill)
                                 .view(),
                         )
@@ -198,7 +199,7 @@ impl State for ContactsState {
                                 .style(ButtonStyle::BorderedDanger)
                                 .icon(TRASH)
                                 .width(Length::Fixed(40.0))
-                                .on_press(ContactsMessage::RemovePublicKey(*public_key).into())
+                                .on_press(ContactsMessage::RemovePublicKey(public_key).into())
                                 .loading(self.loading)
                                 .view(),
                         )

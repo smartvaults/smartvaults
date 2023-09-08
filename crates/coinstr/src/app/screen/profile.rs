@@ -38,7 +38,7 @@ impl State for ProfileState {
         self.loaded = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.get_profile().await.unwrap() },
+            async move { client.get_profile().await.unwrap().metadata() },
             |metadata| ProfileMessage::LoadProfile { metadata }.into(),
         )
     }

@@ -239,7 +239,7 @@ impl State for SignersState {
 
                     for GetSharedSigner {
                         shared_signer_id,
-                        owner_public_key: _,
+                        owner,
                         shared_signer,
                     } in self.shared_signers.iter()
                     {
@@ -254,12 +254,7 @@ impl State for SignersState {
                                     .width(Length::Fixed(175.0))
                                     .view(),
                             )
-                            .push(
-                                // TODO
-                                Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*owner_public_key))
-                                                                              .width(Length::Fill)
-                                                                              .view() */
-                            )
+                            .push(Text::new(owner.name()).width(Length::Fill).view())
                             .push(
                                 Button::new()
                                     .style(ButtonStyle::Bordered)

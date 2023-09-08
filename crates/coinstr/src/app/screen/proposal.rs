@@ -91,16 +91,12 @@ impl State for ProposalState {
                     .search_signer_by_descriptor(proposal.descriptor())
                     .await
                     .ok();
-                Some((
-                    proposal,
-                    signed,
-                    policy_id,
-                    client
-                        .get_approvals_by_proposal_id(proposal_id)
-                        .await
-                        .unwrap_or_default(),
-                    signer,
-                ))
+                let approvals = client
+                    .get_approvals_by_proposal_id(proposal_id)
+                    .await
+                    .unwrap_or_default();
+
+                Some((proposal, signed, policy_id, approvals, signer))
             },
             |res| match res {
                 Some((proposal, signed, policy_id, approvals, signer)) => {
@@ -356,29 +352,31 @@ impl State for ProposalState {
                         .view(),
                     );
 
-                    let (approve_btn, mut finalize_btn) = match self.approved_proposals.iter().find(
-                        |GetApproval { public_key, .. }| {
-                            public_key == &ctx.client.keys().public_key()
-                        },
-                    ) {
-                        Some(_) => {
-                            let approve_btn =
-                                Button::new().style(ButtonStyle::Bordered).text("Approve");
-                            let finalize_btn = Button::new().text(finalize_btn_text);
-                            (approve_btn, finalize_btn)
-                        }
-                        None => {
-                            let approve_btn = Button::new()
-                                .text("Approve")
-                                .on_press(ProposalMessage::Approve.into())
-                                .loading(self.loading);
-                            let finalize_btn = Button::new()
-                                .style(ButtonStyle::Bordered)
-                                .text(finalize_btn_text);
+                    let (approve_btn, mut finalize_btn) =
+                        match self
+                            .approved_proposals
+                            .iter()
+                            .find(|GetApproval { user, .. }| {
+                                user.public_key() == ctx.client.keys().public_key()
+                            }) {
+                            Some(_) => {
+                                let approve_btn =
+                                    Button::new().style(ButtonStyle::Bordered).text("Approve");
+                                let finalize_btn = Button::new().text(finalize_btn_text);
+                                (approve_btn, finalize_btn)
+                            }
+                            None => {
+                                let approve_btn = Button::new()
+                                    .text("Approve")
+                                    .on_press(ProposalMessage::Approve.into())
+                                    .loading(self.loading);
+                                let finalize_btn = Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .text(finalize_btn_text);
 
-                            (approve_btn, finalize_btn)
-                        }
-                    };
+                                (approve_btn, finalize_btn)
+                            }
+                        };
 
                     if self.signed && !self.loading {
                         finalize_btn = finalize_btn.on_press(ProposalMessage::Finalize.into());
@@ -453,7 +451,7 @@ impl State for ProposalState {
                         let my_public_key = ctx.client.keys().public_key();
                         for GetApproval {
                             approval_id,
-                            public_key,
+                            user,
                             timestamp,
                             ..
                         } in self.approved_proposals.iter()
@@ -469,17 +467,12 @@ impl State for ProposalState {
                                         .width(Length::Fill)
                                         .view(),
                                 )
-                                .push(
-                                    // TODO
-                                    Text::new("TODO").width(Length::Fill).view(), /* Text::new(ctx.client.db.get_public_key_name(*public_key))
-                                                                                  .width(Length::Fill)
-                                                                                  .view() */
-                                )
+                                .push(Text::new(user.name()).width(Length::Fill).view())
                                 .spacing(10)
                                 .align_items(Alignment::Center)
                                 .width(Length::Fill);
 
-                            if my_public_key == *public_key {
+                            if my_public_key == user.public_key() {
                                 row = row.push(
                                     Button::new()
                                         .style(ButtonStyle::BorderedDanger)

@@ -10,7 +10,7 @@ use coinstr_core::{SharedSigner, Signer};
 use coinstr_protocol::nostr::EventId;
 
 use super::{Error, Store, StoreEncryption};
-use crate::model::{GetSharedSigner, GetSigner};
+use crate::model::{GetSharedSignerRaw, GetSigner};
 
 impl Store {
     pub async fn save_signer(&self, signer_id: EventId, signer: Signer) -> Result<(), Error> {
@@ -261,7 +261,7 @@ impl Store {
         .await?
     }
 
-    pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
+    pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSignerRaw>, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -274,7 +274,7 @@ impl Store {
                 let shared_signer_id: String = row.get(0)?;
                 let public_key: String = row.get(1)?;
                 let shared_signer: Vec<u8> = row.get(2)?;
-                list.push(GetSharedSigner {
+                list.push(GetSharedSignerRaw {
                     shared_signer_id: EventId::from_hex(shared_signer_id)?,
                     owner_public_key: XOnlyPublicKey::from_str(&public_key)?,
                     shared_signer: SharedSigner::decrypt(&cipher, shared_signer)?,
@@ -303,7 +303,7 @@ impl Store {
     pub async fn get_shared_signers_by_public_key(
         &self,
         public_key: XOnlyPublicKey,
-    ) -> Result<Vec<GetSharedSigner>, Error> {
+    ) -> Result<Vec<GetSharedSignerRaw>, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -315,7 +315,7 @@ impl Store {
             while let Ok(Some(row)) = rows.next() {
                 let shared_signer_id: String = row.get(0)?;
                 let shared_signer: Vec<u8> = row.get(1)?;
-                list.push(GetSharedSigner {
+                list.push(GetSharedSignerRaw {
                     shared_signer_id: EventId::from_hex(shared_signer_id)?,
                     owner_public_key: public_key,
                     shared_signer: SharedSigner::decrypt(&cipher, shared_signer)?,
