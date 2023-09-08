@@ -38,7 +38,7 @@ fn targets_filter() -> Targets {
         .with_target("coinstr_core", Level::DEBUG)
         .with_target("coinstr_sdk", Level::TRACE)
         .with_target("coinstr", Level::DEBUG)
-        .with_target("coinstr_sdk_ffi", LevelFilter::OFF)
+        .with_target("coinstr_sdk_ffi", LevelFilter::DEBUG)
 }
 
 //#[cfg(all(not(target_os = "android"), not(target_os = "ios")))]
