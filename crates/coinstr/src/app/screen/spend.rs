@@ -162,6 +162,7 @@ impl SpendState {
                             Some(selected_utxos)
                         },
                         policy_path,
+                        false,
                     )
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)

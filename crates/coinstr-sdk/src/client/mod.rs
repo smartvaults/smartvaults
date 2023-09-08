@@ -909,6 +909,7 @@ impl Coinstr {
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
+        skip_frozen_utxos: bool,
     ) -> Result<GetProposal, Error>
     where
         S: Into<String>,
@@ -935,14 +936,17 @@ impl Coinstr {
             FeeRate::Rate(rate) => BdkFeeRate::from_sat_per_vb(rate),
         };
 
-        let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id)?;
-        let mut frozen_utxos = Vec::new();
-
-        for local_utxo in self.manager.get_utxos(policy_id).await?.into_iter() {
-            let hash = Sha256Hash::hash(local_utxo.outpoint.to_string().as_bytes());
-            if hashed_frozen_utxos.contains(&hash) {
-                frozen_utxos.push(local_utxo.outpoint);
+        let mut frozen_utxos: Option<Vec<OutPoint>> = None;
+        if skip_frozen_utxos {
+            let mut list = Vec::new();
+            let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id)?;
+            for local_utxo in self.manager.get_utxos(policy_id).await?.into_iter() {
+                let hash = Sha256Hash::hash(local_utxo.outpoint.to_string().as_bytes());
+                if hashed_frozen_utxos.contains(&hash) {
+                    list.push(local_utxo.outpoint);
+                }
             }
+            frozen_utxos = Some(list);
         }
 
         // Build spending proposal
@@ -955,7 +959,7 @@ impl Coinstr {
                 description,
                 fee_rate,
                 utxos,
-                Some(frozen_utxos),
+                frozen_utxos,
                 policy_path,
             )
             .await?;
@@ -1001,6 +1005,7 @@ impl Coinstr {
     }
 
     /// Spend to another [`Policy`]
+    #[allow(clippy::too_many_arguments)]
     pub async fn self_transfer(
         &self,
         from_policy_id: EventId,
@@ -1009,6 +1014,7 @@ impl Coinstr {
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
+        skip_frozen_utxos: bool,
     ) -> Result<GetProposal, Error> {
         let address = self.get_last_unused_address(to_policy_id).await?.address;
         let description: String = format!(
@@ -1024,6 +1030,7 @@ impl Coinstr {
             fee_rate,
             utxos,
             policy_path,
+            skip_frozen_utxos,
         )
         .await
     }

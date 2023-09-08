@@ -397,6 +397,7 @@ impl Coinstr {
         target_blocks: u8,
         utxos: Option<Vec<Arc<OutPoint>>>,
         policy_path: Option<HashMap<String, Vec<u64>>>,
+        skip_frozen_utxos: bool,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let to_address = Address::from_str(&to_address)?;
@@ -414,12 +415,14 @@ impl Coinstr {
                             .map(|(k, v)| (k, v.into_iter().map(|i| i as usize).collect()))
                             .collect()
                     }),
+                    skip_frozen_utxos,
                 )
                 .await?;
             Ok(Arc::new(proposal.into()))
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn self_transfer(
         &self,
         from_policy_id: Arc<EventId>,
@@ -427,6 +430,8 @@ impl Coinstr {
         amount: Arc<Amount>,
         target_blocks: u8,
         utxos: Option<Vec<Arc<OutPoint>>>,
+        policy_path: Option<HashMap<String, Vec<u64>>>,
+        skip_frozen_utxos: bool,
     ) -> Result<Arc<GetProposal>> {
         block_on(async move {
             let proposal = self
@@ -437,7 +442,12 @@ impl Coinstr {
                     amount.inner(),
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
-                    None,
+                    policy_path.map(|pp| {
+                        pp.into_iter()
+                            .map(|(k, v)| (k, v.into_iter().map(|i| i as usize).collect()))
+                            .collect()
+                    }),
+                    skip_frozen_utxos,
                 )
                 .await?;
             Ok(Arc::new(proposal.into()))

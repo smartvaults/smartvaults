@@ -273,6 +273,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
                     None,
+                    false,
                 )
                 .await?;
             println!("Spending proposal {proposal_id} sent");
@@ -293,6 +294,7 @@ async fn handle_command(command: Command, coinstr: &Coinstr) -> Result<()> {
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
                     None,
+                    false,
                 )
                 .await?;
             println!("Spending proposal {proposal_id} sent");

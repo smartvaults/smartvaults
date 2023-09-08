@@ -529,9 +529,9 @@ interface Coinstr {
     [Throws=FFIError]
     EventId save_policy_from_template(string name, string description, PolicyTemplate template, sequence<PublicKey> public_keys);
     [Throws=FFIError]
-    GetProposal spend(EventId policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path);
+    GetProposal spend(EventId policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path, boolean skip_frozen_utxos);
     [Throws=FFIError]
-    GetProposal self_transfer(EventId from_policy_id, EventId to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos);   
+    GetProposal self_transfer(EventId from_policy_id, EventId to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path, boolean skip_frozen_utxos);   
     [Throws=FFIError]
     EventId approve(EventId proposal_id);
     [Throws=FFIError]
