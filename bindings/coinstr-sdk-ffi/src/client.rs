@@ -760,6 +760,7 @@ impl Coinstr {
     // TODO: add get_nostr_connect_pre_authorizations
 
     pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
+        tracing::info!("Spawning new `handle_sync` thread");
         let handle = async_utility::thread::abortable(async move {
             let mut receiver = self.inner.sync_notifications();
             let handler = Arc::new(handler);
