@@ -1078,7 +1078,10 @@ impl Coinstr {
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
         skip_frozen_utxos: bool,
     ) -> Result<GetProposal, Error> {
-        let address = self.get_last_unused_address(to_policy_id).await?.address;
+        let address = self
+            .get_address(to_policy_id, AddressIndex::New)
+            .await?
+            .address;
         let description: String = format!(
             "Self transfer from policy #{} to #{}",
             util::cut_event_id(from_policy_id),
