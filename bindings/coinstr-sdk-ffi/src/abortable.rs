@@ -15,7 +15,12 @@ impl From<stream::AbortHandle> for AbortHandle {
 
 impl AbortHandle {
     pub fn abort(&self) {
-        self.inner.abort()
+        if self.is_aborted() {
+            tracing::warn!("Thread already aborted");
+        } else {
+            self.inner.abort();
+            tracing::info!("Thread aborted!");
+        }
     }
 
     pub fn is_aborted(&self) -> bool {
@@ -25,11 +30,7 @@ impl AbortHandle {
 
 impl Drop for AbortHandle {
     fn drop(&mut self) {
-        if self.is_aborted() {
-            tracing::warn!("AbortHanlde already aborted");
-        } else {
-            self.abort();
-            tracing::info!("AbortHandle dropped");
-        }
+        tracing::info!("Dropping AbortHandle...");
+        self.abort();
     }
 }
