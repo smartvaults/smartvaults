@@ -1,13 +1,13 @@
-from coinstr_sdk import Coinstr, Network, init_logger
+from coinstr_sdk import Coinstr, Network, init_desktop_logger
 import time
 
-init_logger("/home/user/.coinstr", Network.TESTNET)
+init_desktop_logger("/home/user/.coinstr", Network.TESTNET)
 
 coinstr = Coinstr.open("/home/user/.coinstr", "test", "test", Network.TESTNET)
 
 time.sleep(10.0)
 
 # Drop client
-del coinstr
+coinstr = None
 
 time.sleep(30.0)

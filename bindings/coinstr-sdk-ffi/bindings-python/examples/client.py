@@ -1,7 +1,7 @@
-from coinstr_sdk import Coinstr, Network, SyncHandler
+from coinstr_sdk import Coinstr, Network, SyncHandler, init_desktop_logger
 import time
 
-init_logger("/home/user/.coinstr", Network.TESTNET)
+init_desktop_logger("/home/user/.coinstr", Network.TESTNET)
 
 coinstr = Coinstr.open("/home/user/.coinstr", "test", "test", Network.TESTNET)
 

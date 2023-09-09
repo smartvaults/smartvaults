@@ -1,7 +1,7 @@
-from coinstr_sdk import Coinstr, Network, SyncHandler, init_logger
+from coinstr_sdk import Coinstr, Network, SyncHandler, init_desktop_logger
 import time
 
-init_logger("/home/user/.coinstr", Network.TESTNET)
+init_desktop_logger("/home/user/.coinstr", Network.TESTNET)
 
 coinstr = Coinstr.restore("/home/user/.coinstr", "name", "test", "mnemonic", None, Network.TESTNET)
 
@@ -15,4 +15,4 @@ class SyncNotifications(SyncHandler):
 handle = coinstr.handle_sync(SyncNotifications())
 
 while True:
-    time.sleep(5.0)
+    time.sleep(10.0)
