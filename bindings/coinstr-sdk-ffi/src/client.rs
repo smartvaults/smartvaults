@@ -236,6 +236,17 @@ impl Coinstr {
         Ok(Arc::new(self.inner.get_profile()?.into()))
     }
 
+    pub fn get_public_key_metadata(&self, public_key: Arc<PublicKey>) -> Result<Arc<Metadata>> {
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner
+                    .get_public_key_metadata(**public_key)
+                    .await?
+                    .into(),
+            ))
+        })
+    }
+
     pub fn get_contacts(&self) -> Result<Vec<Arc<GetContact>>> {
         Ok(self
             .inner

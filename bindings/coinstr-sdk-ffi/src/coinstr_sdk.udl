@@ -489,6 +489,8 @@ interface Coinstr {
     [Throws=FFIError]
     Metadata get_profile();
     [Throws=FFIError]
+    Metadata get_public_key_metadata(PublicKey public_key);
+    [Throws=FFIError]
     sequence<GetContact> get_contacts();
     [Throws=FFIError]
     void add_contact(PublicKey public_key);

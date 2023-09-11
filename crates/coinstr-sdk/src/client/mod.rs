@@ -583,6 +583,29 @@ impl Coinstr {
         Ok(self.db.get_metadata(self.keys().public_key())?)
     }
 
+    /// Get [`Metadata`] of [`XOnlyPublicKey`]
+    ///
+    /// If not exists in local database, will return an empty [`Metadata`] struct and will request
+    /// it to relays
+    pub async fn get_public_key_metadata(
+        &self,
+        public_key: XOnlyPublicKey,
+    ) -> Result<Metadata, Error> {
+        let metadata: Metadata = self.db.get_metadata(public_key)?;
+        if metadata == Metadata::default() {
+            self.client
+                .req_events_of(
+                    vec![Filter::new()
+                        .author(public_key.to_string())
+                        .kind(Kind::Metadata)
+                        .limit(1)],
+                    Some(Duration::from_secs(60)),
+                )
+                .await;
+        }
+        Ok(metadata)
+    }
+
     #[tracing::instrument(skip_all, level = "trace")]
     pub fn get_contacts(&self) -> Result<BTreeMap<XOnlyPublicKey, Metadata>, Error> {
         Ok(self.db.get_contacts_with_metadata()?)
