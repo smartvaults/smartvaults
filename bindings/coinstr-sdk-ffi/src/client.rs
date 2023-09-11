@@ -246,7 +246,7 @@ impl Coinstr {
             ))
         })
     }
-    
+
     pub fn get_contacts(&self) -> Result<Vec<Arc<User>>> {
         block_on(async move {
             Ok(self

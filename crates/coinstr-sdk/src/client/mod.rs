@@ -594,7 +594,7 @@ impl Coinstr {
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Metadata, Error> {
-        let metadata: Metadata = self.db.get_metadata(public_key)?;
+        let metadata: Metadata = self.db.get_metadata(public_key).await?;
         if metadata == Metadata::default() {
             self.client
                 .req_events_of(
