@@ -325,9 +325,9 @@ impl Coinstr {
 
     #[tracing::instrument(skip_all, level = "trace")]
     async fn init(&self) -> Result<(), Error> {
-        for GetPolicy {
+        for InternalGetPolicy {
             policy_id, policy, ..
-        } in self.get_policies().await?.into_iter()
+        } in self.db.get_policies().await?.into_iter()
         {
             self.manager.load_policy(policy_id, policy).await?;
         }
@@ -696,6 +696,7 @@ impl Coinstr {
             .await?)
     }
 
+    #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
         let Event { pubkey, .. } = self.db.get_event_by_id(policy_id).await?;
 
@@ -1635,9 +1636,9 @@ impl Coinstr {
     pub async fn get_total_balance(&self) -> Result<Balance, Error> {
         let mut total_balance = Balance::default();
         let mut already_seen = Vec::new();
-        for GetPolicy {
+        for InternalGetPolicy {
             policy_id, policy, ..
-        } in self.get_policies().await?.into_iter()
+        } in self.db.get_policies().await?.into_iter()
         {
             if !already_seen.contains(&policy.descriptor) {
                 let balance = self.manager.get_balance(policy_id).await?;
