@@ -12,9 +12,9 @@ async fn main() {
     // Restore and initialize a new coinstr client
     let coinstr = Coinstr::restore(
         "./your-path",
-        "test",
-        || Ok(String::from("test")),
-        || Ok(String::from("test")),
+        "account-name",
+        || Ok(String::from("password")),
+        || Ok(String::from("confirm-password")),
         || Ok(Mnemonic::from_str("your menmonic").unwrap()),
         || Ok(None),
         NETWORK,

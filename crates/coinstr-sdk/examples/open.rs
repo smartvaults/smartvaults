@@ -11,9 +11,14 @@ const NETWORK: Network = Network::Testnet;
 #[tokio::main]
 async fn main() {
     // Open a keychain and init the client (check the other examples the learn how to create or restore a client)
-    let coinstr = Coinstr::open("./your-path", "test", || Ok(String::from("test")), NETWORK)
-        .await
-        .unwrap();
+    let coinstr = Coinstr::open(
+        "./your-path",
+        "account-name",
+        || Ok(String::from("password")),
+        NETWORK,
+    )
+    .await
+    .unwrap();
 
     // Edit relays
     coinstr

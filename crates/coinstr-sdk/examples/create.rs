@@ -10,9 +10,9 @@ async fn main() {
     // Generate and initialize a new coinstr client
     let coinstr = Coinstr::generate(
         "./your-path",
-        "test",
-        || Ok(String::from("test")),
-        || Ok(String::from("test")),
+        "account-name",
+        || Ok(String::from("password")),
+        || Ok(String::from("confirm-password")),
         WordCount::W24,
         || Ok(None),
         NETWORK,
