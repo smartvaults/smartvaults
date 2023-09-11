@@ -2,6 +2,8 @@
 // Distributed under the MIT software license
 
 use bdk::descriptor::policy::SatisfiableItem;
+use bdk::wallet::AddressIndex;
+use bdk::Wallet;
 use coinstr_core::bips::bip39::{self, Mnemonic};
 use coinstr_core::bitcoin::Network;
 use coinstr_core::miniscript::DescriptorPublicKey;
@@ -40,4 +42,10 @@ fn main() {
             println!("Keys in multisig: {}", keys.len());
         }
     }
+
+    let mut wallet = Wallet::new_no_persist(&policy.descriptor.to_string(), None, NETWORK).unwrap();
+    println!(
+        "Receiving address: {}",
+        wallet.get_address(AddressIndex::New)
+    );
 }
