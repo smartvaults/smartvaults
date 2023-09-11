@@ -24,7 +24,7 @@ async fn main() {
     let signer_id = coinstr.save_coinstr_signer().await.unwrap();
 
     // Get signer by id (or use coinstr.get_signers to get all your signers)
-    let signer = coinstr.get_signer_by_id(signer_id).unwrap();
+    let signer = coinstr.get_signer_by_id(signer_id).await.unwrap();
     let template = PolicyTemplate::hold(
         signer.descriptor_public_key().unwrap(),
         Sequence::from_height(10_000),
