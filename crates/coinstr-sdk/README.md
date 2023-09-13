@@ -70,6 +70,9 @@ async fn main() {
 
 More examples can be found in the [examples/](https://github.com/smartvaults/coinstr/tree/master/crates/coinstr-sdk/examples) directory.
 
+Check also the [coinstr-core](https://github.com/smartvaults/coinstr/tree/master/crates/coinstr-core/examples) examples to learn more about templates.
+    
+
 ## License
 
 This project is distributed under the MIT software license - see the [LICENSE](../../LICENSE) file for details

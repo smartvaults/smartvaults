@@ -13,7 +13,7 @@ use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
-use keechain_core::bitcoin::{Address, Network, OutPoint, Sequence};
+use keechain_core::bitcoin::{Address, Network, OutPoint};
 use keechain_core::miniscript::descriptor::DescriptorType;
 use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
@@ -23,7 +23,9 @@ use serde::{Deserialize, Serialize};
 
 pub mod template;
 
-pub use self::template::{PolicyTemplate, PolicyTemplateType, RecoveryTemplate};
+pub use self::template::{
+    AbsoluteLockTime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate, Sequence,
+};
 use crate::proposal::Proposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;

@@ -1,8 +1,8 @@
 // Copyright (c) 2022-2023 Coinstr
 // Distributed under the MIT software license
 
-use keechain_core::bitcoin::absolute::LockTime as AbsoluteLockTime;
-use keechain_core::bitcoin::Sequence;
+pub use keechain_core::bitcoin::absolute::LockTime as AbsoluteLockTime;
+pub use keechain_core::bitcoin::Sequence;
 use keechain_core::miniscript::policy::concrete::Policy;
 use keechain_core::miniscript::DescriptorPublicKey;
 use thiserror::Error;
