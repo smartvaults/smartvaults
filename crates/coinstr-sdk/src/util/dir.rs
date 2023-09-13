@@ -61,7 +61,7 @@ where
 {
     let path = network_path(base_path, network)?.join("users");
     std::fs::create_dir_all(path.as_path())?;
-    Ok(path.join(format!("{public_key}.sqlite3")))
+    Ok(path.join(format!("{public_key}.db"))) // TODO: update extension to `sqlite3` if needed a breaking change in DB migrations
 }
 
 pub(crate) fn get_keychains_list<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
