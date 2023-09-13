@@ -16,7 +16,7 @@ assignees: ''
 <!-- A clear and concise description of what you expected to happen. -->
 
 **Build environment**  
- - Library: <!-- coinstr-cli, coinst-core ... --> 
+ - Library: <!-- smartvaults-cli, smartvaults-core ... --> 
  - Tag/commit: <!-- e.g. v0.13.0, 3a07614 --> 
  - OS+version: <!-- e.g. ubuntu 20.04.01, macOS 12.0.1, windows -->   
  - Rust/Cargo version: <!-- e.g. v1.65.0, not applicable --> 

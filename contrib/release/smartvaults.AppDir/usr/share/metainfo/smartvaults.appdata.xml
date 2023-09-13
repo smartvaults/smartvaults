@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+  <id>smartvaults.desktop</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Smart Vaults</name>
+  <summary>Smart Vaults</summary>
+  <description>
+    <p>Bitcoin multi-custody signature orchestration</p>
+  </description>
+  <url type="homepage">https://github.com/smartvaults/smartvaults</url>
+  <project_group>Smart Vaults</project_group>
+  <provides>
+    <binary>smartvaults-desktop</binary>
+  </provides>
+</component>

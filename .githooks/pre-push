@@ -3,13 +3,13 @@
 cargo fmt --all -- --config format_code_in_doc_comments=true
 
 buildargs=(
-    "-p coinstr-core"
-    "-p coinstr-core --features reserves"
-    "-p coinstr-protocol"
-    "-p coinstr-sdk"
-    "-p coinstr-cli"
-    "-p coinstr"
-    "-p coinstr-sdk-ffi"
+    "-p smartvaults-core"
+    "-p smartvaults-core --features reserves"
+    "-p smartvaults-protocol"
+    "-p smartvaults-sdk"
+    "-p smartvaults-cli"
+    "-p smartvaults-desktop"
+    "-p smartvaults-sdk-ffi"
 )
 
 for arg in "${buildargs[@]}"; do
@@ -20,8 +20,8 @@ for arg in "${buildargs[@]}"; do
 done
 
 buildargs=(
-    "-p coinstr-core --target wasm32-unknown-unknown"
-    "-p coinstr-protocol --target wasm32-unknown-unknown"
+    "-p smartvaults-core --target wasm32-unknown-unknown"
+    "-p smartvaults-protocol --target wasm32-unknown-unknown"
 )
 
 for arg in "${buildargs[@]}"; do

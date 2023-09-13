@@ -3,7 +3,7 @@
 ## Download source code
 
 ```
-git clone https://github.com/coinstr/coinstr.git && cd coinstr
+git clone https://github.com/smartvaults/smartvaults.git && cd smartvaults
 ```
 
 ## Verify commits
@@ -32,4 +32,4 @@ Follow instruction for your OS:
 
 ## Usage
 
-Before using `coinstr` or `coinstr-cli`, take a look at [usage](./usage/README.md) guide.
+Before using `smartvaults-desktop` or `smartvaults-cli`, take a look at [usage](./usage/README.md) guide.

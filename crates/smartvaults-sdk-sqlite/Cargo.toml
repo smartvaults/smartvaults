@@ -1,0 +1,21 @@
+[package]
+name = "smartvaults-sdk-sqlite"
+version.workspace = true
+edition = "2021"
+description = "Smart Vaults SDK SQLite"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+readme = "README.md"
+keywords.workspace = true
+
+[dependencies]
+chacha20poly1305 = "0.10"
+smartvaults-core = { path = "../smartvaults-core" }
+smartvaults-protocol = { path = "../smartvaults-protocol" }
+deadpool-sqlite = "0.5"
+rusqlite = { version = "0.28", features = ["bundled", "serde_json"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+tracing = { workspace = true }

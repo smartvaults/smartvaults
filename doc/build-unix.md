@@ -24,11 +24,11 @@ make gui
 make cli
 ```
 
-When build is completed, you can find `coinstr` and/or `coinstr-cli` binaries in `target/release` folder.
+When build is completed, you can find `smartvaults-desktop` and/or `smartvaults-cli` binaries in `target/release` folder.
 
 ## Usage
 
-Before using `coinstr` or `coinstr-cli`, take a look at [usage](./usage/README.md) guide.
+Before using `smartvaults-desktop` or `smartvaults-cli`, take a look at [usage](./usage/README.md) guide.
 
 ## Build requirements
 

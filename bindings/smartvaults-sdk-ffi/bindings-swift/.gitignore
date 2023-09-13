@@ -1,0 +1,7 @@
+.swiftpm/
+.build/
+*.xcodeproj
+Sources/
+**/smartvaults_sdkFFI.h
+**/smartvaults_sdkFFI
+**/smartvaults_sdkFFI.modulemap

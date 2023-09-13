@@ -26,13 +26,13 @@ jobs:
           - version: stable
         build-args:
           [
-            "-p coinstr-core",
-            "-p coinstr-core --features reserves",
-            "-p coinstr-protocol",
-            "-p coinstr-sdk",
-            "-p coinstr-cli",
-            "-p coinstr",
-            "-p coinstr-sdk-ffi",
+            "-p smartvaults-core",
+            "-p smartvaults-core --features reserves",
+            "-p smartvaults-protocol",
+            "-p smartvaults-sdk",
+            "-p smartvaults-cli",
+            "-p smartvaults-desktop",
+            "-p smartvaults-sdk-ffi",
           ]
     steps:
     - name: Checkout
@@ -50,7 +50,7 @@ jobs:
     - name: Set profile
       run: rustup set profile minimal && rustup component add clippy
     - name: Install GUI dependencies
-      if: ${{ matrix.build-args == '-p coinstr' }}
+      if: ${{ matrix.build-args == '-p smartvaults-desktop' }}
       run: sudo apt update && sudo apt install build-essential libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libdbus2.0-cil-dev libnotify-cil-dev libusb-1.0-0-dev libudev-dev python3-dev
     - name: Build
       run: cargo build ${{ matrix.build-args }}
@@ -68,8 +68,8 @@ jobs:
           - version: stable
         build-args:
           [
-            "-p coinstr-core",
-            "-p coinstr-protocol",
+            "-p smartvaults-core",
+            "-p smartvaults-protocol",
           ]
     steps:
     - name: Checkout

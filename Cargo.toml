@@ -1,24 +1,24 @@
 [workspace]
 members = [
-    "bindings/coinstr-sdk-ffi",
-    "crates/coinstr",
-    "crates/coinstr-cli",
-    "crates/coinstr-core",
-    "crates/coinstr-protocol",
-    "crates/coinstr-sdk",
-    "crates/coinstr-sdk-sqlite",
+    "bindings/smartvaults-sdk-ffi",
+    "crates/smartvaults-cli",
+    "crates/smartvaults-core",
+    "crates/smartvaults-desktop",
+    "crates/smartvaults-protocol",
+    "crates/smartvaults-sdk",
+    "crates/smartvaults-sdk-sqlite",
 ]
-default-members = ["crates/coinstr", "crates/coinstr-cli"]
+default-members = ["crates/smartvaults-desktop", "crates/smartvaults-cli"]
 resolver = "2"
 
 [workspace.package]
 version = "0.3.0"
 description = "Bitcoin multi-custody signature orchestration"
 authors = ["Yuki Kishimoto <yukikishimoto@protonmail.com>", "Max Gravitt"]
-homepage = "https://github.com/coinstr/coinstr"
-repository = "https://github.com/coinstr/coinstr.git"
+homepage = "https://github.com/smartvaults/smartvaults"
+repository = "https://github.com/smartvaults/smartvaults.git"
 license = "MIT"
-keywords = ["coinstr", "bitcoin", "nostr"]
+keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
 once_cell = "1.18"
@@ -32,6 +32,6 @@ electrum-client = { git = "https://github.com/yukibtc/rust-electrum-client", rev
 
 [profile.release]
 opt-level = 3
-lto = "fat"
+lto = true
 codegen-units = 1
 panic = "abort"

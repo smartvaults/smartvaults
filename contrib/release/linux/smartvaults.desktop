@@ -1,0 +1,18 @@
+[Desktop Entry]
+Name=Smart Vaults
+Comment=Bitcoin multi-custody signature orchestration
+Exec=smartvaults-desktop %u
+Icon=smartvaults
+Type=Application
+Categories=Finance;Office
+StartupNotify=true
+StartupWMClass=smartvaults-desktop
+Terminal=false
+Keywords=Bitcoin;Nostr
+X-KDE-Keywords=Bitcoin;Nostr
+X-Purism-FormFactor=Workstation
+Actions=Testnet;
+
+[Desktop Action Testnet]
+Exec=smartvaults-desktop --testnet %u
+Name=Smart Vaults Testnet

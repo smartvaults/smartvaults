@@ -1,0 +1,3 @@
+include ./src/smartvaults-sdk/libsmartvaults_sdk_ffi.dylib
+include ./src/smartvaults-sdk/libsmartvaults_sdk_ffi.so
+include ./src/smartvaults-sdk/smartvaults_sdk_ffi.dll

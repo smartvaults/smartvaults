@@ -1,22 +1,22 @@
 @startuml
 
-package "Coinstr" {
-  [Coinstr Web \n(Policy Builder)]
-  [Coinstr CLI] 
-  [Coinstr GUI]
+package "SmartVaults" {
+  [SmartVaults Web \n(Policy Builder)]
+  [SmartVaults CLI] 
+  [SmartVaults GUI]
 }
 
 cloud "Bitcoin Network"
 
 database "Events" 
-[Coinstr Web \n(Policy Builder)] <--> [Nostr Relay]
+[SmartVaults Web \n(Policy Builder)] <--> [Nostr Relay]
 
 [Nostr Relay] <--> Events
-[Coinstr CLI] <--> "Bitcoin Network"
-[Coinstr GUI] <--> "Bitcoin Network"
+[SmartVaults CLI] <--> "Bitcoin Network"
+[SmartVaults GUI] <--> "Bitcoin Network"
 
-[Coinstr CLI] <--> [Nostr Relay]
-[Coinstr GUI] <--> [Nostr Relay]
+[SmartVaults CLI] <--> [Nostr Relay]
+[SmartVaults GUI] <--> [Nostr Relay]
 
 note left of [Nostr Relay]
  Default 

@@ -11,5 +11,5 @@ gpg --keyserver hkps://keys.openpgp.org --recv-keys 86F3105ADFA8AB587268DCD78D3D
 ## Verify the binary
 
 ```
-gpg --verify coinstr-*.asc
+gpg --verify smartvaults-*.asc
 ```

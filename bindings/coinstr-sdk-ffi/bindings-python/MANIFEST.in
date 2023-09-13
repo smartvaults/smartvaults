@@ -1,3 +1,0 @@
-include ./src/coinstr-sdk/libcoinstr_sdk_ffi.dylib
-include ./src/coinstr-sdk/libcoinstr_sdk_ffi.so
-include ./src/coinstr-sdk/coinstr_sdk_ffi.dll

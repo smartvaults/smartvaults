@@ -1,28 +1,28 @@
 <div align="center">
-  <img src="./crates/coinstr/static/img/smartvaults.svg" width=200/>
+  <img src="./crates/smartvaults-desktop/static/img/smartvaults.svg" width=200/>
   <h2>Bitcoin [taproot] multi-custody</h2>
   <p>
-    <a href="https://github.com/coinstr/coinstr/blob/master/LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"/></a>
-    <a href="https://github.com/coinstr/coinstr/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/coinstr/coinstr/workflows/CI/badge.svg"></a>
+    <a href="https://github.com/smartvaults/smartvaults/blob/master/LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"/></a>
+    <a href="https://github.com/smartvaults/smartvaults/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/smartvaults/smartvaults/workflows/CI/badge.svg"></a>
   </p>
   <h4>
-    <a href="https://coinstr.io">Website</a>
+    <a href="https://smartvaults.app">Web App</a>
     <span> | </span>
-    <a href="https://coinstr.app">Policy builder</a>
+    <a href="https://docs.smartvaults.io">Docs</a>
   </h4>
 </div>
 
 ## About
 
-₿ Coinstr is a bitcoin multi-custody protocol for spending policies and proposal execution
+₿ Smart Vaults is a bitcoin multi-custody protocol for spending policies and proposal execution
 <br/>
-🖆 Coinstr uses `nostr` for discovering signers, saving policies & PSBTs, and orchestrating signatures with workflow.
+🖆 Smart Vaults uses `nostr` for discovering signers, saving policies & PSBTs, and orchestrating signatures with workflow.
 <br/>
-👨‍👩‍👧‍👦 Coinstr eliminates friction for groups managing Bitcoin together. 
+👨‍👩‍👧‍👦 Smart Vaults eliminates friction for groups managing Bitcoin together. 
 
 ## Getting started
 
-* [Download from releases](https://github.com/coinstr/coinstr/releases) (remember to run `chmod a+x coinstr*`)
+* [Download from releases](https://github.com/smartvaults/smartvaults/releases) (remember to run `chmod a+x smartvaults-desktop*`)
   * [Verify the Release](doc/verify-release-binary.md)
 * [Build from source](doc/build.md)  
 * [Usage](doc/usage/README.md) 
@@ -33,28 +33,28 @@ The project is split up into several crates in the `crates/` directory:
 
 ### Executables
 
-* [**coinstr**](./crates/coinstr/): Desktop application.
-* [**coinstr-cli**](./crates/coinstr-cli): CLI appication.
+* [**smartvaults-desktop**](./crates/smartvaults-desktop/): Desktop application.
+* [**smartvaults-cli**](./crates/smartvaults-cli): CLI appication.
 
 ### Libraries
 
-* [**coinstr-core**](./crates/coinstr-core): Protocol primitives and bitcoin TX building/singning logic.
-* [**coinstr-protocol**](./crates/coinstr-protocol): Implementation of the `Coinstr` protocol.
-* [**coinstr-sdk**](./crates/coinstr-sdk): High level client library.
+* [**smartvaults-core**](./crates/smartvaults-core): Protocol primitives and bitcoin TX building/singning logic.
+* [**smartvaults-protocol**](./crates/smartvaults-protocol): Implementation of the `Smart Vaults` protocol.
+* [**smartvaults-sdk**](./crates/smartvaults-sdk): High level client library.
 
 ### Bindings
 
-**coinstr-sdk** crate can be embedded inside other environments, like Swift, Kotlin, Python and JavaScript. 
+**smartvaults-sdk** crate can be embedded inside other environments, like Swift, Kotlin, Python and JavaScript. 
 Please, explore the [`bindings/`](./bindings/) directory to learn more.
 
 #### Available packages
 
-* **coinstr-sdk**:
-    * Kotlin: [`io.coinstr:coinstr-sdk`](https://central.sonatype.com/artifact/io.coinstr/coinstr-sdk)
-    * Swift: https://github.com/coinstr/coinstr-sdk-swift
+* **smartvaults-sdk**:
+    * Kotlin: [`io.smartvaults:smartvaults-sdk`](https://central.sonatype.com/artifact/io.smartvaults/smartvaults-sdk)
+    * Swift: https://github.com/smartvaults/smartvaults-sdk-swift
 
 ## Architecture
-![coinstr-arch](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/coinstr/coinstr/master/doc/arch.iuml)
+![smartvaults-arch](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/smartvaults/smartvaults/master/doc/arch.iuml)
 
 ## State
 

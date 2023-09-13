@@ -1,14 +1,14 @@
 
 # Step by Step - 2 of 2 Multisig
-This step by step guide shows how to create a 2 of 2 multisignature Bitcoin transaction using `coinstr-cli`. 
+This step by step guide shows how to create a 2 of 2 multisignature Bitcoin transaction using `smartvaults-cli`. 
 
 ## Step 1. Setup Keys
 Create keys and save them to keychains. You can use the keychain names of `alice-2of2` and `bob-2of2`. A password to encrypt your keychain **is** required, but a passphrase (which modifies the key) is not required.
 
 > NOTE: Mnemonics will be printed but they don't need to be saved for this tutorial.
 ```
-./target/release/coinstr-cli --network testnet generate alice-2of2
-./target/release/coinstr-cli --network testnet generate bob-2of2
+./target/release/smartvaults-cli --network testnet generate alice-2of2
+./target/release/smartvaults-cli --network testnet generate bob-2of2
 ```
 
 ## Step 2: Create the 2-of-2 Policy
@@ -17,10 +17,10 @@ Using miniscript, we will create a 2 of 2 multisignature policy that follows thi
 thresh(2,pk(<ALICE_PUBKEY>),pk(<BOB_PUBKEY>))
 ```
 
-Use the **Normalized Public** key from the output of Coinstr's `inspect` command to replace the variable in the miniscript above. For example, 
+Use the **Normalized Public** key from the output of SmartVaults's `inspect` command to replace the variable in the miniscript above. For example, 
 
 ```
-./target/release/coinstr-cli --network testnet inspect alice-2of2
+./target/release/smartvaults-cli --network testnet inspect alice-2of2
 ```
 
 Produces the following output (your info will be different): 
@@ -58,15 +58,15 @@ thresh(2,pk(03eeb3a752dd7863c08e783429076d0ef308ef3a2a41c2df417a854e8287b34612),
 
 ## Step 3: Save the Policy 
 ```
-./target/release/coinstr-cli save-policy alice-2of2 \
+./target/release/smartvaults-cli save-policy alice-2of2 \
     "Multisig 2 of 2" \
-    "Testing multisig as part of the Coinstr demo" \
+    "Testing multisig as part of the SmartVaults demo" \
     "thresh(2,pk(03eeb3a752dd7863c08e783429076d0ef308ef3a2a41c2df417a854e8287b34612),pk(025eace63cc5d93fb883082d30ccfbe43f16bbe869a2f1f0858a86ed6fa0475d52))"
 ```
 
 Now you can review the saved policies for alice using the following command: 
 ```
-./target/release/coinstr-cli --network testnet get policies alice-2of2
+./target/release/smartvaults-cli --network testnet get policies alice-2of2
 ```
 
 Produces: 
@@ -74,13 +74,13 @@ Produces:
 +---+------------------------------------------------------------------+-----------------+----------------------------------------------+
 | # | ID                                                               | Name            | Description                                  |
 +===+==================================================================+=================+==============================================+
-| 1 | 0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0 | Multisig 2 of 2 | Testing multisig as part of the Coinstr demo |
+| 1 | 0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0 | Multisig 2 of 2 | Testing multisig as part of the SmartVaults demo |
 +---+------------------------------------------------------------------+-----------------+----------------------------------------------+
 ```
 
 You can see the details of the policy by calling `get policy`: 
 ```
-./target/release/coinstr-cli --network testnet get policy \
+./target/release/smartvaults-cli --network testnet get policy \
     alice-2of2 \
     0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0
 ```
@@ -91,7 +91,7 @@ Produces the following output:
 ```
 - ID: 0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0
 - Name: Multisig 2 of 2
-- Description: Testing multisig as part of the Coinstr demo
+- Description: Testing multisig as part of the SmartVaults demo
 - Descriptor
 └── id -> al0awsk0
     └── 👑 Threshold Condition   : 1 of 2 
@@ -117,10 +117,10 @@ Use the [testnet bitcoin faucet](https://testnet-faucet.com/btc-testnet/) to req
 ## Step 5: Generate a Spend Proposal
 We will create the spend proposal from Alice's perspective. to create a spend proposal: 
 ```
-Usage: coinstr-cli spend <NAME> <POLICY_ID> <TO_ADDRESS> <AMOUNT> <DESCRIPTION>
+Usage: smartvaults-cli spend <NAME> <POLICY_ID> <TO_ADDRESS> <AMOUNT> <DESCRIPTION>
 ```
 ```
-./target/release/coinstr-cli --network testnet spend \
+./target/release/smartvaults-cli --network testnet spend \
     alice-2of2 \
     0a24f8f6ff8142014cda6db00abc09d20508f0f0db03b13b26feb675e7fec0f0 \
     mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78 \
@@ -129,7 +129,7 @@ Usage: coinstr-cli spend <NAME> <POLICY_ID> <TO_ADDRESS> <AMOUNT> <DESCRIPTION>
 ```
 You can now view the spend proposal:
 ```
-./target/release/coinstr-cli get proposals alice-2of2
+./target/release/smartvaults-cli get proposals alice-2of2
 ```
 Create the below table: 
 ```
@@ -143,11 +143,11 @@ Create the below table:
 ## Step 6: Approve a Spend Proposal
 Now we need to approve the proposal from both Alice and Bob's perspective.
 ```
-./target/release/coinstr-cli --network testnet approve \
+./target/release/smartvaults-cli --network testnet approve \
     alice-2of2 \
     c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 
-./target/release/coinstr-cli --network testnet approve \
+./target/release/smartvaults-cli --network testnet approve \
     bob-2of2 \
     c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 ```
@@ -157,7 +157,7 @@ Now we need to approve the proposal from both Alice and Bob's perspective.
 
 ## Step 7: Broadcast the Transaction
 ```
-coinstr-cli --network testnet broadcast \
+smartvaults-cli --network testnet broadcast \
     alice-2of2 \
     c000d26a0e79a37df6235af25230acb43a22460f51e8b00057b481f1ad55a6b6
 ```

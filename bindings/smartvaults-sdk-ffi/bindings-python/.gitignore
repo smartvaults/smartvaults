@@ -1,0 +1,16 @@
+.tox/
+dist/
+smartvaults_sdk.egg-info/
+__pycache__/
+libsmartvaults_ffi.dylib
+.idea/
+.DS_Store
+
+*.swp
+
+src/smartvaults-sdk/smartvaults_sdk.py
+src/smartvaults-sdk/*.so
+*.whl
+build/
+
+testing-setup-py-simple-example.py

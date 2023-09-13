@@ -1,0 +1,27 @@
+[package]
+name = "smartvaults-sdk-ffi"
+version.workspace = true
+edition = "2021"
+description = "Smart Vaults SDK FFI."
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lib]
+name = "smartvaults_sdk_ffi"
+crate-type = ["cdylib", "staticlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+
+[dependencies]
+async-utility = "0.1"
+smartvaults-sdk = { path = "../../crates/smartvaults-sdk", features = ["blocking"] }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "e5e026178fbce1cdad16302a3bf2566f3c35279f" }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "cae8edc45ba5b56bfcbf35b60c1ab6a97d1bf9da", features = ["cli"] }
+
+[build-dependencies]
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "cae8edc45ba5b56bfcbf35b60c1ab6a97d1bf9da", features = ["build"] }

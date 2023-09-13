@@ -870,113 +870,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coinstr"
-version = "0.3.0"
-dependencies = [
- "async-stream",
- "coinstr-sdk",
- "dirs",
- "iced",
- "iced_aw",
- "iced_futures",
- "lyon_algorithms",
- "once_cell",
- "rfd",
- "tokio",
- "tracing",
- "webbrowser",
-]
-
-[[package]]
-name = "coinstr-cli"
-version = "0.3.0"
-dependencies = [
- "clap",
- "coinstr-sdk",
- "dialoguer",
- "dirs",
- "once_cell",
- "owo-colors",
- "prettytable-rs",
- "regex",
- "rustyline",
- "termtree",
- "tokio",
-]
-
-[[package]]
-name = "coinstr-core"
-version = "0.3.0"
-dependencies = [
- "bdk",
- "bitcoinconsensus",
- "keechain-core",
- "once_cell",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "coinstr-protocol"
-version = "0.3.0"
-dependencies = [
- "coinstr-core",
- "nostr",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "coinstr-sdk"
-version = "0.3.0"
-dependencies = [
- "async-utility",
- "bdk_electrum",
- "coinstr-core",
- "coinstr-protocol",
- "coinstr-sdk-sqlite",
- "futures",
- "futures-util",
- "nostr-sdk",
- "paranoid-android",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "coinstr-sdk-ffi"
-version = "0.3.0"
-dependencies = [
- "async-utility",
- "coinstr-sdk",
- "nostr-sdk-ffi",
- "tokio",
- "tracing",
- "uniffi",
-]
-
-[[package]]
-name = "coinstr-sdk-sqlite"
-version = "0.3.0"
-dependencies = [
- "chacha20poly1305",
- "coinstr-core",
- "coinstr-protocol",
- "deadpool-sqlite",
- "rusqlite",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4130,6 +4023,113 @@ name = "smallvec"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
+
+[[package]]
+name = "smartvaults-cli"
+version = "0.3.0"
+dependencies = [
+ "clap",
+ "dialoguer",
+ "dirs",
+ "once_cell",
+ "owo-colors",
+ "prettytable-rs",
+ "regex",
+ "rustyline",
+ "smartvaults-sdk",
+ "termtree",
+ "tokio",
+]
+
+[[package]]
+name = "smartvaults-core"
+version = "0.3.0"
+dependencies = [
+ "bdk",
+ "bitcoinconsensus",
+ "keechain-core",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "smartvaults-desktop"
+version = "0.3.0"
+dependencies = [
+ "async-stream",
+ "dirs",
+ "iced",
+ "iced_aw",
+ "iced_futures",
+ "lyon_algorithms",
+ "once_cell",
+ "rfd",
+ "smartvaults-sdk",
+ "tokio",
+ "tracing",
+ "webbrowser",
+]
+
+[[package]]
+name = "smartvaults-protocol"
+version = "0.3.0"
+dependencies = [
+ "nostr",
+ "serde",
+ "serde_json",
+ "smartvaults-core",
+ "thiserror",
+]
+
+[[package]]
+name = "smartvaults-sdk"
+version = "0.3.0"
+dependencies = [
+ "async-utility",
+ "bdk_electrum",
+ "futures",
+ "futures-util",
+ "nostr-sdk",
+ "paranoid-android",
+ "serde",
+ "serde_json",
+ "smartvaults-core",
+ "smartvaults-protocol",
+ "smartvaults-sdk-sqlite",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "smartvaults-sdk-ffi"
+version = "0.3.0"
+dependencies = [
+ "async-utility",
+ "nostr-sdk-ffi",
+ "smartvaults-sdk",
+ "tokio",
+ "tracing",
+ "uniffi",
+]
+
+[[package]]
+name = "smartvaults-sdk-sqlite"
+version = "0.3.0"
+dependencies = [
+ "chacha20poly1305",
+ "deadpool-sqlite",
+ "rusqlite",
+ "smartvaults-core",
+ "smartvaults-protocol",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "smithay-client-toolkit"
