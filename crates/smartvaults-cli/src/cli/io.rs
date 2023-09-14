@@ -13,10 +13,6 @@ where
     Ok(Input::new().with_prompt(prompt).interact_text()?)
 }
 
-/// Get password
-///
-/// If the `COINSTR_PASSWORD` env variable exists, that will be used as the password,
-/// otherwise it will be asked interactively.
 pub fn get_password() -> Result<String> {
     Ok(Password::new().with_prompt("Password").interact()?)
 }
@@ -45,5 +41,5 @@ where
 }
 
 pub fn get_password_from_env() -> Option<String> {
-    env::var("COINSTR_PASSWORD").ok()
+    env::var("SMARTVAULTS_CLI_PASSWORD").ok()
 }
