@@ -20,3 +20,7 @@ pub mod util;
 
 pub use self::client::{EventHandled, Message, SmartVaults};
 pub use self::types::PolicyBackup;
+
+pub fn git_hash_version() -> &'static str {
+    env!("GIT_HASH")
+}

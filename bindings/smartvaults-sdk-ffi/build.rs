@@ -3,7 +3,6 @@
 
 use std::env;
 use std::path::Path;
-use std::process::Command;
 
 const DEFAULT_CLANG_VERSION: &str = "14.0.7";
 
@@ -39,14 +38,7 @@ fn setup_x86_64_android_workaround() {
 }
 
 fn main() {
-    if let Ok(output) = Command::new("git").args(["rev-parse", "HEAD"]).output() {
-        if let Ok(git_hash) = String::from_utf8(output.stdout) {
-            println!("cargo:rustc-env=GIT_HASH={git_hash}");
-        }
-    }
-
     setup_x86_64_android_workaround();
-
     uniffi::generate_scaffolding("./src/smartvaults_sdk.udl")
         .expect("Building the UDL file failed");
 }

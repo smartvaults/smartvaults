@@ -59,7 +59,7 @@ pub use crate::transaction::{
 pub use crate::user::User;
 
 pub fn git_hash_version() -> String {
-    env!("GIT_HASH").to_string()
+    smartvaults_sdk::git_hash_version().to_string()
 }
 
 pub fn init_desktop_logger(base_path: String, network: Network) -> Result<()> {

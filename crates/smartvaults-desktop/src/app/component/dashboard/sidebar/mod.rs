@@ -56,7 +56,10 @@ impl Sidebar {
         let version = Text::new(format!(
             "{APP_NAME} v{} ({})",
             env!("CARGO_PKG_VERSION"),
-            env!("GIT_HASH").chars().take(8).collect::<String>(),
+            smartvaults_sdk::git_hash_version()
+                .chars()
+                .take(8)
+                .collect::<String>(),
         ))
         .smaller()
         .view();
