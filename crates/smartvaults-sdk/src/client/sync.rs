@@ -8,6 +8,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use async_utility::thread;
+use bdk_electrum::bdk_chain::ConfirmationTime;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
@@ -464,19 +465,45 @@ impl SmartVaults {
                 if let Some(Tag::Event(policy_id, ..)) =
                     util::extract_tags_by_kind(&event, TagKind::E).get(1)
                 {
-                    // Force policy sync if the event was created in the last 60 secs
-                    /* if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                        if let Ok(endpoint) = self.config.electrum_endpoint() {
-                            let proxy = self.config.proxy().ok();
-                            if let Err(e) = self.manager.sync(*policy_id, endpoint, proxy).await {
-                                tracing::error!("Impossible to force sync policy {policy_id}: {e}");
-                            }
-                        }
-                    } */
-
                     if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
                         let completed_proposal =
                             CompletedProposal::decrypt_with_keys(&shared_key, &event.content)?;
+
+                        // Insert TX from completed proposal if the event was created in the last 60 secs
+                        if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
+                            if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
+                                match self
+                                    .manager
+                                    .insert_tx(
+                                        *policy_id,
+                                        tx.clone(),
+                                        ConfirmationTime::Unconfirmed {
+                                            last_seen: event.created_at.as_u64(),
+                                        },
+                                    )
+                                    .await
+                                {
+                                    Ok(res) => {
+                                        if res {
+                                            tracing::info!(
+                                                "Saved pending TX for finalized proposal {}",
+                                                event.id
+                                            );
+                                        } else {
+                                            tracing::warn!(
+                                                "TX of finalized proposal {} already exists",
+                                                event.id
+                                            );
+                                        }
+                                    }
+                                    Err(e) => tracing::error!(
+                                        "Impossible to save TX from completed proposal {}: {e}",
+                                        event.id
+                                    ),
+                                }
+                            }
+                        }
+
                         self.db
                             .save_completed_proposal(event.id, *policy_id, completed_proposal)
                             .await?;

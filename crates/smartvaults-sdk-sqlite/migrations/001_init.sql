@@ -63,7 +63,6 @@ CREATE TABLE IF NOT EXISTS relays (
     proxy BLOB DEFAULT NULL,
     last_sync BIGINT DEFAULT NULL,
     enabled BOOLEAN DEFAULT TRUE
-
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS relays_index ON relays(url);
