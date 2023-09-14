@@ -3,7 +3,7 @@ VERSION=0.3.0
 
 .PHONY: init
 
-all: deb msi
+all: appimage deb msi
 
 init:
 	cargo install cargo-deb
@@ -22,14 +22,14 @@ deb: create_dir
 
 appimage: x86_64-unknown-linux-gnu
 	cp -r smartvaults.AppDir/ $(RELEASE_DIR)
-	cp linux/smartvaults.desktop $(RELEASE_DIR)/smartvaults.AppDir/smartvaults.desktop
+	cp linux/app.smartvaults.desktop $(RELEASE_DIR)/smartvaults.AppDir/app.smartvaults.desktop
 	cp linux/smartvaults.png $(RELEASE_DIR)/smartvaults.AppDir/smartvaults.png
 	cp ../../target/x86_64-unknown-linux-gnu/release/smartvaults-desktop $(RELEASE_DIR)/smartvaults.AppDir/usr/bin/smartvaults-desktop
 	chmod a+x $(RELEASE_DIR)/smartvaults.AppDir/usr/bin/smartvaults-desktop
 	chmod a+x $(RELEASE_DIR)/smartvaults.AppDir/AppRun
-	chmod a+x $(RELEASE_DIR)/smartvaults.AppDir/smartvaults.desktop
+	chmod a+x $(RELEASE_DIR)/smartvaults.AppDir/app.smartvaults.desktop
 	cd $(RELEASE_DIR) && appimagetool smartvaults.AppDir --sign
-	mv $(RELEASE_DIR)/SmartVaults-x86_64.AppImage $(RELEASE_DIR)/SmartVaults-$(VERSION)-x86_64.AppImage
+	mv $(RELEASE_DIR)/Smart_Vaults-x86_64.AppImage $(RELEASE_DIR)/SmartVaults-$(VERSION)-x86_64.AppImage
 	cd $(RELEASE_DIR) && gpg --detach-sign --armor SmartVaults-$(VERSION)-x86_64.AppImage
 	rm -rf $(RELEASE_DIR)/smartvaults.AppDir
 

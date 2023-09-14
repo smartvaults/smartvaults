@@ -30,6 +30,6 @@ webbrowser = "0.8"
 [package.metadata.deb]
 assets = [
     ["../../target/x86_64-unknown-linux-gnu/release/smartvaults-desktop", "/usr/bin/", "755"],
-    ["../../release/linux/smartvaults.desktop", "/usr/share/applications/smartvaults.desktop", "644"],
+    ["../../release/linux/app.smartvaults.desktop", "/usr/share/applications/app.smartvaults.desktop", "644"],
     ["../../release/linux/smartvaults.png", "/usr/share/icons/smartvaults.png", "644"],
 ]

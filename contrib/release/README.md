@@ -4,6 +4,12 @@
 
 ### Ubuntu & Debian
 
+#### To build the AppImage
+
+```bash
+sudo apt install libfuse2
+```
+
 #### To build arm64/aarch64 binaries from a x86_64 CPU
 
 ```bash
