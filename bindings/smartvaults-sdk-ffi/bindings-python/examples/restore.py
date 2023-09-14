@@ -1,9 +1,9 @@
 from smartvaults_sdk import SmartVaults, Network, SyncHandler, init_desktop_logger
 import time
 
-init_desktop_logger("/home/user/.coinstr", Network.TESTNET)
+init_desktop_logger("/home/user/.smartvaults", Network.TESTNET)
 
-client = SmartVaults.restore("/home/user/.coinstr", "name", "test", "mnemonic", None, Network.TESTNET)
+client = SmartVaults.restore("/home/user/.smartvaults", "name", "test", "mnemonic", None, Network.TESTNET)
 
 class SyncNotifications(SyncHandler):
     def handle(self, msg):

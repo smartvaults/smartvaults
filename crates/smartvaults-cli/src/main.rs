@@ -33,9 +33,12 @@ use crate::cli::{
 };
 
 fn base_path() -> Result<PathBuf> {
-    let path = dirs::home_dir()
-        .expect("Imposible to get the HOME dir")
-        .join(".coinstr"); // TODO: replace to `.smartvaults`
+    let home_path = dirs::home_dir().expect("Imposible to get the HOME dir");
+    let old_path = home_path.join(".coinstr");
+    let path = home_path.join(".smartvaults");
+    if old_path.exists() && !path.exists() {
+        std::fs::rename(old_path, &path).unwrap();
+    }
     std::fs::create_dir_all(path.as_path())?;
     Ok(path)
 }
