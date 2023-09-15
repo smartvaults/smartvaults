@@ -33,6 +33,7 @@ fn targets_filter() -> Targets {
         .with_target("bdk", Level::INFO)
         .with_target("bdk::database::sqlite", Level::WARN)
         .with_target("keechain_core", Level::INFO)
+        .with_target("nostr", Level::DEBUG)
         .with_target("nostr_sdk", Level::DEBUG)
         .with_target("smartvaults_core", Level::DEBUG)
         .with_target("smartvaults_sdk", Level::TRACE)
