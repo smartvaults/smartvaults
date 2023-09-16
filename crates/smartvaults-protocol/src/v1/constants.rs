@@ -11,7 +11,6 @@ pub const POLICY_KIND: Kind = Kind::Custom(9289);
 pub const PROPOSAL_KIND: Kind = Kind::Custom(9290);
 pub const APPROVED_PROPOSAL_KIND: Kind = Kind::Custom(9291);
 pub const COMPLETED_PROPOSAL_KIND: Kind = Kind::Custom(9292);
-pub const PROOF_OF_RESERVE_KIND: Kind = Kind::Custom(9293);
 pub const SIGNERS_KIND: Kind = Kind::Custom(9294);
 pub const SHARED_SIGNERS_KIND: Kind = Kind::Custom(9295);
 pub const LABELS_KIND: Kind = Kind::Custom(32121);
