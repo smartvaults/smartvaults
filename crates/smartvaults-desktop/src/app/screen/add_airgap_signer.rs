@@ -7,7 +7,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bips::bip32::Fingerprint;
 use smartvaults_sdk::core::miniscript::Descriptor;
-use smartvaults_sdk::core::signer::{Signer, SignerType};
+use smartvaults_sdk::core::signer::Signer;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
@@ -65,13 +65,7 @@ impl State for AddAirGapSignerState {
                         async move {
                             let fingerprint = Fingerprint::from_str(&fingerprint)?;
                             let descriptor = Descriptor::from_str(&descriptor)?;
-                            let signer = Signer::new(
-                                name,
-                                None,
-                                fingerprint,
-                                descriptor,
-                                SignerType::AirGap,
-                            )?;
+                            let signer = Signer::airgap(name, None, fingerprint, descriptor)?;
                             client.save_signer(signer).await?;
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },

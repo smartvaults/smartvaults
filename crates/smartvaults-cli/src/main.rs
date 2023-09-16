@@ -14,7 +14,7 @@ use rustyline::DefaultEditor;
 use smartvaults_sdk::config::Config;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
 use smartvaults_sdk::core::bitcoin::Network;
-use smartvaults_sdk::core::signer::{Signer, SignerType};
+use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::types::Priority;
 use smartvaults_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
 use smartvaults_sdk::nostr::Metadata;
@@ -438,7 +438,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 descriptor,
                 share_with_contacts,
             } => {
-                let signer = Signer::new(name, None, fingerprint, descriptor, SignerType::AirGap)?;
+                let signer = Signer::airgap(name, None, fingerprint, descriptor)?;
                 let signer_id = client.save_signer(signer).await?;
                 if share_with_contacts {
                     for user in client.get_contacts().await? {

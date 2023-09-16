@@ -60,7 +60,7 @@ impl fmt::Display for Signer {
 }
 
 impl Signer {
-    pub fn new<S>(
+    fn new<S>(
         name: S,
         description: Option<S>,
         fingerprint: Fingerprint,
@@ -127,6 +127,24 @@ impl Signer {
             SignerType::Hardware,
         )
     } */
+
+    pub fn airgap<S>(
+        name: S,
+        description: Option<S>,
+        fingerprint: Fingerprint,
+        descriptor: Descriptor<DescriptorPublicKey>,
+    ) -> Result<Self, Error>
+    where
+        S: Into<String>,
+    {
+        Self::new(
+            name,
+            description,
+            fingerprint,
+            descriptor,
+            SignerType::AirGap,
+        )
+    }
 
     pub fn name(&self) -> String {
         self.name.clone()
