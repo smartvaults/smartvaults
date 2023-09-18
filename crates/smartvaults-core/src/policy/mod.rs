@@ -77,6 +77,17 @@ pub enum Error {
     RelativeTimelockNotSatisfied,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum PolicyPathSelector {
+    Complete {
+        path: BTreeMap<String, Vec<usize>>,
+    },
+    Partial {
+        selected_path: BTreeMap<String, Vec<usize>>,
+        missing_to_select: BTreeMap<String, Vec<String>>,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Policy {
     pub name: String,
@@ -290,15 +301,14 @@ impl Policy {
         &self,
         signer: Signer,
         network: Network,
-    ) -> Result<Option<BTreeMap<String, Vec<usize>>>, Error> {
+    ) -> Result<Option<PolicyPathSelector>, Error> {
         match self.selectable_conditions(network)? {
             Some(selectable_conditions) => {
                 let mut map = BTreeMap::new();
-                for (path, sub_paths) in selectable_conditions.into_iter() {
-                    for (index, sub_path) in sub_paths.into_iter().enumerate() {
+                for (path, sub_paths) in selectable_conditions.iter() {
+                    for (index, sub_path) in sub_paths.iter().enumerate() {
                         if let Some(item) = self.satisfiable_item_by_path(sub_path, network)? {
                             let json: String = serde_json::json!(item).to_string();
-                            //let query = format!(r#""fingerprint:"{}"""#, );
                             if json.contains(&signer.fingerprint().to_string()) {
                                 map.insert(path.clone(), vec![index]);
                             }
@@ -308,8 +318,16 @@ impl Policy {
 
                 if map.is_empty() {
                     Ok(None)
+                } else if selectable_conditions.len() == map.len() {
+                    Ok(Some(PolicyPathSelector::Complete { path: map }))
                 } else {
-                    Ok(Some(map))
+                    Ok(Some(PolicyPathSelector::Partial {
+                        missing_to_select: selectable_conditions
+                            .into_iter()
+                            .filter(|(k, _)| !map.contains_key(k))
+                            .collect(),
+                        selected_path: map,
+                    }))
                 }
             }
             None => Ok(None),
@@ -604,7 +622,7 @@ mod test {
         let seed = Seed::from_mnemonic(mnemonic);
         let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
 
-        let policy_path: Option<BTreeMap<String, Vec<usize>>> = policy
+        let policy_path: Option<PolicyPathSelector> = policy
             .get_policy_path_from_signer(signer, Network::Testnet)
             .unwrap();
 
@@ -612,7 +630,7 @@ mod test {
         let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         path.insert(String::from("fx0z8u06"), vec![0]);
         path.insert(String::from("y46gds64"), vec![1]);
-        assert_eq!(policy_path, Some(path));
+        assert_eq!(policy_path, Some(PolicyPathSelector::Complete { path }));
 
         // Another path
         let mnemonic = Mnemonic::from_str(
@@ -622,14 +640,25 @@ mod test {
         let seed = Seed::from_mnemonic(mnemonic);
         let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
 
-        let policy_path: Option<BTreeMap<String, Vec<usize>>> = policy
+        let policy_path: Option<PolicyPathSelector> = policy
             .get_policy_path_from_signer(signer, Network::Testnet)
             .unwrap();
 
         // Result
-        let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-        path.insert(String::from("y46gds64"), vec![1]);
-        assert_eq!(policy_path, Some(path)); // TODO: partial path
+        let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        selected_path.insert(String::from("y46gds64"), vec![1]);
+        let mut missing_to_select: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        missing_to_select.insert(
+            String::from("fx0z8u06"),
+            vec![String::from("0e36xhlc"), String::from("m4n7s285")],
+        );
+        assert_eq!(
+            policy_path,
+            Some(PolicyPathSelector::Partial {
+                selected_path,
+                missing_to_select
+            })
+        );
     }
 
     #[test]
