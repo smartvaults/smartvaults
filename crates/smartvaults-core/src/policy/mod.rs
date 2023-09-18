@@ -30,7 +30,7 @@ use crate::proposal::Proposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
 use crate::util::Unspendable;
-use crate::{Amount, SECP256K1};
+use crate::{Amount, Signer, SECP256K1};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -50,6 +50,8 @@ pub enum Error {
     #[error(transparent)]
     ProofOfReserves(#[from] crate::reserves::ProofError),
     #[error(transparent)]
+    Signer(#[from] crate::signer::Error),
+    #[error(transparent)]
     Policy(#[from] keechain_core::miniscript::policy::compiler::CompilerError),
     #[error(transparent)]
     Template(#[from] template::Error),
@@ -57,6 +59,10 @@ pub enum Error {
     DescOrPolicy(Box<Self>, Box<Self>),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
+    #[error("signer not found")]
+    SignerNotFound,
+    #[error("multiple signers found")]
+    MultipleSignersFound,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
     #[error("no utxos selected")]
@@ -222,6 +228,91 @@ impl Policy {
             Ok(Some(result))
         } else {
             Ok(None)
+        }
+    }
+
+    fn satisfiable_item_by_path<S>(
+        &self,
+        path: S,
+        network: Network,
+    ) -> Result<Option<SatisfiableItem>, Error>
+    where
+        S: Into<String>,
+    {
+        fn check(
+            item: &SatisfiableItem,
+            prev_item: Option<SatisfiableItem>,
+            path: &String,
+        ) -> Option<SatisfiableItem> {
+            if let SatisfiableItem::Thresh { items, .. } = item {
+                if &item.id() == path {
+                    return prev_item;
+                }
+
+                for x in items.iter() {
+                    if let Some(i) = check(&x.item, Some(x.item.clone()), path) {
+                        return Some(i);
+                    }
+                }
+            }
+
+            None
+        }
+
+        let item = self.satisfiable_item(network)?;
+        let path: String = path.into();
+        Ok(check(&item, None, &path))
+    }
+
+    /// Search used [`Signer`]
+    ///
+    /// If multipe signers in the list are used in the descriptor, this method will rise an error
+    pub fn search_used_signer(&self, signers: Vec<Signer>) -> Result<Signer, Error> {
+        let descriptor: String = self.descriptor.to_string();
+        let mut found = None;
+        for signer in signers.into_iter() {
+            let signer_descriptor = signer.descriptor_public_key()?.to_string();
+            if descriptor.contains(&signer_descriptor) {
+                if found.is_none() {
+                    found = Some(signer);
+                } else {
+                    return Err(Error::MultipleSignersFound);
+                }
+            }
+        }
+        match found {
+            Some(signer) => Ok(signer),
+            None => Err(Error::SignerNotFound),
+        }
+    }
+
+    pub fn get_policy_path_from_signer(
+        &self,
+        signer: Signer,
+        network: Network,
+    ) -> Result<Option<BTreeMap<String, Vec<usize>>>, Error> {
+        match self.selectable_conditions(network)? {
+            Some(selectable_conditions) => {
+                let mut map = BTreeMap::new();
+                for (path, sub_paths) in selectable_conditions.into_iter() {
+                    for (index, sub_path) in sub_paths.into_iter().enumerate() {
+                        if let Some(item) = self.satisfiable_item_by_path(sub_path, network)? {
+                            let json: String = serde_json::json!(item).to_string();
+                            //let query = format!(r#""fingerprint:"{}"""#, );
+                            if json.contains(&signer.fingerprint().to_string()) {
+                                map.insert(path.clone(), vec![index]);
+                            }
+                        }
+                    }
+                }
+
+                if map.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(map))
+                }
+            }
+            None => Ok(None),
         }
     }
 
@@ -438,7 +529,11 @@ impl Policy {
 
 #[cfg(test)]
 mod test {
+    use keechain_core::bips::bip39::Mnemonic;
+    use keechain_core::Seed;
+
     use super::*;
+    use crate::signer::smartvaults_signer;
 
     const NETWORK: Network = Network::Testnet;
 
@@ -493,6 +588,48 @@ mod test {
         let policy = Policy::from_policy("", "", policy, Network::Testnet).unwrap();
         let conditions = policy.selectable_conditions(Network::Testnet).unwrap();
         assert!(conditions.is_none())
+    }
+
+    #[test]
+    fn test_get_policy_path_from_signer() {
+        // Common policy
+        let desc = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
+        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+
+        // Path
+        let mnemonic = Mnemonic::from_str(
+            "vicious climb harsh insane yard aspect frequent already tackle fetch ask throw",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+
+        let policy_path: Option<BTreeMap<String, Vec<usize>>> = policy
+            .get_policy_path_from_signer(signer, Network::Testnet)
+            .unwrap();
+
+        // Result
+        let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        path.insert(String::from("fx0z8u06"), vec![0]);
+        path.insert(String::from("y46gds64"), vec![1]);
+        assert_eq!(policy_path, Some(path));
+
+        // Another path
+        let mnemonic = Mnemonic::from_str(
+            "involve camp enter man minimum milk minimum news hockey divert window mind",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+
+        let policy_path: Option<BTreeMap<String, Vec<usize>>> = policy
+            .get_policy_path_from_signer(signer, Network::Testnet)
+            .unwrap();
+
+        // Result
+        let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        path.insert(String::from("y46gds64"), vec![1]);
+        assert_eq!(policy_path, Some(path)); // TODO: partial path
     }
 
     #[test]
