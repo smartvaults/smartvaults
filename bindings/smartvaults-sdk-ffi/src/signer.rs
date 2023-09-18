@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::ops::Deref;
 use std::sync::Arc;
 
 use nostr_sdk_ffi::EventId;
@@ -32,6 +33,13 @@ impl GetSigner {
 
 pub struct Signer {
     inner: signer::Signer,
+}
+
+impl Deref for Signer {
+    type Target = signer::Signer;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl From<signer::Signer> for Signer {

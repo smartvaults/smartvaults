@@ -14,7 +14,7 @@ mod template;
 
 pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, RelativeLockTime};
 use crate::error::Result;
-use crate::{Balance, Network};
+use crate::{Balance, Network, Signer};
 
 #[derive(Clone)]
 pub struct Policy {
@@ -65,6 +65,30 @@ impl Policy {
             .map(|list| list.into_iter().collect()))
     }
 
+    pub fn search_used_signer(&self, signers: Vec<Arc<Signer>>) -> Result<Arc<Signer>> {
+        Ok(Arc::new(
+            self.inner
+                .search_used_signer(
+                    signers
+                        .into_iter()
+                        .map(|s| s.as_ref().deref().clone())
+                        .collect(),
+                )?
+                .into(),
+        ))
+    }
+
+    pub fn get_policy_path_from_signer(
+        &self,
+        signer: Arc<Signer>,
+        network: Network,
+    ) -> Result<Option<PolicyPathSelector>> {
+        let res = self
+            .inner
+            .get_policy_path_from_signer(signer.as_ref().deref(), network.into())?;
+        Ok(res.map(|pp| pp.into()))
+    }
+
     pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
         Ok(self.inner.template_match(network.into())?)
     }
@@ -96,5 +120,38 @@ impl GetPolicy {
 
     pub fn last_sync(&self) -> Option<Arc<Timestamp>> {
         self.inner.last_sync.map(|t| Arc::new(t.into()))
+    }
+}
+
+pub enum PolicyPathSelector {
+    Complete {
+        path: HashMap<String, Vec<u64>>,
+    },
+    Partial {
+        selected_path: HashMap<String, Vec<u64>>,
+        missing_to_select: HashMap<String, Vec<String>>,
+    },
+}
+
+impl From<policy::PolicyPathSelector> for PolicyPathSelector {
+    fn from(pps: policy::PolicyPathSelector) -> Self {
+        match pps {
+            policy::PolicyPathSelector::Complete { path } => Self::Complete {
+                path: path
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into_iter().map(|n| n as u64).collect()))
+                    .collect(),
+            },
+            policy::PolicyPathSelector::Partial {
+                selected_path,
+                missing_to_select,
+            } => Self::Partial {
+                selected_path: selected_path
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into_iter().map(|n| n as u64).collect()))
+                    .collect(),
+                missing_to_select: missing_to_select.into_iter().collect(),
+            },
+        }
     }
 }

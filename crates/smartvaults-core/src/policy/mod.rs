@@ -299,7 +299,7 @@ impl Policy {
 
     pub fn get_policy_path_from_signer(
         &self,
-        signer: Signer,
+        signer: &Signer,
         network: Network,
     ) -> Result<Option<PolicyPathSelector>, Error> {
         match self.selectable_conditions(network)? {
@@ -623,7 +623,7 @@ mod test {
         let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
 
         let policy_path: Option<PolicyPathSelector> = policy
-            .get_policy_path_from_signer(signer, Network::Testnet)
+            .get_policy_path_from_signer(&signer, Network::Testnet)
             .unwrap();
 
         // Result
@@ -641,7 +641,7 @@ mod test {
         let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
 
         let policy_path: Option<PolicyPathSelector> = policy
-            .get_policy_path_from_signer(signer, Network::Testnet)
+            .get_policy_path_from_signer(&signer, Network::Testnet)
             .unwrap();
 
         // Result

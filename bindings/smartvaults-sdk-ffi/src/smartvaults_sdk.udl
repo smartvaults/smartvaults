@@ -267,6 +267,12 @@ interface KeychainSeed {
     string? passphrase();
 };
 
+[Enum]
+interface PolicyPathSelector {
+    Complete(record<DOMString, sequence<u64>> path);
+    Partial(record<DOMString, sequence<u64>> selected_path, record<DOMString, sequence<string>> missing_to_select);
+};
+
 interface Policy {
     string name();
     string description();
@@ -276,6 +282,10 @@ interface Policy {
     boolean has_timelock();
     [Throws=FFIError]
     record<DOMString, sequence<string>>? selectable_conditions(Network network);
+    [Throws=FFIError]
+    Signer search_used_signer(sequence<Signer> signers);
+    [Throws=FFIError]
+    PolicyPathSelector? get_policy_path_from_signer(Signer signer, Network network);
     [Throws=FFIError]
     PolicyTemplateType? template_match(Network network);
 };
