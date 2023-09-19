@@ -359,6 +359,7 @@ enum PolicyTemplateType {
     "SocialRecovery",
     "Inheritance",
     "Hold",
+    "Decaying",
 };
 
 interface PolicyTemplate {
