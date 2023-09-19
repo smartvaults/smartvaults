@@ -65,7 +65,7 @@ impl Policy {
             .map(|list| list.into_iter().collect()))
     }
 
-    pub fn search_used_signer(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
+    pub fn search_used_signers(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
         Ok(self
             .inner
             .search_used_signers(
