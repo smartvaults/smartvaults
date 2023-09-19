@@ -16,11 +16,19 @@ pub enum Error {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
-enum Locktime {
+pub enum Locktime {
     /// An absolute locktime restriction
     After(AbsoluteLockTime),
     /// A relative locktime restriction
     Older(Sequence),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
+pub enum DecayingTime {
+    /// **Single not means that happen only once!!**
+    Single(Locktime),
+    /// Multiple different timelocks
+    Multiple(Vec<Locktime>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
@@ -63,7 +71,7 @@ impl RecoveryTemplate {
         }
     }
 
-    pub(crate) fn build(&self) -> Result<Policy<DescriptorPublicKey>, Error> {
+    pub(crate) fn build(self) -> Result<Policy<DescriptorPublicKey>, Error> {
         if self.threshold == 0 || self.threshold > self.keys.len() {
             return Err(Error::InvalidThreshold);
         }
@@ -73,7 +81,7 @@ impl RecoveryTemplate {
         }
 
         let keys: Vec<Policy<DescriptorPublicKey>> =
-            self.keys.iter().cloned().map(Policy::Key).collect();
+            self.keys.into_iter().map(Policy::Key).collect();
         Ok(Policy::And(vec![
             Policy::Threshold(self.threshold, keys),
             match self.locktime {
@@ -98,6 +106,11 @@ pub enum PolicyTemplate {
         my_key: DescriptorPublicKey,
         older: Sequence,
     },
+    Decaying {
+        start_threshold: usize,
+        keys: Vec<DescriptorPublicKey>,
+        time: DecayingTime,
+    },
 }
 
 impl PolicyTemplate {
@@ -113,10 +126,22 @@ impl PolicyTemplate {
         Self::Hold { my_key, older }
     }
 
-    pub fn build(&self) -> Result<Policy<DescriptorPublicKey>, Error> {
+    pub fn decaying(
+        start_threshold: usize,
+        keys: Vec<DescriptorPublicKey>,
+        time: DecayingTime,
+    ) -> Self {
+        Self::Decaying {
+            start_threshold,
+            keys,
+            time,
+        }
+    }
+
+    pub fn build(self) -> Result<Policy<DescriptorPublicKey>, Error> {
         match self {
             Self::Multisig { threshold, keys } => {
-                if *threshold == 0 || *threshold > keys.len() {
+                if threshold == 0 || threshold > keys.len() {
                     return Err(Error::InvalidThreshold);
                 }
 
@@ -125,8 +150,8 @@ impl PolicyTemplate {
                 }
 
                 let keys: Vec<Policy<DescriptorPublicKey>> =
-                    keys.iter().cloned().map(Policy::Key).collect();
-                Ok(Policy::Threshold(*threshold, keys))
+                    keys.into_iter().map(Policy::Key).collect();
+                Ok(Policy::Threshold(threshold, keys))
             }
             Self::Recovery { my_key, recovery } => Ok(Policy::Or(vec![
                 (1, Policy::Key(my_key.clone())),
@@ -134,8 +159,41 @@ impl PolicyTemplate {
             ])),
             Self::Hold { my_key, older } => Ok(Policy::And(vec![
                 Policy::Key(my_key.clone()),
-                Policy::Older(*older),
+                Policy::Older(older),
             ])),
+            Self::Decaying {
+                start_threshold,
+                keys,
+                time,
+            } => {
+                if start_threshold == 0 || start_threshold > keys.len() {
+                    return Err(Error::InvalidThreshold);
+                }
+
+                if keys.is_empty() {
+                    return Err(Error::NoKeys);
+                }
+
+                let mut list: Vec<Policy<DescriptorPublicKey>> =
+                    keys.into_iter().map(Policy::Key).collect();
+
+                match time {
+                    DecayingTime::Single(timelock) => match timelock {
+                        Locktime::After(after) => list.push(Policy::After(after.into())),
+                        Locktime::Older(older) => list.push(Policy::Older(older)),
+                    },
+                    DecayingTime::Multiple(timelocks) => {
+                        for timelock in timelocks.into_iter() {
+                            match timelock {
+                                Locktime::After(after) => list.push(Policy::After(after.into())),
+                                Locktime::Older(older) => list.push(Policy::Older(older)),
+                            }
+                        }
+                    }
+                }
+
+                Ok(Policy::Threshold(start_threshold, list))
+            }
         }
     }
 }

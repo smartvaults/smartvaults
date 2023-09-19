@@ -16,7 +16,8 @@ pub mod types;
 pub mod util;
 
 pub use self::policy::{
-    AbsoluteLockTime, Policy, PolicyTemplate, PolicyTemplateType, RecoveryTemplate, Sequence,
+    AbsoluteLockTime, DecayingTime, Locktime, Policy, PolicyTemplate, PolicyTemplateType,
+    RecoveryTemplate, Sequence,
 };
 pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 pub use self::signer::{SharedSigner, Signer, SignerType};

@@ -24,7 +24,8 @@ use serde::{Deserialize, Serialize};
 pub mod template;
 
 pub use self::template::{
-    AbsoluteLockTime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate, Sequence,
+    AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate,
+    Sequence,
 };
 use crate::proposal::Proposal;
 #[cfg(feature = "reserves")]
