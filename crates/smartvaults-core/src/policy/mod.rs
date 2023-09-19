@@ -77,7 +77,7 @@ pub enum Error {
     RelativeTimelockNotSatisfied,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum PolicyPathSelector {
     Complete {
         path: BTreeMap<String, Vec<usize>>,
