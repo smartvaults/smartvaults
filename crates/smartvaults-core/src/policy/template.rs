@@ -37,6 +37,7 @@ pub enum PolicyTemplateType {
     SocialRecovery,
     Inheritance,
     Hold,
+    Decaying,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
@@ -104,7 +105,7 @@ pub enum PolicyTemplate {
     },
     Hold {
         my_key: DescriptorPublicKey,
-        older: Sequence,
+        timelock: Locktime,
     },
     Decaying {
         start_threshold: usize,
@@ -122,8 +123,8 @@ impl PolicyTemplate {
         Self::Recovery { my_key, recovery }
     }
 
-    pub fn hold(my_key: DescriptorPublicKey, older: Sequence) -> Self {
-        Self::Hold { my_key, older }
+    pub fn hold(my_key: DescriptorPublicKey, timelock: Locktime) -> Self {
+        Self::Hold { my_key, timelock }
     }
 
     pub fn decaying(
@@ -157,9 +158,12 @@ impl PolicyTemplate {
                 (1, Policy::Key(my_key.clone())),
                 (1, recovery.build()?),
             ])),
-            Self::Hold { my_key, older } => Ok(Policy::And(vec![
+            Self::Hold { my_key, timelock } => Ok(Policy::And(vec![
                 Policy::Key(my_key.clone()),
-                Policy::Older(older),
+                match timelock {
+                    Locktime::After(after) => Policy::After(after.into()),
+                    Locktime::Older(older) => Policy::Older(older),
+                },
             ])),
             Self::Decaying {
                 start_threshold,
@@ -263,7 +267,7 @@ mod test {
     #[test]
     fn test_hold_template() {
         let desc1 = DescriptorPublicKey::from_str("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*").unwrap();
-        let older = Sequence(10_000);
+        let older = Locktime::Older(Sequence(10_000));
         let template = PolicyTemplate::hold(desc1, older);
         assert_eq!(template.build().unwrap().to_string(), String::from("and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),older(10000))"));
     }

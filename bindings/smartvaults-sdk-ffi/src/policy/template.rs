@@ -4,10 +4,9 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use smartvaults_sdk::core;
-use smartvaults_sdk::core::bitcoin;
 use smartvaults_sdk::core::bitcoin::absolute;
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
+use smartvaults_sdk::core::{self, bitcoin, Locktime};
 
 use crate::error::Result;
 use crate::Descriptor;
@@ -134,9 +133,12 @@ impl PolicyTemplate {
         }
     }
 
-    pub fn hold(my_key: Arc<Descriptor>, older: Arc<RelativeLockTime>) -> Self {
+    pub fn hold(my_key: Arc<Descriptor>, after: Arc<AbsoluteLockTime>) -> Self {
         Self {
-            inner: core::PolicyTemplate::hold(my_key.as_ref().deref().clone(), **older),
+            inner: core::PolicyTemplate::hold(
+                my_key.as_ref().deref().clone(),
+                Locktime::After(**after),
+            ),
         }
     }
 }

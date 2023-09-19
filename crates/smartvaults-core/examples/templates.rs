@@ -4,7 +4,9 @@
 use std::str::FromStr;
 
 use smartvaults_core::miniscript::DescriptorPublicKey;
-use smartvaults_core::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, Sequence};
+use smartvaults_core::{
+    AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, RecoveryTemplate, Sequence,
+};
 
 fn main() {
     // Descriptors
@@ -30,12 +32,20 @@ fn main() {
 
     // Inheritance
     let after = AbsoluteLockTime::from_height(840_000).unwrap();
-    let recovery = RecoveryTemplate::inheritance(2, vec![desc2, desc3], after);
+    let recovery = RecoveryTemplate::inheritance(2, vec![desc2.clone(), desc3.clone()], after);
     let template = PolicyTemplate::recovery(desc1.clone(), recovery);
     println!("Inheritance: {}\n", template.build().unwrap().to_string());
 
     // Hold
-    let older = Sequence(10_000);
-    let template = PolicyTemplate::hold(desc1, older);
+    let older = Locktime::Older(Sequence(10_000));
+    let template = PolicyTemplate::hold(desc1.clone(), older);
     println!("Hold: {}", template.build().unwrap().to_string());
+
+    // Decaying
+    let template = PolicyTemplate::decaying(
+        3,
+        vec![desc1.clone(), desc2.clone(), desc3.clone()],
+        DecayingTime::Single(Locktime::Older(Sequence(2))),
+    );
+    println!("Decaying: {}\n", template.build().unwrap().to_string());
 }

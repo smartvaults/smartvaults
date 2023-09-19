@@ -27,7 +27,7 @@ async fn main() {
     let signer = client.get_signer_by_id(signer_id).await.unwrap();
     let template = PolicyTemplate::hold(
         signer.descriptor_public_key().unwrap(),
-        Sequence::from_height(10_000),
+        Locktime::Older(Sequence::from_height(10_000)),
     );
 
     // Save a new policy from a template

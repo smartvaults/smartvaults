@@ -367,7 +367,7 @@ interface PolicyTemplate {
     [Name=recovery]
     constructor(Descriptor my_key, RecoveryTemplate recovery);
     [Name=hold]
-    constructor(Descriptor my_key, RelativeLockTime older);
+    constructor(Descriptor my_key, AbsoluteLockTime older);
 };
 
 interface Amount {
