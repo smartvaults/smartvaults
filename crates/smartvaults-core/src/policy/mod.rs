@@ -78,6 +78,7 @@ pub enum Error {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PolicyPathSelector {
     Complete {
         path: BTreeMap<String, Vec<usize>>,
