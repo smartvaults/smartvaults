@@ -355,7 +355,8 @@ impl Policy {
                                 match items[0].item {
                                     // Hold template
                                     SatisfiableItem::SchnorrSignature(..) => {
-                                        if let SatisfiableItem::RelativeTimelock { .. } =
+                                        if let SatisfiableItem::RelativeTimelock { .. }
+                                        | SatisfiableItem::AbsoluteTimelock { .. } =
                                             items[1].item
                                         {
                                             return Ok(Some(PolicyTemplateType::Hold));
@@ -374,6 +375,35 @@ impl Policy {
                                         _ => (),
                                     },
                                     _ => (),
+                                }
+                            }
+
+                            // Decaying template
+                            if threshold < &items.len() {
+                                let keys_count: usize = items
+                                    .iter()
+                                    .filter(|i| {
+                                        matches!(i.item, SatisfiableItem::SchnorrSignature(_))
+                                    })
+                                    .count();
+                                let absolute_timelock_count: usize = items
+                                    .iter()
+                                    .filter(|i| {
+                                        matches!(i.item, SatisfiableItem::AbsoluteTimelock { .. })
+                                    })
+                                    .count();
+                                let relative_timelock_count: usize = items
+                                    .iter()
+                                    .filter(|i| {
+                                        matches!(i.item, SatisfiableItem::RelativeTimelock { .. })
+                                    })
+                                    .count();
+
+                                if threshold <= &keys_count
+                                    && absolute_timelock_count + relative_timelock_count
+                                        == items.len() - keys_count
+                                {
+                                    return Ok(Some(PolicyTemplateType::Decaying));
                                 }
                             }
                         }
@@ -696,11 +726,44 @@ mod test {
             Some(PolicyTemplateType::Inheritance)
         );
 
+        // Hold (older)
         let hold = "and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),older(144))";
         let policy = Policy::from_policy("Hold", "", hold, NETWORK).unwrap();
         assert_eq!(
             policy.template_match(NETWORK).unwrap(),
             Some(PolicyTemplateType::Hold)
+        );
+
+        // Hold (after)
+        let hold = "and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),after(840000))";
+        let policy = Policy::from_policy("Hold", "", hold, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Hold)
+        );
+
+        // Decaying 3 of 3 (older)
+        let decaying = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),older(2))";
+        let policy = Policy::from_policy("Decaying", "", decaying, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Decaying)
+        );
+
+        // Decaying 2 of 3 (older)
+        let decaying = "thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),older(2))";
+        let policy = Policy::from_policy("Decaying", "", decaying, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Decaying)
+        );
+
+        // Decaying (after)
+        let decaying = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),after(840000),after(940000))";
+        let policy = Policy::from_policy("Decaying", "", decaying, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match(NETWORK).unwrap(),
+            Some(PolicyTemplateType::Decaying)
         );
     }
 }
