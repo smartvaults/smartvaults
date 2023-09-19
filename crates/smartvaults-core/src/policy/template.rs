@@ -25,9 +25,7 @@ pub enum Locktime {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
 pub enum DecayingTime {
-    /// **Single not means that happen only once!!**
     Single(Locktime),
-    /// Multiple different timelocks
     Multiple(Vec<Locktime>),
 }
 
