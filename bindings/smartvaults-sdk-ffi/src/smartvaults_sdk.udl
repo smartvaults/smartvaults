@@ -283,7 +283,7 @@ interface Policy {
     [Throws=FFIError]
     record<DOMString, sequence<string>>? selectable_conditions(Network network);
     [Throws=FFIError]
-    Signer search_used_signer(sequence<Signer> signers);
+    sequence<Signer> search_used_signers(sequence<Signer> signers);
     [Throws=FFIError]
     PolicyPathSelector? get_policy_path_from_signer(Signer signer, Network network);
     [Throws=FFIError]

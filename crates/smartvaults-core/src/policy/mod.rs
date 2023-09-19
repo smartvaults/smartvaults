@@ -59,10 +59,6 @@ pub enum Error {
     DescOrPolicy(Box<Self>, Box<Self>),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
-    #[error("signer not found")]
-    SignerNotFound,
-    #[error("multiple signers found")]
-    MultipleSignersFound,
     #[error("wallet spending policy not found")]
     WalletSpendingPolicyNotFound,
     #[error("no utxos selected")]
@@ -276,26 +272,17 @@ impl Policy {
         Ok(check(&item, None, &path))
     }
 
-    /// Search used [`Signer`]
-    ///
-    /// If multipe signers in the list are used in the descriptor, this method will rise an error
-    pub fn search_used_signer(&self, signers: Vec<Signer>) -> Result<Signer, Error> {
+    /// Search used signers in this [`Policy`]
+    pub fn search_used_signers(&self, my_signers: Vec<Signer>) -> Result<Vec<Signer>, Error> {
         let descriptor: String = self.descriptor.to_string();
-        let mut found = None;
-        for signer in signers.into_iter() {
-            let signer_descriptor = signer.descriptor_public_key()?.to_string();
-            if descriptor.contains(&signer_descriptor) {
-                if found.is_none() {
-                    found = Some(signer);
-                } else {
-                    return Err(Error::MultipleSignersFound);
-                }
+        let mut list: Vec<Signer> = Vec::new();
+        for signer in my_signers.into_iter() {
+            let signer_descriptor: String = signer.descriptor_public_key()?.to_string();
+            if descriptor.contains(&signer_descriptor) && !list.contains(&signer) {
+                list.push(signer);
             }
         }
-        match found {
-            Some(signer) => Ok(signer),
-            None => Err(Error::SignerNotFound),
-        }
+        Ok(list)
     }
 
     pub fn get_policy_path_from_signer(
@@ -333,6 +320,22 @@ impl Policy {
             }
             None => Ok(None),
         }
+    }
+
+    pub fn get_policy_paths_from_signers(
+        &self,
+        my_signers: Vec<Signer>,
+        network: Network,
+    ) -> Result<HashMap<Signer, Option<PolicyPathSelector>>, Error> {
+        let used_signers: Vec<Signer> = self.search_used_signers(my_signers)?;
+        #[allow(clippy::mutable_key_type)]
+        let mut map = HashMap::with_capacity(used_signers.len());
+        for signer in used_signers.into_iter() {
+            let pp: Option<PolicyPathSelector> =
+                self.get_policy_path_from_signer(&signer, network)?;
+            map.insert(signer, pp);
+        }
+        Ok(map)
     }
 
     /// Check if [`Policy`] match any [`PolicyTemplateType`]

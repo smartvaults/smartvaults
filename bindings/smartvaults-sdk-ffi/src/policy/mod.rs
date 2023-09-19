@@ -65,17 +65,18 @@ impl Policy {
             .map(|list| list.into_iter().collect()))
     }
 
-    pub fn search_used_signer(&self, signers: Vec<Arc<Signer>>) -> Result<Arc<Signer>> {
-        Ok(Arc::new(
-            self.inner
-                .search_used_signer(
-                    signers
-                        .into_iter()
-                        .map(|s| s.as_ref().deref().clone())
-                        .collect(),
-                )?
-                .into(),
-        ))
+    pub fn search_used_signer(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
+        Ok(self
+            .inner
+            .search_used_signers(
+                signers
+                    .into_iter()
+                    .map(|s| s.as_ref().deref().clone())
+                    .collect(),
+            )?
+            .into_iter()
+            .map(|s| Arc::new(s.into()))
+            .collect())
     }
 
     pub fn get_policy_path_from_signer(
