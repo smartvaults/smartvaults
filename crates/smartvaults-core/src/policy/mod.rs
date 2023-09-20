@@ -363,17 +363,15 @@ impl Policy {
                                         }
                                     }
                                     // Recovery templates
-                                    SatisfiableItem::Multisig { .. } => match items[1].item {
-                                        // Social Recovery
-                                        SatisfiableItem::RelativeTimelock { .. } => {
-                                            return Ok(Some(PolicyTemplateType::SocialRecovery))
+                                    SatisfiableItem::Multisig { .. } => {
+                                        // Social Recovery / Inheritance
+                                        if let SatisfiableItem::RelativeTimelock { .. }
+                                        | SatisfiableItem::AbsoluteTimelock { .. } =
+                                            items[1].item
+                                        {
+                                            return Ok(Some(PolicyTemplateType::Recovery));
                                         }
-                                        // Inheritance
-                                        SatisfiableItem::AbsoluteTimelock { .. } => {
-                                            return Ok(Some(PolicyTemplateType::Inheritance))
-                                        }
-                                        _ => (),
-                                    },
+                                    }
                                     _ => (),
                                 }
                             }
@@ -716,14 +714,14 @@ mod test {
         let policy = Policy::from_policy("Social Recovery", "", social_recovery, NETWORK).unwrap();
         assert_eq!(
             policy.template_match(NETWORK).unwrap(),
-            Some(PolicyTemplateType::SocialRecovery)
+            Some(PolicyTemplateType::Recovery)
         );
 
         let inheritance = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),after(700000)))";
         let policy = Policy::from_policy("Inheritance", "", inheritance, NETWORK).unwrap();
         assert_eq!(
             policy.template_match(NETWORK).unwrap(),
-            Some(PolicyTemplateType::Inheritance)
+            Some(PolicyTemplateType::Recovery)
         );
 
         // Hold (older)

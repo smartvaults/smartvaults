@@ -353,8 +353,7 @@ interface RecoveryTemplate {
 
 enum PolicyTemplateType {
     "Multisig",
-    "SocialRecovery",
-    "Inheritance",
+    "Recovery",
     "Hold",
     "Decaying",
 };

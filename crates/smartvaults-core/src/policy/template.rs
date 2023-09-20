@@ -32,8 +32,8 @@ pub enum DecayingTime {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
 pub enum PolicyTemplateType {
     Multisig,
-    SocialRecovery,
-    Inheritance,
+    /// Social Recovery / Inheritance
+    Recovery,
     Hold,
     Decaying,
 }
