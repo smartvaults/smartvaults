@@ -21,20 +21,23 @@ fn main() {
         template.build().unwrap().to_string()
     );
 
-    // Social Recovery
-    let older = Sequence(6);
-    let recovery = RecoveryTemplate::social_recovery(2, vec![desc2.clone(), desc3.clone()], older);
+    // Recovery template (older)
+    let older = Locktime::Older(Sequence(6));
+    let recovery = RecoveryTemplate::new(2, vec![desc2.clone(), desc3.clone()], older);
     let template = PolicyTemplate::recovery(desc1.clone(), recovery);
     println!(
-        "Social Recovery: {}\n",
+        "Recovery (older): {}\n",
         template.build().unwrap().to_string()
     );
 
-    // Inheritance
-    let after = AbsoluteLockTime::from_height(840_000).unwrap();
-    let recovery = RecoveryTemplate::inheritance(2, vec![desc2.clone(), desc3.clone()], after);
+    // Recovery template (after)
+    let after = Locktime::After(AbsoluteLockTime::from_height(840_000).unwrap());
+    let recovery = RecoveryTemplate::new(2, vec![desc2.clone(), desc3.clone()], after);
     let template = PolicyTemplate::recovery(desc1.clone(), recovery);
-    println!("Inheritance: {}\n", template.build().unwrap().to_string());
+    println!(
+        "Recovery (after): {}\n",
+        template.build().unwrap().to_string()
+    );
 
     // Hold
     let older = Locktime::Older(Sequence(10_000));

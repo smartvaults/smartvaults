@@ -67,31 +67,13 @@ impl Deref for RecoveryTemplate {
 }
 
 impl RecoveryTemplate {
-    pub fn social_recovery(
-        threshold: u64,
-        keys: Vec<Arc<Descriptor>>,
-        older: Arc<RelativeLockTime>,
-    ) -> Self {
+    pub fn new(threshold: u64, keys: Vec<Arc<Descriptor>>, after: Arc<AbsoluteLockTime>) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
         Self {
-            inner: core::RecoveryTemplate::social_recovery(threshold as usize, keys, **older),
-        }
-    }
-
-    pub fn inheritance(
-        threshold: u64,
-        keys: Vec<Arc<Descriptor>>,
-        after: Arc<AbsoluteLockTime>,
-    ) -> Self {
-        let keys: Vec<DescriptorPublicKey> = keys
-            .into_iter()
-            .map(|k| k.as_ref().deref().clone())
-            .collect();
-        Self {
-            inner: core::RecoveryTemplate::inheritance(threshold as usize, keys, **after),
+            inner: core::RecoveryTemplate::new(threshold as usize, keys, Locktime::After(**after)),
         }
     }
 }

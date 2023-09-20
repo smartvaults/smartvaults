@@ -42,31 +42,15 @@ pub enum PolicyTemplateType {
 pub struct RecoveryTemplate {
     threshold: usize,
     keys: Vec<DescriptorPublicKey>,
-    locktime: Locktime,
+    timelock: Locktime,
 }
 
 impl RecoveryTemplate {
-    pub fn social_recovery(
-        threshold: usize,
-        keys: Vec<DescriptorPublicKey>,
-        older: Sequence,
-    ) -> Self {
+    pub fn new(threshold: usize, keys: Vec<DescriptorPublicKey>, timelock: Locktime) -> Self {
         Self {
             threshold,
             keys,
-            locktime: Locktime::Older(older),
-        }
-    }
-
-    pub fn inheritance(
-        threshold: usize,
-        keys: Vec<DescriptorPublicKey>,
-        after: AbsoluteLockTime,
-    ) -> Self {
-        Self {
-            threshold,
-            keys,
-            locktime: Locktime::After(after),
+            timelock,
         }
     }
 
@@ -83,7 +67,7 @@ impl RecoveryTemplate {
             self.keys.into_iter().map(Policy::Key).collect();
         Ok(Policy::And(vec![
             Policy::Threshold(self.threshold, keys),
-            match self.locktime {
+            match self.timelock {
                 Locktime::After(after) => Policy::After(after.into()),
                 Locktime::Older(older) => Policy::Older(older),
             },
@@ -240,9 +224,9 @@ mod test {
         // Recovery keys
         let desc2 = DescriptorPublicKey::from_str("[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*").unwrap();
         let desc3 = DescriptorPublicKey::from_str("[f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*").unwrap();
-        let older = Sequence(6);
 
-        let recovery = RecoveryTemplate::social_recovery(2, vec![desc2, desc3], older);
+        let older = Sequence(6);
+        let recovery = RecoveryTemplate::new(2, vec![desc2, desc3], Locktime::Older(older));
         let template = PolicyTemplate::recovery(desc1, recovery);
         assert_eq!(template.build().unwrap().to_string(), String::from("or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),older(6)))"));
     }
@@ -255,9 +239,9 @@ mod test {
         // Recovery keys
         let desc2 = DescriptorPublicKey::from_str("[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*").unwrap();
         let desc3 = DescriptorPublicKey::from_str("[f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*").unwrap();
-        let after = AbsoluteLockTime::from_height(840_000).unwrap();
 
-        let recovery = RecoveryTemplate::inheritance(2, vec![desc2, desc3], after);
+        let after = AbsoluteLockTime::from_height(840_000).unwrap();
+        let recovery = RecoveryTemplate::new(2, vec![desc2, desc3], Locktime::After(after));
         let template = PolicyTemplate::recovery(desc1, recovery);
         assert_eq!(template.build().unwrap().to_string(), String::from("or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),after(840000)))"));
     }
