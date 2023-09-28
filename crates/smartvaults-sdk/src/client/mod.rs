@@ -256,12 +256,14 @@ impl SmartVaults {
     {
         let base_path = base_path.as_ref();
 
+        let password: String = get_password().map_err(|e| Error::Generic(e.to_string()))?;
+
         // Generate keychain
         let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
         let mut keechain: KeeChain = KeeChain::generate(
             keychains_path,
             name,
-            get_password,
+            || Ok(password.clone()),
             get_confirm_password,
             word_count,
             || Ok(None),
@@ -270,7 +272,7 @@ impl SmartVaults {
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
             keechain.keychain.add_passphrase(&passphrase);
-            keechain.save()?;
+            keechain.save(password)?;
             keechain.keychain.apply_passphrase(Some(passphrase));
         }
 
@@ -297,12 +299,14 @@ impl SmartVaults {
     {
         let base_path = base_path.as_ref();
 
+        let password: String = get_password().map_err(|e| Error::Generic(e.to_string()))?;
+
         // Restore keychain
         let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
         let mut keechain: KeeChain = KeeChain::restore(
             keychains_path,
             name,
-            get_password,
+            || Ok(password.clone()),
             get_confirm_password,
             get_mnemonic,
         )?;
@@ -310,7 +314,7 @@ impl SmartVaults {
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
             keechain.keychain.add_passphrase(&passphrase);
-            keechain.save()?;
+            keechain.save(password)?;
             keechain.keychain.apply_passphrase(Some(passphrase));
         }
 
@@ -342,11 +346,6 @@ impl SmartVaults {
     /// Get keychain name
     pub fn name(&self) -> Option<String> {
         self.keechain.name()
-    }
-
-    /// Save keychain
-    pub fn save(&self) -> Result<(), Error> {
-        Ok(self.keechain.save()?)
     }
 
     /// Check keychain password

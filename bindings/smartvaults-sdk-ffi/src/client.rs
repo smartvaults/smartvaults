@@ -129,11 +129,6 @@ impl SmartVaults {
         self.inner.name()
     }
 
-    /// Save keychain
-    pub fn save(&self) -> Result<()> {
-        Ok(self.inner.save()?)
-    }
-
     /// Check keychain password
     pub fn check_password(&self, password: String) -> Result<bool> {
         Ok(self.inner.check_password(password)?)
