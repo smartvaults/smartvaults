@@ -20,6 +20,7 @@ pub enum Priority {
 }
 
 impl Priority {
+    #[inline]
     pub fn target_blocks(&self) -> u8 {
         match self {
             Self::High => 1,
@@ -50,11 +51,13 @@ pub enum FeeRate {
 }
 
 impl FeeRate {
+    #[inline]
     pub fn min_relay_fee() -> Self {
         Self::Rate(1.0)
     }
 
     /// Check if fee is valid
+    #[inline]
     pub fn is_valid(&self) -> bool {
         if let Self::Rate(rate) = self {
             if *rate < 1.0 {
@@ -101,14 +104,17 @@ impl FromStr for Amount {
 }
 
 impl Amount {
+    #[inline]
     pub fn max() -> Self {
         Self::Max
     }
 
+    #[inline]
     pub fn from_sats(sats: u64) -> Self {
         Self::Custom(sats)
     }
 
+    #[inline]
     pub fn from_btc(btc: f64) -> Self {
         let sats: f64 = btc * 10_f64.powf(8.0);
         Self::from_sats(sats as u64)

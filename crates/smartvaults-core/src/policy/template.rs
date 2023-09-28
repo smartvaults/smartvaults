@@ -97,18 +97,22 @@ pub enum PolicyTemplate {
 }
 
 impl PolicyTemplate {
+    #[inline]
     pub fn multisig(threshold: usize, keys: Vec<DescriptorPublicKey>) -> Self {
         Self::Multisig { threshold, keys }
     }
 
+    #[inline]
     pub fn recovery(my_key: DescriptorPublicKey, recovery: RecoveryTemplate) -> Self {
         Self::Recovery { my_key, recovery }
     }
 
+    #[inline]
     pub fn hold(my_key: DescriptorPublicKey, timelock: Locktime) -> Self {
         Self::Hold { my_key, timelock }
     }
 
+    #[inline]
     pub fn decaying(
         start_threshold: usize,
         keys: Vec<DescriptorPublicKey>,

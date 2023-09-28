@@ -180,17 +180,20 @@ impl Policy {
     }
 
     /// Check if [`Policy`] has an `absolute` or `relative` timelock
+    #[inline]
     pub fn has_timelock(&self) -> bool {
         self.has_absolute_timelock() || self.has_relative_timelock()
     }
 
     /// Check if [`Policy`] has a `absolute` timelock
+    #[inline]
     pub fn has_absolute_timelock(&self) -> bool {
         let descriptor = self.descriptor.to_string();
         descriptor.contains("after")
     }
 
     /// Check if [`Policy`] has a `relative` timelock
+    #[inline]
     pub fn has_relative_timelock(&self) -> bool {
         let descriptor = self.descriptor.to_string();
         descriptor.contains("older")
