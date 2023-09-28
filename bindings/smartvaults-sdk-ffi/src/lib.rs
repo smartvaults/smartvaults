@@ -46,8 +46,8 @@ pub use crate::message::{EventHandled, Message};
 pub use crate::network::Network;
 pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
 pub use crate::policy::{
-    AbsoluteLockTime, GetPolicy, Policy, PolicyPathSelector, PolicyTemplate, RecoveryTemplate,
-    RelativeLockTime,
+    AbsoluteLockTime, GetPolicy, Policy, PolicyPathSelector, PolicyPathSigner, PolicyTemplate,
+    RecoveryTemplate, RelativeLockTime,
 };
 pub use crate::proposal::{
     ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal, Proposal,

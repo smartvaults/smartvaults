@@ -68,12 +68,7 @@ impl Policy {
     pub fn search_used_signers(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
         Ok(self
             .inner
-            .search_used_signers(
-                signers
-                    .into_iter()
-                    .map(|s| s.as_ref().deref().clone())
-                    .collect(),
-            )?
+            .search_used_signers(signers.into_iter().map(|s| s.as_ref().deref().clone()))?
             .into_iter()
             .map(|s| Arc::new(s.into()))
             .collect())
@@ -88,6 +83,25 @@ impl Policy {
             .inner
             .get_policy_path_from_signer(signer.as_ref().deref(), network.into())?;
         Ok(res.map(|pp| pp.into()))
+    }
+
+    pub fn get_policy_paths_from_signers(
+        &self,
+        signers: Vec<Arc<Signer>>,
+        network: Network,
+    ) -> Result<Vec<PolicyPathSigner>> {
+        Ok(self
+            .inner
+            .get_policy_paths_from_signers(
+                signers.into_iter().map(|s| s.as_ref().deref().clone()),
+                network.into(),
+            )?
+            .into_iter()
+            .map(|(s, pp)| PolicyPathSigner {
+                signer: Arc::new(s.into()),
+                policy_path: pp.map(|pp| pp.into()),
+            })
+            .collect())
     }
 
     pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
@@ -122,6 +136,11 @@ impl GetPolicy {
     pub fn last_sync(&self) -> Option<Arc<Timestamp>> {
         self.inner.last_sync.map(|t| Arc::new(t.into()))
     }
+}
+
+pub struct PolicyPathSigner {
+    pub signer: Arc<Signer>,
+    pub policy_path: Option<PolicyPathSelector>,
 }
 
 pub enum PolicyPathSelector {

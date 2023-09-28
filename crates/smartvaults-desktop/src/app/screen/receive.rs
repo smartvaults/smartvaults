@@ -161,7 +161,7 @@ impl State for ReceiveState {
                     Column::new()
                         .push(Text::new("Receive").big().bold().view())
                         .push(
-                            Text::new("Send sats to the address below to fund your wallet.")
+                            Text::new("Use the address below to fund your wallet.")
                                 .extra_light()
                                 .view(),
                         )

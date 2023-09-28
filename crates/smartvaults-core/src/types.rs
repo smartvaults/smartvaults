@@ -110,14 +110,14 @@ impl Amount {
     }
 
     #[inline]
-    pub fn from_sats(sats: u64) -> Self {
-        Self::Custom(sats)
+    pub fn from_sat(sat: u64) -> Self {
+        Self::Custom(sat)
     }
 
     #[inline]
     pub fn from_btc(btc: f64) -> Self {
-        let sats: f64 = btc * 10_f64.powf(8.0);
-        Self::from_sats(sats as u64)
+        let sat: f64 = btc * 10_f64.powf(8.0);
+        Self::from_sat(sat as u64)
     }
 }
 
@@ -142,7 +142,7 @@ mod test {
     #[test]
     fn test_amount_from_btc() {
         let amount: Amount = Amount::from_btc(0.12345);
-        assert_eq!(Amount::from_sats(12_345_000), amount)
+        assert_eq!(Amount::from_sat(12_345_000), amount)
     }
 
     #[test]

@@ -277,7 +277,10 @@ impl Policy {
     }
 
     /// Search used signers in this [`Policy`]
-    pub fn search_used_signers(&self, my_signers: Vec<Signer>) -> Result<Vec<Signer>, Error> {
+    pub fn search_used_signers<I>(&self, my_signers: I) -> Result<Vec<Signer>, Error>
+    where
+        I: Iterator<Item = Signer>,
+    {
         let descriptor: String = self.descriptor.to_string();
         let mut list: Vec<Signer> = Vec::new();
         for signer in my_signers.into_iter() {
@@ -326,11 +329,14 @@ impl Policy {
         }
     }
 
-    pub fn get_policy_paths_from_signers(
+    pub fn get_policy_paths_from_signers<I>(
         &self,
-        my_signers: Vec<Signer>,
+        my_signers: I,
         network: Network,
-    ) -> Result<HashMap<Signer, Option<PolicyPathSelector>>, Error> {
+    ) -> Result<HashMap<Signer, Option<PolicyPathSelector>>, Error>
+    where
+        I: Iterator<Item = Signer>,
+    {
         let used_signers: Vec<Signer> = self.search_used_signers(my_signers)?;
         #[allow(clippy::mutable_key_type)]
         let mut map = HashMap::with_capacity(used_signers.len());
