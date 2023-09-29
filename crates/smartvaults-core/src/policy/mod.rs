@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::str::FromStr;
 
 use bdk::chain::{ConfirmationTime, PersistBackend};
@@ -84,6 +84,14 @@ pub enum PolicyPathSelector {
         selected_path: BTreeMap<String, Vec<usize>>,
         missing_to_select: BTreeMap<String, Vec<String>>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PolicyPath {
+    Single(PolicyPathSelector),
+    Multiple(HashMap<Signer, Option<PolicyPathSelector>>),
+    None,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -350,7 +358,7 @@ impl Policy {
         &self,
         my_signers: I,
         network: Network,
-    ) -> Result<HashMap<Signer, Option<PolicyPathSelector>>, Error>
+    ) -> Result<PolicyPath, Error>
     where
         I: Iterator<Item = Signer>,
     {
@@ -362,7 +370,29 @@ impl Policy {
                 self.get_policy_path_from_signer(&signer, network)?;
             map.insert(signer, pp);
         }
-        Ok(map)
+
+        if map.is_empty() {
+            Ok(PolicyPath::None)
+        } else {
+            let map_len: usize = map.len();
+            if map_len == 1 {
+                match map.into_values().next() {
+                    Some(Some(pp)) => Ok(PolicyPath::Single(pp)),
+                    _ => Ok(PolicyPath::None),
+                }
+            } else {
+                let map_by_pps: HashSet<Option<PolicyPathSelector>> =
+                    map.values().cloned().collect();
+                if map_by_pps.len() == 1 {
+                    match map_by_pps.into_iter().next() {
+                        Some(Some(pp)) => Ok(PolicyPath::Single(pp)),
+                        _ => Ok(PolicyPath::None),
+                    }
+                } else {
+                    Ok(PolicyPath::Multiple(map))
+                }
+            }
+        }
     }
 
     /// Check if [`Policy`] match any [`PolicyTemplateType`]

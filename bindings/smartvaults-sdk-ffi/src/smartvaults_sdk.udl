@@ -267,6 +267,13 @@ interface KeychainSeed {
     string? passphrase();
 };
 
+[Enum]
+interface PolicyPath {
+    Single(PolicyPathSelector pp);
+    Multiple(sequence<PolicyPathSigner> list);
+    None();
+};
+
 dictionary PolicyPathSigner {
     Signer signer;
     PolicyPathSelector? policy_path;
@@ -292,7 +299,7 @@ interface Policy {
     [Throws=FFIError]
     PolicyPathSelector? get_policy_path_from_signer(Signer signer, Network network);
     [Throws=FFIError]
-    sequence<PolicyPathSigner> get_policy_paths_from_signers(sequence<Signer> signers, Network network);
+    PolicyPath get_policy_paths_from_signers(sequence<Signer> signers, Network network);
     [Throws=FFIError]
     PolicyTemplateType? template_match(Network network);
 };

@@ -89,19 +89,14 @@ impl Policy {
         &self,
         signers: Vec<Arc<Signer>>,
         network: Network,
-    ) -> Result<Vec<PolicyPathSigner>> {
+    ) -> Result<PolicyPath> {
         Ok(self
             .inner
             .get_policy_paths_from_signers(
                 signers.into_iter().map(|s| s.as_ref().deref().clone()),
                 network.into(),
             )?
-            .into_iter()
-            .map(|(s, pp)| PolicyPathSigner {
-                signer: Arc::new(s.into()),
-                policy_path: pp.map(|pp| pp.into()),
-            })
-            .collect())
+            .into())
     }
 
     pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
@@ -135,6 +130,30 @@ impl GetPolicy {
 
     pub fn last_sync(&self) -> Option<Arc<Timestamp>> {
         self.inner.last_sync.map(|t| Arc::new(t.into()))
+    }
+}
+
+pub enum PolicyPath {
+    Single { pp: PolicyPathSelector },
+    Multiple { list: Vec<PolicyPathSigner> },
+    None,
+}
+
+impl From<policy::PolicyPath> for PolicyPath {
+    fn from(value: policy::PolicyPath) -> Self {
+        match value {
+            policy::PolicyPath::Single(pp) => Self::Single { pp: pp.into() },
+            policy::PolicyPath::Multiple(list) => Self::Multiple {
+                list: list
+                    .into_iter()
+                    .map(|(s, pp)| PolicyPathSigner {
+                        signer: Arc::new(s.into()),
+                        policy_path: pp.map(|pp| pp.into()),
+                    })
+                    .collect(),
+            },
+            policy::PolicyPath::None => Self::None,
+        }
     }
 }
 
