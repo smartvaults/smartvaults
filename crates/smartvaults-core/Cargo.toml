@@ -26,3 +26,6 @@ thiserror = { workspace = true }
 
 [[example]]
 name = "huge-multisig"
+
+[[example]]
+name = "templates"
