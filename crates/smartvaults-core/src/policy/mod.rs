@@ -256,16 +256,24 @@ impl Policy {
             prev_item: Option<SatisfiableItem>,
             path: &String,
         ) -> Option<SatisfiableItem> {
-            if let SatisfiableItem::Thresh { items, .. } = item {
-                if &item.id() == path {
-                    return prev_item;
-                }
-
-                for x in items.iter() {
-                    if let Some(i) = check(&x.item, Some(x.item.clone()), path) {
-                        return Some(i);
+            match item {
+                SatisfiableItem::SchnorrSignature(..) => {
+                    if &item.id() == path {
+                        return prev_item;
                     }
                 }
+                SatisfiableItem::Thresh { items, .. } => {
+                    if &item.id() == path {
+                        return prev_item;
+                    }
+
+                    for x in items.iter() {
+                        if let Some(i) = check(&x.item, Some(x.item.clone()), path) {
+                            return Some(i);
+                        }
+                    }
+                }
+                _ => (),
             }
 
             None
@@ -316,13 +324,22 @@ impl Policy {
                 } else if selectable_conditions.len() == map.len() {
                     Ok(Some(PolicyPathSelector::Complete { path: map }))
                 } else {
-                    Ok(Some(PolicyPathSelector::Partial {
-                        missing_to_select: selectable_conditions
-                            .into_iter()
-                            .filter(|(k, _)| !map.contains_key(k))
-                            .collect(),
-                        selected_path: map,
-                    }))
+                    let mut internal_key_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+                    if let Some((first_path, ..)) = selectable_conditions.first().cloned() {
+                        internal_key_path.insert(first_path, vec![0]);
+                    }
+
+                    if internal_key_path == map {
+                        Ok(Some(PolicyPathSelector::Complete { path: map }))
+                    } else {
+                        Ok(Some(PolicyPathSelector::Partial {
+                            missing_to_select: selectable_conditions
+                                .into_iter()
+                                .filter(|(k, _)| !map.contains_key(k))
+                                .collect(),
+                            selected_path: map,
+                        }))
+                    }
                 }
             }
             None => Ok(None),
@@ -655,6 +672,20 @@ mod test {
         // Common policy
         let desc = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
         let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+
+        // Internal key path
+        let mnemonic = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+        let policy_path: Option<PolicyPathSelector> = policy
+            .get_policy_path_from_signer(&signer, Network::Testnet)
+            .unwrap();
+        let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        path.insert(String::from("y46gds64"), vec![0]);
+        assert_eq!(policy_path, Some(PolicyPathSelector::Complete { path }));
 
         // Path
         let mnemonic = Mnemonic::from_str(
