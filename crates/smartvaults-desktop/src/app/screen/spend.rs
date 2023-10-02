@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 
-use iced::widget::{Column, Container, PickList, Row, Space};
+use iced::widget::{Checkbox, Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bdk::descriptor::policy::SatisfiableItem;
 use smartvaults_sdk::core::bitcoin::address::NetworkUnchecked;
@@ -55,6 +55,7 @@ pub enum SpendMessage {
         Option<Vec<(String, Vec<String>)>>,
     ),
     SelectedUtxosChanged(HashSet<OutPoint>),
+    SetSkipFrozenUtxos(bool),
     ToggleCondition(String, usize),
     ErrorChanged(Option<String>),
     SetInternalStage(InternalStage),
@@ -72,6 +73,7 @@ pub struct SpendState {
     fee_rate: FeeRate,
     utxos: Vec<GetUtxo>,
     selected_utxos: HashSet<OutPoint>,
+    skip_frozen_utxos: bool,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     satisfiable_item: Option<SatisfiableItem>,
     selectable_conditions: Option<Vec<(String, Vec<String>)>>,
@@ -93,6 +95,7 @@ impl SpendState {
             fee_rate: FeeRate::default(),
             utxos: Vec::new(),
             selected_utxos: HashSet::new(),
+            skip_frozen_utxos: false,
             policy_path: None,
             satisfiable_item: None,
             selectable_conditions: None,
@@ -117,6 +120,7 @@ impl SpendState {
         let fee_rate = self.fee_rate;
         let selected_utxos: Vec<OutPoint> = self.selected_utxos.iter().cloned().collect();
         let policy_path = self.policy_path.clone();
+        let skip_frozen_utxos: bool = self.skip_frozen_utxos;
 
         Command::perform(
             async move {
@@ -133,7 +137,7 @@ impl SpendState {
                             Some(selected_utxos)
                         },
                         policy_path,
-                        false,
+                        skip_frozen_utxos,
                     )
                     .await?;
                 Ok::<EventId, Box<dyn std::error::Error>>(proposal_id)
@@ -231,6 +235,7 @@ impl State for SpendState {
                     self.selectable_conditions = conditions;
                 }
                 SpendMessage::SelectedUtxosChanged(s) => self.selected_utxos = s,
+                SpendMessage::SetSkipFrozenUtxos(val) => self.skip_frozen_utxos = val,
                 SpendMessage::ToggleCondition(id, index) => match self.policy_path.as_mut() {
                     Some(policy_path) => match policy_path.get_mut(&id) {
                         Some(v) => {
@@ -539,11 +544,18 @@ impl SpendState {
     }
 
     fn view_utxos<'a>(&self) -> Column<'a, Message> {
-        Column::new().push(UtxoSelector::new(
-            self.utxos.clone(),
-            self.selected_utxos.clone(),
-            |s| SpendMessage::SelectedUtxosChanged(s).into(),
-        ))
+        Column::new()
+            .push(UtxoSelector::new(
+                self.utxos.clone(),
+                self.selected_utxos.clone(),
+                |s| SpendMessage::SelectedUtxosChanged(s).into(),
+            ))
+            .push(Checkbox::new(
+                "Skip frozen UTXOs",
+                self.skip_frozen_utxos,
+                |val| SpendMessage::SetSkipFrozenUtxos(val).into(),
+            ))
+            .spacing(10)
     }
 
     fn view_policy_tree<'a>(&self) -> Column<'a, Message> {
