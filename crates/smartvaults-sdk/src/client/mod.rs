@@ -1000,7 +1000,7 @@ impl SmartVaults {
         };
 
         let mut frozen_utxos: Option<Vec<OutPoint>> = None;
-        if skip_frozen_utxos {
+        if !skip_frozen_utxos {
             let mut list = Vec::new();
             let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id).await?;
             for local_utxo in self.manager.get_utxos(policy_id).await?.into_iter() {
