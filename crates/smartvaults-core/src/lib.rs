@@ -59,31 +59,73 @@ mod test {
 
     pub fn get_funded_wallet(descriptor: &str) -> Result<Wallet> {
         let mut wallet = Wallet::new_no_persist(descriptor, None, NETWORK)?;
-        let address = wallet.get_address(AddressIndex::New).address;
-
-        let tx = Transaction {
-            version: 1,
-            lock_time: absolute::LockTime::Blocks(Height::min_value()),
-            input: vec![],
-            output: vec![TxOut {
-                value: 50_000,
-                script_pubkey: address.script_pubkey(),
-            }],
-        };
 
         wallet
             .insert_checkpoint(BlockId {
-                height: 2_000,
+                height: 2_520_450,
                 hash: BlockHash::all_zeros(),
             })
             .unwrap();
 
+        let address = wallet.get_address(AddressIndex::New).address;
         wallet
             .insert_tx(
-                tx.clone(),
+                Transaction {
+                    version: 1,
+                    lock_time: absolute::LockTime::Blocks(
+                        Height::from_consensus(2_477_486).unwrap(),
+                    ),
+                    input: vec![],
+                    output: vec![TxOut {
+                        value: 371,
+                        script_pubkey: address.script_pubkey(),
+                    }],
+                },
                 ConfirmationTime::Confirmed {
-                    height: 1_000,
-                    time: 100,
+                    height: 2_477_484,
+                    time: 1694533020,
+                },
+            )
+            .unwrap();
+
+        let address = wallet.get_address(AddressIndex::New).address;
+        wallet
+            .insert_tx(
+                Transaction {
+                    version: 1,
+                    lock_time: absolute::LockTime::Blocks(
+                        Height::from_consensus(2_505_450).unwrap(),
+                    ),
+                    input: vec![],
+                    output: vec![TxOut {
+                        value: 3500,
+                        script_pubkey: address.script_pubkey(),
+                    }],
+                },
+                ConfirmationTime::Confirmed {
+                    height: 2_505_449,
+                    time: 1695832380,
+                },
+            )
+            .unwrap();
+
+        let address = wallet.get_address(AddressIndex::New).address;
+        wallet
+            .insert_tx(
+                Transaction {
+                    version: 1,
+                    lock_time: absolute::LockTime::Blocks(
+                        Height::from_consensus(2_520_272).unwrap(),
+                    ),
+                    input: vec![],
+                    output: vec![TxOut {
+                        value: 4149,
+                        script_pubkey: address.script_pubkey(),
+                    }],
+                },
+                ConfirmationTime::Confirmed {
+                    height: 2_520_271,
+                    time: 1696282140,
                 },
             )
             .unwrap();
@@ -213,5 +255,37 @@ mod test {
         assert_eq!(completed_proposal.get_type(), ProposalType::Spending);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_1_of_3_multisig() {
+        let network = Network::Testnet;
+
+        let mnemonic = Mnemonic::from_str(
+            "message scissors typical gravity patrol lunch about bacon person focus cry uncover",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+
+        let descriptor = "tr([5cb492a5/86'/1'/784923']tpubDD56LAR1MR7X5EeZYMpvivk2Lh3HMo4vdDNQ8jAv4oBjLPEddQwxaxNypvrHbMk2qTxAj44YLzqHrzwy5LDNmVyYZBesm6aShhmhYrA8veT/0/*,{pk([76fdbca2/86'/1'/784923']tpubDCDepsNyAPWySAgXx1Por6sHpSWzxsTB9XJp5erEN7NumgdZMhhmycJGMQ1cHZwx66KyZr6psjttDDQ7mV4uJGV2DvB9Mri1nTVmpquvTDR/0/*),pk([3b8ae29b/86'/1'/784923']tpubDDpkQsJQTpHi2bH5Cg7L1pThUxeEStcn9ZsQ53XHkW8Fs81h71XobqpwYf2Jb8ECmW1mUUJxQhZstmwFUg5wQ6EVzH5HmF3cpHcyxjvF1Ep/0/*)})#yxpuntg3";
+        let policy = Policy::from_descriptor("", "", descriptor, network).unwrap();
+
+        let mut wallet = get_funded_wallet(&descriptor).unwrap();
+        let proposal: Proposal = policy
+            .spend(
+                &mut wallet,
+                Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap(),
+                Amount::Custom(2000),
+                "Testing",
+                FeeRate::from_sat_per_vb(1.0),
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+
+        let approved_a: ApprovedProposal = proposal.approve(&seed, Vec::new(), network).unwrap();
+
+        proposal.finalize(vec![approved_a], network).unwrap();
     }
 }
