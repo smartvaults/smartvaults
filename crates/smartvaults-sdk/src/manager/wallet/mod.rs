@@ -7,11 +7,11 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use bdk_electrum::bdk_chain::local_chain::{CannotConnectError, CheckPoint};
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
-use bdk_electrum::ElectrumExt;
+use bdk_electrum::{ElectrumExt, ElectrumUpdate};
+use smartvaults_core::bdk::chain::local_chain::{CannotConnectError, CheckPoint};
 use smartvaults_core::bdk::chain::{ConfirmationTime, ConfirmationTimeAnchor, TxGraph};
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
 use smartvaults_core::bdk::{FeeRate, KeychainKind, LocalUtxo, Wallet};
@@ -253,10 +253,22 @@ impl SmartVaultsWallet {
             let config: ElectrumConfig = ElectrumConfig::builder().socks5(proxy).build();
             let client: ElectrumClient = ElectrumClient::from_config(&endpoint, config)?;
 
-            let electrum_update =
-                client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
-            let missing: Vec<Txid> = electrum_update.missing_full_txs(&graph);
-            let update = electrum_update.finalize_as_confirmation_time(&client, None, missing)?;
+            let (
+                ElectrumUpdate {
+                    chain_update,
+                    relevant_txids,
+                },
+                keychain_update,
+            ) = client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
+            let missing: Vec<Txid> = relevant_txids.missing_full_txs(&graph);
+            let graph_update =
+                relevant_txids.into_confirmation_time_tx_graph(&client, None, missing)?;
+
+            let update = Update {
+                last_active_indices: keychain_update,
+                graph: graph_update,
+                chain: Some(chain_update),
+            };
 
             self.apply_update(update).await?;
 

@@ -28,7 +28,7 @@ tracing = "0.1"
 tokio = { version = "1", default-features = false }
 
 [patch.crates-io]
-electrum-client = { git = "https://github.com/yukibtc/rust-electrum-client", rev = "ee2e522cb808ed17a8ded9811323dc480459c4ed" }
+electrum-client = { git = "https://github.com/yukibtc/rust-electrum-client", rev = "a331ae80591065fb331c1c1599ff85078b5154a4" }
 
 [profile.release]
 opt-level = 3

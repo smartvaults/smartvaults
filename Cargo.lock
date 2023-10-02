@@ -377,7 +377,7 @@ dependencies = [
 [[package]]
 name = "bdk"
 version = "1.0.0-alpha.1"
-source = "git+https://github.com/bitcoindevkit/bdk?rev=2867e88b64b4a8cf7136cc562ec61c077737a087#2867e88b64b4a8cf7136cc562ec61c077737a087"
+source = "git+https://github.com/bitcoindevkit/bdk?rev=417963f16882945423b8a8b6b33a507f8d4888a3#417963f16882945423b8a8b6b33a507f8d4888a3"
 dependencies = [
  "bdk_chain",
  "bitcoin",
@@ -393,7 +393,7 @@ dependencies = [
 [[package]]
 name = "bdk_chain"
 version = "0.5.0"
-source = "git+https://github.com/bitcoindevkit/bdk?rev=2867e88b64b4a8cf7136cc562ec61c077737a087#2867e88b64b4a8cf7136cc562ec61c077737a087"
+source = "git+https://github.com/bitcoindevkit/bdk?rev=417963f16882945423b8a8b6b33a507f8d4888a3#417963f16882945423b8a8b6b33a507f8d4888a3"
 dependencies = [
  "bitcoin",
  "miniscript",
@@ -403,7 +403,7 @@ dependencies = [
 [[package]]
 name = "bdk_electrum"
 version = "0.3.0"
-source = "git+https://github.com/bitcoindevkit/bdk?rev=2867e88b64b4a8cf7136cc562ec61c077737a087#2867e88b64b4a8cf7136cc562ec61c077737a087"
+source = "git+https://github.com/bitcoindevkit/bdk?rev=417963f16882945423b8a8b6b33a507f8d4888a3#417963f16882945423b8a8b6b33a507f8d4888a3"
 dependencies = [
  "bdk_chain",
  "electrum-client",
@@ -1228,8 +1228,8 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "electrum-client"
-version = "0.17.0"
-source = "git+https://github.com/yukibtc/rust-electrum-client?rev=ee2e522cb808ed17a8ded9811323dc480459c4ed#ee2e522cb808ed17a8ded9811323dc480459c4ed"
+version = "0.18.0"
+source = "git+https://github.com/yukibtc/rust-electrum-client?rev=a331ae80591065fb331c1c1599ff85078b5154a4#a331ae80591065fb331c1c1599ff85078b5154a4"
 dependencies = [
  "bitcoin",
  "bitcoin-private",
@@ -2292,7 +2292,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=09a1ef1584b65506f0670a9bea7d5559de47764f#09a1ef1584b65506f0670a9bea7d5559de47764f"
+source = "git+https://github.com/yukibtc/keechain?rev=008ae8da7d311b05a3a1df12566e1e9e80945d67#008ae8da7d311b05a3a1df12566e1e9e80945d67"
 dependencies = [
  "aes",
  "bdk",

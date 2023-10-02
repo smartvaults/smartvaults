@@ -8,7 +8,6 @@ use std::ops::Add;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use bdk_electrum::bdk_chain::ConfirmationTime;
 use bdk_electrum::electrum_client::ElectrumApi;
 use bdk_electrum::electrum_client::{
     self, Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
@@ -16,6 +15,7 @@ use bdk_electrum::electrum_client::{
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
 use nostr_sdk::{EventId, Timestamp};
+use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
 use smartvaults_core::bdk::{FeeRate, LocalUtxo, Wallet};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
