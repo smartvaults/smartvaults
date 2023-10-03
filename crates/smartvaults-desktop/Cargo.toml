@@ -21,10 +21,10 @@ iced = { git = "https://github.com/yukibtc/iced", rev = "c7a9f1024a8858d8581dfba
 iced_futures = { git = "https://github.com/yukibtc/iced", rev = "c7a9f1024a8858d8581dfba144ca3a52a34de032" }
 iced_runtime = { git = "https://github.com/yukibtc/iced", rev = "c7a9f1024a8858d8581dfba144ca3a52a34de032" }
 lyon_algorithms = "1.0"
-once_cell = { workspace = true }
+once_cell.workspace = true
 rfd = "0.12"
 tokio = { workspace = true, features = ["rt-multi-thread"] }
-tracing = { workspace = true }
+tracing.workspace = true
 webbrowser = "0.8"
 
 [package.metadata.deb]

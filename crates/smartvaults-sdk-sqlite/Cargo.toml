@@ -11,11 +11,11 @@ readme = "README.md"
 keywords.workspace = true
 
 [dependencies]
-chacha20poly1305 = "0.10"
+chacha20poly1305.workspace = true
 smartvaults-core = { path = "../smartvaults-core" }
 smartvaults-protocol = { path = "../smartvaults-protocol" }
 deadpool-sqlite = "0.7"
 rusqlite = { version = "0.30", features = ["bundled", "serde_json"] }
-thiserror = { workspace = true }
+thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
-tracing = { workspace = true }
+tracing.workspace = true

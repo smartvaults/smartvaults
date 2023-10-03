@@ -14,6 +14,7 @@ keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
 async-utility = "0.2"
+chacha20poly1305 = { version = "0.10", features = ["std"] }
 bdk = { git = "https://github.com/bitcoindevkit/bdk", rev = "50c549b5aca3c58bcffce359f4937a8c3eb57a35", default-features = false }
 bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "50c549b5aca3c58bcffce359f4937a8c3eb57a35" }
 nostr = { git = "https://github.com/rust-nostr/nostr", rev = "5cbfd8a4947f8980516bfc40f5327edbe57ca99d", default-features = false }
