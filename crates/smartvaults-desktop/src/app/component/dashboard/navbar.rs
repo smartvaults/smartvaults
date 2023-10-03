@@ -3,14 +3,11 @@
 
 use iced::widget::Row;
 use iced::{Alignment, Length};
-use smartvaults_sdk::core::bips::bip32::Bip32;
-use smartvaults_sdk::core::SECP256K1;
 use smartvaults_sdk::util::format;
 
 use crate::app::component::breadcrumb::Breadcrumb;
 use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Button, ButtonStyle, Icon, Text};
-use crate::theme::color::DARK_RED;
 use crate::theme::icon::{BOX, EYE, EYE_SLASH, FINGERPRINT, PERSON_CIRCLE};
 
 #[derive(Clone, Default)]
@@ -22,17 +19,6 @@ impl Navbar {
     }
 
     pub fn view<'a>(&self, ctx: &Context) -> Row<'a, Message> {
-        // Identity
-        let fingerprint = match ctx
-            .client
-            .keychain()
-            .seed
-            .fingerprint(ctx.client.network(), &SECP256K1)
-        {
-            Ok(fingerprint) => Text::new(fingerprint.to_string()),
-            Err(_) => Text::new("error").color(DARK_RED),
-        };
-
         Row::new()
             .push(
                 Row::new()
@@ -64,7 +50,7 @@ impl Navbar {
             .push(
                 Row::new()
                     .push(Icon::new(FINGERPRINT))
-                    .push(fingerprint.view())
+                    .push(Text::new(ctx.client.fingerprint().to_string()).view())
                     .align_items(Alignment::Center)
                     .padding(10)
                     .spacing(10),

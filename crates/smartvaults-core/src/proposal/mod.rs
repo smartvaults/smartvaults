@@ -14,7 +14,7 @@ use keechain_core::bitcoin::Address;
 use keechain_core::bitcoin::{Network, PrivateKey};
 use keechain_core::miniscript::psbt::PsbtExt;
 use keechain_core::miniscript::Descriptor;
-use keechain_core::types::psbt::{Error as KPsbtError, Psbt};
+use keechain_core::psbt::{Error as KPsbtError, PsbtUtility};
 use keechain_core::types::Seed;
 use serde::{Deserialize, Serialize};
 
@@ -170,34 +170,14 @@ impl Proposal {
         custom_signers: Vec<SignerWrapper<PrivateKey>>,
         network: Network,
     ) -> Result<ApprovedProposal, Error> {
-        // Sign the transaction
-        // Try with `internal_key` set to `false
-        let psbt = {
-            let mut psbt: PartiallySignedTransaction = self.psbt();
-            match psbt.sign_custom(
-                seed,
-                Some(self.descriptor()),
-                custom_signers.clone(),
-                false,
-                network,
-                &SECP256K1,
-            ) {
-                Ok(_) => psbt,
-                Err(KPsbtError::PsbtNotSigned) => {
-                    let mut psbt = self.psbt();
-                    psbt.sign_custom(
-                        seed,
-                        Some(self.descriptor()),
-                        custom_signers,
-                        true,
-                        network,
-                        &SECP256K1,
-                    )?;
-                    psbt
-                }
-                Err(e) => return Err(Error::KPsbt(e)),
-            }
-        };
+        let mut psbt: PartiallySignedTransaction = self.psbt();
+        psbt.sign_custom(
+            seed,
+            Some(self.descriptor()),
+            custom_signers.clone(),
+            network,
+            &SECP256K1,
+        )?;
 
         match self {
             Proposal::Spending { .. } => Ok(ApprovedProposal::spending(psbt)),

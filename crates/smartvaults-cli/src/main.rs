@@ -66,16 +66,16 @@ async fn run() -> Result<()> {
             let password_from_env: Option<String> = io::get_password_from_env();
             let confirm_password_from_env: Option<String> = password_from_env.clone();
 
+            let password = if let Some(password) = password_from_env {
+                password
+            } else {
+                io::get_password()?
+            };
+
             let client = SmartVaults::generate(
                 base_path,
                 name,
-                || {
-                    if let Some(password) = password_from_env {
-                        Ok(password)
-                    } else {
-                        io::get_password()
-                    }
-                },
+                || Ok(password.clone()),
                 || {
                     if let Some(password) = confirm_password_from_env {
                         Ok(password)
@@ -96,7 +96,7 @@ async fn run() -> Result<()> {
                 network,
             )
             .await?;
-            let keychain: Keychain = client.keychain();
+            let keychain: Keychain = client.keychain(password)?;
 
             println!("\n!!! WRITE DOWN YOUR MNEMONIC !!!");
             println!("\n################################################################\n");
@@ -125,7 +125,8 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::Open { name } => {
-            let client = SmartVaults::open(base_path, name, io::get_password, network).await?;
+            let password: String = io::get_password()?;
+            let client = SmartVaults::open(base_path, name, password, network).await?;
 
             let rl = &mut DefaultEditor::new()?;
 
@@ -165,7 +166,8 @@ async fn run() -> Result<()> {
             Ok(())
         }
         CliCommand::Batch { name, path } => {
-            let client = SmartVaults::open(base_path, name, io::get_password, network).await?;
+            let password: String = io::get_password()?;
+            let client = SmartVaults::open(base_path, name, password, network).await?;
 
             let file = File::open(path)?;
             let reader = BufReader::new(file);
@@ -257,7 +259,8 @@ async fn run() -> Result<()> {
 async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
     match command {
         Command::Inspect => {
-            let keychain = client.keychain();
+            let password: String = io::get_password()?;
+            let keychain = client.keychain(password)?;
             util::print_secrets(keychain, client.network())
         }
         Command::Spend {
@@ -304,7 +307,8 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
             Ok(())
         }
         Command::Approve { proposal_id } => {
-            let (event_id, _) = client.approve(proposal_id).await?;
+            let password: String = io::get_password()?;
+            let (event_id, _) = client.approve(password, proposal_id).await?;
             println!("Proposal {proposal_id} approved: {event_id}");
             Ok(())
         }

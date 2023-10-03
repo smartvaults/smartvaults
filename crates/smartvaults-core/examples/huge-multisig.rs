@@ -4,9 +4,8 @@
 use bdk::descriptor::policy::SatisfiableItem;
 use bdk::wallet::AddressIndex;
 use bdk::Wallet;
-use keechain_core::types::descriptors::ToDescriptor;
-use keechain_core::types::Purpose;
-use keechain_core::{Seed, WordCount};
+use keechain_core::descriptors::ToDescriptor;
+use keechain_core::{Purpose, Seed, WordCount};
 use smartvaults_core::bips::bip39::{self, Mnemonic};
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::DescriptorPublicKey;

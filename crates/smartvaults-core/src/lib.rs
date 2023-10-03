@@ -41,10 +41,9 @@ mod test {
     use keechain_core::bitcoin::absolute::Height;
     use keechain_core::bitcoin::hashes::Hash;
     use keechain_core::bitcoin::{absolute, Address, BlockHash, Network, Transaction, TxOut};
+    use keechain_core::descriptors::ToDescriptor;
     use keechain_core::miniscript::DescriptorPublicKey;
-    use keechain_core::types::descriptors::ToDescriptor;
-    use keechain_core::types::{Purpose, Seed};
-    use keechain_core::Result;
+    use keechain_core::{Purpose, Result, Seed};
 
     use crate::constants::SMARTVAULTS_ACCOUNT_INDEX;
     use crate::proposal::ProposalType;

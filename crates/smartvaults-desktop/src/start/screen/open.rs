@@ -64,13 +64,8 @@ impl State for OpenState {
                         let password = self.password.clone();
                         return Command::perform(
                             async move {
-                                SmartVaults::open(
-                                    BASE_PATH.as_path(),
-                                    name,
-                                    || Ok(password),
-                                    network,
-                                )
-                                .await
+                                SmartVaults::open(BASE_PATH.as_path(), name, password, network)
+                                    .await
                             },
                             move |res| match res {
                                 Ok(keechain) => Message::OpenResult(keechain),

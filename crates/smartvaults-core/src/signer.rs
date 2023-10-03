@@ -5,10 +5,10 @@ use std::fmt;
 
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
 use keechain_core::bitcoin::Network;
+use keechain_core::descriptors::{self, ToDescriptor};
 use keechain_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
 use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
-use keechain_core::types::descriptors::ToDescriptor;
-use keechain_core::types::{descriptors, Purpose, Seed};
+use keechain_core::{Purpose, Seed};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

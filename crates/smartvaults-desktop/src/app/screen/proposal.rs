@@ -7,8 +7,7 @@ use iced_aw::{Card, Modal};
 use rfd::FileDialog;
 use smartvaults_sdk::core::proposal::Proposal;
 use smartvaults_sdk::core::signer::{Signer, SignerType};
-use smartvaults_sdk::core::types::Psbt;
-use smartvaults_sdk::core::CompletedProposal;
+use smartvaults_sdk::core::{CompletedProposal, PsbtUtility};
 use smartvaults_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
 use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::{GetApproval, GetProposal};
@@ -16,7 +15,7 @@ use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, Text};
+use crate::component::{rule, Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
@@ -24,26 +23,34 @@ use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 pub enum ProposalMessage {
     LoadProposal(Proposal, bool, EventId, Vec<GetApproval>, Option<Signer>),
     Approve,
+    ApproveWithSeed(String),
     Finalize,
     Signed(bool),
     Reload,
     ExportPsbt,
     RevokeApproval(EventId),
-    AskDeleteConfirmation,
+    SetModal(Option<ModalType>),
+    PasswordChanged(String),
     Delete,
     ErrorChanged(Option<String>),
-    CloseModal,
+}
+
+#[derive(Debug, Clone)]
+pub enum ModalType {
+    Approve,
+    Delete,
 }
 
 #[derive(Debug)]
 pub struct ProposalState {
     loading: bool,
     loaded: bool,
-    show_modal: bool,
+    modal: Option<ModalType>,
     signed: bool,
     proposal_id: EventId,
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
+    password: String,
     approved_proposals: Vec<GetApproval>,
     signer: Option<Signer>,
     error: Option<String>,
@@ -54,11 +61,12 @@ impl ProposalState {
         Self {
             loading: false,
             loaded: false,
-            show_modal: false,
+            modal: None,
             signed: false,
             proposal_id,
             proposal: None,
             policy_id: None,
+            password: String::new(),
             approved_proposals: Vec::new(),
             signer: None,
             error: None,
@@ -129,40 +137,72 @@ impl State for ProposalState {
                     self.error = error;
                 }
                 ProposalMessage::Approve => {
+                    self.error = None;
+                    let signer = self.signer.clone();
+                    match signer {
+                        Some(signer) => match signer.signer_type() {
+                            SignerType::Seed => {
+                                return Command::perform(async {}, |_| {
+                                    ProposalMessage::SetModal(Some(ModalType::Approve)).into()
+                                });
+                            }
+                            SignerType::Hardware | SignerType::AirGap => {
+                                self.loading = true;
+                                let client = ctx.client.clone();
+                                let proposal_id = self.proposal_id;
+                                return Command::perform(
+                                    async move {
+                                        match signer.signer_type() {
+                                            SignerType::Hardware => {
+                                                //client.approve_with_hwi_signer(proposal_id, signer).await?;
+                                            }
+                                            SignerType::AirGap => {
+                                                let path = FileDialog::new()
+                                                    .set_title("Select signed PSBT")
+                                                    .pick_file();
+
+                                                if let Some(path) = path {
+                                                    let signed_psbt =
+                                                        PartiallySignedTransaction::from_file(
+                                                            path,
+                                                        )?;
+                                                    client
+                                                        .approve_with_signed_psbt(
+                                                            proposal_id,
+                                                            signed_psbt,
+                                                        )
+                                                        .await?;
+                                                }
+                                            }
+                                            _ => (),
+                                        }
+                                        Ok::<(), Box<dyn std::error::Error>>(())
+                                    },
+                                    |res| match res {
+                                        Ok(_) => ProposalMessage::Reload.into(),
+                                        Err(e) => {
+                                            ProposalMessage::ErrorChanged(Some(e.to_string()))
+                                                .into()
+                                        }
+                                    },
+                                );
+                            }
+                        },
+                        None => {
+                            return Command::perform(async {}, |_| {
+                                ProposalMessage::SetModal(Some(ModalType::Approve)).into()
+                            });
+                        }
+                    };
+                }
+                ProposalMessage::ApproveWithSeed(password) => {
+                    self.modal = None;
+                    self.password.clear();
                     self.loading = true;
                     let client = ctx.client.clone();
                     let proposal_id = self.proposal_id;
-                    let signer = self.signer.clone();
                     return Command::perform(
-                        async move {
-                            match signer {
-                                Some(signer) => match signer.signer_type() {
-                                    SignerType::Seed => {
-                                        client.approve(proposal_id).await?;
-                                    }
-                                    SignerType::Hardware => {
-                                        //client.approve_with_hwi_signer(proposal_id, signer).await?;
-                                    }
-                                    SignerType::AirGap => {
-                                        let path = FileDialog::new()
-                                            .set_title("Select signed PSBT")
-                                            .pick_file();
-
-                                        if let Some(path) = path {
-                                            let signed_psbt =
-                                                PartiallySignedTransaction::from_file(path)?;
-                                            client
-                                                .approve_with_signed_psbt(proposal_id, signed_psbt)
-                                                .await?;
-                                        }
-                                    }
-                                },
-                                None => {
-                                    client.approve(proposal_id).await?;
-                                }
-                            };
-                            Ok::<(), Box<dyn std::error::Error>>(())
-                        },
+                        async move { client.approve(password, proposal_id).await },
                         |res| match res {
                             Ok(_) => ProposalMessage::Reload.into(),
                             Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
@@ -234,7 +274,11 @@ impl State for ProposalState {
                         },
                     );
                 }
-                ProposalMessage::AskDeleteConfirmation => self.show_modal = true,
+                ProposalMessage::SetModal(modal) => {
+                    self.modal = modal;
+                    self.password.clear();
+                }
+                ProposalMessage::PasswordChanged(password) => self.password = password,
                 ProposalMessage::Delete => {
                     self.loading = true;
                     let client = ctx.client.clone();
@@ -247,7 +291,6 @@ impl State for ProposalState {
                         },
                     );
                 }
-                ProposalMessage::CloseModal => self.show_modal = false,
             }
         }
 
@@ -399,7 +442,7 @@ impl State for ProposalState {
                         .style(ButtonStyle::Danger)
                         .icon(TRASH)
                         .text("Delete")
-                        .on_press(ProposalMessage::AskDeleteConfirmation.into())
+                        .on_press(ProposalMessage::SetModal(Some(ModalType::Delete)).into())
                         .loading(self.loading)
                         .view();
 
@@ -502,39 +545,83 @@ impl State for ProposalState {
             .view(ctx, content, false, false);
 
         Modal::new(
-            self.show_modal,
+            self.modal.is_some(),
             dashboard,
-            Card::new(
-                Text::new("Delete proposal").view(),
-                Text::new("Do you want really delete this proposal?").view(),
-            )
-            .foot(
-                Row::new()
-                    .spacing(10)
-                    .padding(5)
-                    .width(Length::Fill)
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::BorderedDanger)
-                            .text("Confirm")
-                            .width(Length::Fill)
-                            .on_press(ProposalMessage::Delete.into())
-                            .loading(self.loading)
-                            .view(),
-                    )
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::Bordered)
-                            .text("Close")
-                            .width(Length::Fill)
-                            .on_press(ProposalMessage::CloseModal.into())
-                            .view(),
-                    ),
-            )
+            match self.modal {
+                Some(ModalType::Approve) => Card::new(
+                    Text::new("Approve proposal").view(),
+                    Text::new("Do you want really want approve this proposal?").view(),
+                )
+                .foot(
+                    Column::new()
+                        .width(Length::Fill)
+                        .spacing(10)
+                        .padding(5)
+                        .push(
+                            TextInput::new("Password", &self.password)
+                                .password()
+                                .placeholder("Password")
+                                .on_input(|p| ProposalMessage::PasswordChanged(p).into())
+                                .view(),
+                        )
+                        .push(
+                            Row::new()
+                                .spacing(10)
+                                .width(Length::Fill)
+                                .push(
+                                    Button::new()
+                                        .text("Approve")
+                                        .width(Length::Fill)
+                                        .on_press(
+                                            ProposalMessage::ApproveWithSeed(self.password.clone())
+                                                .into(),
+                                        )
+                                        .loading(self.loading)
+                                        .view(),
+                                )
+                                .push(
+                                    Button::new()
+                                        .style(ButtonStyle::Bordered)
+                                        .text("Close")
+                                        .width(Length::Fill)
+                                        .on_press(ProposalMessage::SetModal(None).into())
+                                        .view(),
+                                ),
+                        ),
+                ),
+                Some(ModalType::Delete) => Card::new(
+                    Text::new("Delete proposal").view(),
+                    Text::new("Do you want really delete this proposal?").view(),
+                )
+                .foot(
+                    Row::new()
+                        .spacing(10)
+                        .padding(5)
+                        .width(Length::Fill)
+                        .push(
+                            Button::new()
+                                .style(ButtonStyle::BorderedDanger)
+                                .text("Confirm")
+                                .width(Length::Fill)
+                                .on_press(ProposalMessage::Delete.into())
+                                .loading(self.loading)
+                                .view(),
+                        )
+                        .push(
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .text("Close")
+                                .width(Length::Fill)
+                                .on_press(ProposalMessage::SetModal(None).into())
+                                .view(),
+                        ),
+                ),
+                None => Card::new("", ""),
+            }
             .max_width(300.0),
         )
-        .on_esc(ProposalMessage::CloseModal.into())
-        .backdrop(ProposalMessage::CloseModal.into())
+        .on_esc(ProposalMessage::SetModal(None).into())
+        .backdrop(ProposalMessage::SetModal(None).into())
         .into()
     }
 }

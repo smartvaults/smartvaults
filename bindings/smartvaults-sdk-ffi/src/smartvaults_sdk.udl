@@ -476,7 +476,6 @@ interface SmartVaults {
     constructor(string base_path, string name, string password, string confirm_password, string mnemonic, string? passphrase, Network network);
 
     string? name();
-    [Throws=FFIError]
     boolean check_password(string password);
     [Throws=FFIError]
     void rename(string new_name);
@@ -490,7 +489,8 @@ interface SmartVaults {
     [Throws=FFIError]
     void clear_cache();
 
-    KeychainSeed seed();
+    [Throws=FFIError]
+    KeychainSeed seed(string password);
     Keys keys();
 
     Network network();
@@ -557,7 +557,7 @@ interface SmartVaults {
     [Throws=FFIError]
     GetProposal self_transfer(EventId from_policy_id, EventId to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path, boolean skip_frozen_utxos);   
     [Throws=FFIError]
-    EventId approve(EventId proposal_id);
+    EventId approve(string password, EventId proposal_id);
     [Throws=FFIError]
     EventId approve_with_signed_psbt(EventId proposal_id, string signed_psbt);
     [Throws=FFIError]

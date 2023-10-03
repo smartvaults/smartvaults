@@ -2292,7 +2292,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=008ae8da7d311b05a3a1df12566e1e9e80945d67#008ae8da7d311b05a3a1df12566e1e9e80945d67"
+source = "git+https://github.com/yukibtc/keechain?rev=8eb96162499e6b03b18214ab98257298e6c21efc#8eb96162499e6b03b18214ab98257298e6c21efc"
 dependencies = [
  "aes",
  "bdk",
@@ -4070,6 +4070,7 @@ dependencies = [
  "futures-util",
  "nostr-sdk",
  "paranoid-android",
+ "parking_lot 0.12.1",
  "serde",
  "serde_json",
  "smartvaults-core",

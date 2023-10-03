@@ -17,20 +17,24 @@ use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
     Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
+use parking_lot::RwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::signer::{SignerContext, SignerWrapper};
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
 use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
+use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::hashes::sha256::Hash as Sha256Hash;
 use smartvaults_core::bitcoin::hashes::Hash;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, PrivateKey, ScriptBuf, Txid};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
+use smartvaults_core::signer::smartvaults_signer;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
 use smartvaults_core::{
-    Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, PolicyTemplate, Proposal,
+    Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, PolicyTemplate, Proposal, Signer,
+    SECP256K1,
 };
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
@@ -159,27 +163,31 @@ pub enum Error {
 #[derive(Debug, Clone)]
 pub struct SmartVaults {
     network: Network,
-    keechain: KeeChain,
+    keechain: Arc<RwLock<KeeChain>>,
     client: Client,
     manager: Manager,
     config: Config,
     db: Store,
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Message>,
+    default_signer: Signer,
 }
 
 impl SmartVaults {
-    async fn new<P>(base_path: P, keechain: KeeChain, network: Network) -> Result<Self, Error>
+    async fn new<P>(
+        base_path: P,
+        password: String,
+        keechain: KeeChain,
+        network: Network,
+    ) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
         let base_path = base_path.as_ref();
 
         // Get nostr keys
-        let keys = Keys::from_mnemonic(
-            keechain.keychain.seed.mnemonic().to_string(),
-            keechain.keychain.seed.passphrase(),
-        )?;
+        let seed = keechain.seed(password)?;
+        let keys = Keys::from_mnemonic(seed.mnemonic().to_string(), seed.passphrase())?;
 
         // Open db
         let db = Store::open(
@@ -200,13 +208,14 @@ impl SmartVaults {
 
         let this = Self {
             network,
-            keechain,
+            keechain: Arc::new(RwLock::new(keechain)),
             client: Client::with_opts(&keys, opts),
             manager: Manager::new(db.clone(), network),
             config: Config::try_from_file(base_path, network)?,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
+            default_signer: smartvaults_signer(seed, network)?,
         };
 
         this.init().await?;
@@ -215,26 +224,32 @@ impl SmartVaults {
     }
 
     /// Open keychain
-    pub async fn open<P, S, PSW>(
+    pub async fn open<P, S>(
         base_path: P,
         name: S,
-        get_password: PSW,
+        password: S,
         network: Network,
     ) -> Result<Self, Error>
     where
         P: AsRef<Path>,
         S: Into<String>,
-        PSW: FnOnce() -> Result<String>,
     {
         let base_path = base_path.as_ref();
+        let password: String = password.into();
 
         // Open keychain
         let keychains_path: PathBuf = util::dir::keychains_path(base_path, network)?;
-        let mut keechain: KeeChain = KeeChain::open(keychains_path, name, get_password)?;
-        let passphrase: Option<String> = keechain.keychain.get_passphrase(0);
-        keechain.keychain.apply_passphrase(passphrase);
+        let mut keechain: KeeChain = KeeChain::open(
+            keychains_path,
+            name,
+            || Ok(password.clone()),
+            network,
+            &SECP256K1,
+        )?;
+        let passphrase: Option<String> = keechain.keychain(&password)?.get_passphrase(0);
+        keechain.apply_passphrase(&password, passphrase, &SECP256K1)?;
 
-        Self::new(base_path, keechain, network).await
+        Self::new(base_path, password, keechain, network).await
     }
 
     /// Generate keychain
@@ -267,16 +282,18 @@ impl SmartVaults {
             get_confirm_password,
             word_count,
             || Ok(None),
+            network,
+            &SECP256K1,
         )?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
-            keechain.keychain.add_passphrase(&passphrase);
-            keechain.save(password)?;
-            keechain.keychain.apply_passphrase(Some(passphrase));
+            keechain.add_passphrase(&password, &passphrase)?;
+            keechain.save()?;
+            keechain.apply_passphrase(&password, Some(passphrase), &SECP256K1)?;
         }
 
-        Self::new(base_path, keechain, network).await
+        Self::new(base_path, password, keechain, network).await
     }
 
     /// Restore keychain
@@ -309,16 +326,18 @@ impl SmartVaults {
             || Ok(password.clone()),
             get_confirm_password,
             get_mnemonic,
+            network,
+            &SECP256K1,
         )?;
         let passphrase: Option<String> =
             get_passphrase().map_err(|e| Error::Generic(e.to_string()))?;
         if let Some(passphrase) = passphrase {
-            keechain.keychain.add_passphrase(&passphrase);
-            keechain.save(password)?;
-            keechain.keychain.apply_passphrase(Some(passphrase));
+            keechain.add_passphrase(&password, &passphrase)?;
+            keechain.save()?;
+            keechain.apply_passphrase(&password, Some(passphrase), &SECP256K1)?;
         }
 
-        Self::new(base_path, keechain, network).await
+        Self::new(base_path, password, keechain, network).await
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -345,15 +364,15 @@ impl SmartVaults {
 
     /// Get keychain name
     pub fn name(&self) -> Option<String> {
-        self.keechain.name()
+        self.keechain.read().name()
     }
 
     /// Check keychain password
-    pub fn check_password<S>(&self, password: S) -> Result<bool, Error>
+    pub fn check_password<T>(&self, password: T) -> bool
     where
-        S: Into<String>,
+        T: AsRef<[u8]>,
     {
-        Ok(self.keechain.check_password(password)?)
+        self.keechain.read().check_password(password)
     }
 
     /// Rename keychain file
@@ -361,7 +380,8 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        Ok(self.keechain.rename(new_name)?)
+        let mut keechain = self.keechain.write();
+        Ok(keechain.rename(new_name)?)
     }
 
     /// Change keychain password
@@ -376,7 +396,8 @@ impl SmartVaults {
         NPSW: FnOnce() -> Result<String>,
         NCPSW: FnOnce() -> Result<String>,
     {
-        Ok(self.keechain.change_password(
+        let mut keechain = self.keechain.write();
+        Ok(keechain.change_password(
             get_old_password,
             get_new_password,
             get_new_confirm_password,
@@ -384,12 +405,12 @@ impl SmartVaults {
     }
 
     /// Permanent delete the keychain
-    pub fn wipe<S>(&self, password: S) -> Result<(), Error>
+    pub fn wipe<T>(&self, password: T) -> Result<(), Error>
     where
-        S: Into<String>,
+        T: AsRef<[u8]>,
     {
-        if self.check_password(password)? {
-            Ok(self.keechain.wipe()?)
+        if self.check_password(password) {
+            Ok(self.keechain.read().wipe()?)
         } else {
             Err(Error::PasswordNotMatch)
         }
@@ -422,12 +443,19 @@ impl SmartVaults {
         Ok(())
     }
 
-    pub fn keychain(&self) -> Keychain {
-        self.keechain.keychain.clone()
+    pub fn keychain<T>(&self, password: T) -> Result<Keychain, Error>
+    where
+        T: AsRef<[u8]>,
+    {
+        Ok(self.keechain.read().keychain(password)?)
     }
 
     pub fn keys(&self) -> Keys {
         self.client.keys()
+    }
+
+    pub fn fingerprint(&self) -> Fingerprint {
+        self.keechain.read().fingerprint()
     }
 
     pub fn network(&self) -> Network {
@@ -1114,10 +1142,14 @@ impl SmartVaults {
         )
     }
 
-    pub async fn approve(
+    pub async fn approve<T>(
         &self,
+        password: T,
         proposal_id: EventId,
-    ) -> Result<(EventId, ApprovedProposal), Error> {
+    ) -> Result<(EventId, ApprovedProposal), Error>
+    where
+        T: AsRef<[u8]>,
+    {
         // Get proposal and policy
         let GetProposal {
             policy_id,
@@ -1135,7 +1167,7 @@ impl SmartVaults {
                 is_internal_key: self.is_internal_key(policy.descriptor.to_string())?,
             },
         );
-        let seed: Seed = self.keechain.keychain.seed();
+        let seed: Seed = self.keechain.read().seed(password)?;
         let approved_proposal = proposal.approve(&seed, vec![signer], self.network)?;
 
         // Get shared keys

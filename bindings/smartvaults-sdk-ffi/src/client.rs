@@ -62,8 +62,7 @@ impl SmartVaults {
     ) -> Result<Self> {
         block_on(async move {
             Ok(Self {
-                inner: client::SmartVaults::open(base_path, name, || Ok(password), network.into())
-                    .await?,
+                inner: client::SmartVaults::open(base_path, name, password, network.into()).await?,
                 dropped: AtomicBool::new(false),
             })
         })
@@ -130,8 +129,8 @@ impl SmartVaults {
     }
 
     /// Check keychain password
-    pub fn check_password(&self, password: String) -> Result<bool> {
-        Ok(self.inner.check_password(password)?)
+    pub fn check_password(&self, password: String) -> bool {
+        self.inner.check_password(password)
     }
 
     pub fn rename(&self, new_name: String) -> Result<()> {
@@ -169,8 +168,8 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.clear_cache().await?) })
     }
 
-    pub fn seed(&self) -> Arc<KeychainSeed> {
-        Arc::new(self.inner.keychain().seed().into())
+    pub fn seed(&self, password: String) -> Result<Arc<KeychainSeed>> {
+        Ok(Arc::new(self.inner.keychain(password)?.seed().into()))
     }
 
     pub fn keys(&self) -> Arc<Keys> {
@@ -483,9 +482,9 @@ impl SmartVaults {
         })
     }
 
-    pub fn approve(&self, proposal_id: Arc<EventId>) -> Result<Arc<EventId>> {
+    pub fn approve(&self, password: String, proposal_id: Arc<EventId>) -> Result<Arc<EventId>> {
         block_on(async move {
-            let (approval_id, ..) = self.inner.approve(**proposal_id).await?;
+            let (approval_id, ..) = self.inner.approve(password, **proposal_id).await?;
             Ok(Arc::new(approval_id.into()))
         })
     }

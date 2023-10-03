@@ -54,25 +54,20 @@ impl State for RecoveryKeysState {
                     self.error = e;
                 }
                 RecoveryKeysMessage::Confirm => {
-                    if ctx
-                        .client
-                        .check_password(&self.password)
-                        .unwrap_or_default()
-                    {
-                        self.loading = true;
-                        let client = ctx.client.clone();
-                        return Command::perform(
-                            async move { client.keychain().secrets(client.network(), &SECP256K1) },
-                            |res| match res {
-                                Ok(secrets) => RecoveryKeysMessage::LoadSecrets(secrets).into(),
-                                Err(e) => {
-                                    RecoveryKeysMessage::ErrorChanged(Some(e.to_string())).into()
-                                }
-                            },
-                        );
-                    } else {
-                        self.error = Some(String::from("Invalid password"));
-                    }
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    let password = self.password.clone();
+                    return Command::perform(
+                        async move {
+                            let keychain = client.keychain(password)?;
+                            let secrets = keychain.secrets(client.network(), &SECP256K1)?;
+                            Ok::<Secrets, Box<dyn std::error::Error>>(secrets)
+                        },
+                        |res| match res {
+                            Ok(secrets) => RecoveryKeysMessage::LoadSecrets(secrets).into(),
+                            Err(e) => RecoveryKeysMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
                 }
                 RecoveryKeysMessage::LoadSecrets(secrets) => {
                     self.password.clear();

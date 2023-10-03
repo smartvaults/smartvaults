@@ -7,7 +7,7 @@ use nostr_sdk::nips::nip04;
 use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Metadata, Tag};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_core::signer::{smartvaults_signer, SharedSigner, Signer};
+use smartvaults_core::signer::{SharedSigner, Signer};
 use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
 use smartvaults_protocol::v1::util::Encryption;
 use smartvaults_protocol::v1::util::Serde;
@@ -73,16 +73,14 @@ impl SmartVaults {
     }
 
     pub async fn smartvaults_signer_exists(&self) -> Result<bool, Error> {
-        let signer = smartvaults_signer(self.keechain.keychain.seed(), self.network)?;
         Ok(self
             .db
-            .signer_descriptor_exists(signer.descriptor())
+            .signer_descriptor_exists(self.default_signer.descriptor())
             .await?)
     }
 
     pub async fn save_smartvaults_signer(&self) -> Result<EventId, Error> {
-        let signer = smartvaults_signer(self.keechain.keychain.seed(), self.network)?;
-        self.save_signer(signer).await
+        self.save_signer(self.default_signer.clone()).await
     }
 
     /// Get all own signers and contacts shared signers

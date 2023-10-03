@@ -11,14 +11,9 @@ const NETWORK: Network = Network::Testnet;
 #[tokio::main]
 async fn main() {
     // Open a keychain and init the client (check the other examples the learn how to create or restore a client)
-    let client = SmartVaults::open(
-        "./your-path",
-        "account-name",
-        || Ok(String::from("password")),
-        NETWORK,
-    )
-    .await
-    .unwrap();
+    let client = SmartVaults::open("./your-path", "account-name", "password", NETWORK)
+        .await
+        .unwrap();
 
     // Edit relays
     client.add_relay("wss://you.relay.com", None).await.unwrap();
@@ -62,7 +57,10 @@ async fn main() {
     }
 
     // Approve a proposal
-    client.approve(proposal.proposal_id).await.unwrap();
+    client
+        .approve("password", proposal.proposal_id)
+        .await
+        .unwrap();
     // other approvals ...
 
     // Finalize the proposal
