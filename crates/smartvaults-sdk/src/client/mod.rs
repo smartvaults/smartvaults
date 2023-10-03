@@ -196,7 +196,7 @@ impl SmartVaults {
             .skip_disconnected_relays(true)
             .send_timeout(Some(SEND_TIMEOUT));
 
-        let (sender, _) = broadcast::channel::<Message>(2048);
+        let (sender, _) = broadcast::channel::<Message>(4096);
 
         let this = Self {
             network,
