@@ -9,6 +9,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_utility::thread;
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
@@ -354,7 +355,12 @@ impl SmartVaults {
             policy_id, policy, ..
         } in self.db.get_policies().await?.into_iter()
         {
-            self.manager.load_policy(policy_id, policy).await?;
+            let manager = self.manager.clone();
+            thread::spawn(async move {
+                if let Err(e) = manager.load_policy(policy_id, policy).await {
+                    tracing::error!("Impossible to load policy {policy_id}: {e}");
+                }
+            });
         }
         self.restore_relays().await?;
         self.client.connect().await;
