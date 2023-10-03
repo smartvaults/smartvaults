@@ -66,7 +66,7 @@ mod test {
             })
             .unwrap();
 
-        let address = wallet.get_address(AddressIndex::New).address;
+        /* let address = wallet.get_address(AddressIndex::New).address;
         wallet
             .insert_tx(
                 Transaction {
@@ -85,7 +85,7 @@ mod test {
                     time: 1694533020,
                 },
             )
-            .unwrap();
+            .unwrap(); */
 
         let address = wallet.get_address(AddressIndex::New).address;
         wallet
