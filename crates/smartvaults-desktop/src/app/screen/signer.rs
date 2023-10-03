@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::signer::{Signer, SignerType};
+use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::User;
 use smartvaults_sdk::util;
@@ -85,18 +85,16 @@ impl State for SignerState {
                     self.error = error;
                 }
                 SignerMessage::Delete => {
-                    if self.signer.signer_type() != SignerType::Seed {
-                        self.loading = true;
-                        let client = ctx.client.clone();
-                        let signer_id = self.signer_id;
-                        return Command::perform(
-                            async move { client.delete_signer_by_id(signer_id).await },
-                            |res| match res {
-                                Ok(_) => Message::View(Stage::Signers),
-                                Err(e) => SignerMessage::ErrorChanged(Some(e.to_string())).into(),
-                            },
-                        );
-                    }
+                    self.loading = true;
+                    let client = ctx.client.clone();
+                    let signer_id = self.signer_id;
+                    return Command::perform(
+                        async move { client.delete_signer_by_id(signer_id).await },
+                        |res| match res {
+                            Ok(_) => Message::View(Stage::Signers),
+                            Err(e) => SignerMessage::ErrorChanged(Some(e.to_string())).into(),
+                        },
+                    );
                 }
                 SignerMessage::RevokeSharedSigner(shared_signer_id) => {
                     self.loading = true;
@@ -141,9 +139,7 @@ impl State for SignerState {
                                 .icon(TRASH)
                                 .text("Delete")
                                 .on_press(SignerMessage::Delete.into())
-                                .loading(
-                                    self.loading || self.signer.signer_type() == SignerType::Seed,
-                                )
+                                .loading(self.loading)
                                 .view(),
                         )
                         .spacing(10),
