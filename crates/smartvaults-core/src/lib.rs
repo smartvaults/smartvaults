@@ -154,7 +154,7 @@ mod tests {
             seed_b.to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
-        let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
+        let policy: Policy = Policy::from_template(template, NETWORK)?;
         let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
@@ -196,7 +196,7 @@ mod tests {
             seed_b.to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
-        let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
+        let policy: Policy = Policy::from_template(template, NETWORK)?;
         let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
@@ -245,7 +245,7 @@ mod tests {
         )?;
 
         let template = PolicyTemplate::multisig(1, vec![desc_a, desc_b]);
-        let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
+        let policy: Policy = Policy::from_template(template, NETWORK)?;
         let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
@@ -280,7 +280,7 @@ mod tests {
         let seed = Seed::from_mnemonic(mnemonic);
 
         let descriptor = "tr([5cb492a5/86'/1'/784923']tpubDD56LAR1MR7X5EeZYMpvivk2Lh3HMo4vdDNQ8jAv4oBjLPEddQwxaxNypvrHbMk2qTxAj44YLzqHrzwy5LDNmVyYZBesm6aShhmhYrA8veT/0/*,{pk([76fdbca2/86'/1'/784923']tpubDCDepsNyAPWySAgXx1Por6sHpSWzxsTB9XJp5erEN7NumgdZMhhmycJGMQ1cHZwx66KyZr6psjttDDQ7mV4uJGV2DvB9Mri1nTVmpquvTDR/0/*),pk([3b8ae29b/86'/1'/784923']tpubDDpkQsJQTpHi2bH5Cg7L1pThUxeEStcn9ZsQ53XHkW8Fs81h71XobqpwYf2Jb8ECmW1mUUJxQhZstmwFUg5wQ6EVzH5HmF3cpHcyxjvF1Ep/0/*)})#yxpuntg3";
-        let policy = Policy::from_descriptor("", "", descriptor, network).unwrap();
+        let policy = Policy::from_descriptor(descriptor, network).unwrap();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy

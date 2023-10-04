@@ -30,8 +30,8 @@ fn main() {
 
     let template = PolicyTemplate::multisig(size / 2, descriptors);
 
-    let policy = Policy::from_template("", "", template, NETWORK).unwrap();
-    println!("Descriptor: {}", policy.descriptor());
+    let policy = Policy::from_template(template, NETWORK).unwrap();
+    println!("Descriptor: {}", policy.as_descriptor());
     println!(
         "Descriptor size: {} bytes",
         policy.as_descriptor().to_string().as_bytes().len()

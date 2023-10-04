@@ -7,10 +7,11 @@ use smartvaults_core::bitcoin::secp256k1::SecretKey;
 use smartvaults_core::crypto::aes;
 use smartvaults_core::util::serde::deserialize;
 use smartvaults_core::{
-    secp256k1, ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
+    secp256k1, ApprovedProposal, CompletedProposal, Proposal, SharedSigner, Signer,
 };
 
 use super::serde::Serde;
+use crate::v1::vault::Vault;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -60,8 +61,8 @@ impl Encryption for SecretKey {}
 
 impl Serde for ChangeSet {}
 
-impl Serde for Policy {}
-impl Encryption for Policy {}
+impl Serde for Vault {}
+impl Encryption for Vault {}
 
 impl Serde for Proposal {}
 impl Encryption for Proposal {}

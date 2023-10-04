@@ -24,7 +24,7 @@ use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::Descriptor;
 use keechain_core::secp256k1::XOnlyPublicKey;
 use keechain_core::util::time;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 pub mod template;
 
@@ -36,7 +36,7 @@ pub use self::template::{
 use crate::proposal::Proposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
-use crate::util::{search_network_for_descriptor, Unspendable};
+use crate::util::Unspendable;
 use crate::{Amount, Signer, SECP256K1};
 
 #[derive(Debug, thiserror::Error)]
@@ -64,8 +64,8 @@ pub enum Error {
     Template(#[from] template::Error),
     #[error("{0}, {1}")]
     DescOrPolicy(Box<Self>, Box<Self>),
-    #[error("must be a taproot descriptor")]
-    NotTaprootDescriptor,
+    #[error("descriptor type not allowed")]
+    DescriptorTypeNotAllowed,
     #[error("spending policy not found")]
     SpendingPolicyNotFound,
     #[error("no utxos selected")]
@@ -106,47 +106,8 @@ pub enum PolicyPath {
     None,
 }
 
-#[derive(Serialize, Deserialize)]
-struct PolicyItermediate {
-    name: String,
-    description: String,
-    descriptor: Descriptor<String>,
-}
-
-impl Serialize for Policy {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let intermediate = PolicyItermediate {
-            name: self.name.clone(),
-            description: self.description.clone(),
-            descriptor: self.descriptor.clone(),
-        };
-        intermediate.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Policy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let PolicyItermediate {
-            name,
-            description,
-            descriptor,
-        } = PolicyItermediate::deserialize(deserializer)?;
-        let network: Network = search_network_for_descriptor(&descriptor)
-            .ok_or(serde::de::Error::custom("Network not found"))?;
-        Self::new(name, description, descriptor, network).map_err(serde::de::Error::custom)
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Policy {
-    name: String,
-    description: String,
     /// Descriptor
     descriptor: Descriptor<String>,
     /// Spending policy
@@ -182,15 +143,7 @@ impl Hash for Policy {
 }
 
 impl Policy {
-    pub fn new<S>(
-        name: S,
-        description: S,
-        descriptor: Descriptor<String>,
-        network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
+    pub fn new(descriptor: Descriptor<String>, network: Network) -> Result<Self, Error> {
         if let DescriptorType::Tr = descriptor.desc_type() {
             // Check if descriptor match network
             let desc: String = descriptor.to_string();
@@ -207,109 +160,74 @@ impl Policy {
 
             // Compose policy
             Ok(Self {
-                name: name.into(),
-                description: description.into(),
                 descriptor,
                 spending_policy,
                 network,
             })
         } else {
-            Err(Error::NotTaprootDescriptor)
+            Err(Error::DescriptorTypeNotAllowed)
         }
     }
 
-    pub fn from_descriptor<S, D>(
-        name: S,
-        description: S,
-        descriptor: D,
-        network: Network,
-    ) -> Result<Self, Error>
+    pub fn from_descriptor<S>(descriptor: S, network: Network) -> Result<Self, Error>
     where
-        S: Into<String>,
-        D: AsRef<str>,
+        S: AsRef<str>,
     {
         let descriptor: Descriptor<String> = Descriptor::from_str(descriptor.as_ref())?;
-        Self::new(name, description, descriptor, network)
+        Self::new(descriptor, network)
     }
 
-    pub fn from_miniscript<S, P>(
-        name: S,
-        description: S,
-        miniscript: P,
-        network: Network,
-    ) -> Result<Self, Error>
+    pub fn from_miniscript<S>(miniscript: S, network: Network) -> Result<Self, Error>
     where
-        S: Into<String>,
-        P: AsRef<str>,
+        S: AsRef<str>,
     {
         let miniscript: Concrete<String> = Concrete::<String>::from_str(miniscript.as_ref())?;
         let unspendable_pk: XOnlyPublicKey = XOnlyPublicKey::unspendable(&SECP256K1);
         let descriptor: Descriptor<String> =
             miniscript.compile_tr(Some(unspendable_pk.to_string()))?;
-        Self::new(name, description, descriptor, network)
+        Self::new(descriptor, network)
     }
 
-    pub fn from_desc_or_miniscript<N, D, P>(
-        name: N,
-        description: D,
-        desc_or_miniscript: P,
+    pub fn from_desc_or_miniscript<S>(
+        desc_or_miniscript: S,
         network: Network,
     ) -> Result<Self, Error>
     where
-        N: AsRef<str>,
-        D: AsRef<str>,
-        P: AsRef<str>,
+        S: AsRef<str>,
     {
-        let name: &str = name.as_ref();
-        let description: &str = description.as_ref();
         let desc_or_miniscript: &str = desc_or_miniscript.as_ref();
-        match Self::from_descriptor(name, description, desc_or_miniscript, network) {
+        match Self::from_descriptor(desc_or_miniscript, network) {
             Ok(policy) => Ok(policy),
-            Err(desc_e) => {
-                match Self::from_miniscript(name, description, desc_or_miniscript, network) {
-                    Ok(policy) => Ok(policy),
-                    Err(policy_e) => Err(Error::DescOrPolicy(Box::new(desc_e), Box::new(policy_e))),
-                }
-            }
+            Err(desc_e) => match Self::from_miniscript(desc_or_miniscript, network) {
+                Ok(policy) => Ok(policy),
+                Err(policy_e) => Err(Error::DescOrPolicy(Box::new(desc_e), Box::new(policy_e))),
+            },
         }
     }
 
-    pub fn from_template<S>(
-        name: S,
-        description: S,
-        template: PolicyTemplate,
-        network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
+    pub fn from_template(template: PolicyTemplate, network: Network) -> Result<Self, Error> {
         match template.build()? {
             PolicyTemplateResult::Singlesig(key) => {
                 let descriptor = Descriptor::new_tr(key, None)?;
-                Self::from_descriptor(name, description, descriptor.to_string(), network)
+                Self::from_descriptor(descriptor.to_string(), network)
             }
             PolicyTemplateResult::Policy(policy) => {
-                Self::from_miniscript(name.into(), description.into(), policy.to_string(), network)
+                Self::from_miniscript(policy.to_string(), network)
             }
         }
     }
 
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    pub fn description(&self) -> String {
-        self.description.clone()
-    }
-
+    #[inline]
     pub fn descriptor(&self) -> Descriptor<String> {
         self.descriptor.clone()
     }
 
+    #[inline]
     pub fn as_descriptor(&self) -> &Descriptor<String> {
         &self.descriptor
     }
 
+    #[inline]
     pub fn network(&self) -> Network {
         self.network
     }
@@ -323,14 +241,14 @@ impl Policy {
     /// Check if [`Policy`] has a `absolute` timelock
     #[inline]
     pub fn has_absolute_timelock(&self) -> bool {
-        let descriptor = self.descriptor.to_string();
+        let descriptor: String = self.descriptor.to_string();
         descriptor.contains("after")
     }
 
     /// Check if [`Policy`] has a `relative` timelock
     #[inline]
     pub fn has_relative_timelock(&self) -> bool {
-        let descriptor = self.descriptor.to_string();
+        let descriptor: String = self.descriptor.to_string();
         descriptor.contains("older")
     }
 
@@ -342,7 +260,7 @@ impl Policy {
 
     /// Get [`SatisfiableItem`]
     pub fn satisfiable_item(&self) -> Result<&SatisfiableItem, Error> {
-        let policy = self.spending_policy()?;
+        let policy: &SpendingPolicy = self.spending_policy()?;
         Ok(&policy.item)
     }
 
@@ -372,7 +290,7 @@ impl Policy {
             }
 
             let item: &SatisfiableItem = self.satisfiable_item()?;
-            let mut result = Vec::new();
+            let mut result: Vec<SelectableCondition> = Vec::new();
             selectable_conditions(item, item.id(), &mut result);
             Ok(Some(result))
         } else {
@@ -499,22 +417,23 @@ impl Policy {
                         }))
                     } else {
                         // Search missing paths to satisfy thresh
-                        let missing_to_select = selectable_conditions
-                            .into_iter()
-                            .filter_map(
-                                |SelectableCondition {
-                                     path,
-                                     mut sub_paths,
-                                     ..
-                                 }| {
-                                    let idxs: &&Vec<usize> = not_matching_thresh.get(&path)?;
-                                    for idx in idxs.iter() {
-                                        sub_paths.remove(*idx);
-                                    }
-                                    Some((path, sub_paths))
-                                },
-                            )
-                            .collect();
+                        let missing_to_select: BTreeMap<String, Vec<String>> =
+                            selectable_conditions
+                                .into_iter()
+                                .filter_map(
+                                    |SelectableCondition {
+                                         path,
+                                         mut sub_paths,
+                                         ..
+                                     }| {
+                                        let idxs: &&Vec<usize> = not_matching_thresh.get(&path)?;
+                                        for idx in idxs.iter() {
+                                            sub_paths.remove(*idx);
+                                        }
+                                        Some((path, sub_paths))
+                                    },
+                                )
+                                .collect();
                         Ok(Some(PolicyPathSelector::Partial {
                             missing_to_select,
                             selected_path: map.into_iter().map(|(p, (_, sp))| (p, sp)).collect(),
@@ -584,7 +503,8 @@ impl Policy {
         let used_signers: Vec<Signer> = self.search_used_signers(my_signers)?;
 
         #[allow(clippy::mutable_key_type)]
-        let mut map = HashMap::with_capacity(used_signers.len());
+        let mut map: HashMap<Signer, Option<PolicyPathSelector>> =
+            HashMap::with_capacity(used_signers.len());
         for signer in used_signers.into_iter() {
             let pp: Option<PolicyPathSelector> = self.get_policy_path_from_signer(&signer)?;
             map.insert(signer, pp);
@@ -878,7 +798,7 @@ impl Policy {
         let message: &str = &message.into();
 
         // Get policies and specify which ones to use
-        let wallet_policy = wallet
+        let wallet_policy: SpendingPolicy = wallet
             .policies(KeychainKind::External)?
             .ok_or(Error::SpendingPolicyNotFound)?;
         let mut path = BTreeMap::new();
@@ -959,36 +879,36 @@ mod tests {
     #[test]
     fn test_policy() {
         let policy = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
-        assert!(Policy::from_miniscript("", "", policy, NETWORK).is_ok());
+        assert!(Policy::from_miniscript(policy, NETWORK).is_ok());
     }
 
     #[test]
     fn test_wrong_policy() {
         let policy = "thresh(2,pk([7c997e72/86'/0'/784923']xpub6DGQCZUmD4kdGDj8ttgba5Jc6pUSkFWaMwB1jedmzer1BtKDdef18k3cWwC9k7HfJGci7Q9S5KTRD9bBn4JZm3xPcDvidkSXvZ6pg4now57/0/),pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/))";
-        assert!(Policy::from_miniscript("", "", policy, NETWORK).is_err());
+        assert!(Policy::from_miniscript(policy, NETWORK).is_err());
     }
 
     #[test]
     fn test_descriptor() {
         let descriptor = "tr([9bf4354b/86'/1'/784923']tpubDCT8uwnkZj7woaY71Xr5hU7Wvjr7B1BXJEpwMzzDLd1H6HLnKTiaLPtt6ZfEizDMwdQ8PT8JCmKbB4ESVXTkCzv51oxhJhX5FLBvkeN9nJ3/0/*,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*))#rs0udsfg";
-        assert!(Policy::from_descriptor("", "", descriptor, NETWORK).is_ok())
+        assert!(Policy::from_descriptor(descriptor, NETWORK).is_ok())
     }
 
     #[test]
     fn test_wrong_descriptor() {
         let descriptor = "tr(939742dc67dd3c5b5c9201df54ee8a92b053b2613770c8c26f2156cfd9514a0b,multi_a(2,[7c997e72/86'/0'/784923']xpub6DGQCZUmD4kdGDj8ttgba5Jc6pUSkFWaMwB1jedmzer1BtKDdef18k3cWwC9k7HfJGci7Q9S5KTRD9bBn4JZm3xPcDvidkSXvZ6pg4now57/0/,[87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/,[e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/))#kdvl4ku3";
-        assert!(Policy::from_descriptor("", "", descriptor, NETWORK).is_err())
+        assert!(Policy::from_descriptor(descriptor, NETWORK).is_err())
     }
 
     #[test]
     fn test_descriptor_with_wrong_network() {
         let descriptor = "tr([9bf4354b/86'/1'/784923']tpubDCT8uwnkZj7woaY71Xr5hU7Wvjr7B1BXJEpwMzzDLd1H6HLnKTiaLPtt6ZfEizDMwdQ8PT8JCmKbB4ESVXTkCzv51oxhJhX5FLBvkeN9nJ3/0/*,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*))#rs0udsfg";
-        assert!(Policy::from_descriptor("", "", descriptor, Network::Bitcoin).is_err())
+        assert!(Policy::from_descriptor(descriptor, Network::Bitcoin).is_err())
     }
 
     #[test]
     fn selectable_conditions() {
-        let policy = Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR, NETWORK).unwrap();
+        let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR, NETWORK).unwrap();
         let conditions = policy.selectable_conditions().unwrap();
         let mut c = Vec::new();
         c.push(SelectableCondition {
@@ -1004,12 +924,11 @@ mod tests {
         assert_eq!(conditions, Some(c));
 
         let policy: &str = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
-        let policy = Policy::from_miniscript("", "", policy, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(policy, NETWORK).unwrap();
         let conditions = policy.selectable_conditions().unwrap();
         assert!(conditions.is_none());
 
-        let policy =
-            Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
+        let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
         let conditions = policy.selectable_conditions().unwrap();
         let mut c = Vec::new();
         c.push(SelectableCondition {
@@ -1037,7 +956,7 @@ mod tests {
     #[test]
     fn test_get_policy_path_from_signer() {
         // Common policy
-        let policy = Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR, NETWORK).unwrap();
+        let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR, NETWORK).unwrap();
 
         // Internal key path
         let mnemonic = Mnemonic::from_str(
@@ -1098,7 +1017,7 @@ mod tests {
 
         // Decaying 2 of 4 (absolute)
         let desc = "tr(56f05264c005e2a2f6e261996ed2cd904dfafbc6d75cc07a5a76d46df56e6ff9,thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),s:pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),s:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),snl:after(1698947462)))#2263dhaf";
-        let policy = Policy::from_descriptor("", "", desc, NETWORK).unwrap();
+        let policy = Policy::from_descriptor(desc, NETWORK).unwrap();
         let mnemonic = Mnemonic::from_str(
             "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
         )
@@ -1141,8 +1060,7 @@ mod tests {
         let signer2 = Signer::airgap("", None, fing2, desc2, NETWORK).unwrap();
 
         // Policy
-        let policy =
-            Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
+        let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
 
         // Path
         let path = policy
@@ -1197,7 +1115,7 @@ mod tests {
 
     #[test]
     fn test_is_fingerprint_involved() {
-        let policy = Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR, NETWORK).unwrap();
+        let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR, NETWORK).unwrap();
 
         let fingerprint = Fingerprint::from_str("7356e457").unwrap();
         assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
@@ -1223,38 +1141,35 @@ mod tests {
     fn test_policy_template_match() {
         let singlesig = DescriptorPublicKey::from_str("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*").unwrap();
         let singlesig = PolicyTemplate::singlesig(singlesig);
-        let policy = Policy::from_template("Singlesig", "", singlesig, NETWORK).unwrap();
+        let policy = Policy::from_template(singlesig, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Singlesig)
         );
 
         let multisig_1_of_2 = "thresh(1,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))";
-        let policy =
-            Policy::from_miniscript("Multisig 1 of 2", "", multisig_1_of_2, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(multisig_1_of_2, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Multisig)
         );
 
         let multisig_2_of_2 = "thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))";
-        let policy =
-            Policy::from_miniscript("Multisig 2 of 2", "", multisig_2_of_2, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(multisig_2_of_2, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Multisig)
         );
 
         let social_recovery = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),older(6)))";
-        let policy =
-            Policy::from_miniscript("Social Recovery", "", social_recovery, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(social_recovery, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Recovery)
         );
 
         let inheritance = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),after(700000)))";
-        let policy = Policy::from_miniscript("Inheritance", "", inheritance, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(inheritance, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Recovery)
@@ -1262,7 +1177,7 @@ mod tests {
 
         // Hold (older)
         let hold = "and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),older(144))";
-        let policy = Policy::from_miniscript("Hold", "", hold, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(hold, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Hold)
@@ -1270,7 +1185,7 @@ mod tests {
 
         // Hold (after)
         let hold = "and(pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),after(840000))";
-        let policy = Policy::from_miniscript("Hold", "", hold, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(hold, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Hold)
@@ -1278,7 +1193,7 @@ mod tests {
 
         // Decaying 3 of 3 (older)
         let decaying = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),older(2))";
-        let policy = Policy::from_miniscript("Decaying", "", decaying, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(decaying, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Decaying)
@@ -1286,7 +1201,7 @@ mod tests {
 
         // Decaying 2 of 3 (older)
         let decaying = "thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),older(2))";
-        let policy = Policy::from_miniscript("Decaying", "", decaying, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(decaying, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Decaying)
@@ -1294,7 +1209,7 @@ mod tests {
 
         // Decaying (after)
         let decaying = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),after(840000),after(940000))";
-        let policy = Policy::from_miniscript("Decaying", "", decaying, NETWORK).unwrap();
+        let policy = Policy::from_miniscript(decaying, NETWORK).unwrap();
         assert_eq!(
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Decaying)

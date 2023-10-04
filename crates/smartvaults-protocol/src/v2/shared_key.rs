@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use nostr::event::builder::Error;
-use nostr::{Event, EventBuilder, EventId, Keys, Tag, SecretKey, PublicKey};
+use nostr::{Event, EventBuilder, EventId, Keys, PublicKey, SecretKey, Tag};
 use serde::{Deserialize, Serialize};
 use smartvaults_core::bitcoin::Network;
 
