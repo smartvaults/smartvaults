@@ -9,7 +9,7 @@ use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bdk::descriptor::policy::SatisfiableItem;
 use smartvaults_sdk::core::bitcoin::address::NetworkUnchecked;
 use smartvaults_sdk::core::bitcoin::{Address, OutPoint};
-use smartvaults_sdk::core::{Amount, FeeRate};
+use smartvaults_sdk::core::{Amount, FeeRate, SelectableConditions};
 use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::{GetPolicy, GetProposal, GetUtxo};
 use smartvaults_sdk::util::format;
@@ -52,7 +52,7 @@ pub enum SpendMessage {
     PolicyLoaded(
         Vec<GetUtxo>,
         SatisfiableItem,
-        Option<Vec<(String, Vec<String>)>>,
+        Option<Vec<SelectableConditions>>,
     ),
     SelectedUtxosChanged(HashSet<OutPoint>),
     SetSkipFrozenUtxos(bool),
@@ -76,7 +76,7 @@ pub struct SpendState {
     skip_frozen_utxos: bool,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     satisfiable_item: Option<SatisfiableItem>,
-    selectable_conditions: Option<Vec<(String, Vec<String>)>>,
+    selectable_conditions: Option<Vec<SelectableConditions>>,
     stage: InternalStage,
     loading: bool,
     loaded: bool,
@@ -210,7 +210,7 @@ impl State for SpendState {
                                     (
                                         Vec<GetUtxo>,
                                         SatisfiableItem,
-                                        Option<Vec<(String, Vec<String>)>>,
+                                        Option<Vec<SelectableConditions>>,
                                     ),
                                     Box<dyn std::error::Error>,
                                 >((utxos, item, conditions))
@@ -581,9 +581,12 @@ impl SpendState {
                         .push(Text::new("Select conditions").view())
                         .push(Space::with_height(Length::Fixed(5.0)));
 
-                    for (id, list) in conditions.into_iter() {
-                        let pp_list = policy_path.get(&id);
-                        for (index, sub_id) in list.into_iter().enumerate() {
+                    for SelectableConditions {
+                        path, sub_paths, ..
+                    } in conditions.into_iter()
+                    {
+                        let pp_list = policy_path.get(&path);
+                        for (index, sub_id) in sub_paths.into_iter().enumerate() {
                             let selected: bool = match pp_list {
                                 Some(pp_list) => pp_list.contains(&index),
                                 None => false,
@@ -597,7 +600,7 @@ impl SpendState {
                                         ButtonStyle::Bordered
                                     })
                                     .on_press(
-                                        SpendMessage::ToggleCondition(id.clone(), index).into(),
+                                        SpendMessage::ToggleCondition(path.clone(), index).into(),
                                     )
                                     .width(Length::Fixed(250.0))
                                     .view(),

@@ -76,6 +76,14 @@ pub enum Error {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub struct SelectableConditions {
+    pub path: String,
+    pub thresh: usize,
+    pub sub_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PolicyPathSelector {
     Complete {
         path: BTreeMap<String, Vec<usize>>,
@@ -220,20 +228,23 @@ impl Policy {
         Ok(policy.item)
     }
 
-    #[allow(clippy::type_complexity)]
     pub fn selectable_conditions(
         &self,
         network: Network,
-    ) -> Result<Option<Vec<(String, Vec<String>)>>, Error> {
+    ) -> Result<Option<Vec<SelectableConditions>>, Error> {
         if self.has_timelock() {
             fn selectable_conditions(
                 item: &SatisfiableItem,
                 prev_id: String,
-                result: &mut Vec<(String, Vec<String>)>,
+                result: &mut Vec<SelectableConditions>,
             ) {
                 if let SatisfiableItem::Thresh { items, threshold } = item {
                     if *threshold < items.len() {
-                        result.push((prev_id, items.iter().map(|i| i.id.clone()).collect()));
+                        result.push(SelectableConditions {
+                            path: prev_id,
+                            thresh: *threshold,
+                            sub_paths: items.iter().map(|i| i.id.clone()).collect(),
+                        });
                     }
 
                     for x in items.iter() {
@@ -316,12 +327,17 @@ impl Policy {
         match self.selectable_conditions(network)? {
             Some(selectable_conditions) => {
                 let mut map = BTreeMap::new();
-                for (path, sub_paths) in selectable_conditions.iter() {
+                for SelectableConditions {
+                    path,
+                    thresh,
+                    sub_paths,
+                } in selectable_conditions.iter()
+                {
                     for (index, sub_path) in sub_paths.iter().enumerate() {
                         if let Some(item) = self.satisfiable_item_by_path(sub_path, network)? {
                             let json: String = serde_json::json!(item).to_string();
                             if json.contains(&signer.fingerprint().to_string()) {
-                                map.insert(path.clone(), vec![index]);
+                                map.insert(path.clone(), (*thresh, vec![index]));
                             }
                         }
                     }
@@ -330,22 +346,74 @@ impl Policy {
                 if map.is_empty() {
                     Ok(None)
                 } else if selectable_conditions.len() == map.len() {
-                    Ok(Some(PolicyPathSelector::Complete { path: map }))
+                    // Search paths that not satisfy the thresh
+                    let not_matching_thresh: HashMap<&String, &Vec<usize>> = map
+                        .iter()
+                        .filter(|(_, (thresh, sp))| thresh != &sp.len())
+                        .map(|(p, (_, sp))| (p, sp))
+                        .collect();
+
+                    if not_matching_thresh.is_empty() {
+                        // Policy path selector complete
+                        Ok(Some(PolicyPathSelector::Complete {
+                            path: map.into_iter().map(|(p, (_, sp))| (p, sp)).collect(),
+                        }))
+                    } else {
+                        // Search missing paths to satisfy thresh
+                        let missing_to_select = selectable_conditions
+                            .into_iter()
+                            .filter_map(
+                                |SelectableConditions {
+                                     path,
+                                     mut sub_paths,
+                                     ..
+                                 }| {
+                                    let idxs: &&Vec<usize> = not_matching_thresh.get(&path)?;
+                                    for idx in idxs.iter() {
+                                        sub_paths.remove(*idx);
+                                    }
+                                    Some((path, sub_paths))
+                                },
+                            )
+                            .collect();
+                        Ok(Some(PolicyPathSelector::Partial {
+                            missing_to_select,
+                            selected_path: map.into_iter().map(|(p, (_, sp))| (p, sp)).collect(),
+                        }))
+                    }
                 } else {
+                    // Compose internal key path
                     let mut internal_key_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-                    if let Some((first_path, ..)) = selectable_conditions.first().cloned() {
+                    if let Some(SelectableConditions {
+                        path: first_path, ..
+                    }) = selectable_conditions.first().cloned()
+                    {
                         internal_key_path.insert(first_path, vec![0]);
                     }
 
-                    if internal_key_path == map {
-                        Ok(Some(PolicyPathSelector::Complete { path: map }))
+                    // Compose selected path
+                    let selected_path: BTreeMap<String, Vec<usize>> =
+                        map.into_iter().map(|(p, (_, sp))| (p, sp)).collect();
+
+                    // Check if internal path match the current selected policy path
+                    if internal_key_path == selected_path {
+                        Ok(Some(PolicyPathSelector::Complete {
+                            path: selected_path,
+                        }))
                     } else {
                         Ok(Some(PolicyPathSelector::Partial {
                             missing_to_select: selectable_conditions
                                 .into_iter()
-                                .filter(|(k, _)| !map.contains_key(k))
+                                .filter(|SelectableConditions { path, .. }| {
+                                    !selected_path.contains_key(path)
+                                })
+                                .map(
+                                    |SelectableConditions {
+                                         path, sub_paths, ..
+                                     }| (path, sub_paths),
+                                )
                                 .collect(),
-                            selected_path: map,
+                            selected_path,
                         }))
                     }
                 }
@@ -680,15 +748,16 @@ mod test {
         let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
         let conditions = policy.selectable_conditions(Network::Testnet).unwrap();
         let mut c = Vec::new();
-        c.push((
-            String::from("y46gds64"),
-            vec![String::from("lcjxl004"), String::from("8sld2cgj")],
-        ));
-        c.push((
-            String::from("fx0z8u06"),
-            vec![String::from("0e36xhlc"), String::from("m4n7s285")],
-        ));
-
+        c.push(SelectableConditions {
+            path: String::from("y46gds64"),
+            thresh: 1,
+            sub_paths: vec![String::from("lcjxl004"), String::from("8sld2cgj")],
+        });
+        c.push(SelectableConditions {
+            path: String::from("fx0z8u06"),
+            thresh: 1,
+            sub_paths: vec![String::from("0e36xhlc"), String::from("m4n7s285")],
+        });
         assert_eq!(conditions, Some(c));
 
         let policy: &str = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
@@ -754,6 +823,38 @@ mod test {
         missing_to_select.insert(
             String::from("fx0z8u06"),
             vec![String::from("0e36xhlc"), String::from("m4n7s285")],
+        );
+        assert_eq!(
+            policy_path,
+            Some(PolicyPathSelector::Partial {
+                selected_path,
+                missing_to_select
+            })
+        );
+
+        // Decaying 2 of 4 (absolute)
+        let desc = "tr(56f05264c005e2a2f6e261996ed2cd904dfafbc6d75cc07a5a76d46df56e6ff9,thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),s:pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),s:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),snl:after(1698947462)))#2263dhaf";
+        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+        let mnemonic = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+        let policy_path: Option<PolicyPathSelector> = policy
+            .get_policy_path_from_signer(&signer, Network::Testnet)
+            .unwrap();
+        let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        selected_path.insert(String::from("5p29qyl4"), vec![0]);
+        selected_path.insert(String::from("n4vvscy5"), vec![1]);
+        let mut missing_to_select: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        missing_to_select.insert(
+            String::from("5p29qyl4"),
+            vec![
+                String::from("8w0qa9ut"),
+                String::from("ayztcvww"),
+                String::from("ysdtrx7w"),
+            ],
         );
         assert_eq!(
             policy_path,

@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use nostr_sdk_ffi::{EventId, Timestamp};
-use smartvaults_sdk::core::{policy, PolicyTemplateType};
+use smartvaults_sdk::core::{policy, PolicyTemplateType, SelectableConditions};
 use smartvaults_sdk::protocol::v1::util::SerdeSer;
 use smartvaults_sdk::types;
 
@@ -62,7 +62,15 @@ impl Policy {
         Ok(self
             .inner
             .selectable_conditions(network.into())?
-            .map(|list| list.into_iter().collect()))
+            .map(|list| {
+                list.into_iter()
+                    .map(
+                        |SelectableConditions {
+                             path, sub_paths, ..
+                         }| (path, sub_paths),
+                    )
+                    .collect()
+            }))
     }
 
     pub fn search_used_signers(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
