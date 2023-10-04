@@ -28,7 +28,6 @@ pub enum Error {
     NotFound(String),
 }
 
-#[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
 impl fmt::Display for Error {
@@ -90,11 +89,11 @@ where
     match version {
         Version::XChaCha20Poly1305 => {
             // Compose key
-            let shared_key: [u8; 32] = util::generate_shared_key(secret_key, public_key);
-            let key: Sha256Hash = Sha256Hash::hash(&shared_key);
+            let key: [u8; 32] = util::generate_shared_key(secret_key, public_key);
+            let key: Sha256Hash = Sha256Hash::hash(&key);
 
             // Compose cipher
-            let cipher = XChaCha20Poly1305::new(&key.into());
+            let cipher = XChaCha20Poly1305::new(&key.to_byte_array().into());
 
             // Generate 192-bit nonce
             let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
@@ -139,11 +138,11 @@ where
                 .ok_or_else(|| Error::NotFound(String::from("ciphertext")))?;
 
             // Compose key
-            let shared_key: [u8; 32] = util::generate_shared_key(secret_key, public_key);
-            let key: Sha256Hash = Sha256Hash::hash(&shared_key);
+            let key: [u8; 32] = util::generate_shared_key(secret_key, public_key);
+            let key: Sha256Hash = Sha256Hash::hash(&key);
 
             // Compose cipher
-            let cipher = XChaCha20Poly1305::new(&key.into());
+            let cipher = XChaCha20Poly1305::new(&key.to_byte_array().into());
 
             // Decrypt
             Ok(cipher.decrypt(nonce.into(), ciphertext.as_ref())?)

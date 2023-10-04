@@ -42,14 +42,15 @@ pub fn build_event(
         receiver,
         serde_json::to_vec(&shared_key)?, // TODO: avoid to use JSON?
         CryptoVersion::XChaCha20Poly1305,
-    )?;
+    )
+    .unwrap(); // TODO: use ?
 
     // Compose and build event
-    Ok(EventBuilder::new(
+    EventBuilder::new(
         SHARED_KEY_KIND_V2,
         encrypted_shared_key,
         // Include only the public key able to decrypt the event to avoid leak of other data
         [Tag::public_key(*receiver)],
     )
-    .to_event(keys)?)
+    .to_event(keys)
 }
