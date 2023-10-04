@@ -10,11 +10,10 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::util::search_network_for_descriptor;
 use smartvaults_core::{policy, Policy, PolicyTemplate};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Vault {
     pub name: String,
     pub description: String,
-    #[serde(skip)]
     policy: Policy,
 }
 
@@ -68,11 +67,25 @@ impl Vault {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct VaultIntermediate {
     name: String,
     description: String,
     descriptor: Descriptor<String>,
+}
+
+impl Serialize for Vault {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let intermediate = VaultIntermediate {
+            name: self.name.clone(),
+            description: self.description.clone(),
+            descriptor: self.policy.descriptor(),
+        };
+        intermediate.serialize(serializer)
+    }
 }
 
 impl<'de> Deserialize<'de> for Vault {
