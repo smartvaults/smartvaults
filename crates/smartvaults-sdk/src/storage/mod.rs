@@ -24,8 +24,8 @@ use tokio::sync::RwLock;
 mod model;
 
 pub(crate) use self::model::{
-    InternalApproval, InternalCompletedProposal, InternalLabel, InternalPolicy, InternalProposal,
-    InternalSharedSigner,
+    InternalApproval, InternalCompletedProposal, InternalLabel, InternalProposal,
+    InternalSharedSigner, InternalVault,
 };
 use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
@@ -57,7 +57,7 @@ pub(crate) struct SmartVaultsStorage {
     keys: Keys,
     database: Arc<DynNostrDatabase>,
     shared_keys: Arc<RwLock<HashMap<EventId, Keys>>>,
-    vaults: Arc<RwLock<HashMap<EventId, InternalPolicy>>>,
+    vaults: Arc<RwLock<HashMap<EventId, InternalVault>>>,
     proposals: Arc<RwLock<HashMap<EventId, InternalProposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     completed_proposals: Arc<RwLock<HashMap<EventId, InternalCompletedProposal>>>,
@@ -190,7 +190,7 @@ impl SmartVaultsStorage {
                     if nostr_pubkeys.is_empty() {
                         tracing::error!("Policy {} not contains any nostr pubkey", event.id);
                     } else {
-                        e.insert(InternalPolicy {
+                        e.insert(InternalVault {
                             policy,
                             public_keys: nostr_pubkeys,
                         });
@@ -434,7 +434,7 @@ impl SmartVaultsStorage {
         shared_keys.get(vault_id).cloned().ok_or(Error::NotFound)
     }
 
-    pub async fn save_vault(&self, policy_id: EventId, internal: InternalPolicy) {
+    pub async fn save_vault(&self, policy_id: EventId, internal: InternalVault) {
         let mut vaults = self.vaults.write().await;
         vaults.insert(policy_id, internal);
     }
@@ -445,7 +445,7 @@ impl SmartVaultsStorage {
     }
 
     /// Get vaults
-    pub async fn vaults(&self) -> HashMap<EventId, InternalPolicy> {
+    pub async fn vaults(&self) -> HashMap<EventId, InternalVault> {
         self.vaults
             .read()
             .await
@@ -455,7 +455,7 @@ impl SmartVaultsStorage {
     }
 
     /// Get [`Vault`]
-    pub async fn vault(&self, vault_id: &EventId) -> Result<InternalPolicy, Error> {
+    pub async fn vault(&self, vault_id: &EventId) -> Result<InternalVault, Error> {
         let vaults = self.vaults.read().await;
         vaults.get(vault_id).cloned().ok_or(Error::NotFound)
     }

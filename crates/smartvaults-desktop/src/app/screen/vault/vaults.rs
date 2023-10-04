@@ -146,7 +146,7 @@ impl State for PoliciesState {
 
                 for GetPolicy {
                     policy_id,
-                    policy,
+                    vault,
                     balance,
                     last_sync,
                 } in self.policies.iter()
@@ -172,7 +172,7 @@ impl State for PoliciesState {
                                 .width(Length::Fixed(115.0))
                                 .view(),
                         )
-                        .push(Text::new(&policy.name()).width(Length::Fill).view())
+                        .push(Text::new(&vault.name).width(Length::Fill).view())
                         .push(balance)
                         .push(
                             Button::new()

@@ -515,18 +515,18 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
             }
             GetCommand::Policy { policy_id, export } => {
                 // Get policy
-                let policy: GetPolicy = client.get_policy_by_id(policy_id).await?;
+                let vault: GetPolicy = client.get_policy_by_id(policy_id).await?;
 
                 // Print result
                 if export {
-                    println!("\n{}\n", policy.as_descriptor());
+                    println!("\n{}\n", vault.as_descriptor());
                     Ok(())
                 } else {
-                    let item = policy.satisfiable_item()?.clone();
+                    let item = vault.satisfiable_item()?.clone();
                     let address = client.get_last_unused_address(policy_id).await?;
                     let txs = client.get_txs(policy_id).await.unwrap_or_default();
                     let utxos = client.get_utxos(policy_id).await.unwrap_or_default();
-                    util::print_policy(policy, policy_id, item, address, txs, utxos);
+                    util::print_policy(vault, policy_id, item, address, txs, utxos);
                     Ok(())
                 }
             }

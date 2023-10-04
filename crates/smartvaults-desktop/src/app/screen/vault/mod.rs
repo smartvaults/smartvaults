@@ -87,7 +87,7 @@ impl State for VaultState {
                 let list = client.get_txs(policy_id).await.ok()?;
                 let proposals = client.get_proposals_by_policy_id(policy_id).await.ok()?;
                 let signer = client
-                    .search_signer_by_descriptor(policy.policy.descriptor())
+                    .search_signer_by_descriptor(policy.vault.descriptor())
                     .await
                     .ok();
                 Some((policy, proposals, signer, list))
@@ -223,13 +223,11 @@ impl State for VaultState {
                         Row::new()
                             .push(
                                 Column::new()
-                                    .push(
-                                        Text::new(format!("Name: {}", policy.policy.name())).view(),
-                                    )
+                                    .push(Text::new(format!("Name: {}", policy.vault.name)).view())
                                     .push(
                                         Text::new(format!(
                                             "Description: {}",
-                                            policy.policy.description()
+                                            policy.vault.description
                                         ))
                                         .view(),
                                     )

@@ -6,11 +6,10 @@ use std::fmt;
 
 use smartvaults_sdk::core::bdk::FeeRate;
 use smartvaults_sdk::core::bitcoin::Txid;
-use smartvaults_sdk::core::policy::Policy;
 use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::Priority;
 use smartvaults_sdk::nostr::{EventId, Url};
-use smartvaults_sdk::protocol::v1::SignerOffering;
+use smartvaults_sdk::protocol::v1::{SignerOffering, Vault};
 use smartvaults_sdk::types::{GetPolicy, GetSigner};
 use smartvaults_sdk::{util, SmartVaults};
 
@@ -34,7 +33,7 @@ pub enum Stage {
     Transaction { policy_id: EventId, txid: Txid },
     History,
     CompletedProposal(EventId),
-    Addresses(Option<(EventId, Policy)>),
+    Addresses(Option<(EventId, Vault)>),
     Signers,
     RevokeAllSigners,
     Signer(EventId, Signer),

@@ -19,6 +19,7 @@ pub struct Vault {
 
 impl Deref for Vault {
     type Target = Policy;
+
     fn deref(&self) -> &Self::Target {
         &self.policy
     }

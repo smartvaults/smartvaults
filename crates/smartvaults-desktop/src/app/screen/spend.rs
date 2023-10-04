@@ -262,7 +262,7 @@ impl State for SpendState {
                 SpendMessage::LoadPolicy(policy_id) => {
                     let client = ctx.client.clone();
                     if let Some(policy) = self.policy.as_ref() {
-                        let policy = policy.policy.clone();
+                        let policy = policy.vault.clone();
                         return Command::perform(
                             async move {
                                 let utxos = client.get_utxos(policy_id).await?;

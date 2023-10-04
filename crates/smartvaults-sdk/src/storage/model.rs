@@ -4,12 +4,12 @@
 use std::cmp::Ordering;
 
 use nostr_sdk::{EventId, PublicKey, Timestamp};
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner};
-use smartvaults_protocol::v1::Label;
+use smartvaults_core::{ApprovedProposal, CompletedProposal, Proposal, SharedSigner};
+use smartvaults_protocol::v1::{Label, Vault};
 
 #[derive(Debug, Clone)]
-pub(crate) struct InternalPolicy {
-    pub policy: Policy,
+pub(crate) struct InternalVault {
+    pub vault: Vault,
     pub public_keys: Vec<PublicKey>,
 }
 

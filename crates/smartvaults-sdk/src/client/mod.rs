@@ -35,14 +35,19 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::signer::smartvaults_signer;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
 use smartvaults_core::{
-    Amount, ApprovedProposal, CompletedProposal, FeeRate, Policy, PolicyTemplate, Proposal, Signer,
+    Amount, ApprovedProposal, CompletedProposal, FeeRate, PolicyTemplate, Proposal, Signer,
     SECP256K1,
 };
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
-use smartvaults_protocol::v1::{Encryption, Label, LabelData, SmartVaultsEventBuilder};
+use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
+use smartvaults_protocol::v1::{
+    Label, LabelData, SmartVaultsEventBuilder, SmartVaultsEventBuilderError, Vault,
+    VerifiedKeyAgents,
+};
+use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
 
@@ -57,7 +62,7 @@ use crate::config::{Config, ElectrumEndpoint};
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
 use crate::storage::{
-    InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
+    InternalApproval, InternalCompletedProposal, InternalProposal, InternalVault,
     SmartVaultsStorage,
 };
 use crate::types::{
@@ -270,10 +275,10 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     async fn init(&self) -> Result<(), Error> {
-        for (policy_id, InternalPolicy { policy, .. }) in self.storage.vaults().await.into_iter() {
+        for (policy_id, InternalVault { vault, .. }) in self.storage.vaults().await.into_iter() {
             let manager = self.manager.clone();
             thread::spawn(async move {
-                if let Err(e) = manager.load_policy(policy_id, policy).await {
+                if let Err(e) = manager.load_policy(policy_id, vault.policy()).await {
                     tracing::error!("Impossible to load policy {policy_id}: {e}");
                 }
             })?;
@@ -692,7 +697,7 @@ impl SmartVaults {
     pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
         Ok(GetPolicy {
             policy_id,
-            policy: self.storage.vault(&policy_id).await?.policy,
+            vault: self.storage.vault(&policy_id).await?.policy,
             balance: self.manager.get_balance(policy_id).await?,
             last_sync: self.manager.last_sync(policy_id).await?,
         })
@@ -744,7 +749,7 @@ impl SmartVaults {
 
         // Get nostr pubkeys and shared keys
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
         if author == shared_key.public_key() {
             let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
@@ -876,7 +881,7 @@ impl SmartVaults {
         for (id, internal) in items.into_iter() {
             policies.push(GetPolicy {
                 policy_id: id,
-                policy: internal.policy,
+                vault: internal.vault,
                 balance: self.manager.get_balance(id).await?,
                 last_sync: self.manager.last_sync(id).await?,
             });
@@ -990,7 +995,7 @@ impl SmartVaults {
     }
 
     pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<Profile>, Error> {
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
         let mut users = Vec::with_capacity(public_keys.len());
         for public_key in public_keys.into_iter() {
             let metadata = self.get_public_key_metadata(public_key).await?;
@@ -1016,11 +1021,11 @@ impl SmartVaults {
 
         // Generate a shared key
         let shared_key = Keys::generate();
-        let policy = Policy::from_desc_or_policy(name, description, descriptor, self.network)?;
+        let vault = Vault::new(name, description, descriptor, self.network)?;
 
         // Compose the event
         // Publish it with `shared_key` so every owner can delete it
-        let policy_event: Event = EventBuilder::policy(&shared_key, &policy, &nostr_pubkeys)?;
+        let policy_event: Event = EventBuilder::policy(&shared_key, &vault, &nostr_pubkeys)?;
         let policy_id = policy_event.id;
 
         // Publish the shared key
@@ -1043,14 +1048,14 @@ impl SmartVaults {
             .save_vault(
                 policy_id,
                 InternalPolicy {
-                    policy: policy.clone(),
+                    vault: vault.clone(),
                     public_keys: nostr_pubkeys,
                 },
             )
             .await;
 
         // Load policy
-        self.manager.load_policy(policy_id, policy).await?;
+        self.manager.load_policy(policy_id, vault.policy()).await?;
 
         Ok(policy_id)
     }
@@ -1065,14 +1070,10 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        let policy: Policy = Policy::from_template(name, description, template, self.network)?;
-        self.save_policy(
-            policy.name(),
-            policy.description(),
-            policy.as_descriptor().to_string(),
-            nostr_pubkeys,
-        )
-        .await
+        let vault: Vault = Vault::from_template(name, description, template, self.network)?;
+        let descriptor: String = vault.as_descriptor().to_string();
+        self.save_policy(vault.name, vault.description, descriptor, nostr_pubkeys)
+            .await
     }
 
     pub async fn estimate_tx_vsize(
@@ -1170,7 +1171,7 @@ impl SmartVaults {
             let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 
             // Compose the event
-            let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+            let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
             let event: Event =
                 EventBuilder::proposal(&shared_key, policy_id, &proposal, &public_keys)?;
             let timestamp = event.created_at;
@@ -1295,7 +1296,7 @@ impl SmartVaults {
             PrivateKey::new(**keys.secret_key()?, self.network),
             SignerContext::Tap {
                 is_internal_key: self
-                    .is_internal_key(policy.as_descriptor().to_string())
+                    .is_internal_key(vault.as_descriptor().to_string())
                     .await?,
             },
         ); */
@@ -1307,7 +1308,7 @@ impl SmartVaults {
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_key)?;
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
         let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
         tags.push(Tag::event(proposal_id));
         tags.push(Tag::event(policy_id));
@@ -1359,7 +1360,7 @@ impl SmartVaults {
 
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_key)?;
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
         let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
         tags.push(Tag::event(proposal_id));
         tags.push(Tag::event(policy_id));
@@ -1448,7 +1449,7 @@ impl SmartVaults {
             let InternalApproval { policy_id, .. } = self.storage.approval(&approval_id).await?;
 
             // Get nostr pubkeys linked to policyit?;
-            let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+            let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
             let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
             tags.push(Tag::event(approval_id));
@@ -1474,7 +1475,7 @@ impl SmartVaults {
         } = self.storage.approvals_by_proposal_id(&proposal_id).await?;
 
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
         // Finalize proposal
         let completed_proposal: CompletedProposal =
@@ -1558,7 +1559,7 @@ impl SmartVaults {
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 
         // Compose the event
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
         let mut tags: Vec<Tag> = public_keys.iter().copied().map(Tag::public_key).collect();
         tags.push(Tag::event(policy_id));
         let content = proposal.encrypt_with_keys(&shared_key)?;
@@ -1850,7 +1851,7 @@ impl SmartVaults {
     pub async fn republish_shared_key_for_policy(&self, policy_id: EventId) -> Result<(), Error> {
         let keys: &Keys = self.keys();
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
         // Publish the shared key
         for public_key in public_keys.into_iter() {
             let encrypted_shared_key = nips::nip04::encrypt(
@@ -1875,16 +1876,14 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
-        let InternalPolicy {
-            policy,
-            public_keys,
-            ..
+        let InternalVault {
+            vault, public_keys, ..
         } = self.storage.vault(&policy_id).await?;
         Ok(PolicyBackup::new(
-            policy.name(),
-            policy.description(),
-            policy.descriptor(),
-            public_keys,
+            vault.name,
+            vault.description,
+            vault.descriptor(),
+            nostr_pubkeys,
         ))
     }
 

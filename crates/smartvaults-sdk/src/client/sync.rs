@@ -26,6 +26,9 @@ use smartvaults_protocol::v1::constants::{
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
+use smartvaults_protocol::v1::{Encryption, Label, Serde, Vault, VerifiedKeyAgents};
+use smartvaults_sdk_sqlite::model::InternalGetPolicy;
+use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};

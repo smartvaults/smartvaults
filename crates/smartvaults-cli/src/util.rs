@@ -91,7 +91,7 @@ pub fn print_contacts(contacts: BTreeSet<Profile>) {
 }
 
 pub fn print_policy(
-    policy: GetPolicy,
+    vault: GetPolicy,
     policy_id: EventId,
     item: SatisfiableItem,
     address: GetAddress,
@@ -100,8 +100,8 @@ pub fn print_policy(
 ) {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
     println!("- ID: {policy_id}");
-    println!("- Name: {}", policy.name());
-    println!("- Description: {}", policy.description());
+    println!("- Name: {}", &vault.name);
+    println!("- Description: {}", vault.description);
 
     let mut tree: Tree<String> = Tree::new("- Descriptor".to_string());
     tree.push(add_node(&item));
@@ -110,19 +110,19 @@ pub fn print_policy(
     println!("{}", "Balances".fg::<BlazeOrange>().underline());
     println!(
         "- Immature            	: {} sat",
-        format::number(policy.balance.immature)
+        format::number(vault.balance.immature)
     );
     println!(
         "- Trusted pending     	: {} sat",
-        format::number(policy.balance.trusted_pending)
+        format::number(vault.balance.trusted_pending)
     );
     println!(
         "- Untrusted pending   	: {} sat",
-        format::number(policy.balance.untrusted_pending)
+        format::number(vault.balance.untrusted_pending)
     );
     println!(
         "- Confirmed           	: {} sat",
-        format::number(policy.balance.confirmed)
+        format::number(vault.balance.confirmed)
     );
 
     println!(
@@ -320,16 +320,11 @@ pub fn print_policies(policies: Vec<GetPolicy>) {
     for (
         index,
         GetPolicy {
-            policy_id, policy, ..
+            policy_id, vault, ..
         },
     ) in policies.into_iter().enumerate()
     {
-        table.add_row(row![
-            index + 1,
-            policy_id,
-            policy.name(),
-            policy.description()
-        ]);
+        table.add_row(row![index + 1, policy_id, vault.name, vault.description]);
     }
 
     table.printstd();

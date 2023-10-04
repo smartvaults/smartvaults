@@ -5,12 +5,12 @@ use nostr_sdk::{Event, EventBuilder, EventId, Keys};
 use smartvaults_protocol::v1::{Label, SmartVaultsEventBuilder};
 
 use super::{Error, SmartVaults};
-use crate::storage::InternalPolicy;
+use crate::storage::InternalVault;
 
 impl SmartVaults {
     pub async fn save_label(&self, policy_id: EventId, label: Label) -> Result<EventId, Error> {
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
+        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
         // TODO: check if address or UTXO actually belong to the policy
 

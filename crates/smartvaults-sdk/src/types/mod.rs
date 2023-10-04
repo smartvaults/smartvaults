@@ -10,10 +10,9 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::{
-    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
-};
-use smartvaults_protocol::v1::SignerOffering;
+use smartvaults_core::secp256k1::XOnlyPublicKey;
+use smartvaults_core::{ApprovedProposal, CompletedProposal, Proposal, SharedSigner};
+use smartvaults_protocol::v1::{SignerOffering, Vault};
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;
@@ -24,7 +23,7 @@ use crate::manager::TransactionDetails;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetPolicy {
     pub policy_id: EventId,
-    pub policy: Policy,
+    pub vault: Vault,
     pub balance: Balance,
     pub last_sync: Timestamp,
 }
@@ -37,15 +36,15 @@ impl PartialOrd for GetPolicy {
 
 impl Ord for GetPolicy {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.policy.cmp(&other.policy)
+        self.vault.cmp(&other.vault)
     }
 }
 
 impl Deref for GetPolicy {
-    type Target = Policy;
+    type Target = Vault;
 
     fn deref(&self) -> &Self::Target {
-        &self.policy
+        &self.vault
     }
 }
 
