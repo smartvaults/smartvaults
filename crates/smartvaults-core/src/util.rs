@@ -6,10 +6,10 @@ use std::str::FromStr;
 use ::serde::{Deserialize, Deserializer, Serializer};
 use keechain_core::bdk::descriptor::{DescriptorError, IntoWalletDescriptor};
 use keechain_core::bdk::keys::KeyError;
-use keechain_core::bdk::miniscript::Descriptor;
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::secp256k1::rand::rngs::OsRng;
 use keechain_core::bitcoin::Network;
+use keechain_core::miniscript::Descriptor;
 use keechain_core::secp256k1::{Secp256k1, Signing, XOnlyPublicKey};
 pub use keechain_core::util::*;
 

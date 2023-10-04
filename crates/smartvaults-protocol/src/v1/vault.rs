@@ -7,6 +7,7 @@ use serde::de::Error as DeserializerError;
 use serde::{Deserialize, Deserializer, Serialize};
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::util::search_network_for_descriptor;
 use smartvaults_core::{policy, Policy, PolicyTemplate};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -80,7 +81,8 @@ impl<'de> Deserialize<'de> for Vault {
         D: Deserializer<'de>,
     {
         let intermediate: VaultIntermediate = VaultIntermediate::deserialize(deserializer)?;
-        let network = Network::Testnet; // TODO: search network
+        let network: Network = search_network_for_descriptor(&intermediate.descriptor)
+            .ok_or(DeserializerError::custom("Network not found"))?;
         Ok(Self {
             name: intermediate.name,
             description: intermediate.description,
