@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use nostr_sdk_ffi::{EventId, Timestamp};
-use smartvaults_sdk::core::{policy, PolicyTemplateType, SelectableConditions};
+use smartvaults_sdk::core::{policy, PolicyTemplateType, SelectableCondition};
 use smartvaults_sdk::protocol::v1::util::SerdeSer;
 use smartvaults_sdk::types;
 
@@ -65,7 +65,7 @@ impl Policy {
             .map(|list| {
                 list.into_iter()
                     .map(
-                        |SelectableConditions {
+                        |SelectableCondition {
                              path, sub_paths, ..
                          }| (path, sub_paths),
                     )

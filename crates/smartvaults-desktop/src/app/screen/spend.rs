@@ -9,7 +9,7 @@ use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bdk::descriptor::policy::SatisfiableItem;
 use smartvaults_sdk::core::bitcoin::address::NetworkUnchecked;
 use smartvaults_sdk::core::bitcoin::{Address, OutPoint};
-use smartvaults_sdk::core::{Amount, FeeRate, SelectableConditions};
+use smartvaults_sdk::core::{Amount, FeeRate, SelectableCondition};
 use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::{GetPolicy, GetProposal, GetUtxo};
 use smartvaults_sdk::util::format;
@@ -52,7 +52,7 @@ pub enum SpendMessage {
     PolicyLoaded(
         Vec<GetUtxo>,
         SatisfiableItem,
-        Option<Vec<SelectableConditions>>,
+        Option<Vec<SelectableCondition>>,
     ),
     SelectedUtxosChanged(HashSet<OutPoint>),
     SetSkipFrozenUtxos(bool),
@@ -76,7 +76,7 @@ pub struct SpendState {
     skip_frozen_utxos: bool,
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     satisfiable_item: Option<SatisfiableItem>,
-    selectable_conditions: Option<Vec<SelectableConditions>>,
+    selectable_conditions: Option<Vec<SelectableCondition>>,
     stage: InternalStage,
     loading: bool,
     loaded: bool,
@@ -210,7 +210,7 @@ impl State for SpendState {
                                     (
                                         Vec<GetUtxo>,
                                         SatisfiableItem,
-                                        Option<Vec<SelectableConditions>>,
+                                        Option<Vec<SelectableCondition>>,
                                     ),
                                     Box<dyn std::error::Error>,
                                 >((utxos, item, conditions))
@@ -581,7 +581,7 @@ impl SpendState {
                         .push(Text::new("Select conditions").view())
                         .push(Space::with_height(Length::Fixed(5.0)));
 
-                    for SelectableConditions {
+                    for SelectableCondition {
                         path, sub_paths, ..
                     } in conditions.into_iter()
                     {

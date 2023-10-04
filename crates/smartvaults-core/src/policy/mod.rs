@@ -76,7 +76,7 @@ pub enum Error {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub struct SelectableConditions {
+pub struct SelectableCondition {
     pub path: String,
     pub thresh: usize,
     pub sub_paths: Vec<String>,
@@ -231,16 +231,16 @@ impl Policy {
     pub fn selectable_conditions(
         &self,
         network: Network,
-    ) -> Result<Option<Vec<SelectableConditions>>, Error> {
+    ) -> Result<Option<Vec<SelectableCondition>>, Error> {
         if self.has_timelock() {
             fn selectable_conditions(
                 item: &SatisfiableItem,
                 prev_id: String,
-                result: &mut Vec<SelectableConditions>,
+                result: &mut Vec<SelectableCondition>,
             ) {
                 if let SatisfiableItem::Thresh { items, threshold } = item {
                     if *threshold < items.len() {
-                        result.push(SelectableConditions {
+                        result.push(SelectableCondition {
                             path: prev_id,
                             thresh: *threshold,
                             sub_paths: items.iter().map(|i| i.id.clone()).collect(),
@@ -327,7 +327,7 @@ impl Policy {
         match self.selectable_conditions(network)? {
             Some(selectable_conditions) => {
                 let mut map = BTreeMap::new();
-                for SelectableConditions {
+                for SelectableCondition {
                     path,
                     thresh,
                     sub_paths,
@@ -363,7 +363,7 @@ impl Policy {
                         let missing_to_select = selectable_conditions
                             .into_iter()
                             .filter_map(
-                                |SelectableConditions {
+                                |SelectableCondition {
                                      path,
                                      mut sub_paths,
                                      ..
@@ -384,7 +384,7 @@ impl Policy {
                 } else {
                     // Compose internal key path
                     let mut internal_key_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-                    if let Some(SelectableConditions {
+                    if let Some(SelectableCondition {
                         path: first_path, ..
                     }) = selectable_conditions.first().cloned()
                     {
@@ -404,11 +404,11 @@ impl Policy {
                         Ok(Some(PolicyPathSelector::Partial {
                             missing_to_select: selectable_conditions
                                 .into_iter()
-                                .filter(|SelectableConditions { path, .. }| {
+                                .filter(|SelectableCondition { path, .. }| {
                                     !selected_path.contains_key(path)
                                 })
                                 .map(
-                                    |SelectableConditions {
+                                    |SelectableCondition {
                                          path, sub_paths, ..
                                      }| (path, sub_paths),
                                 )
@@ -748,12 +748,12 @@ mod test {
         let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
         let conditions = policy.selectable_conditions(Network::Testnet).unwrap();
         let mut c = Vec::new();
-        c.push(SelectableConditions {
+        c.push(SelectableCondition {
             path: String::from("y46gds64"),
             thresh: 1,
             sub_paths: vec![String::from("lcjxl004"), String::from("8sld2cgj")],
         });
-        c.push(SelectableConditions {
+        c.push(SelectableCondition {
             path: String::from("fx0z8u06"),
             thresh: 1,
             sub_paths: vec![String::from("0e36xhlc"), String::from("m4n7s285")],

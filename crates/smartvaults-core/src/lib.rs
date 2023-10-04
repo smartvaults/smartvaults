@@ -17,7 +17,7 @@ pub mod util;
 
 pub use self::policy::{
     AbsoluteLockTime, DecayingTime, Locktime, Policy, PolicyTemplate, PolicyTemplateType,
-    RecoveryTemplate, SelectableConditions, Sequence,
+    RecoveryTemplate, SelectableCondition, Sequence,
 };
 pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 pub use self::signer::{SharedSigner, Signer, SignerType};
