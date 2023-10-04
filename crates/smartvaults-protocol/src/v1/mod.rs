@@ -16,3 +16,4 @@ pub use self::key_agent::{
 };
 pub use self::label::{Label, LabelData, LabelKind};
 pub use self::util::{Encryption, EncryptionError, Serde, SerdeSer};
+pub use self::vault::Vault;
