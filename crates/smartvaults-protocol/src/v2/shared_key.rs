@@ -8,6 +8,7 @@ use smartvaults_core::bitcoin::Network;
 
 use super::constants::SHARED_KEY_KIND_V2;
 use super::crypto::{self, Version as CryptoVersion};
+use super::NetworkMagic;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -18,7 +19,7 @@ pub enum SharedKey {
         /// Event ID
         policy_id: EventId,
         /// Network magic
-        network: [u8; 4],
+        network: NetworkMagic,
     },
 }
 
@@ -33,7 +34,7 @@ pub fn build_event(
     let shared_key = SharedKey::V1 {
         shared_key: shared_key.secret_key()?.clone(),
         policy_id,
-        network: network.magic().to_bytes(),
+        network: network.into(),
     };
 
     // Encrypt Shared Key
