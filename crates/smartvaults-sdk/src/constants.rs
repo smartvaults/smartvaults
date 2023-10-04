@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 // Default relays
-pub const MAINNET_RELAYS: [&str; 1] = ["wss://prod.relay.report"];
+pub const MAINNET_RELAYS: [&str; 2] = ["wss://prod.relay.report", "wss://prod2.relay.report"];
 pub const TESTNET_RELAYS: [&str; 2] = ["wss://test.relay.report", "wss://test2.relay.report"];
 
 // Sync intervals
