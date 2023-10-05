@@ -4,7 +4,8 @@
 pub mod constants;
 pub mod crypto;
 pub mod identifier;
-pub mod network;
+mod network;
+pub mod schema;
 pub mod shared_key;
 pub mod vault;
 

@@ -44,9 +44,9 @@ impl TryFrom<u8> for Version {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Schema {
+pub struct Schema<'a> {
     pub version: Version,
-    pub data: Vec<u8>,
+    pub data: &'a [u8],
 }
 
 pub fn encode<T>(data: T, version: Version) -> Vec<u8>
@@ -60,12 +60,7 @@ where
     payload
 }
 
-pub fn decode<T>(payload: T) -> Result<Schema, Error>
-where
-    T: AsRef<[u8]>,
-{
-    let payload: &[u8] = payload.as_ref();
-
+pub fn decode(payload: &[u8]) -> Result<Schema<'_>, Error> {
     // Get version byte
     let version: u8 = *payload.first().ok_or(Error::VersionNotFound)?;
     let version: Version = Version::try_from(version)?;
@@ -74,8 +69,5 @@ where
     let data: &[u8] = payload.get(1..).ok_or(Error::DataNotFound)?;
 
     // Compose schema
-    Ok(Schema {
-        version,
-        data: data.to_vec(),
-    })
+    Ok(Schema { version, data })
 }
