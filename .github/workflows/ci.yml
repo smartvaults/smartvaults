@@ -48,9 +48,11 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml','**/Cargo.lock') }}
+    - name: Install protobuf compiler
+      run: sudo apt update && sudo apt install protobuf-compiler
     - name: Install GUI dependencies
       if: ${{ matrix.build-args == '-p smartvaults-desktop' }}
-      run: sudo apt update && sudo apt install build-essential libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libdbus2.0-cil-dev libnotify-cil-dev libusb-1.0-0-dev libudev-dev python3-dev
+      run: sudo apt install build-essential libclang-dev libgtk-3-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libdbus2.0-cil-dev libnotify-cil-dev libusb-1.0-0-dev libudev-dev python3-dev
     - name: Build
       run: cargo build ${{ matrix.build-args }}
     - name: Tests
@@ -84,6 +86,8 @@ jobs:
       run: rustup target add wasm32-unknown-unknown
     - name: Set profile
       run: rustup set profile minimal && rustup component add clippy
+    - name: Install protobuf compiler
+      run: sudo apt update && sudo apt install protobuf-compiler
     - name: Build
       run: cargo build ${{ matrix.build-args }} --target wasm32-unknown-unknown
     - name: Clippy
