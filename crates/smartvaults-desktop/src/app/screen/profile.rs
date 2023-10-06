@@ -3,7 +3,7 @@
 
 use iced::widget::Column;
 use iced::{Command, Element, Length};
-use smartvaults_sdk::nostr::Metadata;
+use smartvaults_sdk::types::User;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -13,14 +13,14 @@ use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
 pub enum ProfileMessage {
-    LoadProfile { metadata: Metadata },
+    LoadProfile { user: User },
 }
 
 #[derive(Debug, Default)]
 pub struct ProfileState {
     loading: bool,
     loaded: bool,
-    metadata: Metadata,
+    user: Option<User>,
 }
 
 impl ProfileState {
@@ -37,10 +37,9 @@ impl State for ProfileState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loaded = true;
         let client = ctx.client.clone();
-        Command::perform(
-            async move { client.get_profile().await.unwrap().metadata() },
-            |metadata| ProfileMessage::LoadProfile { metadata }.into(),
-        )
+        Command::perform(async move { client.get_profile().await.unwrap() }, |user| {
+            ProfileMessage::LoadProfile { user }.into()
+        })
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -50,8 +49,8 @@ impl State for ProfileState {
 
         if let Message::Profile(msg) = message {
             match msg {
-                ProfileMessage::LoadProfile { metadata } => {
-                    self.metadata = metadata;
+                ProfileMessage::LoadProfile { user } => {
+                    self.user = Some(user);
                     self.loading = false;
                     self.loaded = true;
                 }
@@ -64,9 +63,9 @@ impl State for ProfileState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut content = Column::new().spacing(10).padding(20);
 
-        if self.loaded {
-            let public_key = ctx.client.keys().public_key();
-
+        if let Some(user) = &self.user {
+            let public_key = user.public_key();
+            let metadata = user.metadata();
             content = content
                 .push(Text::new(util::cut_public_key(public_key)).view())
                 .push(
@@ -80,21 +79,21 @@ impl State for ProfileState {
                 .push(
                     Text::new(format!(
                         "Name: {}",
-                        self.metadata.name.clone().unwrap_or_default()
+                        metadata.name.clone().unwrap_or_default()
                     ))
                     .view(),
                 )
                 .push(
                     Text::new(format!(
                         "Display name: {}",
-                        self.metadata.display_name.clone().unwrap_or_default()
+                        metadata.display_name.clone().unwrap_or_default()
                     ))
                     .view(),
                 )
                 .push(
                     Text::new(format!(
                         "NIP-05: {}",
-                        self.metadata.nip05.clone().unwrap_or_default()
+                        metadata.nip05.clone().unwrap_or_default()
                     ))
                     .view(),
                 )

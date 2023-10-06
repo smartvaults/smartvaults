@@ -36,7 +36,7 @@ async fn main() {
             "My Hold Policy",
             "Policy to keep safe my SATs",
             template,
-            vec![client.keys().public_key()],
+            vec![client.keys().await.public_key()],
         )
         .await
         .unwrap();

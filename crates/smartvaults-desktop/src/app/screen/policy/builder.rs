@@ -6,7 +6,6 @@ use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::PolicyTemplate;
-use smartvaults_sdk::nostr::Metadata;
 use smartvaults_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner, User};
 use smartvaults_sdk::util;
 
@@ -22,7 +21,7 @@ pub enum PolicyBuilderMessage {
     DescriptionChanged(String),
     IncreaseThreshold,
     DecreaseThreshold,
-    Load((GetAllSigners, Metadata)),
+    Load((GetAllSigners, User)),
     AddSigner,
     EditSigner(usize, User, Box<DescriptorPublicKey>),
     RemoveSigner(usize),
@@ -38,7 +37,7 @@ pub struct PolicyBuilderState {
     signers: GetAllSigners,
     threshold: usize,
     policy: Vec<Option<(User, DescriptorPublicKey)>>,
-    profile: Metadata,
+    profile: Option<User>,
     loading: bool,
     loaded: bool,
     selecting_signer: Option<usize>,
@@ -86,7 +85,7 @@ impl State for PolicyBuilderState {
         Command::perform(
             async move {
                 let signers = client.get_all_signers().await.unwrap();
-                let profile = client.get_profile().await.unwrap().metadata();
+                let profile = client.get_profile().await.unwrap();
                 (signers, profile)
             },
             |(s, p)| PolicyBuilderMessage::Load((s, p)).into(),
@@ -116,7 +115,7 @@ impl State for PolicyBuilderState {
                 PolicyBuilderMessage::ErrorChanged(error) => self.error = error,
                 PolicyBuilderMessage::Load((signers, profile)) => {
                     self.signers = signers;
-                    self.profile = profile;
+                    self.profile = Some(profile);
                     self.loading = false;
                     self.loaded = true;
                 }
@@ -190,7 +189,7 @@ impl State for PolicyBuilderState {
         let content = if let Some(index) = self.selecting_signer {
             center_y = false;
 
-            view_signer_selector(self, ctx, index)
+            view_signer_selector(self, index)
         } else {
             let name = TextInput::new("Name", &self.name)
                 .on_input(|s| PolicyBuilderMessage::NameChanged(s).into())
@@ -353,11 +352,7 @@ impl State for PolicyBuilderState {
     }
 }
 
-fn view_signer_selector<'a>(
-    state: &PolicyBuilderState,
-    ctx: &Context,
-    index: usize,
-) -> Column<'a, Message> {
+fn view_signer_selector<'a>(state: &PolicyBuilderState, index: usize) -> Column<'a, Message> {
     let mut content = Column::new().spacing(10).padding(20);
 
     // My Signers
@@ -395,56 +390,57 @@ fn view_signer_selector<'a>(
         )
         .push(rule::horizontal_bold());
 
-    let public_key = ctx.client.keys().public_key();
-    for GetSigner { signer_id, signer } in state.signers.my.iter() {
-        if let Ok(descriptor) = signer.descriptor_public_key() {
-            let row = Row::new()
-                .push(
-                    Text::new(util::cut_event_id(*signer_id))
-                        .width(Length::Fixed(115.0))
-                        .view(),
-                )
-                .push(Text::new(signer.name()).width(Length::Fill).view())
-                .push(
-                    Text::new(signer.fingerprint().to_string())
-                        .width(Length::Fixed(175.0))
-                        .view(),
-                )
-                .push(
-                    Text::new(signer.signer_type().to_string())
-                        .width(Length::Fixed(125.0))
-                        .view(),
-                )
-                .push(if state.is_already_selected(&descriptor) {
-                    Button::new()
-                        .text("Selected")
-                        .width(Length::Fixed(180.0))
-                        .view()
-                } else if state.pk_is_already_selected(public_key) {
-                    Button::new()
-                        .style(ButtonStyle::Bordered)
-                        .text("Select")
-                        .width(Length::Fixed(180.0))
-                        .view()
-                } else {
-                    Button::new()
-                        .style(ButtonStyle::Bordered)
-                        .text("Select")
-                        .width(Length::Fixed(180.0))
-                        .on_press(
-                            PolicyBuilderMessage::EditSigner(
-                                index,
-                                User::new(public_key, state.profile.clone()),
-                                Box::new(descriptor),
+    if let Some(user) = &state.profile {
+        for GetSigner { signer_id, signer } in state.signers.my.iter() {
+            if let Ok(descriptor) = signer.descriptor_public_key() {
+                let row = Row::new()
+                    .push(
+                        Text::new(util::cut_event_id(*signer_id))
+                            .width(Length::Fixed(115.0))
+                            .view(),
+                    )
+                    .push(Text::new(signer.name()).width(Length::Fill).view())
+                    .push(
+                        Text::new(signer.fingerprint().to_string())
+                            .width(Length::Fixed(175.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new(signer.signer_type().to_string())
+                            .width(Length::Fixed(125.0))
+                            .view(),
+                    )
+                    .push(if state.is_already_selected(&descriptor) {
+                        Button::new()
+                            .text("Selected")
+                            .width(Length::Fixed(180.0))
+                            .view()
+                    } else if state.pk_is_already_selected(user.public_key()) {
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .text("Select")
+                            .width(Length::Fixed(180.0))
+                            .view()
+                    } else {
+                        Button::new()
+                            .style(ButtonStyle::Bordered)
+                            .text("Select")
+                            .width(Length::Fixed(180.0))
+                            .on_press(
+                                PolicyBuilderMessage::EditSigner(
+                                    index,
+                                    user.clone(),
+                                    Box::new(descriptor),
+                                )
+                                .into(),
                             )
-                            .into(),
-                        )
-                        .view()
-                })
-                .spacing(10)
-                .align_items(Alignment::Center)
-                .width(Length::Fill);
-            content = content.push(row).push(rule::horizontal());
+                            .view()
+                    })
+                    .spacing(10)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill);
+                content = content.push(row).push(rule::horizontal());
+            }
         }
     }
 

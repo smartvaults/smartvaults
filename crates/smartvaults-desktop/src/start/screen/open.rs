@@ -68,7 +68,7 @@ impl State for OpenState {
                                     .await
                             },
                             move |res| match res {
-                                Ok(keechain) => Message::OpenResult(keechain),
+                                Ok(client) => Message::OpenResult(client),
                                 Err(e) => OpenMessage::ErrorChanged(Some(e.to_string())).into(),
                             },
                         );

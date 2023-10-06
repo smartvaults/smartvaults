@@ -6,6 +6,7 @@ use iced::{Alignment, Command, Element, Length};
 use iced_aw::{Card, Modal};
 use rfd::FileDialog;
 use smartvaults_sdk::core::proposal::Proposal;
+use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::signer::{Signer, SignerType};
 use smartvaults_sdk::core::{CompletedProposal, PsbtUtility};
 use smartvaults_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
@@ -21,7 +22,14 @@ use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ProposalMessage {
-    LoadProposal(Proposal, bool, EventId, Vec<GetApproval>, Option<Signer>),
+    LoadProposal(
+        Proposal,
+        bool,
+        EventId,
+        Vec<GetApproval>,
+        Option<Signer>,
+        XOnlyPublicKey,
+    ),
     Approve,
     ApproveWithSeed(String),
     Finalize,
@@ -50,6 +58,7 @@ pub struct ProposalState {
     proposal_id: EventId,
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
+    my_public_key: Option<XOnlyPublicKey>,
     password: String,
     approved_proposals: Vec<GetApproval>,
     signer: Option<Signer>,
@@ -66,6 +75,7 @@ impl ProposalState {
             proposal_id,
             proposal: None,
             policy_id: None,
+            my_public_key: None,
             password: String::new(),
             approved_proposals: Vec::new(),
             signer: None,
@@ -103,13 +113,23 @@ impl State for ProposalState {
                     .get_approvals_by_proposal_id(proposal_id)
                     .await
                     .unwrap_or_default();
+                let keys = client.keys().await;
 
-                Some((proposal, signed, policy_id, approvals, signer))
+                Some((
+                    proposal,
+                    signed,
+                    policy_id,
+                    approvals,
+                    signer,
+                    keys.public_key(),
+                ))
             },
             |res| match res {
-                Some((proposal, signed, policy_id, approvals, signer)) => {
-                    ProposalMessage::LoadProposal(proposal, signed, policy_id, approvals, signer)
-                        .into()
+                Some((proposal, signed, policy_id, approvals, signer, pk)) => {
+                    ProposalMessage::LoadProposal(
+                        proposal, signed, policy_id, approvals, signer, pk,
+                    )
+                    .into()
                 }
                 None => Message::View(Stage::Dashboard),
             },
@@ -123,9 +143,17 @@ impl State for ProposalState {
 
         if let Message::Proposal(msg) = message {
             match msg {
-                ProposalMessage::LoadProposal(proposal, signed, policy_id, approvals, signer) => {
+                ProposalMessage::LoadProposal(
+                    proposal,
+                    signed,
+                    policy_id,
+                    approvals,
+                    signer,
+                    pk,
+                ) => {
                     self.proposal = Some(proposal);
                     self.policy_id = Some(policy_id);
+                    self.my_public_key = Some(pk);
                     self.signed = signed;
                     self.approved_proposals = approvals;
                     self.signer = signer;
@@ -400,7 +428,7 @@ impl State for ProposalState {
                             .approved_proposals
                             .iter()
                             .find(|GetApproval { user, .. }| {
-                                user.public_key() == ctx.client.keys().public_key()
+                                Some(user.public_key()) == self.my_public_key
                             }) {
                             Some(_) => {
                                 let approve_btn =
@@ -491,7 +519,6 @@ impl State for ProposalState {
                             )
                             .push(rule::horizontal_bold());
 
-                        let my_public_key = ctx.client.keys().public_key();
                         for GetApproval {
                             approval_id,
                             user,
@@ -515,7 +542,7 @@ impl State for ProposalState {
                                 .align_items(Alignment::Center)
                                 .width(Length::Fill);
 
-                            if my_public_key == user.public_key() {
+                            if self.my_public_key == Some(user.public_key()) {
                                 row = row.push(
                                     Button::new()
                                         .style(ButtonStyle::BorderedDanger)

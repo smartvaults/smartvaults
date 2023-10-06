@@ -456,8 +456,8 @@ impl SmartVaults {
         Ok(self.keechain.read().keychain(password)?)
     }
 
-    pub fn keys(&self) -> Keys {
-        self.client.keys()
+    pub async fn keys(&self) -> Keys {
+        self.client.keys().await
     }
 
     pub fn fingerprint(&self) -> Fingerprint {
@@ -482,7 +482,7 @@ impl SmartVaults {
             Ok(ts) => ts,
             Err(_) => Timestamp::from(0),
         };
-        let filters = self.sync_filters(last_sync);
+        let filters: Vec<Filter> = self.sync_filters(last_sync).await;
         relay.subscribe(filters, None).await?;
         relay.connect(false).await;
         if let Err(e) = self.rebroadcast_to(url.clone()).await {
@@ -607,7 +607,7 @@ impl SmartVaults {
     }
 
     pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {
-        let keys = self.keys();
+        let keys: Keys = self.keys().await;
         let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
         self.send_event(event).await?;
         self.db.set_metadata(keys.public_key(), metadata).await?;
@@ -616,7 +616,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_profile(&self) -> Result<User, Error> {
-        let public_key: XOnlyPublicKey = self.keys().public_key();
+        let public_key: XOnlyPublicKey = self.keys().await.public_key();
         let metadata = self.db.get_metadata(public_key).await?;
         Ok(User::new(public_key, metadata))
     }
@@ -656,7 +656,8 @@ impl SmartVaults {
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
-        if public_key != self.keys().public_key() {
+        let keys: Keys = self.keys().await;
+        if public_key != keys.public_key() {
             // Add contact
             let mut contacts: Vec<Contact> = self
                 .db
@@ -666,7 +667,7 @@ impl SmartVaults {
                 .map(|p| Contact::new::<String>(p, None, None))
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
-            let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
+            let event = EventBuilder::set_contact_list(contacts).to_event(&keys)?;
             self.send_event(event).await?;
             self.db.save_contact(public_key).await?;
 
@@ -686,6 +687,7 @@ impl SmartVaults {
     }
 
     pub async fn remove_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+        let keys: Keys = self.keys().await;
         let contacts: Vec<Contact> = self
             .db
             .get_contacts_public_keys()
@@ -694,7 +696,7 @@ impl SmartVaults {
             .filter(|p| p != &public_key)
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
-        let event = EventBuilder::set_contact_list(contacts).to_event(&self.keys())?;
+        let event = EventBuilder::set_contact_list(contacts).to_event(&keys)?;
         self.send_event(event).await?;
         self.db.delete_contact(public_key).await?;
         Ok(())
@@ -930,7 +932,7 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let descriptor = descriptor.into();
 
         if nostr_pubkeys.is_empty() {
@@ -1136,12 +1138,12 @@ impl SmartVaults {
         .await
     }
 
-    fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
+    async fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
     where
         S: Into<String>,
     {
         let descriptor = descriptor.into();
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         Ok(
             descriptor.starts_with(&format!("tr({}", keys.normalized_public_key()?))
                 || descriptor.starts_with(&format!("tr({}", keys.public_key())),
@@ -1166,11 +1168,11 @@ impl SmartVaults {
 
         // Sign PSBT
         // Custom signer
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let signer = SignerWrapper::new(
             PrivateKey::new(keys.secret_key()?, self.network),
             SignerContext::Tap {
-                is_internal_key: self.is_internal_key(policy.descriptor.to_string())?,
+                is_internal_key: self.is_internal_key(policy.descriptor.to_string()).await?,
             },
         );
         let seed: Seed = self.keechain.read().seed(password)?;
@@ -1217,7 +1219,7 @@ impl SmartVaults {
         proposal_id: EventId,
         signed_psbt: PartiallySignedTransaction,
     ) -> Result<(EventId, ApprovedProposal), Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
 
         // Get proposal and policy
         let GetProposal {
@@ -1269,7 +1271,7 @@ impl SmartVaults {
         proposal_id: EventId,
         signer: Signer,
     ) -> Result<(EventId, ApprovedProposal), Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
 
         // Get proposal and policy
         let GetProposal {
@@ -1316,7 +1318,7 @@ impl SmartVaults {
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
         let Event { pubkey, .. } = self.db.get_event_by_id(approval_id).await?;
-        let keys = self.keys();
+        let keys: Keys = self.keys().await;
         if pubkey == keys.public_key() {
             let policy_id = self.db.get_policy_id_by_approval_id(approval_id).await?;
 
@@ -1752,7 +1754,7 @@ impl SmartVaults {
     }
 
     pub async fn republish_shared_key_for_policy(&self, policy_id: EventId) -> Result<(), Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let shared_key = self.db.get_shared_key(policy_id).await?;
         let pubkeys = self.db.get_nostr_pubkeys(policy_id).await?;
         // Publish the shared key

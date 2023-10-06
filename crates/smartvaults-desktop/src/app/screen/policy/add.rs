@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
@@ -20,7 +20,7 @@ pub enum AddPolicyMessage {
     NameChanged(String),
     DescriptionChanged(String),
     DescriptorChanged(String),
-    LoadContacts(Vec<User>),
+    Load(User, VecDeque<User>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     SelectPublicKeys(bool),
@@ -33,7 +33,8 @@ pub struct AddPolicyState {
     name: String,
     description: String,
     descriptor: String,
-    contacts: Vec<User>,
+    profile: Option<User>,
+    contacts: VecDeque<User>,
     public_keys: HashSet<XOnlyPublicKey>,
     loading: bool,
     loaded: bool,
@@ -61,11 +62,13 @@ impl State for AddPolicyState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let mut contacts = client.get_contacts().await.unwrap();
-                contacts.push(client.get_profile().await.unwrap());
-                contacts
+                let profile = client.get_profile().await.unwrap();
+                let mut contacts: VecDeque<User> =
+                    client.get_contacts().await.unwrap().into_iter().collect();
+                contacts.push_front(profile.clone());
+                (profile, contacts)
             },
-            |p| AddPolicyMessage::LoadContacts(p).into(),
+            |(profile, contacts)| AddPolicyMessage::Load(profile, contacts).into(),
         )
     }
 
@@ -79,7 +82,8 @@ impl State for AddPolicyState {
                 AddPolicyMessage::NameChanged(name) => self.name = name,
                 AddPolicyMessage::DescriptionChanged(desc) => self.description = desc,
                 AddPolicyMessage::DescriptorChanged(desc) => self.descriptor = desc,
-                AddPolicyMessage::LoadContacts(contacts) => {
+                AddPolicyMessage::Load(profile, contacts) => {
+                    self.profile = Some(profile);
                     self.contacts = contacts;
                     self.loading = false;
                     self.loaded = true;
@@ -149,7 +153,7 @@ impl State for AddPolicyState {
                             .find(|c| c.public_key() == *public_key)
                             .map(|u| u.name())
                             .unwrap_or_else(|| util::cut_public_key(*public_key)),
-                        if ctx.client.keys().public_key() == *public_key {
+                        if self.profile.as_ref().map(|p| p.public_key()) == Some(*public_key) {
                             " (me)"
                         } else {
                             ""
@@ -197,7 +201,7 @@ impl State for AddPolicyState {
 
         let content = if self.selecting {
             center_y = false;
-            view_select_public_keys(self, ctx)
+            view_select_public_keys(self)
         } else {
             Column::new()
                 .push(
@@ -228,7 +232,7 @@ impl State for AddPolicyState {
     }
 }
 
-fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<'a, Message> {
+fn view_select_public_keys<'a>(state: &AddPolicyState) -> Column<'a, Message> {
     let mut content = Column::new().spacing(10).padding(20);
 
     if state.contacts.is_empty() {
@@ -292,7 +296,7 @@ fn view_select_public_keys<'a>(state: &AddPolicyState, ctx: &Context) -> Column<
                     Text::new(format!(
                         "{}{}",
                         util::cut_public_key(public_key),
-                        if ctx.client.keys().public_key() == public_key {
+                        if state.profile.as_ref().map(|p| p.public_key()) == Some(public_key) {
                             " (me)"
                         } else {
                             ""

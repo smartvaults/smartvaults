@@ -23,7 +23,7 @@ impl SmartVaults {
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
 
         let my_shared_signers = self
             .db
@@ -47,7 +47,7 @@ impl SmartVaults {
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
 
         if self
             .db
@@ -121,7 +121,7 @@ impl SmartVaults {
             .my_shared_signer_already_shared(signer_id, public_key)
             .await?
         {
-            let keys: Keys = self.client.keys();
+            let keys: Keys = self.keys().await;
             let signer: Signer = self.get_signer_by_id(signer_id).await?;
             let shared_signer: SharedSigner = signer.to_shared_signer();
             let content: String =
@@ -151,7 +151,7 @@ impl SmartVaults {
             return Err(Error::NotEnoughPublicKeys);
         }
 
-        let keys: Keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
         let shared_signer: SharedSigner = signer.to_shared_signer();
 
@@ -190,7 +190,7 @@ impl SmartVaults {
     }
 
     pub async fn revoke_all_shared_signers(&self) -> Result<(), Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         for (shared_signer_id, public_key) in self.db.get_my_shared_signers().await?.into_iter() {
             let tags = &[
                 Tag::PubKey(public_key, None),
@@ -204,7 +204,7 @@ impl SmartVaults {
     }
 
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let public_key = self
             .db
             .get_public_key_for_my_shared_signer(shared_signer_id)

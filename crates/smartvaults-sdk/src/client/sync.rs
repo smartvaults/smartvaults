@@ -218,7 +218,7 @@ impl SmartVaults {
         self.sync_channel.subscribe()
     }
 
-    pub(crate) fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
+    pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
         let base_filter = Filter::new().kinds(vec![
             POLICY_KIND,
             PROPOSAL_KIND,
@@ -231,7 +231,7 @@ impl SmartVaults {
             Kind::EventDeletion,
         ]);
 
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
 
         let author_filter = base_filter
             .clone()
@@ -284,7 +284,7 @@ impl SmartVaults {
                                 Timestamp::from(0)
                             }
                         };
-                    let filters = this.sync_filters(last_sync);
+                    let filters: Vec<Filter> = this.sync_filters(last_sync).await;
                     if let Err(e) = relay.subscribe(filters, None).await {
                         tracing::error!("Impossible to subscribe to {relay_url}: {e}");
                     }
@@ -355,7 +355,7 @@ impl SmartVaults {
         if event.kind == SHARED_KEY_KIND {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
             if !self.db.exists(Type::SharedKey { policy_id }).await? {
-                let keys = self.client.keys();
+                let keys: Keys = self.keys().await;
                 let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
@@ -521,7 +521,7 @@ impl SmartVaults {
                 }
             }
         } else if event.kind == SIGNERS_KIND {
-            let keys = self.client.keys();
+            let keys: Keys = self.keys().await;
             let signer = Signer::decrypt_with_keys(&keys, event.content)?;
             self.db.save_signer(event.id, signer).await?;
             self.sync_channel
@@ -529,7 +529,7 @@ impl SmartVaults {
         } else if event.kind == SHARED_SIGNERS_KIND {
             let public_key =
                 util::extract_first_public_key(&event).ok_or(Error::PublicKeyNotFound)?;
-            let keys = self.client.keys();
+            let keys: Keys = self.keys().await;
             if event.pubkey == keys.public_key() {
                 let signer_id =
                     util::extract_first_event_id(&event).ok_or(Error::SignerIdNotFound)?;
@@ -601,7 +601,7 @@ impl SmartVaults {
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
-            let keys = self.client.keys();
+            let keys: Keys = self.keys().await;
             let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
             let msg = NIP46Message::from_json(content)?;
             if let Ok(request) = msg.to_request() {
@@ -630,7 +630,7 @@ impl SmartVaults {
                             .await
                         {
                             let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
-                            let keys = self.client.keys();
+                            let keys: Keys = self.keys().await;
                             let req_message = msg.clone();
                             let msg = msg
                                 .generate_response(&keys)?

@@ -173,7 +173,7 @@ impl SmartVaults {
     }
 
     pub fn keys(&self) -> Arc<Keys> {
-        Arc::new(self.inner.keys().into())
+        block_on(async move { Arc::new(self.inner.keys().await.into()) })
     }
 
     pub fn network(&self) -> Network {

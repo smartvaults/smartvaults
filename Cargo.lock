@@ -2656,8 +2656,9 @@ dependencies = [
 
 [[package]]
 name = "negentropy"
-version = "0.3.0"
-source = "git+https://github.com/yukibtc/rust-negentropy?rev=547592168356f423dd10773384b798e7c7139893#547592168356f423dd10773384b798e7c7139893"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e664971378a3987224f7a0e10059782035e89899ae403718ee07de85bec42afe"
 
 [[package]]
 name = "nix"
@@ -2723,7 +2724,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=c612a166913b70c2819f1510e64ee61840ef13c9#c612a166913b70c2819f1510e64ee61840ef13c9"
+source = "git+https://github.com/rust-nostr/nostr?rev=6787760d032cf2055f001c8f871d81e5c584e45f#6787760d032cf2055f001c8f871d81e5c584e45f"
 dependencies = [
  "aes",
  "base64 0.21.4",
@@ -2745,7 +2746,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=c612a166913b70c2819f1510e64ee61840ef13c9#c612a166913b70c2819f1510e64ee61840ef13c9"
+source = "git+https://github.com/rust-nostr/nostr?rev=6787760d032cf2055f001c8f871d81e5c584e45f#6787760d032cf2055f001c8f871d81e5c584e45f"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2754,7 +2755,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=c612a166913b70c2819f1510e64ee61840ef13c9#c612a166913b70c2819f1510e64ee61840ef13c9"
+source = "git+https://github.com/rust-nostr/nostr?rev=6787760d032cf2055f001c8f871d81e5c584e45f#6787760d032cf2055f001c8f871d81e5c584e45f"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2768,7 +2769,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=c612a166913b70c2819f1510e64ee61840ef13c9#c612a166913b70c2819f1510e64ee61840ef13c9"
+source = "git+https://github.com/rust-nostr/nostr?rev=6787760d032cf2055f001c8f871d81e5c584e45f#6787760d032cf2055f001c8f871d81e5c584e45f"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2780,7 +2781,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=c612a166913b70c2819f1510e64ee61840ef13c9#c612a166913b70c2819f1510e64ee61840ef13c9"
+source = "git+https://github.com/rust-nostr/nostr?rev=6787760d032cf2055f001c8f871d81e5c584e45f#6787760d032cf2055f001c8f871d81e5c584e45f"
 dependencies = [
  "futures-util",
  "thiserror",

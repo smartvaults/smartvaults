@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use nostr_sdk::nips::nip46::NostrConnectURI;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
-use nostr_sdk::{ClientMessage, EventBuilder, EventId, Timestamp, Url};
+use nostr_sdk::{ClientMessage, EventBuilder, EventId, Keys, Timestamp, Url};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk_sqlite::model::NostrConnectRequest;
 
@@ -27,11 +27,11 @@ impl SmartVaults {
                 Timestamp::from(0)
             }
         };
-        let filters = self.sync_filters(last_sync);
+        let filters = self.sync_filters(last_sync).await;
         relay.subscribe(filters, None).await?;
 
         // Send connect ACK
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
@@ -55,7 +55,7 @@ impl SmartVaults {
         wait: bool,
     ) -> Result<(), Error> {
         let uri = self.db.get_nostr_connect_session(app_public_key).await?;
-        let keys = self.client.keys();
+        let keys: Keys = self.keys().await;
         let msg = NIP46Message::request(NIP46Request::Disconnect);
         let nip46_event =
             EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
@@ -98,7 +98,7 @@ impl SmartVaults {
         } = self.db.get_nostr_connect_request(event_id).await?;
         if !approved {
             let uri = self.db.get_nostr_connect_session(app_public_key).await?;
-            let keys = self.client.keys();
+            let keys: Keys = self.keys().await;
             let msg = message
                 .generate_response(&keys)?
                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
@@ -125,7 +125,7 @@ impl SmartVaults {
         } = self.db.get_nostr_connect_request(event_id).await?;
         if !approved {
             let uri = self.db.get_nostr_connect_session(app_public_key).await?;
-            let keys = self.client.keys();
+            let keys: Keys = self.keys().await;
             let msg = message.generate_error_response("Request rejected")?; // TODO: better error msg
             let nip46_event =
                 EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
