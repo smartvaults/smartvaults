@@ -6,20 +6,34 @@ use std::str::FromStr;
 
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::miniscript::{self, Descriptor};
 use smartvaults_core::policy::{self, Policy};
 use smartvaults_core::PolicyTemplate;
 use thiserror::Error;
 
+pub mod metadata;
 mod proto;
 
-use super::schema::{self, Schema, Version as SchemaVersion};
-use super::NetworkMagic;
+pub use self::metadata::VaultMetadata;
+use super::network::{self, NetworkMagic};
+use super::schema::{self, Schema, SchemaEncoding, Version as SchemaVersion};
+use proto::vault::Object as ProtoObject;
+use proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
     Policy(#[from] policy::Error),
+    #[error(transparent)]
+    Network(#[from] network::Error),
+    #[error(transparent)]
+    Miniscript(#[from] miniscript::Error),
+    #[error(transparent)]
+    Schema(#[from] schema::Error),
+    #[error(transparent)]
+    Proto(#[from] prost::DecodeError),
+    #[error("{0} not found")]
+    NotFound(String),
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -28,29 +42,10 @@ pub enum Version {
     V1 = 0x01,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VaultMetadata {
-    name: String,
-    description: String,
-}
-
-impl VaultMetadata {
-    pub fn new<S>(name: S, description: S) -> Self
-    where
-        S: Into<String>,
-    {
-        Self {
-            name: name.into(),
-            description: description.into(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Vault {
     version: Version,
     policy: Policy,
-    metadata: VaultMetadata,
 }
 
 impl Deref for Vault {
@@ -62,8 +57,8 @@ impl Deref for Vault {
 
 impl Vault {
     pub fn new<S, P>(
-        name: S,
-        description: S,
+        _name: S,
+        _description: S,
         descriptor: P,
         network: Network,
     ) -> Result<Self, policy::Error>
@@ -75,13 +70,12 @@ impl Vault {
         Ok(Self {
             version: Version::default(),
             policy,
-            metadata: VaultMetadata::new(name, description),
         })
     }
 
     pub fn from_template<S>(
-        name: S,
-        description: S,
+        _name: S,
+        _description: S,
         template: PolicyTemplate,
         network: Network,
     ) -> Result<Self, policy::Error>
@@ -92,16 +86,7 @@ impl Vault {
         Ok(Self {
             version: Version::default(),
             policy,
-            metadata: VaultMetadata::new(name, description),
         })
-    }
-
-    pub fn name(&self) -> &str {
-        &self.metadata.name
-    }
-
-    pub fn description(&self) -> &str {
-        &self.metadata.description
     }
 
     pub fn version(&self) -> Version {
@@ -111,41 +96,68 @@ impl Vault {
     pub fn policy(&self) -> Policy {
         self.policy.clone()
     }
+}
 
-    pub fn decode<T>(payload: T) -> Result<Self, Error>
+impl SchemaEncoding for Vault {
+    type Error = Error;
+
+    fn decode<T>(payload: T) -> Result<Self, Self::Error>
     where
         T: AsRef<[u8]>,
     {
-        let Schema { version, data } = schema::decode(payload.as_ref()).unwrap();
+        let Schema { version, data } = schema::decode(payload.as_ref())?;
         match version {
             SchemaVersion::ProtoBuf => {
-                let vault = proto::Vault::decode(data).unwrap();
+                let vault: ProtoVault = ProtoVault::decode(data)?;
                 match vault.object {
                     Some(obj) => match obj {
-                        proto::vault::Object::V1(v) => {
-                            let descriptor = Descriptor::from_str(&v.descriptor).unwrap();
-                            let network = NetworkMagic::from_slice(&v.network).unwrap();
+                        ProtoObject::V1(v) => {
+                            let descriptor: Descriptor<String> =
+                                Descriptor::from_str(&v.descriptor)?;
+                            let network: NetworkMagic = NetworkMagic::from_slice(&v.network)?;
                             Ok(Self {
                                 version: Version::V1,
                                 policy: Policy::new(descriptor, *network)?,
-                                metadata: VaultMetadata::default(), // TODO: decode metadata
                             })
                         }
                     },
-                    None => panic!("Vault obj not found"),
+                    None => Err(Error::NotFound(String::from("protobuf vault obj"))),
                 }
             }
         }
     }
 
-    pub fn encode(&self) -> Vec<u8> {
-        let v1 = proto::VaultV1 {
-            descriptor: self.as_descriptor().to_string(),
-            network: self.network().magic().to_bytes().to_vec(),
+    fn encode(&self) -> Vec<u8> {
+        let vault: ProtoVault = ProtoVault {
+            object: Some(ProtoObject::V1(ProtoVaultV1 {
+                descriptor: self.as_descriptor().to_string(),
+                network: self.network().magic().to_bytes().to_vec(),
+            })),
         };
-        let mut vault = proto::Vault::default();
-        vault.object = Some(proto::vault::Object::V1(v1));
-        let ser = vault.encode_to_vec();
-        schema::encode(ser, SchemaVersion::ProtoBuf)
+        let buf: Vec<u8> = vault.encode_to_vec();
+        schema::encode(buf, SchemaVersion::ProtoBuf)
     }
 }
+
+/* pub trait SchemaEncryption: SchemaEncoding
+where
+    Error: From<<Self as SchemaEncoding>::Error>
+{
+    type Err;
+
+    fn decrypt<T>(
+        key: [u8; 32],
+        payload: T,
+    ) -> Result<Self, Error>
+    where
+        T: AsRef<[u8]>
+    {
+        let payload: Vec<u8> =  super::crypto::decrypt(secret_key, public_key, payload)?;
+        Ok(Self::decode(payload)?)
+    }
+
+    fn encrypt(&self, key: [u8; 32]) -> Result<String, Self::Err> {
+        let buf: Vec<u8> = self.encode();
+        Ok(super::crypto::encrypt(secret_key, public_key, buf, super::crypto::Version::XChaCha20Poly1305)?)
+    }
+} */

@@ -71,3 +71,13 @@ pub fn decode(payload: &[u8]) -> Result<Schema<'_>, Error> {
     // Compose schema
     Ok(Schema { version, data })
 }
+
+pub trait SchemaEncoding: Sized {
+    type Error;
+
+    fn decode<T>(payload: T) -> Result<Self, Self::Error>
+    where
+        T: AsRef<[u8]>;
+
+    fn encode(&self) -> Vec<u8>;
+}
