@@ -6,6 +6,7 @@ use iced::advanced::renderer;
 use iced::advanced::widget::{self, Widget};
 use iced::mouse;
 use iced::{Color, Element, Length, Rectangle, Size};
+use iced_futures::core::widget::Tree;
 
 use crate::theme::color::{BLACK, TRANSPARENT};
 
@@ -43,7 +44,12 @@ where
         Length::Shrink
     }
 
-    fn layout(&self, _renderer: &Renderer, _limits: &layout::Limits) -> layout::Node {
+    fn layout(
+        &self,
+        _tree: &mut Tree,
+        _renderer: &Renderer,
+        _limits: &layout::Limits,
+    ) -> layout::Node {
         layout::Node::new(Size::new(self.radius * 2.0, self.radius * 2.0))
     }
 

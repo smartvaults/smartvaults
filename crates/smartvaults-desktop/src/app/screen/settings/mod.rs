@@ -3,11 +3,10 @@
 
 use iced::widget::{Column, Row};
 use iced::{Command, Element, Length};
-use iced_aw::{Card, Modal};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{Button, ButtonStyle, Text};
+use crate::component::{Button, ButtonStyle, Card, Modal, Text};
 use crate::theme::icon::{BROADCAST_PIN, KEY, NETWORK, SETTING, TRASH};
 
 pub mod add_relay;
@@ -120,40 +119,43 @@ impl State for SettingsState {
             .max_width(450.0);
         let dashboard = Dashboard::new().view(ctx, content, true, true);
 
-        Modal::new(
-            self.show_modal,
-            dashboard,
-            Card::new(
-                Text::new("Clear DB").view(),
-                Text::new("Do you want really delete all data store into the DB?").view(),
+        if self.show_modal {
+            Modal::new(
+                dashboard,
+                Card::new(
+                    Text::new("Clear DB").view(),
+                    Text::new("Do you want really delete all data store into the DB?").view(),
+                )
+                .foot(
+                    Row::new()
+                        .spacing(10)
+                        .padding(5)
+                        .width(Length::Fill)
+                        .push(
+                            Button::new()
+                                .style(ButtonStyle::BorderedDanger)
+                                .text("Confirm")
+                                .width(Length::Fill)
+                                .on_press(SettingsMessage::ClearCache.into())
+                                .view(),
+                        )
+                        .push(
+                            Button::new()
+                                .style(ButtonStyle::Bordered)
+                                .text("Close")
+                                .width(Length::Fill)
+                                .on_press(SettingsMessage::CloseModal.into())
+                                .view(),
+                        ),
+                )
+                .max_width(300.0)
+                .view(),
             )
-            .foot(
-                Row::new()
-                    .spacing(10)
-                    .padding(5)
-                    .width(Length::Fill)
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::BorderedDanger)
-                            .text("Confirm")
-                            .width(Length::Fill)
-                            .on_press(SettingsMessage::ClearCache.into())
-                            .view(),
-                    )
-                    .push(
-                        Button::new()
-                            .style(ButtonStyle::Bordered)
-                            .text("Close")
-                            .width(Length::Fill)
-                            .on_press(SettingsMessage::CloseModal.into())
-                            .view(),
-                    ),
-            )
-            .max_width(300.0),
-        )
-        .on_esc(SettingsMessage::CloseModal.into())
-        .backdrop(SettingsMessage::CloseModal.into())
-        .into()
+            .on_blur(SettingsMessage::CloseModal.into())
+            .into()
+        } else {
+            dashboard
+        }
     }
 }
 

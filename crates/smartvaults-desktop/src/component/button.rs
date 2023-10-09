@@ -105,7 +105,7 @@ where
             button = button.width(width);
         }
 
-        button.style(self.style.into())
+        button.style(self.style)
     }
 }
 

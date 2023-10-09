@@ -10,7 +10,7 @@ use std::str::FromStr;
 use constants::DEFAULT_FONT_SIZE;
 use iced::window::Event as WindowEvent;
 use iced::{
-    executor, font, subscription, Application, Command, Element, Event, Settings, Subscription,
+    event, executor, font, Application, Command, Element, Event, Pixels, Settings, Subscription,
     Theme,
 };
 use once_cell::sync::Lazy;
@@ -60,7 +60,7 @@ pub fn main() -> iced::Result {
     settings.window.min_size = Some((1000, 700));
     settings.exit_on_close_request = false;
     settings.antialiasing = false;
-    settings.default_text_size = DEFAULT_FONT_SIZE as f32;
+    settings.default_text_size = Pixels::from(DEFAULT_FONT_SIZE as f32);
     settings.default_font = REGULAR;
 
     logger::init(BASE_PATH.clone(), network, true).unwrap();
@@ -137,10 +137,7 @@ impl Application for SmartVaultsApp {
             State::Start(start) => start.subscription().map(|m| m.into()),
             State::App(app) => app.subscription().map(|m| m.into()),
         };
-        Subscription::batch(vec![
-            subscription::events().map(Message::EventOccurred),
-            stage_sub,
-        ])
+        Subscription::batch(vec![event::listen().map(Message::EventOccurred), stage_sub])
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {

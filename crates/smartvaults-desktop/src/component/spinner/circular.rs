@@ -238,7 +238,12 @@ where
         Length::Fixed(self.size)
     }
 
-    fn layout(&self, _renderer: &iced::Renderer<Theme>, limits: &layout::Limits) -> layout::Node {
+    fn layout(
+        &self,
+        _tree: &mut Tree,
+        _renderer: &iced::Renderer<Theme>,
+        limits: &layout::Limits,
+    ) -> layout::Node {
         let limits = limits.width(self.size).height(self.size);
         let size = limits.resolve(Size::ZERO);
 

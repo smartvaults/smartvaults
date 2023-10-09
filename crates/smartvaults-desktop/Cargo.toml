@@ -17,9 +17,8 @@ default = []
 async-stream = "0.3"
 smartvaults-sdk = { path = "../smartvaults-sdk" }
 dirs = "5.0"
-iced = { git = "https://github.com/yukibtc/iced", rev = "304aa3badb885c7c8bb5bcd6160dc5c9c7b950b2", default-features = false, features = ["advanced", "lazy", "qr_code", "svg", "tokio", "wgpu"] }
-iced_aw = { git = "https://github.com/yukibtc/iced_aw", rev = "c09b5eeac27db1bef7329db418a75397096cd9bc", default-features = false, features = ["card", "modal"] }
-iced_futures = { git = "https://github.com/yukibtc/iced", rev = "304aa3badb885c7c8bb5bcd6160dc5c9c7b950b2" }
+iced = { git = "https://github.com/yukibtc/iced", rev = "4f79fbab1824183910e2c7193d904010b233780f", default-features = false, features = ["advanced", "lazy", "qr_code", "svg", "tokio", "wgpu"] }
+iced_futures = { git = "https://github.com/yukibtc/iced", rev = "4f79fbab1824183910e2c7193d904010b233780f" }
 lyon_algorithms = "1.0"
 once_cell = { workspace = true }
 rfd = "0.11"

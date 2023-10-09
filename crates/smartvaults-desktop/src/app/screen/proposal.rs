@@ -3,7 +3,6 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use iced_aw::{Card, Modal};
 use rfd::FileDialog;
 use smartvaults_sdk::core::proposal::Proposal;
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
@@ -16,7 +15,7 @@ use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, Text, TextInput};
+use crate::component::{rule, Button, ButtonStyle, Card, Modal, Text, TextInput};
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
@@ -571,85 +570,89 @@ impl State for ProposalState {
             .loaded(self.loaded)
             .view(ctx, content, false, false);
 
-        Modal::new(
-            self.modal.is_some(),
-            dashboard,
-            match self.modal {
-                Some(ModalType::Approve) => Card::new(
-                    Text::new("Approve proposal").view(),
-                    Text::new("Do you want really want approve this proposal?").view(),
-                )
-                .foot(
-                    Column::new()
-                        .width(Length::Fill)
-                        .spacing(10)
-                        .padding(5)
-                        .push(
-                            TextInput::new("Password", &self.password)
-                                .password()
-                                .placeholder("Password")
-                                .on_input(|p| ProposalMessage::PasswordChanged(p).into())
-                                .view(),
-                        )
-                        .push(
-                            Row::new()
-                                .spacing(10)
-                                .width(Length::Fill)
-                                .push(
-                                    Button::new()
-                                        .text("Approve")
-                                        .width(Length::Fill)
-                                        .on_press(
-                                            ProposalMessage::ApproveWithSeed(self.password.clone())
+        if let Some(modal) = &self.modal {
+            Modal::new(
+                dashboard,
+                match modal {
+                    ModalType::Approve => Card::new(
+                        Text::new("Approve proposal").view(),
+                        Text::new("Do you really want approve this proposal?").view(),
+                    )
+                    .foot(
+                        Column::new()
+                            .width(Length::Fill)
+                            .spacing(10)
+                            .padding(5)
+                            .push(
+                                TextInput::new("Password", &self.password)
+                                    .password()
+                                    .placeholder("Password")
+                                    .on_input(|p| ProposalMessage::PasswordChanged(p).into())
+                                    .view(),
+                            )
+                            .push(
+                                Row::new()
+                                    .spacing(10)
+                                    .width(Length::Fill)
+                                    .push(
+                                        Button::new()
+                                            .text("Approve")
+                                            .width(Length::Fill)
+                                            .on_press(
+                                                ProposalMessage::ApproveWithSeed(
+                                                    self.password.clone(),
+                                                )
                                                 .into(),
-                                        )
-                                        .loading(self.loading)
-                                        .view(),
-                                )
-                                .push(
-                                    Button::new()
-                                        .style(ButtonStyle::Bordered)
-                                        .text("Close")
-                                        .width(Length::Fill)
-                                        .on_press(ProposalMessage::SetModal(None).into())
-                                        .view(),
-                                ),
-                        ),
-                ),
-                Some(ModalType::Delete) => Card::new(
-                    Text::new("Delete proposal").view(),
-                    Text::new("Do you want really delete this proposal?").view(),
-                )
-                .foot(
-                    Row::new()
-                        .spacing(10)
-                        .padding(5)
-                        .width(Length::Fill)
-                        .push(
-                            Button::new()
-                                .style(ButtonStyle::BorderedDanger)
-                                .text("Confirm")
-                                .width(Length::Fill)
-                                .on_press(ProposalMessage::Delete.into())
-                                .loading(self.loading)
-                                .view(),
-                        )
-                        .push(
-                            Button::new()
-                                .style(ButtonStyle::Bordered)
-                                .text("Close")
-                                .width(Length::Fill)
-                                .on_press(ProposalMessage::SetModal(None).into())
-                                .view(),
-                        ),
-                ),
-                None => Card::new("", ""),
-            }
-            .max_width(300.0),
-        )
-        .on_esc(ProposalMessage::SetModal(None).into())
-        .backdrop(ProposalMessage::SetModal(None).into())
-        .into()
+                                            )
+                                            .loading(self.loading)
+                                            .view(),
+                                    )
+                                    .push(
+                                        Button::new()
+                                            .style(ButtonStyle::Bordered)
+                                            .text("Close")
+                                            .width(Length::Fill)
+                                            .on_press(ProposalMessage::SetModal(None).into())
+                                            .view(),
+                                    ),
+                            ),
+                    ),
+                    ModalType::Delete => Card::new(
+                        Text::new("Delete proposal").view(),
+                        Text::new("Do you want really delete this proposal?").view(),
+                    )
+                    .foot(
+                        Row::new()
+                            .spacing(10)
+                            .padding(5)
+                            .width(Length::Fill)
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::BorderedDanger)
+                                    .text("Confirm")
+                                    .width(Length::Fill)
+                                    .on_press(ProposalMessage::Delete.into())
+                                    .loading(self.loading)
+                                    .view(),
+                            )
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .text("Close")
+                                    .width(Length::Fill)
+                                    .on_press(ProposalMessage::SetModal(None).into())
+                                    .view(),
+                            ),
+                    ),
+                }
+                .max_width(300.0)
+                .view(),
+            )
+            .on_blur(ProposalMessage::SetModal(None).into())
+            .into()
+        } else {
+            dashboard
+        }
     }
 }
 

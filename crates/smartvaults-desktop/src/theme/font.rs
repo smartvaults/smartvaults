@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use iced::font::{Family, Stretch, Weight};
+use iced::font::{Family, Stretch, Style, Weight};
 use iced::Font;
 
 pub const BOOTSTRAP_ICONS_BYTES: &[u8] = include_bytes!("../../static/icon/bootstrap-icons.otf");
@@ -18,6 +18,7 @@ pub const REGULAR: Font = Font {
     weight: Weight::Normal,
     monospaced: false,
     stretch: Stretch::Normal,
+    style: Style::Normal,
 };
 
 pub const EXTRA_LIGHT: Font = Font {
@@ -25,6 +26,7 @@ pub const EXTRA_LIGHT: Font = Font {
     weight: Weight::Light,
     monospaced: false,
     stretch: Stretch::Normal,
+    style: Style::Normal,
 };
 
 pub const BOLD: Font = Font {
@@ -32,4 +34,5 @@ pub const BOLD: Font = Font {
     weight: Weight::Bold,
     monospaced: false,
     stretch: Stretch::Normal,
+    style: Style::Normal,
 };

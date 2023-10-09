@@ -2,8 +2,10 @@
 // Distributed under the MIT software license
 
 mod button;
+mod card;
 mod circle;
 mod icon;
+mod modal;
 mod numeric_input;
 pub mod rule;
 mod spinner;
@@ -11,8 +13,10 @@ mod text;
 mod text_input;
 
 pub use self::button::{Button, ButtonStyle};
+pub use self::card::Card;
 pub use self::circle::Circle;
 pub use self::icon::Icon;
+pub use self::modal::Modal;
 pub use self::numeric_input::NumericInput;
 pub use self::spinner::circular::Circular as SpinnerCircular;
 pub use self::spinner::linerar::Linear as SpinnerLinear;
