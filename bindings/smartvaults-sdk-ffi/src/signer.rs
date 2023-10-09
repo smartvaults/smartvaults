@@ -31,6 +31,7 @@ impl GetSigner {
     }
 }
 
+#[derive(PartialEq, Eq, Hash)]
 pub struct Signer {
     inner: signer::Signer,
 }

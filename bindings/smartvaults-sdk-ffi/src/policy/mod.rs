@@ -142,8 +142,12 @@ impl GetPolicy {
 }
 
 pub enum PolicyPath {
-    Single { pp: PolicyPathSelector },
-    Multiple { list: Vec<PolicyPathSigner> },
+    Single {
+        pp: PolicyPathSelector,
+    },
+    Multiple {
+        map: HashMap<Arc<Signer>, Option<PolicyPathSelector>>,
+    },
     None,
 }
 
@@ -151,23 +155,15 @@ impl From<policy::PolicyPath> for PolicyPath {
     fn from(value: policy::PolicyPath) -> Self {
         match value {
             policy::PolicyPath::Single(pp) => Self::Single { pp: pp.into() },
-            policy::PolicyPath::Multiple(list) => Self::Multiple {
-                list: list
+            policy::PolicyPath::Multiple(map) => Self::Multiple {
+                map: map
                     .into_iter()
-                    .map(|(s, pp)| PolicyPathSigner {
-                        signer: Arc::new(s.into()),
-                        policy_path: pp.map(|pp| pp.into()),
-                    })
+                    .map(|(s, pp)| (Arc::new(s.into()), pp.map(|pp| pp.into())))
                     .collect(),
             },
             policy::PolicyPath::None => Self::None,
         }
     }
-}
-
-pub struct PolicyPathSigner {
-    pub signer: Arc<Signer>,
-    pub policy_path: Option<PolicyPathSelector>,
 }
 
 pub enum PolicyPathSelector {
