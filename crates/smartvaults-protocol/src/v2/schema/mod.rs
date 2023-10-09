@@ -19,6 +19,8 @@ pub enum Error {
     DataNotFound,
 }
 
+pub type SchemaVersion = Version;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum Version {
@@ -35,6 +37,7 @@ impl Version {
 
 impl TryFrom<u8> for Version {
     type Error = Error;
+
     fn try_from(version: u8) -> Result<Self, Self::Error> {
         match version {
             0x00 => Ok(Self::ProtoBuf),

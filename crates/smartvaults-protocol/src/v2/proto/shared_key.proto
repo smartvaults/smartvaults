@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package shared_key;
+
+message SharedKey {
+  oneof object {
+    SharedKeyV1 v1 = 1;
+  }
+}
+
+message SharedKeyV1 {
+  bytes secret_key = 1;
+  bytes network = 2;
+  bytes policy_identifier = 3;
+}

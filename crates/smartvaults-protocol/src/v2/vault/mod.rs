@@ -15,10 +15,10 @@ pub mod metadata;
 mod proto;
 
 pub use self::metadata::VaultMetadata;
+use self::proto::vault::Object as ProtoObject;
+use self::proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
 use super::network::{self, NetworkMagic};
-use super::schema::{self, Schema, SchemaEncoding, Version as SchemaVersion};
-use proto::vault::Object as ProtoObject;
-use proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
+use super::schema::{self, Schema, SchemaEncoding, SchemaVersion};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -50,6 +50,7 @@ pub struct Vault {
 
 impl Deref for Vault {
     type Target = Policy;
+
     fn deref(&self) -> &Self::Target {
         &self.policy
     }

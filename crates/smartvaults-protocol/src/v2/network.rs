@@ -4,10 +4,9 @@
 use core::ops::Deref;
 
 use serde::{Deserialize, Deserializer, Serialize};
-use smartvaults_core::bitcoin::consensus;
 use smartvaults_core::bitcoin::network::constants::UnknownMagic;
 use smartvaults_core::bitcoin::network::Magic;
-use smartvaults_core::bitcoin::Network;
+use smartvaults_core::bitcoin::{consensus, Network};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -31,6 +30,7 @@ impl From<Network> for NetworkMagic {
 
 impl Deref for NetworkMagic {
     type Target = Network;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
