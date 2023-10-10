@@ -574,6 +574,7 @@ impl SmartVaults {
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
+        self.manager.unload_policies().await;
         Ok(self.client.shutdown().await?)
     }
 

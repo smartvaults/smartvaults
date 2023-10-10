@@ -120,6 +120,13 @@ impl Manager {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
+    pub async fn unload_policies(&self) {
+        let mut wallets = self.wallets.write().await;
+        wallets.clear();
+        tracing::info!("All policies unloaded.")
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
     pub async fn unload_policy(&self, policy_id: EventId) -> Result<(), Error> {
         let mut wallets = self.wallets.write().await;
         match wallets.remove(&policy_id) {
