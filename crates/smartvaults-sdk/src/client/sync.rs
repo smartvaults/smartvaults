@@ -12,8 +12,8 @@ use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Filter, Keys, Kind, Metadata, RelayMessage,
-    RelayPoolNotification, Result, Tag, TagKind, Timestamp,
+    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, Metadata,
+    RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};

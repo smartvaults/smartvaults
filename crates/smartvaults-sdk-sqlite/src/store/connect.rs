@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use smartvaults_protocol::nostr::nips::nip46::{Message as NIP46Message, NostrConnectURI};
 use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
-use smartvaults_protocol::nostr::{EventId, Timestamp, Url};
+use smartvaults_protocol::nostr::{EventId, JsonUtil, Timestamp, Url};
 
 use super::super::model::NostrConnectRequest;
 use super::Store;

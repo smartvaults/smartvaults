@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use rusqlite::Connection;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_protocol::nostr::{Metadata, Timestamp};
+use smartvaults_protocol::nostr::{JsonUtil, Metadata, Timestamp};
 
 use crate::{Error, Store};
 

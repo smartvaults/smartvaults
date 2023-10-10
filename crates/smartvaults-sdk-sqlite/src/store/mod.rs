@@ -22,7 +22,7 @@ use smartvaults_core::proposal::{CompletedProposal, Proposal};
 use smartvaults_core::ApprovedProposal;
 use smartvaults_protocol::nostr::event::id::EventId;
 use smartvaults_protocol::nostr::secp256k1::{SecretKey, XOnlyPublicKey};
-use smartvaults_protocol::nostr::{Event, Keys, Timestamp};
+use smartvaults_protocol::nostr::{Event, JsonUtil, Keys, Timestamp};
 use tokio::sync::RwLock;
 
 mod connect;
