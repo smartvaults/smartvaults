@@ -7,7 +7,7 @@ use std::str::FromStr;
 use nostr::Keys;
 use serde::{Deserialize, Serialize};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
-use smartvaults_core::bitcoin::{Address, OutPoint};
+use smartvaults_core::bitcoin::{Address, OutPoint, Txid};
 use smartvaults_core::crypto::hash;
 use thiserror::Error;
 
@@ -27,6 +27,7 @@ pub enum Error {
 pub enum LabelKind {
     Address,
     Utxo,
+    Txid,
 }
 
 impl fmt::Display for LabelKind {
@@ -34,6 +35,7 @@ impl fmt::Display for LabelKind {
         match self {
             Self::Address => write!(f, "address"),
             Self::Utxo => write!(f, "utxo"),
+            Self::Txid => write!(f, "txid"),
         }
     }
 }
@@ -44,6 +46,7 @@ impl FromStr for LabelKind {
         match s {
             "address" => Ok(Self::Address),
             "utxo" => Ok(Self::Utxo),
+            "txid" => Ok(Self::Txid),
             _ => Err(Error::UnknownLabelKind),
         }
     }
@@ -54,6 +57,7 @@ impl FromStr for LabelKind {
 pub enum LabelData {
     Address(Address<NetworkUnchecked>),
     Utxo(OutPoint),
+    Txid(Txid),
 }
 
 impl FromStr for LabelData {
@@ -74,6 +78,7 @@ impl LabelData {
         let data = match self {
             Self::Address(addr) => addr.clone().assume_checked().to_string(),
             Self::Utxo(utxo) => utxo.to_string(),
+            Self::Txid(txid) => txid.to_string(),
         };
         let unhashed_identifier = format!("{}:{}", shared_key.secret_key()?.display_secret(), data);
         let hash = hash::sha256(unhashed_identifier).to_string();
@@ -84,6 +89,7 @@ impl LabelData {
         match self {
             Self::Address(..) => LabelKind::Address,
             Self::Utxo(..) => LabelKind::Utxo,
+            Self::Txid(..) => LabelKind::Txid,
         }
     }
 }
@@ -117,6 +123,13 @@ impl Label {
         S: Into<String>,
     {
         Self::new(LabelData::Utxo(utxo), text)
+    }
+
+    pub fn txid<S>(txid: Txid, text: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::new(LabelData::Txid(txid), text)
     }
 
     pub fn kind(&self) -> LabelKind {
