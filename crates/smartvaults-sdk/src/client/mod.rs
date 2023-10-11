@@ -18,7 +18,8 @@ use nostr_sdk::relay::pool;
 use nostr_sdk::util::TryIntoUrl;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
-    Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
+    Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, UncheckedUrl,
+    Url,
 };
 use parking_lot::RwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -475,6 +476,18 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
+        self.add_relay_with_opts(url, proxy, true).await
+    }
+
+    pub async fn add_relay_with_opts<S>(
+        &self,
+        url: S,
+        proxy: Option<SocketAddr>,
+        save_to_relay_list: bool,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
         let url = Url::parse(&url.into())?;
         self.db.insert_relay(url.clone(), proxy).await?;
         self.db.enable_relay(url.clone()).await?;
@@ -488,21 +501,32 @@ impl SmartVaults {
         let filters: Vec<Filter> = self.sync_filters(last_sync).await;
         relay.subscribe(filters, None).await?;
         relay.connect(false).await;
+
+        if save_to_relay_list {
+            let this = self.clone();
+            thread::spawn(async move {
+                if let Err(e) = this.save_relay_list().await {
+                    tracing::error!("Impossible to save relay list: {e}");
+                }
+            });
+        }
+
         if let Err(e) = self.rebroadcast_to(url.clone()).await {
             tracing::error!("Impossible to rebroadcast events to {url}: {e}");
         }
         Ok(())
     }
 
-    /// Add multiple relays
-    pub async fn add_relays<S>(&self, relays: Vec<(S, Option<SocketAddr>)>) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
-        for (url, proxy) in relays.into_iter() {
-            self.add_relay(url, proxy).await?;
-        }
-        Ok(())
+    /// Save relay list (NIP65)
+    pub async fn save_relay_list(&self) -> Result<EventId, Error> {
+        let keys = self.keys().await;
+        let relays = self.client.relays().await;
+        let list = relays
+            .into_keys()
+            .map(|url| (UncheckedUrl::from(url), None))
+            .collect();
+        let event = EventBuilder::relay_list(list).to_event(&keys)?;
+        self.send_event(event).await
     }
 
     /// Get default relays for current [`Network`]
@@ -529,12 +553,9 @@ impl SmartVaults {
         }
 
         if self.client.relays().await.is_empty() {
-            let relays: Vec<(String, Option<SocketAddr>)> = self
-                .default_relays()
-                .into_iter()
-                .map(|r| (r, None))
-                .collect();
-            self.add_relays(relays).await?;
+            for url in self.default_relays().into_iter() {
+                self.add_relay(url, None).await?;
+            }
         }
 
         // Restore Nostr Connect Session relays
@@ -547,8 +568,24 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
+        self.remove_relay_with_opts(url, true).await
+    }
+
+    pub async fn remove_relay_with_opts<S>(
+        &self,
+        url: S,
+        save_to_relay_list: bool,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
         let url = Url::parse(&url.into())?;
         self.db.delete_relay(url.clone()).await?;
+        if save_to_relay_list {
+            if let Err(e) = self.save_relay_list().await {
+                tracing::error!("Impossible to save relay list: {e}");
+            }
+        }
         Ok(self.client.remove_relay(url).await?)
     }
 

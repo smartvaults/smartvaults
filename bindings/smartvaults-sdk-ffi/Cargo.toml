@@ -18,7 +18,7 @@ path = "uniffi-bindgen.rs"
 [dependencies]
 async-utility = "0.1"
 smartvaults-sdk = { path = "../../crates/smartvaults-sdk", features = ["blocking"] }
-nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "8ee3cc47fd376c433d281350f0d6e7dfef08b4b9" }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "fc4d4ea8559f39316f59d5de396df95e70e5744b" }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "cae8edc45ba5b56bfcbf35b60c1ab6a97d1bf9da", features = ["cli"] }

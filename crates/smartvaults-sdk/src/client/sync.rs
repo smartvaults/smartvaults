@@ -616,12 +616,14 @@ impl SmartVaults {
 
                 // Add relays
                 for relay_url in list.difference(&current_relays) {
-                    self.add_relay(relay_url.to_string(), None).await?;
+                    self.add_relay_with_opts(relay_url.to_string(), None, false)
+                        .await?;
                 }
 
                 // Remove relays
                 for relay_url in current_relays.difference(&list) {
-                    self.remove_relay(relay_url.to_string()).await?;
+                    self.remove_relay_with_opts(relay_url.to_string(), false)
+                        .await?;
                 }
 
                 self.sync_channel
