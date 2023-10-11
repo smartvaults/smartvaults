@@ -17,6 +17,7 @@ pub enum EventHandled {
     EHNostrConnectRequest { request_id: String },
     EHLabel(),
     EHEventDeletion(),
+    EHRelayList(),
 }
 
 impl From<EventHandledSdk> for EventHandled {
@@ -55,6 +56,7 @@ impl From<EventHandledSdk> for EventHandled {
             },
             EventHandledSdk::Label => Self::EHLabel(),
             EventHandledSdk::EventDeletion => Self::EHEventDeletion(),
+            EventHandledSdk::RelayList => Self::EHRelayList(),
         }
     }
 }

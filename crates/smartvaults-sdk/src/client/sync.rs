@@ -9,11 +9,11 @@ use std::time::Duration;
 
 use async_utility::thread;
 use futures_util::stream::AbortHandle;
-use nostr_sdk::nips::nip04;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
+use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, Metadata,
-    RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp,
+    RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -50,6 +50,7 @@ pub enum EventHandled {
     NostrConnectRequest(EventId),
     Label,
     EventDeletion,
+    RelayList,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -232,19 +233,20 @@ impl SmartVaults {
         ]);
 
         let keys: Keys = self.keys().await;
+        let public_key: XOnlyPublicKey = keys.public_key();
 
-        let author_filter = base_filter
+        let author_filter: Filter = base_filter
             .clone()
-            .author(keys.public_key().to_string())
+            .author(public_key.to_string())
             .since(since);
-        let pubkey_filter = base_filter.pubkey(keys.public_key()).since(since);
+        let pubkey_filter: Filter = base_filter.pubkey(public_key).since(since);
         let nostr_connect_filter = Filter::new()
-            .pubkey(keys.public_key())
+            .pubkey(public_key)
             .kind(Kind::NostrConnect)
             .since(since);
-        let other_filters = Filter::new()
-            .author(keys.public_key().to_string())
-            .kinds(vec![Kind::Metadata, Kind::ContactList])
+        let other_filters: Filter = Filter::new()
+            .author(public_key.to_string())
+            .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
 
         vec![
@@ -598,6 +600,33 @@ impl SmartVaults {
             self.db.set_metadata(event.pubkey, metadata).await?;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
+        } else if event.kind == Kind::RelayList {
+            if event.pubkey == self.keys().await.public_key() {
+                let current_relays: HashSet<Url> = self
+                    .db
+                    .get_relays(true)
+                    .await?
+                    .into_iter()
+                    .map(|(url, ..)| url)
+                    .collect();
+                let list: HashSet<Url> = nip65::extract_relay_list(&event)
+                    .into_iter()
+                    .filter_map(|(url, ..)| Url::try_from(url).ok())
+                    .collect();
+
+                // Add relays
+                for relay_url in list.difference(&current_relays) {
+                    self.add_relay(relay_url.to_string(), None).await?;
+                }
+
+                // Remove relays
+                for relay_url in current_relays.difference(&list) {
+                    self.remove_relay(relay_url.to_string()).await?;
+                }
+
+                self.sync_channel
+                    .send(Message::EventHandled(EventHandled::RelayList))?;
+            }
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {

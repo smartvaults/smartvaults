@@ -637,6 +637,7 @@ interface EventHandled {
     EHNostrConnectRequest(string request_id);
     EHLabel();
     EHEventDeletion();
+    EHRelayList();
 };
 
 [Enum]
