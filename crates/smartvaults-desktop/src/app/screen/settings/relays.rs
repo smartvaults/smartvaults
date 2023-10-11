@@ -10,8 +10,8 @@ use smartvaults_sdk::nostr::{RelayStatus, Url};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, Text};
-use crate::theme::color::{GREEN, GREY, RED, YELLOW};
+use crate::component::{rule, Button, ButtonStyle, Circle, Text};
+use crate::theme::color::{GREEN, GREY, NEUTRAL, RED, YELLOW};
 use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
@@ -157,11 +157,11 @@ impl State for RelaysState {
 
             for Relay { url, status, queue } in self.relays.iter() {
                 let status = match status {
-                    RelayStatus::Initialized => Text::new(status.to_string()).color(GREY),
-                    RelayStatus::Connecting => Text::new(status.to_string()).color(YELLOW),
-                    RelayStatus::Connected => Text::new(status.to_string()).color(GREEN),
-                    RelayStatus::Disconnected => Text::new(status.to_string()).color(RED),
-                    RelayStatus::Stopped => Text::new(status.to_string()).color(GREY),
+                    RelayStatus::Initialized => Circle::new(7.0).color(GREY),
+                    RelayStatus::Connecting => Circle::new(7.0).color(YELLOW),
+                    RelayStatus::Connected => Circle::new(7.0).color(GREEN),
+                    RelayStatus::Disconnected => Circle::new(7.0).color(RED),
+                    RelayStatus::Stopped => Circle::new(7.0).color(NEUTRAL),
                     RelayStatus::Terminated => continue,
                 };
 
@@ -169,7 +169,7 @@ impl State for RelaysState {
                     .push(Text::new(url.to_string()).width(Length::Fill).view())
                     .push(
                         Column::new()
-                            .push(status.view())
+                            .push(status)
                             .align_items(Alignment::Center)
                             .width(Length::Fixed(100.0)),
                     )
