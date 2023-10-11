@@ -14,6 +14,8 @@ use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
 use nostr_sdk::nips::nip06::FromMnemonic;
+use nostr_sdk::relay::pool;
+use nostr_sdk::util::TryIntoUrl;
 use nostr_sdk::{
     nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
     Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
@@ -572,6 +574,14 @@ impl SmartVaults {
 
     pub async fn relays(&self) -> BTreeMap<Url, Relay> {
         self.client.relays().await.into_iter().collect()
+    }
+
+    pub async fn relay<U>(&self, url: U) -> Result<Relay, Error>
+    where
+        U: TryIntoUrl,
+        pool::Error: From<<U as TryIntoUrl>::Err>,
+    {
+        Ok(self.client.relay(url).await?)
     }
 
     pub async fn shutdown(self) -> Result<(), Error> {
