@@ -12,6 +12,7 @@ use smartvaults_sdk::util::format;
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
+use crate::theme::color::{GREEN, GREY, RED, YELLOW};
 
 #[derive(Debug, Clone)]
 pub struct Relay {
@@ -131,6 +132,14 @@ impl State for RelayState {
             queue,
         }) = &self.relay
         {
+            let status = match status {
+                RelayStatus::Initialized => Text::new(status.to_string()).color(GREY),
+                RelayStatus::Connecting => Text::new(status.to_string()).color(YELLOW),
+                RelayStatus::Connected => Text::new(status.to_string()).color(GREEN),
+                RelayStatus::Disconnected => Text::new(status.to_string()).color(RED),
+                RelayStatus::Stopped => Text::new(status.to_string()).color(GREY),
+                RelayStatus::Terminated => Text::new(status.to_string()).color(GREY),
+            };
             content = content
                 .push(Text::new(self.title()).size(40).bold().view())
                 .push(Space::with_height(Length::Fixed(10.0)))
@@ -139,7 +148,7 @@ impl State for RelayState {
                         .push(
                             Column::new()
                                 .push(Text::new("Status").big().extra_light().view())
-                                .push(Text::new(status.to_string()).big().view())
+                                .push(status.big().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
