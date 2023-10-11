@@ -191,6 +191,7 @@ impl State for RelaysState {
                     .push(
                         Button::new()
                             .icon(FULLSCREEN)
+                            .on_press(Message::View(Stage::Relay(url.clone())))
                             .width(Length::Fixed(40.0))
                             .view(),
                     )

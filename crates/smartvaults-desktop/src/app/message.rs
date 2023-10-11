@@ -8,7 +8,7 @@ use super::screen::{
     CompletedProposalMessage, ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage,
     EditProfileMessage, HistoryMessage, NewProofMessage, PoliciesMessage, PolicyBuilderMessage,
     PolicyMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
-    ReceiveMessage, RecoveryKeysMessage, RelaysMessage, RestorePolicyMessage,
+    ReceiveMessage, RecoveryKeysMessage, RelayMessage, RelaysMessage, RestorePolicyMessage,
     RevokeAllSignersMessage, SelfTransferMessage, SettingsMessage, ShareSignerMessage,
     SignerMessage, SignersMessage, SpendMessage, TransactionMessage, TransactionsMessage,
 };
@@ -49,6 +49,7 @@ pub enum Message {
     Settings(SettingsMessage),
     Config(ConfigMessage),
     Relays(RelaysMessage),
+    Relay(RelayMessage),
     AddRelay(AddRelayMessage),
     ChangePassword(ChangePasswordMessage),
     RecoveryKeys(RecoveryKeysMessage),

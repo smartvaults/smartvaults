@@ -6,7 +6,7 @@ use std::fmt;
 use smartvaults_sdk::core::bitcoin::Txid;
 use smartvaults_sdk::core::policy::Policy;
 use smartvaults_sdk::core::signer::Signer;
-use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::nostr::{EventId, Url};
 use smartvaults_sdk::types::GetPolicy;
 use smartvaults_sdk::{util, SmartVaults};
 
@@ -44,6 +44,7 @@ pub enum Stage {
     Settings,
     Config,
     Relays,
+    Relay(Url),
     AddRelay,
     ChangePassword,
     RecoveryKeys,
@@ -86,6 +87,7 @@ impl fmt::Display for Stage {
             Self::Settings => write!(f, "Settings"),
             Self::Config => write!(f, "Config"),
             Self::Relays => write!(f, "Relays"),
+            Self::Relay(..) => write!(f, "Relay"),
             Self::AddRelay => write!(f, "Add relay"),
             Self::ChangePassword => write!(f, "Change password"),
             Self::RecoveryKeys => write!(f, "Recovery Keys"),

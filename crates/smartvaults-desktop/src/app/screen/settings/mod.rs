@@ -13,6 +13,7 @@ pub mod add_relay;
 pub mod change_password;
 pub mod config;
 pub mod recovery_keys;
+pub mod relay;
 pub mod relays;
 
 #[derive(Debug, Clone)]

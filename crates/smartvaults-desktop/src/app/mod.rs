@@ -21,7 +21,7 @@ use self::screen::{
     AddRelayState, AddSignerState, AddressesState, ChangePasswordState, CompletedProposalState,
     ConfigState, ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState,
     NewProofState, PoliciesState, PolicyBuilderState, PolicyState, PolicyTreeState, ProfileState,
-    ProposalState, ProposalsState, ReceiveState, RecoveryKeysState, RelaysState,
+    ProposalState, ProposalsState, ReceiveState, RecoveryKeysState, RelayState, RelaysState,
     RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState,
     SignerState, SignersState, SpendState, TransactionState, TransactionsState,
 };
@@ -78,6 +78,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::EditProfile => EditProfileState::new().into(),
         Stage::Settings => SettingsState::new().into(),
         Stage::Relays => RelaysState::new().into(),
+        Stage::Relay(url) => RelayState::new(url.clone()).into(),
         Stage::Config => ConfigState::new().into(),
         Stage::AddRelay => AddRelayState::new().into(),
         Stage::ChangePassword => ChangePasswordState::new().into(),
