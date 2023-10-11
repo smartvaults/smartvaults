@@ -1,29 +1,23 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::net::SocketAddr;
 use std::time::Duration;
 
 use iced::alignment::Horizontal;
-use iced::widget::{Column, Row, Space};
+use iced::widget::{Column, Row};
 use iced::{time, Alignment, Command, Element, Length, Subscription};
-use smartvaults_sdk::nostr::relay::RelayConnectionStats;
 use smartvaults_sdk::nostr::{RelayStatus, Url};
-use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Circle, Text};
 use crate::theme::color::{BLACK, GREEN, GREY, RED, YELLOW};
-use crate::theme::icon::{PLUS, RELOAD, TRASH};
+use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
 pub struct Relay {
     url: Url,
-    proxy: Option<SocketAddr>,
     status: RelayStatus,
-    stats: RelayConnectionStats,
-    latency: Option<Duration>,
     queue: usize,
 }
 
@@ -67,13 +61,9 @@ impl State for RelaysState {
             async move {
                 let mut relays = Vec::new();
                 for (url, relay) in client.relays().await.into_iter() {
-                    let stats = relay.stats();
                     relays.push(Relay {
                         url,
-                        proxy: relay.proxy(),
                         status: relay.status().await,
-                        latency: stats.latency().await,
-                        stats,
                         queue: relay.queue(),
                     });
                 }
@@ -126,47 +116,7 @@ impl State for RelaysState {
                     Row::new()
                         .push(Text::new("Url").bold().big().width(Length::Fill).view())
                         .push(
-                            Text::new("Proxy")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fill)
-                                .view(),
-                        )
-                        .push(
                             Text::new("Status")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fixed(100.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("Attemps")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fixed(100.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("Success")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fixed(100.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("Sent (bytes)")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fixed(100.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("Received (bytes)")
                                 .bold()
                                 .big()
                                 .horizontal_alignment(Horizontal::Center)
@@ -179,22 +129,6 @@ impl State for RelaysState {
                                 .big()
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fixed(80.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("Latency")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fixed(80.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("Connected at")
-                                .bold()
-                                .big()
-                                .horizontal_alignment(Horizontal::Center)
-                                .width(Length::Fill)
                                 .view(),
                         )
                         .push(
@@ -221,15 +155,7 @@ impl State for RelaysState {
                 )
                 .push(rule::horizontal_bold());
 
-            for Relay {
-                url,
-                proxy,
-                status,
-                stats,
-                latency,
-                queue,
-            } in self.relays.iter()
-            {
+            for Relay { url, status, queue } in self.relays.iter() {
                 let status = match status {
                     RelayStatus::Initialized => Circle::new(7.0).color(GREY),
                     RelayStatus::Connecting => Circle::new(7.0).color(YELLOW),
@@ -242,44 +168,10 @@ impl State for RelaysState {
                 let row = Row::new()
                     .push(Text::new(url.to_string()).width(Length::Fill).view())
                     .push(
-                        Text::new(
-                            proxy
-                                .map(|p| p.to_string())
-                                .unwrap_or_else(|| String::from("-")),
-                        )
-                        .horizontal_alignment(Horizontal::Center)
-                        .width(Length::Fill)
-                        .view(),
-                    )
-                    .push(
                         Column::new()
                             .push(status)
                             .align_items(Alignment::Center)
                             .width(Length::Fixed(100.0)),
-                    )
-                    .push(
-                        Text::new(stats.attempts().to_string())
-                            .horizontal_alignment(Horizontal::Center)
-                            .width(Length::Fixed(100.0))
-                            .view(),
-                    )
-                    .push(
-                        Text::new(stats.success().to_string())
-                            .horizontal_alignment(Horizontal::Center)
-                            .width(Length::Fixed(100.0))
-                            .view(),
-                    )
-                    .push(
-                        Text::new(util::format::big_number(stats.bytes_sent() as u64))
-                            .horizontal_alignment(Horizontal::Center)
-                            .width(Length::Fixed(100.0))
-                            .view(),
-                    )
-                    .push(
-                        Text::new(util::format::big_number(stats.bytes_received() as u64))
-                            .horizontal_alignment(Horizontal::Center)
-                            .width(Length::Fixed(100.0))
-                            .view(),
                     )
                     .push(
                         Text::new(queue.to_string())
@@ -288,27 +180,17 @@ impl State for RelaysState {
                             .view(),
                     )
                     .push(
-                        Text::new(match latency {
-                            Some(latency) => format!("{} ms", latency.as_millis()),
-                            None => String::from("-"),
-                        })
-                        .horizontal_alignment(Horizontal::Center)
-                        .width(Length::Fixed(80.0))
-                        .view(),
-                    )
-                    .push(
-                        Text::new(stats.connected_at().to_human_datetime())
-                            .horizontal_alignment(Horizontal::Center)
-                            .width(Length::Fill)
-                            .view(),
-                    )
-                    .push(Space::with_width(Length::Fixed(40.0)))
-                    .push(
                         Button::new()
                             .icon(TRASH)
                             .on_press(RelaysMessage::RemoveRelay(url.clone()).into())
                             .loading(self.loading)
                             .style(ButtonStyle::BorderedDanger)
+                            .width(Length::Fixed(40.0))
+                            .view(),
+                    )
+                    .push(
+                        Button::new()
+                            .icon(FULLSCREEN)
                             .width(Length::Fixed(40.0))
                             .view(),
                     )
