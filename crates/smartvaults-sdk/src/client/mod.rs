@@ -554,7 +554,7 @@ impl SmartVaults {
 
         if self.client.relays().await.is_empty() {
             for url in self.default_relays().into_iter() {
-                self.add_relay(url, None).await?;
+                self.add_relay_with_opts(url, None, false).await?;
             }
         }
 

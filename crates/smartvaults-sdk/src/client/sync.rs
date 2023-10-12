@@ -602,6 +602,7 @@ impl SmartVaults {
                 .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
         } else if event.kind == Kind::RelayList {
             if event.pubkey == self.keys().await.public_key() {
+                tracing::debug!("Received relay list: {:?}", event.tags);
                 let current_relays: HashSet<Url> = self
                     .db
                     .get_relays(true)
@@ -616,12 +617,14 @@ impl SmartVaults {
 
                 // Add relays
                 for relay_url in list.difference(&current_relays) {
+                    tracing::debug!("[relay list] Added {relay_url}");
                     self.add_relay_with_opts(relay_url.to_string(), None, false)
                         .await?;
                 }
 
                 // Remove relays
                 for relay_url in current_relays.difference(&list) {
+                    tracing::debug!("[relay list] Removed {relay_url}");
                     self.remove_relay_with_opts(relay_url.to_string(), false)
                         .await?;
                 }
