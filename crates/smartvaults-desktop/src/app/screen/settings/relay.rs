@@ -134,6 +134,7 @@ impl State for RelayState {
         {
             let status = match status {
                 RelayStatus::Initialized => Text::new(status.to_string()).color(GREY),
+                RelayStatus::Pending => Text::new(status.to_string()).color(GREY),
                 RelayStatus::Connecting => Text::new(status.to_string()).color(YELLOW),
                 RelayStatus::Connected => Text::new(status.to_string()).color(GREEN),
                 RelayStatus::Disconnected => Text::new(status.to_string()).color(RED),

@@ -157,7 +157,7 @@ impl State for RelaysState {
 
             for Relay { url, status, queue } in self.relays.iter() {
                 let status = match status {
-                    RelayStatus::Initialized => Circle::new(7.0).color(GREY),
+                    RelayStatus::Initialized | RelayStatus::Pending => Circle::new(7.0).color(GREY),
                     RelayStatus::Connecting => Circle::new(7.0).color(YELLOW),
                     RelayStatus::Connected => Circle::new(7.0).color(GREEN),
                     RelayStatus::Disconnected => Circle::new(7.0).color(RED),
