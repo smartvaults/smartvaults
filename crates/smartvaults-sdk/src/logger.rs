@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::env;
 use std::path::{Path, PathBuf};
 
 use nostr_sdk::Timestamp;
@@ -36,7 +37,14 @@ fn targets_filter() -> Targets {
         .with_target("nostr", Level::DEBUG)
         .with_target("nostr_sdk", Level::DEBUG)
         .with_target("smartvaults_core", Level::DEBUG)
-        .with_target("smartvaults_sdk", Level::TRACE)
+        .with_target(
+            "smartvaults_sdk",
+            if env::var("SMARTVAULTS_TRACE") == Ok(String::from("true")) {
+                Level::TRACE
+            } else {
+                Level::DEBUG
+            },
+        )
         .with_target("smartvaults_desktop", Level::DEBUG)
         .with_target("smartvaults_sdk_ffi", Level::INFO)
 }
