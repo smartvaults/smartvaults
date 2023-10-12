@@ -554,7 +554,10 @@ impl SmartVaults {
 
         if self.client.relays().await.is_empty() {
             for url in self.default_relays().into_iter() {
-                self.add_relay_with_opts(url, None, false).await?;
+                let url = Url::parse(&url)?;
+                self.client.add_relay(&url, None).await?;
+                self.db.insert_relay(url.clone(), None).await?;
+                self.db.enable_relay(url).await?;
             }
         }
 
