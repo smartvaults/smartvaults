@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use iced::widget::{Column, Row};
+use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 use smartvaults_sdk::core::proposal::{CompletedProposal, Proposal};
 use smartvaults_sdk::types::{GetCompletedProposal, GetProposal};
@@ -60,8 +60,14 @@ impl PendingProposalsList {
                             .width(Length::Fixed(125.0))
                             .view(),
                     )
+                    .push(
+                        Text::new("Signed")
+                            .bold()
+                            .width(Length::Fixed(125.0))
+                            .view(),
+                    )
                     .push(Text::new("Description").bold().width(Length::Fill).view())
-                    .push(Text::new("Signed").bold().width(Length::Fill).view())
+                    .push(Space::with_width(Length::Fixed(40.0)))
                     .spacing(10)
                     .align_items(Alignment::Center)
                     .width(Length::Fill),
@@ -106,8 +112,12 @@ impl PendingProposalsList {
                                 .width(Length::Fixed(125.0))
                                 .view(),
                         )
+                        .push(
+                            Text::new(signed.to_string())
+                                .width(Length::Fixed(125.0))
+                                .view(),
+                        )
                         .push(Text::new(description).width(Length::Fill).view())
-                        .push(Text::new(signed.to_string()).width(Length::Fill).view())
                         .push(
                             Button::new()
                                 .icon(FULLSCREEN)
