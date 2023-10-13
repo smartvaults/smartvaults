@@ -3,16 +3,16 @@
 
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::types::GetProposal;
+use smartvaults_sdk::types::{GetProposal, GetTransaction};
 
-use crate::app::component::{Dashboard, PendingProposalsList};
+use crate::app::component::{Activities, Dashboard};
 use crate::app::{Context, Message, State};
 use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
 pub enum ProposalsMessage {
-    LoadProposals(Vec<GetProposal>),
+    Load(Vec<GetProposal>, Vec<GetTransaction>),
     Reload,
 }
 
@@ -21,6 +21,7 @@ pub struct ProposalsState {
     loading: bool,
     loaded: bool,
     proposals: Vec<GetProposal>,
+    txs: Vec<GetTransaction>,
 }
 
 impl ProposalsState {
@@ -37,9 +38,14 @@ impl State for ProposalsState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_proposals().await.unwrap() }, |p| {
-            ProposalsMessage::LoadProposals(p).into()
-        })
+        Command::perform(
+            async move {
+                let proposals = client.get_proposals().await.unwrap();
+                let txs = client.get_all_transactions().await.unwrap();
+                (proposals, txs)
+            },
+            |(proposals, txs)| ProposalsMessage::Load(proposals, txs).into(),
+        )
     }
 
     fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
@@ -49,8 +55,9 @@ impl State for ProposalsState {
 
         if let Message::Proposals(msg) = message {
             match msg {
-                ProposalsMessage::LoadProposals(proposals) => {
+                ProposalsMessage::Load(proposals, txs) => {
                     self.proposals = proposals;
+                    self.txs = txs;
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
@@ -83,7 +90,8 @@ impl State for ProposalsState {
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-                content = content.push(PendingProposalsList::new(self.proposals.clone()).view());
+                content = content
+                    .push(Activities::new(self.proposals.clone(), self.txs.clone()).view(ctx));
             }
         }
 

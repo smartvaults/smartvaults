@@ -26,7 +26,6 @@ mod signer;
 mod signers;
 mod spend;
 mod transaction;
-mod transactions;
 
 pub use self::add_airgap_signer::{AddAirGapSignerMessage, AddAirGapSignerState};
 pub use self::add_contact::{AddContactMessage, AddContactState};
@@ -65,4 +64,3 @@ pub use self::signer::{SignerMessage, SignerState};
 pub use self::signers::{SignersMessage, SignersState};
 pub use self::spend::{SpendMessage, SpendState};
 pub use self::transaction::{TransactionMessage, TransactionState};
-pub use self::transactions::{TransactionsMessage, TransactionsState};

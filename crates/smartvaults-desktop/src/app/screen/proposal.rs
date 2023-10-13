@@ -313,7 +313,7 @@ impl State for ProposalState {
                     return Command::perform(
                         async move { client.delete_proposal_by_id(proposal_id).await },
                         |res| match res {
-                            Ok(_) => Message::View(Stage::Proposals),
+                            Ok(_) => Message::View(Stage::Activities),
                             Err(e) => ProposalMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );

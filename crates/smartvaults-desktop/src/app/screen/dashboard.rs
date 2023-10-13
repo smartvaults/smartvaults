@@ -6,7 +6,7 @@ use iced::{Command, Element, Length};
 use smartvaults_sdk::core::bdk::wallet::Balance;
 use smartvaults_sdk::types::{GetProposal, GetTransaction};
 
-use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
+use crate::app::component::{Activities, Balances, Dashboard};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::Text;
 
@@ -101,19 +101,11 @@ impl State for DashboardState {
                         .view(),
                 )
                 .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Pending proposals").bold().big().view())
+                .push(Text::new("Activities").bold().big().view())
                 .push(Space::with_height(Length::Fixed(10.0)))
                 .push(
-                    PendingProposalsList::new(self.proposals.clone())
-                        .take(3)
-                        .view(),
-                )
-                .push(Space::with_height(Length::Fixed(20.0)))
-                .push(Text::new("Transactions").bold().big().view())
-                .push(Space::with_height(Length::Fixed(10.0)))
-                .push(
-                    TransactionsList::new(self.transactions.clone())
-                        .take(3)
+                    Activities::new(self.proposals.clone(), self.transactions.clone())
+                        .take(10)
                         .view(ctx),
                 );
         }

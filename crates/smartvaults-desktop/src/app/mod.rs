@@ -23,7 +23,7 @@ use self::screen::{
     NewProofState, PoliciesState, PolicyBuilderState, PolicyState, PolicyTreeState, ProfileState,
     ProposalState, ProposalsState, ReceiveState, RecoveryKeysState, RelayState, RelaysState,
     RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState,
-    SignerState, SignersState, SpendState, TransactionState, TransactionsState,
+    SignerState, SignersState, SpendState, TransactionState,
 };
 use self::sync::SmartVaultsSync;
 
@@ -56,10 +56,9 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::Receive(policy) => ReceiveState::new(policy.clone()).into(),
         Stage::SelfTransfer => SelfTransferState::new().into(),
         Stage::NewProof(policy) => NewProofState::new(policy.clone()).into(),
-        Stage::Proposals => ProposalsState::new().into(),
+        Stage::Activities => ProposalsState::new().into(),
         Stage::Proposal(proposal_id) => ProposalState::new(*proposal_id).into(),
         Stage::Transaction { policy_id, txid } => TransactionState::new(*policy_id, *txid).into(),
-        Stage::Transactions(policy_id) => TransactionsState::new(*policy_id).into(),
         Stage::History => HistoryState::new().into(),
         Stage::CompletedProposal(completed_proposal_id) => {
             CompletedProposalState::new(*completed_proposal_id).into()

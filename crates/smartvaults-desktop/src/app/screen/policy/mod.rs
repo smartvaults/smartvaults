@@ -15,7 +15,7 @@ pub mod policies;
 pub mod restore;
 pub mod tree;
 
-use crate::app::component::{Balances, Dashboard, PendingProposalsList, TransactionsList};
+use crate::app::component::{Activities, Balances, Dashboard};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
@@ -335,28 +335,14 @@ impl State for PolicyState {
                         Text::new("").view()
                     });
 
-                if !self.proposals.is_empty() {
-                    content = content
-                        .push(Space::with_height(Length::Fixed(20.0)))
-                        .push(Text::new("Pending proposals").bold().big().view())
-                        .push(Space::with_height(Length::Fixed(5.0)))
-                        .push(
-                            PendingProposalsList::new(self.proposals.clone())
-                                .hide_policy_id()
-                                .take(3)
-                                .view(),
-                        );
-                }
-
                 content = content
                     .push(Space::with_height(Length::Fixed(20.0)))
-                    .push(Text::new("Transactions").bold().big().view())
+                    .push(Text::new("Activities").bold().big().view())
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(
-                        TransactionsList::new(self.transactions.clone())
-                            .take(5)
-                            .policy_id(self.policy_id)
+                        Activities::new(self.proposals.clone(), self.transactions.clone())
                             .hide_policy_id()
+                            .take(10)
                             .view(ctx),
                     );
             }
