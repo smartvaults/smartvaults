@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+mod badge;
 mod button;
 mod card;
 mod circle;
@@ -12,6 +13,7 @@ mod spinner;
 mod text;
 mod text_input;
 
+pub use self::badge::{Badge, BadgeStyle};
 pub use self::button::{Button, ButtonStyle};
 pub use self::card::Card;
 pub use self::circle::Circle;
