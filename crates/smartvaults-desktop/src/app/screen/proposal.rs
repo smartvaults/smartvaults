@@ -273,7 +273,7 @@ impl State for ProposalState {
                     if let Some(proposal) = &self.proposal {
                         let path = FileDialog::new()
                             .set_title("Export PSBT")
-                            .set_file_name(&format!(
+                            .set_file_name(format!(
                                 "proposal-{}.psbt",
                                 util::cut_event_id(self.proposal_id)
                             ))

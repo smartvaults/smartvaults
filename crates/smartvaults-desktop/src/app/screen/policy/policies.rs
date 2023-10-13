@@ -64,7 +64,7 @@ impl State for PoliciesState {
                 PoliciesMessage::SavePolicyBackup(policy_id) => {
                     let path = FileDialog::new()
                         .set_title("Export policy backup")
-                        .set_file_name(&format!("policy-{}.json", util::cut_event_id(policy_id)))
+                        .set_file_name(format!("policy-{}.json", util::cut_event_id(policy_id)))
                         .save_file();
 
                     if let Some(path) = path {

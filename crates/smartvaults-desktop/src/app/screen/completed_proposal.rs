@@ -142,7 +142,7 @@ impl State for CompletedProposalState {
                     if let Some(completed_proposal) = self.completed_proposal.clone() {
                         let path = FileDialog::new()
                             .set_title("Export Proof of Reserve")
-                            .set_file_name(&format!(
+                            .set_file_name(format!(
                                 "proof-{}.json",
                                 util::cut_event_id(self.completed_proposal_id)
                             ))
