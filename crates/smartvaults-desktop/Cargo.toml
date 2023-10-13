@@ -22,7 +22,7 @@ iced_futures = { git = "https://github.com/yukibtc/iced", rev = "4f79fbab1824183
 lyon_algorithms = "1.0"
 once_cell = { workspace = true }
 rfd = "0.12"
-tokio = { workspace = true, features = ["full"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 tracing = { workspace = true }
 webbrowser = "0.8"
 
