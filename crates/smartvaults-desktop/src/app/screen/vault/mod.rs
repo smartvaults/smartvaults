@@ -11,9 +11,9 @@ use smartvaults_sdk::util;
 
 pub mod add;
 pub mod builder;
-pub mod policies;
 pub mod restore;
 pub mod tree;
+pub mod vaults;
 
 use crate::app::component::{Activities, Balances, Dashboard};
 use crate::app::{Context, Message, Stage, State};
@@ -22,7 +22,7 @@ use crate::theme::color::RED;
 use crate::theme::icon::{BINOCULARS, CLIPBOARD, GLOBE, PATCH_CHECK, SAVE, TRASH};
 
 #[derive(Debug, Clone)]
-pub enum PolicyMessage {
+pub enum VaultMessage {
     Send,
     Deposit,
     NewProofOfReserve,
@@ -40,7 +40,7 @@ pub enum PolicyMessage {
 }
 
 #[derive(Debug)]
-pub struct PolicyState {
+pub struct VaultState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
@@ -51,7 +51,7 @@ pub struct PolicyState {
     error: Option<String>,
 }
 
-impl PolicyState {
+impl VaultState {
     pub fn new(policy_id: EventId) -> Self {
         Self {
             loading: false,
@@ -66,9 +66,9 @@ impl PolicyState {
     }
 }
 
-impl State for PolicyState {
+impl State for VaultState {
     fn title(&self) -> String {
-        format!("Policy #{}", util::cut_event_id(self.policy_id))
+        format!("Vault #{}", util::cut_event_id(self.policy_id))
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
@@ -92,9 +92,9 @@ impl State for PolicyState {
             },
             |res| match res {
                 Some((policy, proposals, signer, list)) => {
-                    PolicyMessage::LoadPolicy(policy, proposals, signer, list).into()
+                    VaultMessage::LoadPolicy(policy, proposals, signer, list).into()
                 }
-                None => Message::View(Stage::Policies),
+                None => Message::View(Stage::Vaults),
             },
         )
     }
@@ -106,28 +106,28 @@ impl State for PolicyState {
 
         if let Message::Policy(msg) = message {
             match msg {
-                PolicyMessage::Send => {
+                VaultMessage::Send => {
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
                         Some(policy) => Message::View(Stage::Spend(Some(policy))),
-                        None => Message::View(Stage::Policies),
+                        None => Message::View(Stage::Vaults),
                     });
                 }
-                PolicyMessage::Deposit => {
+                VaultMessage::Deposit => {
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
                         Some(policy) => Message::View(Stage::Receive(Some(policy))),
-                        None => Message::View(Stage::Policies),
+                        None => Message::View(Stage::Vaults),
                     });
                 }
-                PolicyMessage::NewProofOfReserve => {
+                VaultMessage::NewProofOfReserve => {
                     let policy = self.policy.clone();
                     return Command::perform(async {}, move |_| match policy {
                         Some(policy) => Message::View(Stage::NewProof(Some(policy))),
-                        None => Message::View(Stage::Policies),
+                        None => Message::View(Stage::Vaults),
                     });
                 }
-                PolicyMessage::SavePolicyBackup => {
+                VaultMessage::SavePolicyBackup => {
                     let path = FileDialog::new()
                         .set_title("Export policy backup")
                         .set_file_name(format!(
@@ -142,13 +142,13 @@ impl State for PolicyState {
                         return Command::perform(
                             async move { client.save_policy_backup(policy_id, path).await },
                             move |res| match res {
-                                Ok(_) => PolicyMessage::Reload.into(),
-                                Err(e) => PolicyMessage::ErrorChanged(Some(e.to_string())).into(),
+                                Ok(_) => VaultMessage::Reload.into(),
+                                Err(e) => VaultMessage::ErrorChanged(Some(e.to_string())).into(),
                             },
                         );
                     }
                 }
-                PolicyMessage::Delete => {
+                VaultMessage::Delete => {
                     let client = ctx.client.clone();
                     let policy_id = self.policy_id;
 
@@ -169,13 +169,13 @@ impl State for PolicyState {
                                 Ok::<(), Box<dyn std::error::Error>>(())
                             },
                             |res| match res {
-                                Ok(_) => Message::View(Stage::Policies),
-                                Err(e) => PolicyMessage::ErrorChanged(Some(e.to_string())).into(),
+                                Ok(_) => Message::View(Stage::Vaults),
+                                Err(e) => VaultMessage::ErrorChanged(Some(e.to_string())).into(),
                             },
                         );
                     }
                 }
-                PolicyMessage::LoadPolicy(policy, proposals, signer, list) => {
+                VaultMessage::LoadPolicy(policy, proposals, signer, list) => {
                     self.policy = Some(policy);
                     self.proposals = proposals;
                     self.signer = signer;
@@ -183,22 +183,22 @@ impl State for PolicyState {
                     self.loading = false;
                     self.loaded = true;
                 }
-                PolicyMessage::ErrorChanged(e) => {
+                VaultMessage::ErrorChanged(e) => {
                     self.loading = false;
                     self.error = e;
                 }
-                PolicyMessage::Reload => {
+                VaultMessage::Reload => {
                     return self.load(ctx);
                 }
-                PolicyMessage::RepublishSharedKeys => {
+                VaultMessage::RepublishSharedKeys => {
                     self.loading = true;
                     let client = ctx.client.clone();
                     let policy_id = self.policy_id;
                     return Command::perform(
                         async move { client.republish_shared_key_for_policy(policy_id).await },
                         |res| match res {
-                            Ok(_) => PolicyMessage::ErrorChanged(None).into(),
-                            Err(e) => PolicyMessage::ErrorChanged(Some(e.to_string())).into(),
+                            Ok(_) => VaultMessage::ErrorChanged(None).into(),
+                            Err(e) => VaultMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );
                 }
@@ -259,7 +259,7 @@ impl State for PolicyState {
                                                     .style(ButtonStyle::Bordered)
                                                     .icon(PATCH_CHECK)
                                                     .on_press(
-                                                        PolicyMessage::NewProofOfReserve.into(),
+                                                        VaultMessage::NewProofOfReserve.into(),
                                                     )
                                                     .width(Length::Fixed(40.0))
                                                     .view(),
@@ -268,9 +268,7 @@ impl State for PolicyState {
                                                 Button::new()
                                                     .style(ButtonStyle::Bordered)
                                                     .icon(SAVE)
-                                                    .on_press(
-                                                        PolicyMessage::SavePolicyBackup.into(),
-                                                    )
+                                                    .on_press(VaultMessage::SavePolicyBackup.into())
                                                     .width(Length::Fixed(40.0))
                                                     .view(),
                                             )
@@ -291,7 +289,7 @@ impl State for PolicyState {
                                                     .icon(GLOBE)
                                                     .width(Length::Fixed(40.0))
                                                     .on_press(
-                                                        PolicyMessage::RepublishSharedKeys.into(),
+                                                        VaultMessage::RepublishSharedKeys.into(),
                                                     )
                                                     .loading(self.loading)
                                                     .view(),
@@ -301,7 +299,7 @@ impl State for PolicyState {
                                                     .style(ButtonStyle::BorderedDanger)
                                                     .icon(TRASH)
                                                     .width(Length::Fixed(40.0))
-                                                    .on_press(PolicyMessage::Delete.into())
+                                                    .on_press(VaultMessage::Delete.into())
                                                     .loading(self.loading)
                                                     .view(),
                                             )
@@ -321,8 +319,8 @@ impl State for PolicyState {
                             .push(
                                 Balances::new(policy.balance.clone())
                                     .hide(ctx.hide_balances)
-                                    .on_send(PolicyMessage::Send.into())
-                                    .on_deposit(PolicyMessage::Deposit.into())
+                                    .on_send(VaultMessage::Send.into())
+                                    .on_deposit(VaultMessage::Deposit.into())
                                     .view(),
                             )
                             .spacing(20)
@@ -354,14 +352,14 @@ impl State for PolicyState {
     }
 }
 
-impl From<PolicyState> for Box<dyn State> {
-    fn from(s: PolicyState) -> Box<dyn State> {
+impl From<VaultState> for Box<dyn State> {
+    fn from(s: VaultState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<PolicyMessage> for Message {
-    fn from(msg: PolicyMessage) -> Self {
+impl From<VaultMessage> for Message {
+    fn from(msg: VaultMessage) -> Self {
         Self::Policy(msg)
     }
 }

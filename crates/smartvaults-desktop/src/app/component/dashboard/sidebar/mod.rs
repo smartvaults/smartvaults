@@ -32,8 +32,8 @@ impl Sidebar {
         // Buttons
         let home_button =
             SidebarButton::new("Dashboard", HOME).view(ctx, Message::View(Stage::Dashboard));
-        let policies_button =
-            SidebarButton::new("Policies", WALLET).view(ctx, Message::View(Stage::Policies));
+        let vaults_button =
+            SidebarButton::new("Vaults", WALLET).view(ctx, Message::View(Stage::Vaults));
         /* let activities_button =
         SidebarButton::new("Activities", LIST).view(ctx, Message::View(Stage::Activities)); */
         let history_button =
@@ -69,7 +69,7 @@ impl Sidebar {
                 .center_x(),
             sidebar_menu(vec![
                 home_button,
-                policies_button,
+                vaults_button,
                 history_button,
                 addresses_button,
                 signers_button,

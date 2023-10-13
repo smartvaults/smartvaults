@@ -13,11 +13,11 @@ use smartvaults_sdk::{util, SmartVaults};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
     Dashboard,
-    Policies,
-    AddPolicy,
-    PolicyBuilder,
-    RestorePolicy,
-    Policy(EventId),
+    Vaults,
+    AddVault,
+    VaultBuilder,
+    RestoreVault,
+    Vault(EventId),
     PolicyTree(EventId),
     Spend(Option<GetPolicy>),
     Receive(Option<GetPolicy>),
@@ -55,12 +55,12 @@ impl fmt::Display for Stage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Dashboard => write!(f, "Dashboard"),
-            Self::Policies => write!(f, "Policies"),
-            Self::AddPolicy => write!(f, "Add policy"),
-            Self::PolicyBuilder => write!(f, "Builder"),
-            Self::RestorePolicy => write!(f, "Restore policy"),
+            Self::Vaults => write!(f, "Vaults"),
+            Self::AddVault => write!(f, "Add vault"),
+            Self::VaultBuilder => write!(f, "Builder"),
+            Self::RestoreVault => write!(f, "Restore vault"),
             Self::PolicyTree(_) => write!(f, "Tree"),
-            Self::Policy(id) => write!(f, "Policy #{}", util::cut_event_id(*id)),
+            Self::Vault(id) => write!(f, "Vault #{}", util::cut_event_id(*id)),
             Self::Spend(_) => write!(f, "Spend"),
             Self::Receive(_) => write!(f, "Receive"),
             Self::SelfTransfer => write!(f, "Self transfer"),
@@ -106,7 +106,7 @@ impl Stage {
         matches!(
             self,
             Stage::Dashboard
-                | Stage::Policies
+                | Stage::Vaults
                 | Stage::Activities
                 | Stage::History
                 | Stage::Signers

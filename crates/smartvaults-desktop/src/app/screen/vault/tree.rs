@@ -58,7 +58,7 @@ impl State for PolicyTreeState {
                 Ok(item) => PolicyTreeMessage::Load(item).into(),
                 Err(e) => {
                     tracing::error!("Impossible to load policy tree: {e}");
-                    Message::View(Stage::Policies)
+                    Message::View(Stage::Vaults)
                 }
             },
         )

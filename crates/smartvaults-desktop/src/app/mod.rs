@@ -17,13 +17,13 @@ pub use self::context::{Context, Stage};
 pub use self::message::Message;
 //use self::screen::AddHWSignerState;
 use self::screen::{
-    AddAirGapSignerState, AddContactState, AddNostrConnectSessionState, AddPolicyState,
-    AddRelayState, AddSignerState, AddressesState, ChangePasswordState, CompletedProposalState,
-    ConfigState, ConnectState, ContactsState, DashboardState, EditProfileState, HistoryState,
-    NewProofState, PoliciesState, PolicyBuilderState, PolicyState, PolicyTreeState, ProfileState,
-    ProposalState, ProposalsState, ReceiveState, RecoveryKeysState, RelayState, RelaysState,
-    RestorePolicyState, RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState,
-    SignerState, SignersState, SpendState, TransactionState,
+    ActivitiesState, AddAirGapSignerState, AddContactState, AddNostrConnectSessionState,
+    AddRelayState, AddSignerState, AddVaultState, AddressesState, ChangePasswordState,
+    CompletedProposalState, ConfigState, ConnectState, ContactsState, DashboardState,
+    EditProfileState, HistoryState, NewProofState, PoliciesState, PolicyBuilderState,
+    PolicyTreeState, ProfileState, ProposalState, ReceiveState, RecoveryKeysState, RelayState,
+    RelaysState, RestoreVaultState, RevokeAllSignersState, SelfTransferState, SettingsState,
+    ShareSignerState, SignerState, SignersState, SpendState, TransactionState, VaultState,
 };
 use self::sync::SmartVaultsSync;
 
@@ -46,17 +46,17 @@ pub trait State {
 pub fn new_state(ctx: &Context) -> Box<dyn State> {
     match &ctx.stage {
         Stage::Dashboard => DashboardState::new().into(),
-        Stage::Policies => PoliciesState::new().into(),
-        Stage::AddPolicy => AddPolicyState::new().into(),
-        Stage::PolicyBuilder => PolicyBuilderState::new().into(),
-        Stage::RestorePolicy => RestorePolicyState::new().into(),
-        Stage::Policy(policy_id) => PolicyState::new(*policy_id).into(),
+        Stage::Vaults => PoliciesState::new().into(),
+        Stage::AddVault => AddVaultState::new().into(),
+        Stage::VaultBuilder => PolicyBuilderState::new().into(),
+        Stage::RestoreVault => RestoreVaultState::new().into(),
+        Stage::Vault(policy_id) => VaultState::new(*policy_id).into(),
         Stage::PolicyTree(policy_id) => PolicyTreeState::new(*policy_id).into(),
         Stage::Spend(policy) => SpendState::new(policy.clone()).into(),
         Stage::Receive(policy) => ReceiveState::new(policy.clone()).into(),
         Stage::SelfTransfer => SelfTransferState::new().into(),
         Stage::NewProof(policy) => NewProofState::new(policy.clone()).into(),
-        Stage::Activities => ProposalsState::new().into(),
+        Stage::Activities => ActivitiesState::new().into(),
         Stage::Proposal(proposal_id) => ProposalState::new(*proposal_id).into(),
         Stage::Transaction { policy_id, txid } => TransactionState::new(*policy_id, *txid).into(),
         Stage::History => HistoryState::new().into(),

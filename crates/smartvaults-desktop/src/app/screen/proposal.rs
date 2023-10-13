@@ -342,8 +342,8 @@ impl State for ProposalState {
                         )
                         .push(Space::with_height(Length::Fixed(40.0)))
                         .push(
-                            Text::new(format!("Policy ID: {}", util::cut_event_id(policy_id)))
-                                .on_press(Message::View(Stage::Policy(policy_id)))
+                            Text::new(format!("Vault ID: {}", util::cut_event_id(policy_id)))
+                                .on_press(Message::View(Stage::Vault(policy_id)))
                                 .view(),
                         );
 

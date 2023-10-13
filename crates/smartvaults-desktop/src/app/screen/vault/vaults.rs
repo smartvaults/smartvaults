@@ -93,14 +93,14 @@ impl State for PoliciesState {
         if self.loaded {
             if self.policies.is_empty() {
                 content = content
-                    .push(Text::new("No policies").view())
+                    .push(Text::new("No vaults").view())
                     .push(Space::with_height(Length::Fixed(15.0)))
                     .push(
                         Button::new()
                             .icon(PLUS)
-                            .text("Add policy")
+                            .text("Add vault")
                             .width(Length::Fixed(250.0))
-                            .on_press(Message::View(Stage::AddPolicy))
+                            .on_press(Message::View(Stage::AddVault))
                             .view(),
                     )
                     .push(
@@ -132,7 +132,7 @@ impl State for PoliciesState {
                                     .style(ButtonStyle::Bordered)
                                     .icon(PLUS)
                                     .width(Length::Fixed(40.0))
-                                    .on_press(Message::View(Stage::AddPolicy))
+                                    .on_press(Message::View(Stage::AddVault))
                                     .view(),
                             )
                             .push(
@@ -189,7 +189,7 @@ impl State for PoliciesState {
                         .push(
                             Button::new()
                                 .icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Policy(*policy_id)))
+                                .on_press(Message::View(Stage::Vault(*policy_id)))
                                 .width(Length::Fixed(40.0))
                                 .view(),
                         )

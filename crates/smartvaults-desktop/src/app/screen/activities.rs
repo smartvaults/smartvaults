@@ -11,26 +11,26 @@ use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
-pub enum ProposalsMessage {
+pub enum ActivitiesMessage {
     Load(Vec<GetProposal>, Vec<GetTransaction>),
     Reload,
 }
 
 #[derive(Debug, Default)]
-pub struct ProposalsState {
+pub struct ActivitiesState {
     loading: bool,
     loaded: bool,
     proposals: Vec<GetProposal>,
     txs: Vec<GetTransaction>,
 }
 
-impl ProposalsState {
+impl ActivitiesState {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl State for ProposalsState {
+impl State for ActivitiesState {
     fn title(&self) -> String {
         String::from("Proposals")
     }
@@ -44,7 +44,7 @@ impl State for ProposalsState {
                 let txs = client.get_all_transactions().await.unwrap();
                 (proposals, txs)
             },
-            |(proposals, txs)| ProposalsMessage::Load(proposals, txs).into(),
+            |(proposals, txs)| ActivitiesMessage::Load(proposals, txs).into(),
         )
     }
 
@@ -53,16 +53,16 @@ impl State for ProposalsState {
             return self.load(ctx);
         }
 
-        if let Message::Proposals(msg) = message {
+        if let Message::Activities(msg) = message {
             match msg {
-                ProposalsMessage::Load(proposals, txs) => {
+                ActivitiesMessage::Load(proposals, txs) => {
                     self.proposals = proposals;
                     self.txs = txs;
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
                 }
-                ProposalsMessage::Reload => self.load(ctx),
+                ActivitiesMessage::Reload => self.load(ctx),
             }
         } else {
             Command::none()
@@ -84,7 +84,7 @@ impl State for ProposalsState {
                             .icon(RELOAD)
                             .text("Reload")
                             .width(Length::Fixed(250.0))
-                            .on_press(ProposalsMessage::Reload.into())
+                            .on_press(ActivitiesMessage::Reload.into())
                             .view(),
                     )
                     .align_items(Alignment::Center);
@@ -101,14 +101,14 @@ impl State for ProposalsState {
     }
 }
 
-impl From<ProposalsState> for Box<dyn State> {
-    fn from(s: ProposalsState) -> Box<dyn State> {
+impl From<ActivitiesState> for Box<dyn State> {
+    fn from(s: ActivitiesState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<ProposalsMessage> for Message {
-    fn from(msg: ProposalsMessage) -> Self {
-        Self::Proposals(msg)
+impl From<ActivitiesMessage> for Message {
+    fn from(msg: ActivitiesMessage) -> Self {
+        Self::Activities(msg)
     }
 }

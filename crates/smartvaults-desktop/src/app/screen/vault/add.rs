@@ -16,7 +16,7 @@ use crate::theme::color::DARK_RED;
 use crate::theme::icon::PLUS;
 
 #[derive(Debug, Clone)]
-pub enum AddPolicyMessage {
+pub enum AddVaultMessage {
     NameChanged(String),
     DescriptionChanged(String),
     DescriptorChanged(String),
@@ -29,7 +29,7 @@ pub enum AddPolicyMessage {
 }
 
 #[derive(Debug, Default)]
-pub struct AddPolicyState {
+pub struct AddVaultState {
     name: String,
     description: String,
     descriptor: String,
@@ -42,15 +42,15 @@ pub struct AddPolicyState {
     error: Option<String>,
 }
 
-impl AddPolicyState {
+impl AddVaultState {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl State for AddPolicyState {
+impl State for AddVaultState {
     fn title(&self) -> String {
-        String::from("Add policy")
+        String::from("Add vault")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
@@ -68,7 +68,7 @@ impl State for AddPolicyState {
                 contacts.push_front(profile.clone());
                 (profile, contacts)
             },
-            |(profile, contacts)| AddPolicyMessage::Load(profile, contacts).into(),
+            |(profile, contacts)| AddVaultMessage::Load(profile, contacts).into(),
         )
     }
 
@@ -79,24 +79,24 @@ impl State for AddPolicyState {
 
         if let Message::AddPolicy(msg) = message {
             match msg {
-                AddPolicyMessage::NameChanged(name) => self.name = name,
-                AddPolicyMessage::DescriptionChanged(desc) => self.description = desc,
-                AddPolicyMessage::DescriptorChanged(desc) => self.descriptor = desc,
-                AddPolicyMessage::Load(profile, contacts) => {
+                AddVaultMessage::NameChanged(name) => self.name = name,
+                AddVaultMessage::DescriptionChanged(desc) => self.description = desc,
+                AddVaultMessage::DescriptorChanged(desc) => self.descriptor = desc,
+                AddVaultMessage::Load(profile, contacts) => {
                     self.profile = Some(profile);
                     self.contacts = contacts;
                     self.loading = false;
                     self.loaded = true;
                 }
-                AddPolicyMessage::SelectPublicKeys(value) => self.selecting = value,
-                AddPolicyMessage::AddPublicKey(public_key) => {
+                AddVaultMessage::SelectPublicKeys(value) => self.selecting = value,
+                AddVaultMessage::AddPublicKey(public_key) => {
                     self.public_keys.insert(public_key);
                 }
-                AddPolicyMessage::RemovePublicKey(public_key) => {
+                AddVaultMessage::RemovePublicKey(public_key) => {
                     self.public_keys.remove(&public_key);
                 }
-                AddPolicyMessage::ErrorChanged(error) => self.error = error,
-                AddPolicyMessage::SavePolicy => {
+                AddVaultMessage::ErrorChanged(error) => self.error = error,
+                AddVaultMessage::SavePolicy => {
                     let client = ctx.client.clone();
                     let name = self.name.clone();
                     let description = self.description.clone();
@@ -110,8 +110,8 @@ impl State for AddPolicyState {
                                 .await
                         },
                         |res| match res {
-                            Ok(_) => Message::View(Stage::Policies),
-                            Err(e) => AddPolicyMessage::ErrorChanged(Some(e.to_string())).into(),
+                            Ok(_) => Message::View(Stage::Vaults),
+                            Err(e) => AddVaultMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );
                 }
@@ -125,18 +125,18 @@ impl State for AddPolicyState {
         let mut center_y = true;
 
         let name = TextInput::new("Name", &self.name)
-            .on_input(|s| AddPolicyMessage::NameChanged(s).into())
-            .placeholder("Policy name")
+            .on_input(|s| AddVaultMessage::NameChanged(s).into())
+            .placeholder("Vault name")
             .view();
 
         let description = TextInput::new("Description", &self.description)
-            .on_input(|s| AddPolicyMessage::DescriptionChanged(s).into())
-            .placeholder("Policy description")
+            .on_input(|s| AddVaultMessage::DescriptionChanged(s).into())
+            .placeholder("Vault description")
             .view();
 
         let descriptor = TextInput::new("Descriptor/Policy", &self.descriptor)
-            .on_input(|s| AddPolicyMessage::DescriptorChanged(s).into())
-            .placeholder("Policy descriptor")
+            .on_input(|s| AddVaultMessage::DescriptorChanged(s).into())
+            .placeholder("Vault descriptor")
             .view();
 
         let mut public_keys = Column::new()
@@ -172,7 +172,7 @@ impl State for AddPolicyState {
                     .style(ButtonStyle::Bordered)
                     .text("Select")
                     .width(Length::Fill)
-                    .on_press(AddPolicyMessage::SelectPublicKeys(true).into())
+                    .on_press(AddVaultMessage::SelectPublicKeys(true).into())
                     .view(),
             );
 
@@ -183,20 +183,20 @@ impl State for AddPolicyState {
         };
 
         let save_policy_btn = Button::new()
-            .text("Save policy")
-            .on_press(AddPolicyMessage::SavePolicy.into())
+            .text("Save vault")
+            .on_press(AddVaultMessage::SavePolicy.into())
             .width(Length::Fill);
 
         let restore_policy_btn = Button::new()
             .style(ButtonStyle::Bordered)
-            .text("Restore policy backup")
-            .on_press(Message::View(Stage::RestorePolicy))
+            .text("Restore vault backup")
+            .on_press(Message::View(Stage::RestoreVault))
             .width(Length::Fill);
 
         let policy_builder_btn = Button::new()
             .style(ButtonStyle::Bordered)
-            .text("Policy builder")
-            .on_press(Message::View(Stage::PolicyBuilder))
+            .text("Vault builder")
+            .on_press(Message::View(Stage::VaultBuilder))
             .width(Length::Fill);
 
         let content = if self.selecting {
@@ -206,8 +206,8 @@ impl State for AddPolicyState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Create policy").big().bold().view())
-                        .push(Text::new("Create a new policy").extra_light().view())
+                        .push(Text::new("Create vault").big().bold().view())
+                        .push(Text::new("Create a new vault").extra_light().view())
                         .spacing(10)
                         .width(Length::Fill),
                 )
@@ -232,7 +232,7 @@ impl State for AddPolicyState {
     }
 }
 
-fn view_select_public_keys<'a>(state: &AddPolicyState) -> Column<'a, Message> {
+fn view_select_public_keys<'a>(state: &AddVaultState) -> Column<'a, Message> {
     let mut content = Column::new().spacing(10).padding(20);
 
     if state.contacts.is_empty() {
@@ -283,12 +283,12 @@ fn view_select_public_keys<'a>(state: &AddPolicyState) -> Column<'a, Message> {
             let select_btn = if state.public_keys.contains(&public_key) {
                 Button::new()
                     .text("Selected")
-                    .on_press(AddPolicyMessage::RemovePublicKey(public_key).into())
+                    .on_press(AddVaultMessage::RemovePublicKey(public_key).into())
             } else {
                 Button::new()
                     .style(ButtonStyle::Bordered)
                     .text("Select")
-                    .on_press(AddPolicyMessage::AddPublicKey(public_key).into())
+                    .on_press(AddVaultMessage::AddPublicKey(public_key).into())
             };
 
             let row = Row::new()
@@ -328,7 +328,7 @@ fn view_select_public_keys<'a>(state: &AddPolicyState) -> Column<'a, Message> {
                     Button::new()
                         .text("Confirm")
                         .width(Length::Fixed(180.0))
-                        .on_press(AddPolicyMessage::SelectPublicKeys(false).into())
+                        .on_press(AddVaultMessage::SelectPublicKeys(false).into())
                         .view(),
                 )
                 .width(Length::Fill)
@@ -339,14 +339,14 @@ fn view_select_public_keys<'a>(state: &AddPolicyState) -> Column<'a, Message> {
     content
 }
 
-impl From<AddPolicyState> for Box<dyn State> {
-    fn from(s: AddPolicyState) -> Box<dyn State> {
+impl From<AddVaultState> for Box<dyn State> {
+    fn from(s: AddVaultState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<AddPolicyMessage> for Message {
-    fn from(msg: AddPolicyMessage) -> Self {
+impl From<AddVaultMessage> for Message {
+    fn from(msg: AddVaultMessage) -> Self {
         Self::AddPolicy(msg)
     }
 }

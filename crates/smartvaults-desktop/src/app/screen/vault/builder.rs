@@ -72,7 +72,7 @@ impl PolicyBuilderState {
 
 impl State for PolicyBuilderState {
     fn title(&self) -> String {
-        String::from("Policy builder")
+        String::from("Vault builder")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
@@ -171,7 +171,7 @@ impl State for PolicyBuilderState {
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },
                         |res| match res {
-                            Ok(_) => Message::View(Stage::Policies),
+                            Ok(_) => Message::View(Stage::Vaults),
                             Err(e) => {
                                 PolicyBuilderMessage::ErrorChanged(Some(e.to_string())).into()
                             }
@@ -193,12 +193,12 @@ impl State for PolicyBuilderState {
         } else {
             let name = TextInput::new("Name", &self.name)
                 .on_input(|s| PolicyBuilderMessage::NameChanged(s).into())
-                .placeholder("Policy name")
+                .placeholder("Vault name")
                 .view();
 
             let description = TextInput::new("Description", &self.description)
                 .on_input(|s| PolicyBuilderMessage::DescriptionChanged(s).into())
-                .placeholder("Policy description")
+                .placeholder("Vault description")
                 .view();
 
             let threshold = Row::new()
@@ -313,13 +313,13 @@ impl State for PolicyBuilderState {
 
             let restore_policy_btn = Button::new()
                 .style(ButtonStyle::Bordered)
-                .text("Restore policy backup")
-                .on_press(Message::View(Stage::RestorePolicy))
+                .text("Restore vault backup")
+                .on_press(Message::View(Stage::RestoreVault))
                 .width(Length::Fill)
                 .view();
 
             let save_policy_btn = Button::new()
-                .text("Save policy")
+                .text("Save vault")
                 .on_press(PolicyBuilderMessage::SavePolicy.into())
                 .width(Length::Fill)
                 .view();
@@ -327,8 +327,8 @@ impl State for PolicyBuilderState {
             Column::new()
                 .push(
                     Column::new()
-                        .push(Text::new("Policy builder").big().bold().view())
-                        .push(Text::new("Build a new policy").extra_light().view())
+                        .push(Text::new("Vault builder").big().bold().view())
+                        .push(Text::new("Build a new vault").extra_light().view())
                         .spacing(10)
                         .width(Length::Fill),
                 )

@@ -15,7 +15,7 @@ use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
-pub enum RestorePolicyMessage {
+pub enum RestoreVaultMessage {
     Load(Vec<User>),
     NameChanged(String),
     DescriptionChanged(String),
@@ -27,7 +27,7 @@ pub enum RestorePolicyMessage {
 }
 
 #[derive(Debug, Default)]
-pub struct RestorePolicyState {
+pub struct RestoreVaultState {
     name: String,
     description: String,
     descriptor: String,
@@ -38,7 +38,7 @@ pub struct RestorePolicyState {
     error: Option<String>,
 }
 
-impl RestorePolicyState {
+impl RestoreVaultState {
     pub fn new() -> Self {
         Self::default()
     }
@@ -50,9 +50,9 @@ impl RestorePolicyState {
     }
 }
 
-impl State for RestorePolicyState {
+impl State for RestoreVaultState {
     fn title(&self) -> String {
-        String::from("Restore policy")
+        String::from("Restore vault")
     }
 
     fn load(&mut self, ctx: &Context) -> Command<Message> {
@@ -64,7 +64,7 @@ impl State for RestorePolicyState {
         let client = ctx.client.clone();
         Command::perform(
             async move { client.get_known_public_keys_with_metadata().await.unwrap() },
-            |known_public_keys| RestorePolicyMessage::Load(known_public_keys).into(),
+            |known_public_keys| RestoreVaultMessage::Load(known_public_keys).into(),
         )
     }
 
@@ -75,34 +75,34 @@ impl State for RestorePolicyState {
 
         if let Message::RestorePolicy(msg) = message {
             match msg {
-                RestorePolicyMessage::Load(known_public_keys) => {
+                RestoreVaultMessage::Load(known_public_keys) => {
                     self.known_public_keys = known_public_keys;
                     self.loading = false;
                     self.loaded = true;
                 }
-                RestorePolicyMessage::NameChanged(name) => self.name = name,
-                RestorePolicyMessage::DescriptionChanged(desc) => self.description = desc,
-                RestorePolicyMessage::ErrorChanged(error) => {
+                RestoreVaultMessage::NameChanged(name) => self.name = name,
+                RestoreVaultMessage::DescriptionChanged(desc) => self.description = desc,
+                RestoreVaultMessage::ErrorChanged(error) => {
                     self.error = error;
                     self.loading = false;
                 }
-                RestorePolicyMessage::SelectPolicyBackup => {
+                RestoreVaultMessage::SelectPolicyBackup => {
                     let path = FileDialog::new()
-                        .set_title("Select policy backup")
+                        .set_title("Select vault backup")
                         .pick_file();
 
                     if let Some(path) = path {
                         return Command::perform(async move { PolicyBackup::open(path) }, |res| {
                             match res {
-                                Ok(backup) => RestorePolicyMessage::LoadPolicyBackup(backup).into(),
+                                Ok(backup) => RestoreVaultMessage::LoadPolicyBackup(backup).into(),
                                 Err(e) => {
-                                    RestorePolicyMessage::ErrorChanged(Some(e.to_string())).into()
+                                    RestoreVaultMessage::ErrorChanged(Some(e.to_string())).into()
                                 }
                             }
                         });
                     }
                 }
-                RestorePolicyMessage::LoadPolicyBackup(backup) => {
+                RestoreVaultMessage::LoadPolicyBackup(backup) => {
                     if let Some(name) = backup.name() {
                         self.name = name;
                     }
@@ -112,7 +112,7 @@ impl State for RestorePolicyState {
                     self.descriptor = backup.descriptor().to_string();
                     self.public_keys = backup.public_keys();
                 }
-                RestorePolicyMessage::SavePolicy => {
+                RestoreVaultMessage::SavePolicy => {
                     self.loading = true;
                     let client = ctx.client.clone();
                     let name = self.name.clone();
@@ -126,14 +126,12 @@ impl State for RestorePolicyState {
                                 .await
                         },
                         |res| match res {
-                            Ok(_) => Message::View(Stage::Policies),
-                            Err(e) => {
-                                RestorePolicyMessage::ErrorChanged(Some(e.to_string())).into()
-                            }
+                            Ok(_) => Message::View(Stage::Vaults),
+                            Err(e) => RestoreVaultMessage::ErrorChanged(Some(e.to_string())).into(),
                         },
                     );
                 }
-                RestorePolicyMessage::Clear => {
+                RestoreVaultMessage::Clear => {
                     self.clear();
                 }
             }
@@ -144,17 +142,17 @@ impl State for RestorePolicyState {
 
     fn view(&self, ctx: &Context) -> Element<Message> {
         let name = TextInput::new("Name", &self.name)
-            .on_input(|s| RestorePolicyMessage::NameChanged(s).into())
-            .placeholder("Policy name")
+            .on_input(|s| RestoreVaultMessage::NameChanged(s).into())
+            .placeholder("Vault name")
             .view();
 
         let description = TextInput::new("Description", &self.description)
-            .on_input(|s| RestorePolicyMessage::DescriptionChanged(s).into())
-            .placeholder("Policy description")
+            .on_input(|s| RestoreVaultMessage::DescriptionChanged(s).into())
+            .placeholder("Vault description")
             .view();
 
         let descriptor = TextInput::new("Descriptor", &self.descriptor)
-            .placeholder("Policy descriptor")
+            .placeholder("Vault descriptor")
             .view();
 
         let mut public_keys = Column::new()
@@ -190,9 +188,9 @@ impl State for RestorePolicyState {
         let mut content = Column::new()
             .push(
                 Column::new()
-                    .push(Text::new("Restore policy").big().bold().view())
+                    .push(Text::new("Restore vault").big().bold().view())
                     .push(
-                        Text::new("Restore policy from a backup")
+                        Text::new("Restore vault from a backup")
                             .extra_light()
                             .view(),
                     )
@@ -210,8 +208,8 @@ impl State for RestorePolicyState {
             content = content.push(
                 Button::new()
                     .style(ButtonStyle::Bordered)
-                    .text("Select policy backup")
-                    .on_press(RestorePolicyMessage::SelectPolicyBackup.into())
+                    .text("Select vault backup")
+                    .on_press(RestoreVaultMessage::SelectPolicyBackup.into())
                     .width(Length::Fill)
                     .view(),
             );
@@ -219,9 +217,9 @@ impl State for RestorePolicyState {
             content = content
                 .push(
                     Button::new()
-                        .text("Save policy")
+                        .text("Save vault")
                         .width(Length::Fill)
-                        .on_press(RestorePolicyMessage::SavePolicy.into())
+                        .on_press(RestoreVaultMessage::SavePolicy.into())
                         .loading(self.loading)
                         .view(),
                 )
@@ -230,7 +228,7 @@ impl State for RestorePolicyState {
                         .style(ButtonStyle::BorderedDanger)
                         .text("Clear")
                         .width(Length::Fill)
-                        .on_press(RestorePolicyMessage::Clear.into())
+                        .on_press(RestoreVaultMessage::Clear.into())
                         .loading(self.loading)
                         .view(),
                 );
@@ -248,14 +246,14 @@ impl State for RestorePolicyState {
     }
 }
 
-impl From<RestorePolicyState> for Box<dyn State> {
-    fn from(s: RestorePolicyState) -> Box<dyn State> {
+impl From<RestoreVaultState> for Box<dyn State> {
+    fn from(s: RestoreVaultState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<RestorePolicyMessage> for Message {
-    fn from(msg: RestorePolicyMessage) -> Self {
+impl From<RestoreVaultMessage> for Message {
+    fn from(msg: RestoreVaultMessage) -> Self {
         Self::RestorePolicy(msg)
     }
 }

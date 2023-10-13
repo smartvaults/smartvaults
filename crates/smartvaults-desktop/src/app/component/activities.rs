@@ -54,7 +54,7 @@ impl Activities {
                     .push(if self.hide_policy_id {
                         Text::new("").view()
                     } else {
-                        Text::new("Policy ID")
+                        Text::new("Vault ID")
                             .bold()
                             .width(Length::Fixed(115.0))
                             .view()
@@ -112,7 +112,7 @@ impl Activities {
                         } else {
                             Text::new(util::cut_event_id(policy_id))
                                 .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Policy(policy_id)))
+                                .on_press(Message::View(Stage::Vault(policy_id)))
                                 .view()
                         })
                         .push(Text::new("-").width(Length::Fixed(225.0)).view())
@@ -171,7 +171,7 @@ impl Activities {
                         } else {
                             Text::new(util::cut_event_id(policy_id))
                                 .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Policy(policy_id)))
+                                .on_press(Message::View(Stage::Vault(policy_id)))
                                 .view()
                         })
                         .push(Text::new("-").width(Length::Fixed(125.0)).view())
@@ -244,7 +244,7 @@ impl Activities {
                     } else {
                         Text::new(util::cut_event_id(policy_id))
                             .width(Length::Fixed(115.0))
-                            .on_press(Message::View(Stage::Policy(policy_id)))
+                            .on_press(Message::View(Stage::Vault(policy_id)))
                             .view()
                     })
                     .push(
@@ -367,7 +367,7 @@ impl CompletedProposalsList {
                 Row::new()
                     .push(Text::new("ID").bold().width(Length::Fixed(115.0)).view())
                     .push(
-                        Text::new("Policy ID")
+                        Text::new("Vault ID")
                             .bold()
                             .width(Length::Fixed(115.0))
                             .view(),
@@ -401,7 +401,7 @@ impl CompletedProposalsList {
                         .push(
                             Text::new(util::cut_event_id(*policy_id))
                                 .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Policy(*policy_id)))
+                                .on_press(Message::View(Stage::Vault(*policy_id)))
                                 .view(),
                         )
                         .push(Text::new("spending").width(Length::Fixed(125.0)).view())
@@ -427,7 +427,7 @@ impl CompletedProposalsList {
                         .push(
                             Text::new(util::cut_event_id(*policy_id))
                                 .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Policy(*policy_id)))
+                                .on_press(Message::View(Stage::Vault(*policy_id)))
                                 .view(),
                         )
                         .push(

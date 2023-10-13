@@ -3,14 +3,14 @@
 
 //use super::screen::AddHWSignerMessage;
 use super::screen::{
-    AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage, AddPolicyMessage,
-    AddRelayMessage, AddSignerMessage, AddressesMessage, ChangePasswordMessage,
+    ActivitiesMessage, AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage,
+    AddRelayMessage, AddSignerMessage, AddVaultMessage, AddressesMessage, ChangePasswordMessage,
     CompletedProposalMessage, ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage,
     EditProfileMessage, HistoryMessage, NewProofMessage, PoliciesMessage, PolicyBuilderMessage,
-    PolicyMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ProposalsMessage,
-    ReceiveMessage, RecoveryKeysMessage, RelayMessage, RelaysMessage, RestorePolicyMessage,
-    RevokeAllSignersMessage, SelfTransferMessage, SettingsMessage, ShareSignerMessage,
-    SignerMessage, SignersMessage, SpendMessage, TransactionMessage,
+    PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage, RecoveryKeysMessage,
+    RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage, SelfTransferMessage,
+    SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
+    TransactionMessage, VaultMessage,
 };
 use super::Stage;
 
@@ -19,16 +19,16 @@ pub enum Message {
     View(Stage),
     Dashboard(DashboardMessage),
     Policies(PoliciesMessage),
-    AddPolicy(AddPolicyMessage),
+    AddPolicy(AddVaultMessage),
     PolicyBuilder(PolicyBuilderMessage),
-    RestorePolicy(RestorePolicyMessage),
-    Policy(PolicyMessage),
+    RestorePolicy(RestoreVaultMessage),
+    Policy(VaultMessage),
     PolicyTree(PolicyTreeMessage),
     Spend(SpendMessage),
     Receive(ReceiveMessage),
     SelfTransfer(SelfTransferMessage),
     NewProof(NewProofMessage),
-    Proposals(ProposalsMessage),
+    Activities(ActivitiesMessage),
     Proposal(ProposalMessage),
     Transaction(TransactionMessage),
     History(HistoryMessage),
