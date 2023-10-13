@@ -8,7 +8,7 @@ use smartvaults_sdk::types::{GetCompletedProposal, GetProposal};
 use smartvaults_sdk::util::{self, format};
 
 use crate::app::{Message, Stage};
-use crate::component::{rule, Button, Text};
+use crate::component::{rule, Badge, BadgeStyle, Button, Text};
 use crate::theme::icon::FULLSCREEN;
 
 pub struct PendingProposalsList {
@@ -61,9 +61,9 @@ impl PendingProposalsList {
                             .view(),
                     )
                     .push(
-                        Text::new("Signed")
+                        Text::new("Status")
                             .bold()
-                            .width(Length::Fixed(125.0))
+                            .width(Length::Fixed(140.0))
                             .view(),
                     )
                     .push(Text::new("Description").bold().width(Length::Fill).view())
@@ -113,9 +113,26 @@ impl PendingProposalsList {
                                 .view(),
                         )
                         .push(
-                            Text::new(signed.to_string())
-                                .width(Length::Fixed(125.0))
-                                .view(),
+                            Row::new()
+                                .push(
+                                    Badge::new(
+                                        Text::new(if *signed {
+                                            "To broadcast"
+                                        } else {
+                                            "To approve"
+                                        })
+                                        .small()
+                                        .extra_light()
+                                        .view(),
+                                    )
+                                    .style(if *signed {
+                                        BadgeStyle::Warning
+                                    } else {
+                                        BadgeStyle::Info
+                                    })
+                                    .width(Length::Fixed(125.0)),
+                                )
+                                .width(Length::Fixed(140.0)),
                         )
                         .push(Text::new(description).width(Length::Fill).view())
                         .push(
