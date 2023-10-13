@@ -14,7 +14,7 @@ categories = ["command-line-utilities"]
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 smartvaults-sdk = { path = "../smartvaults-sdk" }
-dialoguer = "0.10"
+dialoguer = "0.11"
 dirs = "5.0"
 once_cell = "1.18"
 owo-colors = "3.5"
