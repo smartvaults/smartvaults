@@ -17,9 +17,10 @@ mod proto;
 pub use self::metadata::VaultMetadata;
 use self::proto::vault::Object as ProtoObject;
 use self::proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
+use super::core::{
+    schema, CryptoError, ProtocolEncoding, ProtocolEncryption, Schema, SchemaError, SchemaVersion,
+};
 use super::network::{self, NetworkMagic};
-use super::schema::{self, Schema, SchemaVersion};
-use super::{crypto, ProtocolEncoding, ProtocolEncryption};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -30,9 +31,9 @@ pub enum Error {
     #[error(transparent)]
     Miniscript(#[from] miniscript::Error),
     #[error(transparent)]
-    Schema(#[from] schema::Error),
+    Crypto(#[from] CryptoError),
     #[error(transparent)]
-    Crypto(#[from] crypto::Error),
+    Schema(#[from] SchemaError),
     #[error(transparent)]
     Proto(#[from] prost::DecodeError),
     #[error("{0} not found")]

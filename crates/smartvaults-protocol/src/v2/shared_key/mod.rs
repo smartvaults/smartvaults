@@ -13,10 +13,9 @@ mod proto;
 use self::proto::shared_key::Object as ProtoObject;
 use self::proto::{SharedKey as ProtoSharedKey, SharedKeyV1 as ProtoSharedKeyV1};
 use super::constants::SHARED_KEY_KIND_V2;
-use super::schema::{self, Schema, SchemaVersion};
-use super::{
-    crypto, identifier, network, Identifier, NetworkMagic, ProtocolEncoding, ProtocolEncryption,
-};
+use super::core::schema::{self, Schema, SchemaVersion};
+use super::core::{CryptoError, ProtocolEncoding, ProtocolEncryption, SchemaError};
+use super::{identifier, network, Identifier, NetworkMagic};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -25,9 +24,9 @@ pub enum Error {
     #[error(transparent)]
     Network(#[from] network::Error),
     #[error(transparent)]
-    Crypto(#[from] crypto::Error),
+    Crypto(#[from] CryptoError),
     #[error(transparent)]
-    Schema(#[from] schema::Error),
+    Schema(#[from] SchemaError),
     #[error(transparent)]
     Identifier(#[from] identifier::Error),
     #[error(transparent)]
