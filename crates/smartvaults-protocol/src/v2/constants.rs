@@ -5,3 +5,4 @@ use nostr::Kind;
 
 // Kinds
 pub const SHARED_KEY_KIND_V2: Kind = Kind::Custom(8288);
+pub const VAULT_KIND_V2: Kind = Kind::Custom(8289);
