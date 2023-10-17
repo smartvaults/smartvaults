@@ -18,7 +18,8 @@ pub use self::metadata::VaultMetadata;
 use self::proto::vault::Object as ProtoObject;
 use self::proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
 use super::network::{self, NetworkMagic};
-use super::schema::{self, Schema, SchemaEncoding, SchemaVersion};
+use super::schema::{self, Schema, SchemaVersion};
+use super::{crypto, ProtocolEncoding, ProtocolEncryption};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -30,6 +31,8 @@ pub enum Error {
     Miniscript(#[from] miniscript::Error),
     #[error(transparent)]
     Schema(#[from] schema::Error),
+    #[error(transparent)]
+    Crypto(#[from] crypto::Error),
     #[error(transparent)]
     Proto(#[from] prost::DecodeError),
     #[error("{0} not found")]
@@ -99,10 +102,10 @@ impl Vault {
     }
 }
 
-impl SchemaEncoding for Vault {
-    type Error = Error;
+impl ProtocolEncoding for Vault {
+    type Err = Error;
 
-    fn decode<T>(payload: T) -> Result<Self, Self::Error>
+    fn decode<T>(payload: T) -> Result<Self, Self::Err>
     where
         T: AsRef<[u8]>,
     {
@@ -140,25 +143,6 @@ impl SchemaEncoding for Vault {
     }
 }
 
-/* pub trait SchemaEncryption: SchemaEncoding
-where
-    Error: From<<Self as SchemaEncoding>::Error>
-{
-    type Err;
-
-    fn decrypt<T>(
-        key: [u8; 32],
-        payload: T,
-    ) -> Result<Self, Error>
-    where
-        T: AsRef<[u8]>
-    {
-        let payload: Vec<u8> =  super::crypto::decrypt(secret_key, public_key, payload)?;
-        Ok(Self::decode(payload)?)
-    }
-
-    fn encrypt(&self, key: [u8; 32]) -> Result<String, Self::Err> {
-        let buf: Vec<u8> = self.encode();
-        Ok(super::crypto::encrypt(secret_key, public_key, buf, super::crypto::Version::XChaCha20Poly1305)?)
-    }
-} */
+impl ProtocolEncryption for Vault {
+    type Err = Error;
+}

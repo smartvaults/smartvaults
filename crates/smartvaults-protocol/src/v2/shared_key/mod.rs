@@ -13,9 +13,10 @@ mod proto;
 use self::proto::shared_key::Object as ProtoObject;
 use self::proto::{SharedKey as ProtoSharedKey, SharedKeyV1 as ProtoSharedKeyV1};
 use super::constants::SHARED_KEY_KIND_V2;
-use super::crypto::{self, Version as CryptoVersion};
-use super::schema::{self, Schema, SchemaEncoding, SchemaVersion};
-use super::{identifier, network, Identifier, NetworkMagic};
+use super::schema::{self, Schema, SchemaVersion};
+use super::{
+    crypto, identifier, network, Identifier, NetworkMagic, ProtocolEncoding, ProtocolEncryption,
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -57,43 +58,10 @@ pub struct SharedKey {
     network: NetworkMagic,
 }
 
-pub fn build_event(
-    keys: &Keys,
-    receiver: &XOnlyPublicKey,
-    shared_key: &Keys,
-    policy_identifier: Identifier,
-    network: Network,
-) -> Result<Event, Error> {
-    // Compose Shared Key
-    let shared_key = SharedKey {
-        version: Version::default(),
-        secret_key: shared_key.secret_key()?,
-        policy_identifier,
-        network: network.into(),
-    };
+impl ProtocolEncoding for SharedKey {
+    type Err = Error;
 
-    // Encrypt Shared Key
-    let encrypted_shared_key = crypto::encrypt(
-        &keys.secret_key()?,
-        receiver,
-        shared_key.encode(),
-        CryptoVersion::XChaCha20Poly1305,
-    )?;
-
-    // Compose and build event
-    Ok(EventBuilder::new(
-        SHARED_KEY_KIND_V2,
-        encrypted_shared_key,
-        // Include only the public key able to decrypt the event to avoid leak of other data
-        &[Tag::PubKey(*receiver, None)],
-    )
-    .to_event(keys)?)
-}
-
-impl SchemaEncoding for SharedKey {
-    type Error = Error;
-
-    fn decode<T>(payload: T) -> Result<Self, Self::Error>
+    fn decode<T>(payload: T) -> Result<Self, Self::Err>
     where
         T: AsRef<[u8]>,
     {
@@ -127,4 +95,36 @@ impl SchemaEncoding for SharedKey {
         let buf: Vec<u8> = vault.encode_to_vec();
         schema::encode(buf, SchemaVersion::ProtoBuf)
     }
+}
+
+impl ProtocolEncryption for SharedKey {
+    type Err = Error;
+}
+
+pub fn build_event(
+    keys: &Keys,
+    receiver: &XOnlyPublicKey,
+    shared_key: &Keys,
+    policy_identifier: Identifier,
+    network: Network,
+) -> Result<Event, Error> {
+    // Compose Shared Key
+    let shared_key = SharedKey {
+        version: Version::default(),
+        secret_key: shared_key.secret_key()?,
+        policy_identifier,
+        network: network.into(),
+    };
+
+    // Encrypt Shared Key
+    let encrypted_shared_key: String = shared_key.encrypt(&keys.secret_key()?, receiver)?;
+
+    // Compose and build event
+    Ok(EventBuilder::new(
+        SHARED_KEY_KIND_V2,
+        encrypted_shared_key,
+        // Include only the public key able to decrypt the event to avoid leak of other data
+        &[Tag::PubKey(*receiver, None)],
+    )
+    .to_event(keys)?)
 }
