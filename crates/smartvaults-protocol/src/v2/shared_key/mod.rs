@@ -57,6 +57,16 @@ pub struct SharedKey {
     network: NetworkMagic,
 }
 
+impl SharedKey {
+    pub fn secret_key(&self) -> SecretKey {
+        self.secret_key
+    }
+
+    pub fn network(&self) -> Network {
+        *self.network
+    }
+}
+
 impl ProtocolEncoding for SharedKey {
     type Err = Error;
 

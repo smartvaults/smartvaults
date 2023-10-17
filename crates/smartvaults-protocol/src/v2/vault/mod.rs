@@ -2,8 +2,9 @@
 // Distributed under the MIT software license
 
 use core::ops::Deref;
-use std::str::FromStr;
+use core::str::FromStr;
 
+use nostr::{Event, EventBuilder, Keys, Tag};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::{self, Descriptor};
@@ -17,10 +18,12 @@ mod proto;
 pub use self::metadata::VaultMetadata;
 use self::proto::vault::Object as ProtoObject;
 use self::proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
+use super::constants::VAULT_KIND_V2;
 use super::core::{
     schema, CryptoError, ProtocolEncoding, ProtocolEncryption, Schema, SchemaError, SchemaVersion,
 };
 use super::network::{self, NetworkMagic};
+use super::SharedKey;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -36,8 +39,14 @@ pub enum Error {
     Schema(#[from] SchemaError),
     #[error(transparent)]
     Proto(#[from] prost::DecodeError),
+    #[error(transparent)]
+    Keys(#[from] nostr::key::Error),
+    #[error(transparent)]
+    EventBuilder(#[from] nostr::event::builder::Error),
     #[error("{0} not found")]
     NotFound(String),
+    #[error("network not match: expected={expected}, found={found}")]
+    NetworkNotMatch { expected: Network, found: Network },
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -146,4 +155,25 @@ impl ProtocolEncoding for Vault {
 
 impl ProtocolEncryption for Vault {
     type Err = Error;
+}
+
+pub fn build_event(vault: &Vault, shared_key: &SharedKey) -> Result<Event, Error> {
+    if vault.network() != shared_key.network() {
+        return Err(Error::NetworkNotMatch {
+            expected: vault.network(),
+            found: shared_key.network(),
+        });
+    }
+
+    // Encrypt Shared Key
+    let keys: Keys = Keys::new(shared_key.secret_key());
+    let encrypted_content: String = vault.encrypt_with_keys(&keys)?;
+
+    // Compose and build event
+    Ok(EventBuilder::new(
+        VAULT_KIND_V2,
+        encrypted_content,
+        &[Tag::Identifier("TODO".into())], // TODO: tags and identifier
+    )
+    .to_event(&keys)?)
 }
