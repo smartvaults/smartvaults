@@ -11,14 +11,18 @@ use super::StoreEncryption;
 use super::{Error, Store};
 
 impl Store {
-    pub async fn save_label(
+    pub async fn save_label<S>(
         &self,
-        identifier: String,
+        identifier: S,
         policy_id: EventId,
         label: Label,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
+        let identifier: String = identifier.into();
         conn.interact(move |conn| {
             let kind: LabelKind = label.kind();
         let label: Vec<u8> = label.encrypt(&cipher)?;

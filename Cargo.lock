@@ -2682,7 +2682,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=63961eedbbc315e94134da2c61cd98e17ae0a7b6#63961eedbbc315e94134da2c61cd98e17ae0a7b6"
+source = "git+https://github.com/rust-nostr/nostr?rev=f15f530a1f8a95a74d249a5b88c538d3b2229842#f15f530a1f8a95a74d249a5b88c538d3b2229842"
 dependencies = [
  "aes",
  "base64 0.21.4",
@@ -2704,7 +2704,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=63961eedbbc315e94134da2c61cd98e17ae0a7b6#63961eedbbc315e94134da2c61cd98e17ae0a7b6"
+source = "git+https://github.com/rust-nostr/nostr?rev=f15f530a1f8a95a74d249a5b88c538d3b2229842#f15f530a1f8a95a74d249a5b88c538d3b2229842"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2713,7 +2713,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=63961eedbbc315e94134da2c61cd98e17ae0a7b6#63961eedbbc315e94134da2c61cd98e17ae0a7b6"
+source = "git+https://github.com/rust-nostr/nostr?rev=f15f530a1f8a95a74d249a5b88c538d3b2229842#f15f530a1f8a95a74d249a5b88c538d3b2229842"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2727,7 +2727,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=63961eedbbc315e94134da2c61cd98e17ae0a7b6#63961eedbbc315e94134da2c61cd98e17ae0a7b6"
+source = "git+https://github.com/rust-nostr/nostr?rev=f15f530a1f8a95a74d249a5b88c538d3b2229842#f15f530a1f8a95a74d249a5b88c538d3b2229842"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2739,7 +2739,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=63961eedbbc315e94134da2c61cd98e17ae0a7b6#63961eedbbc315e94134da2c61cd98e17ae0a7b6"
+source = "git+https://github.com/rust-nostr/nostr?rev=f15f530a1f8a95a74d249a5b88c538d3b2229842#f15f530a1f8a95a74d249a5b88c538d3b2229842"
 dependencies = [
  "futures-util",
  "thiserror",

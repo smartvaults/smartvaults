@@ -26,15 +26,6 @@ pub fn extract_first_public_key(event: &Event) -> Option<XOnlyPublicKey> {
     None
 }
 
-pub fn extract_first_identifier(event: &Event) -> Option<String> {
-    for tag in event.tags.iter() {
-        if let Tag::Identifier(id) = tag {
-            return Some(id.clone());
-        }
-    }
-    None
-}
-
 pub fn extract_tags_by_kind(event: &Event, kind: TagKind) -> Vec<&Tag> {
     let mut tags = Vec::new();
     for tag in event.tags.iter() {

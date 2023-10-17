@@ -554,7 +554,7 @@ impl SmartVaults {
             }
         } else if event.kind == LABELS_KIND {
             if let Some(policy_id) = util::extract_first_event_id(&event) {
-                if let Some(identifier) = util::extract_first_identifier(&event) {
+                if let Some(identifier) = event.identifier() {
                     if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                         let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
                         self.db.save_label(identifier, policy_id, label).await?;
