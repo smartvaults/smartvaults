@@ -15,20 +15,22 @@ use super::{Error, SmartVaults};
 impl SmartVaults {
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
         let relay_url: Url = uri.relay_url.clone();
-        self.client.add_relay(&relay_url, None).await?;
 
-        let relay = self.client.relay(&relay_url).await?;
-        relay.connect(true).await;
+        // Try to add relay and check if it's already added
+        if self.client.add_relay(&relay_url, None).await? {
+            let relay = self.client.relay(&relay_url).await?;
+            relay.connect(true).await;
 
-        let last_sync: Timestamp = match self.db.get_last_relay_sync(relay_url.clone()).await {
-            Ok(ts) => ts,
-            Err(e) => {
-                tracing::error!("Impossible to get last relay sync: {e}");
-                Timestamp::from(0)
-            }
-        };
-        let filters = self.sync_filters(last_sync).await;
-        relay.subscribe(filters, None).await?;
+            let last_sync: Timestamp = match self.db.get_last_relay_sync(relay_url.clone()).await {
+                Ok(ts) => ts,
+                Err(e) => {
+                    tracing::error!("Impossible to get last relay sync: {e}");
+                    Timestamp::from(0)
+                }
+            };
+            let filters = self.sync_filters(last_sync).await;
+            relay.subscribe(filters, None).await?;
+        }
 
         // Send connect ACK
         let keys: Keys = self.keys().await;

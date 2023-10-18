@@ -491,29 +491,31 @@ impl SmartVaults {
         let url = Url::parse(&url.into())?;
         self.db.insert_relay(url.clone(), proxy).await?;
         self.db.enable_relay(url.clone()).await?;
-        self.client.add_relay(url.as_str(), proxy).await?;
 
-        let relay = self.client.relay(&url).await?;
-        let last_sync: Timestamp = match self.db.get_last_relay_sync(url.clone()).await {
-            Ok(ts) => ts,
-            Err(_) => Timestamp::from(0),
-        };
-        let filters: Vec<Filter> = self.sync_filters(last_sync).await;
-        relay.subscribe(filters, None).await?;
-        relay.connect(false).await;
+        if self.client.add_relay(url.as_str(), proxy).await? {
+            let relay = self.client.relay(&url).await?;
+            let last_sync: Timestamp = match self.db.get_last_relay_sync(url.clone()).await {
+                Ok(ts) => ts,
+                Err(_) => Timestamp::from(0),
+            };
+            let filters: Vec<Filter> = self.sync_filters(last_sync).await;
+            relay.subscribe(filters, None).await?;
+            relay.connect(false).await;
 
-        if save_to_relay_list {
-            let this = self.clone();
-            thread::spawn(async move {
-                if let Err(e) = this.save_relay_list().await {
-                    tracing::error!("Impossible to save relay list: {e}");
-                }
-            });
+            if save_to_relay_list {
+                let this = self.clone();
+                thread::spawn(async move {
+                    if let Err(e) = this.save_relay_list().await {
+                        tracing::error!("Impossible to save relay list: {e}");
+                    }
+                });
+            }
+
+            if let Err(e) = self.rebroadcast_to(url.clone()).await {
+                tracing::error!("Impossible to rebroadcast events to {url}: {e}");
+            }
         }
 
-        if let Err(e) = self.rebroadcast_to(url.clone()).await {
-            tracing::error!("Impossible to rebroadcast events to {url}: {e}");
-        }
         Ok(())
     }
 
