@@ -30,7 +30,7 @@ mod vault;
 pub use self::add_airgap_signer::{AddAirGapSignerMessage, AddAirGapSignerState};
 pub use self::add_contact::{AddContactMessage, AddContactState};
 //pub use self::add_hw_signer::{AddHWSignerMessage, AddHWSignerState};
-pub use self::activities::{ActivitiesMessage, ActivitiesState};
+pub use self::activities::{ActivityMessage, ActivityState};
 pub use self::add_signer::{AddSignerMessage, AddSignerState};
 pub use self::addresses::{AddressesMessage, AddressesState};
 pub use self::completed_proposal::{CompletedProposalMessage, CompletedProposalState};

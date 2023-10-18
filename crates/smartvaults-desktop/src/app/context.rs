@@ -23,7 +23,7 @@ pub enum Stage {
     Receive(Option<GetPolicy>),
     SelfTransfer,
     NewProof(Option<GetPolicy>),
-    Activities,
+    Activity,
     Proposal(EventId),
     Transaction { policy_id: EventId, txid: Txid },
     History,
@@ -65,7 +65,7 @@ impl fmt::Display for Stage {
             Self::Receive(_) => write!(f, "Receive"),
             Self::SelfTransfer => write!(f, "Self transfer"),
             Self::NewProof(_) => write!(f, "New Proof"),
-            Self::Activities => write!(f, "Activities"),
+            Self::Activity => write!(f, "Activity"),
             Self::Proposal(id) => write!(f, "Proposal #{}", util::cut_event_id(*id)),
             Self::Transaction { txid, .. } => write!(f, "Tx #{}", util::cut_txid(*txid)),
             Self::History => write!(f, "History"),
@@ -107,7 +107,7 @@ impl Stage {
             self,
             Stage::Dashboard
                 | Stage::Vaults
-                | Stage::Activities
+                | Stage::Activity
                 | Stage::History
                 | Stage::Signers
                 | Stage::Contacts

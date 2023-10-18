@@ -7,7 +7,7 @@ use std::ops::Deref;
 use smartvaults_sdk::types::GetPolicy;
 use smartvaults_sdk::util;
 
-mod activities;
+mod activity;
 mod balances;
 mod breadcrumb;
 mod dashboard;
@@ -15,7 +15,7 @@ mod fee_selector;
 mod policy_tree;
 mod utxo_selector;
 
-pub use self::activities::{Activities, CompletedProposalsList};
+pub use self::activity::{Activity, CompletedProposalsList};
 pub use self::balances::Balances;
 pub use self::dashboard::Dashboard;
 pub use self::fee_selector::FeeSelector;

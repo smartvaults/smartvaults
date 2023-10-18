@@ -55,7 +55,7 @@ impl State for TransactionState {
             async move { client.get_tx(policy_id, txid).await.ok() },
             |res| match res {
                 Some(tx) => TransactionMessage::LoadTx(Box::new(tx)).into(),
-                None => Message::View(Stage::Activities),
+                None => Message::View(Stage::Activity),
             },
         )
     }

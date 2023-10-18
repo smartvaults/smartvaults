@@ -5,32 +5,32 @@ use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::types::{GetProposal, GetTransaction};
 
-use crate::app::component::{Activities, Dashboard};
+use crate::app::component::{Activity, Dashboard};
 use crate::app::{Context, Message, State};
 use crate::component::{Button, ButtonStyle, Text};
 use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
-pub enum ActivitiesMessage {
+pub enum ActivityMessage {
     Load(Vec<GetProposal>, Vec<GetTransaction>),
     Reload,
 }
 
 #[derive(Debug, Default)]
-pub struct ActivitiesState {
+pub struct ActivityState {
     loading: bool,
     loaded: bool,
     proposals: Vec<GetProposal>,
     txs: Vec<GetTransaction>,
 }
 
-impl ActivitiesState {
+impl ActivityState {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl State for ActivitiesState {
+impl State for ActivityState {
     fn title(&self) -> String {
         String::from("Proposals")
     }
@@ -44,7 +44,7 @@ impl State for ActivitiesState {
                 let txs = client.get_all_transactions().await.unwrap();
                 (proposals, txs)
             },
-            |(proposals, txs)| ActivitiesMessage::Load(proposals, txs).into(),
+            |(proposals, txs)| ActivityMessage::Load(proposals, txs).into(),
         )
     }
 
@@ -53,16 +53,16 @@ impl State for ActivitiesState {
             return self.load(ctx);
         }
 
-        if let Message::Activities(msg) = message {
+        if let Message::Activity(msg) = message {
             match msg {
-                ActivitiesMessage::Load(proposals, txs) => {
+                ActivityMessage::Load(proposals, txs) => {
                     self.proposals = proposals;
                     self.txs = txs;
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
                 }
-                ActivitiesMessage::Reload => self.load(ctx),
+                ActivityMessage::Reload => self.load(ctx),
             }
         } else {
             Command::none()
@@ -84,14 +84,14 @@ impl State for ActivitiesState {
                             .icon(RELOAD)
                             .text("Reload")
                             .width(Length::Fixed(250.0))
-                            .on_press(ActivitiesMessage::Reload.into())
+                            .on_press(ActivityMessage::Reload.into())
                             .view(),
                     )
                     .align_items(Alignment::Center);
             } else {
                 center_y = false;
-                content = content
-                    .push(Activities::new(self.proposals.clone(), self.txs.clone()).view(ctx));
+                content =
+                    content.push(Activity::new(self.proposals.clone(), self.txs.clone()).view(ctx));
             }
         }
 
@@ -101,14 +101,14 @@ impl State for ActivitiesState {
     }
 }
 
-impl From<ActivitiesState> for Box<dyn State> {
-    fn from(s: ActivitiesState) -> Box<dyn State> {
+impl From<ActivityState> for Box<dyn State> {
+    fn from(s: ActivityState) -> Box<dyn State> {
         Box::new(s)
     }
 }
 
-impl From<ActivitiesMessage> for Message {
-    fn from(msg: ActivitiesMessage) -> Self {
-        Self::Activities(msg)
+impl From<ActivityMessage> for Message {
+    fn from(msg: ActivityMessage) -> Self {
+        Self::Activity(msg)
     }
 }

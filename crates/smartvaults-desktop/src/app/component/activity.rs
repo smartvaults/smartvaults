@@ -14,13 +14,13 @@ use crate::component::{rule, Badge, BadgeStyle, Button, ButtonStyle, Icon, Text}
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{BROWSER, CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
-pub struct Activities {
+pub struct Activity {
     proposals: Vec<GetProposal>,
     txs: Vec<GetTransaction>,
     hide_policy_id: bool,
 }
 
-impl Activities {
+impl Activity {
     pub fn new(proposals: Vec<GetProposal>, txs: Vec<GetTransaction>) -> Self {
         Self {
             proposals,
@@ -437,7 +437,7 @@ impl CompletedProposalsList {
             if self.map.len() > take {
                 proposals = proposals.push(
                     Text::new("Show all")
-                        .on_press(Message::View(Stage::Activities))
+                        .on_press(Message::View(Stage::Activity))
                         .view(),
                 );
             }

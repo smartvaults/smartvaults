@@ -3,7 +3,7 @@
 
 //use super::screen::AddHWSignerMessage;
 use super::screen::{
-    ActivitiesMessage, AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage,
+    ActivityMessage, AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage,
     AddRelayMessage, AddSignerMessage, AddVaultMessage, AddressesMessage, ChangePasswordMessage,
     CompletedProposalMessage, ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage,
     EditProfileMessage, HistoryMessage, NewProofMessage, PoliciesMessage, PolicyBuilderMessage,
@@ -28,7 +28,7 @@ pub enum Message {
     Receive(ReceiveMessage),
     SelfTransfer(SelfTransferMessage),
     NewProof(NewProofMessage),
-    Activities(ActivitiesMessage),
+    Activity(ActivityMessage),
     Proposal(ProposalMessage),
     Transaction(TransactionMessage),
     History(HistoryMessage),

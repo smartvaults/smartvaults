@@ -35,7 +35,7 @@ impl Sidebar {
         let vaults_button =
             SidebarButton::new("Vaults", WALLET).view(ctx, Message::View(Stage::Vaults));
         /* let activities_button =
-        SidebarButton::new("Activities", LIST).view(ctx, Message::View(Stage::Activities)); */
+        SidebarButton::new("Activity", LIST).view(ctx, Message::View(Stage::Activity)); */
         let history_button =
             SidebarButton::new("History", HISTORY).view(ctx, Message::View(Stage::History));
         let addresses_button =

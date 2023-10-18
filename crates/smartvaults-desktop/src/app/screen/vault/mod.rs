@@ -15,7 +15,7 @@ pub mod restore;
 pub mod tree;
 pub mod vaults;
 
-use crate::app::component::{Activities, Balances, Dashboard};
+use crate::app::component::{Activity, Balances, Dashboard};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::color::RED;
@@ -335,10 +335,10 @@ impl State for VaultState {
 
                 content = content
                     .push(Space::with_height(Length::Fixed(20.0)))
-                    .push(Text::new("Activities").bold().big().view())
+                    .push(Text::new("Activity").bold().big().view())
                     .push(Space::with_height(Length::Fixed(5.0)))
                     .push(
-                        Activities::new(self.proposals.clone(), self.transactions.clone())
+                        Activity::new(self.proposals.clone(), self.transactions.clone())
                             .hide_policy_id()
                             .view(ctx),
                     );
