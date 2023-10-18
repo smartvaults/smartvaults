@@ -15,6 +15,7 @@ pub mod config;
 pub mod recovery_keys;
 pub mod relay;
 pub mod relays;
+pub mod wipe_keys;
 
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
@@ -113,6 +114,15 @@ impl State for SettingsState {
                     .icon(TRASH)
                     .style(ButtonStyle::BorderedDanger)
                     .on_press(SettingsMessage::AskClearCache.into())
+                    .width(Length::Fill)
+                    .view(),
+            )
+            .push(
+                Button::new()
+                    .text("Wipe keys")
+                    .icon(KEY)
+                    .style(ButtonStyle::BorderedDanger)
+                    .on_press(Message::View(Stage::WipeKeys))
                     .width(Length::Fill)
                     .view(),
             )

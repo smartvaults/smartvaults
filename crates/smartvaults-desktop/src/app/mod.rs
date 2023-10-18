@@ -24,6 +24,7 @@ use self::screen::{
     PolicyTreeState, ProfileState, ProposalState, ReceiveState, RecoveryKeysState, RelayState,
     RelaysState, RestoreVaultState, RevokeAllSignersState, SelfTransferState, SettingsState,
     ShareSignerState, SignerState, SignersState, SpendState, TransactionState, VaultState,
+    WipeKeysState,
 };
 use self::sync::SmartVaultsSync;
 
@@ -82,6 +83,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddRelay => AddRelayState::new().into(),
         Stage::ChangePassword => ChangePasswordState::new().into(),
         Stage::RecoveryKeys => RecoveryKeysState::new().into(),
+        Stage::WipeKeys => WipeKeysState::new().into(),
         Stage::NostrConnect => ConnectState::new().into(),
         Stage::AddNostrConnectSession => AddNostrConnectSessionState::new().into(),
     }

@@ -52,6 +52,7 @@ pub use self::settings::config::{ConfigMessage, ConfigState};
 pub use self::settings::recovery_keys::{RecoveryKeysMessage, RecoveryKeysState};
 pub use self::settings::relay::{RelayMessage, RelayState};
 pub use self::settings::relays::{RelaysMessage, RelaysState};
+pub use self::settings::wipe_keys::{WipeKeysMessage, WipeKeysState};
 pub use self::settings::{SettingsMessage, SettingsState};
 pub use self::share_signer::{ShareSignerMessage, ShareSignerState};
 pub use self::signer::{SignerMessage, SignerState};

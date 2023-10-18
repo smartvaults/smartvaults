@@ -10,7 +10,7 @@ use super::screen::{
     PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage, RecoveryKeysMessage,
     RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage, SelfTransferMessage,
     SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
-    TransactionMessage, VaultMessage,
+    TransactionMessage, VaultMessage, WipeKeysMessage,
 };
 use super::Stage;
 
@@ -52,6 +52,7 @@ pub enum Message {
     AddRelay(AddRelayMessage),
     ChangePassword(ChangePasswordMessage),
     RecoveryKeys(RecoveryKeysMessage),
+    WipeKeys(WipeKeysMessage),
     Connect(ConnectMessage),
     AddNostrConnectSession(AddNostrConnectSessionMessage),
     Clipboard(String),

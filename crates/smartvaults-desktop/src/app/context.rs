@@ -47,6 +47,7 @@ pub enum Stage {
     AddRelay,
     ChangePassword,
     RecoveryKeys,
+    WipeKeys,
     NostrConnect,
     AddNostrConnectSession,
 }
@@ -89,6 +90,7 @@ impl fmt::Display for Stage {
             Self::AddRelay => write!(f, "Add relay"),
             Self::ChangePassword => write!(f, "Change password"),
             Self::RecoveryKeys => write!(f, "Recovery Keys"),
+            Self::WipeKeys => write!(f, "Wipe Keys"),
             Self::NostrConnect => write!(f, "Connect"),
             Self::AddNostrConnectSession => write!(f, "Add session"),
         }
