@@ -340,7 +340,6 @@ impl State for VaultState {
                     .push(
                         Activities::new(self.proposals.clone(), self.transactions.clone())
                             .hide_policy_id()
-                            .take(10)
                             .view(ctx),
                     );
             }

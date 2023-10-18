@@ -103,11 +103,7 @@ impl State for DashboardState {
                 .push(Space::with_height(Length::Fixed(20.0)))
                 .push(Text::new("Activities").bold().big().view())
                 .push(Space::with_height(Length::Fixed(10.0)))
-                .push(
-                    Activities::new(self.proposals.clone(), self.transactions.clone())
-                        .take(10)
-                        .view(ctx),
-                );
+                .push(Activities::new(self.proposals.clone(), self.transactions.clone()).view(ctx));
         }
 
         Dashboard::new()

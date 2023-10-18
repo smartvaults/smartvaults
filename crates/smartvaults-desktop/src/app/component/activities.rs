@@ -17,8 +17,6 @@ use crate::theme::icon::{BROWSER, CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 pub struct Activities {
     proposals: Vec<GetProposal>,
     txs: Vec<GetTransaction>,
-    #[allow(dead_code)]
-    take: Option<usize>,
     hide_policy_id: bool,
 }
 
@@ -27,15 +25,7 @@ impl Activities {
         Self {
             proposals,
             txs,
-            take: None,
             hide_policy_id: false,
-        }
-    }
-
-    pub fn take(self, num: usize) -> Self {
-        Self {
-            take: Some(num),
-            ..self
         }
     }
 
@@ -328,16 +318,6 @@ impl Activities {
                 activities = activities.push(row).push(rule::horizontal());
             }
         }
-
-        /* if let Some(take) = self.take {
-            if self.proposals.len() + self.txs.len() > take {
-                activities = activities.push(
-                    Text::new("Show all")
-                        .on_press(Message::View(Stage::Activities))
-                        .view(),
-                );
-            }
-        } */
 
         activities
     }
