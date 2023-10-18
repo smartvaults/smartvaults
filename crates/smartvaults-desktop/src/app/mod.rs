@@ -98,11 +98,10 @@ impl App {
     pub fn new(client: SmartVaults) -> Self {
         let stage = Stage::default();
         let ctx = Context::new(stage, client);
-        let app = Self {
+        Self {
             state: new_state(&ctx),
             ctx,
-        };
-        app
+        }
     }
 
     pub fn title(&self) -> String {
