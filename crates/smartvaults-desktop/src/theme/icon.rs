@@ -3,6 +3,7 @@
 
 pub const BITCOIN: char = '\u{F635}';
 pub const HOME: char = '\u{F425}';
+pub const VAULT: char = '\u{F65A}';
 pub const SETTING: char = '\u{F3E5}';
 pub const TRASH: char = '\u{F78B}';
 pub const LOCK: char = '\u{F47B}';

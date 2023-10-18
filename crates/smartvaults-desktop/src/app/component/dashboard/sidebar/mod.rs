@@ -10,7 +10,7 @@ use self::button::SidebarButton;
 use crate::app::{Context, Message, Stage};
 use crate::component::Text;
 use crate::constants::{APP_LOGO, APP_NAME};
-use crate::theme::icon::{CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, SETTING, WALLET};
+use crate::theme::icon::{CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, SETTING, VAULT};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -33,7 +33,7 @@ impl Sidebar {
         let home_button =
             SidebarButton::new("Dashboard", HOME).view(ctx, Message::View(Stage::Dashboard));
         let vaults_button =
-            SidebarButton::new("Vaults", WALLET).view(ctx, Message::View(Stage::Vaults));
+            SidebarButton::new("Vaults", VAULT).view(ctx, Message::View(Stage::Vaults));
         /* let activities_button =
         SidebarButton::new("Activity", LIST).view(ctx, Message::View(Stage::Activity)); */
         let history_button =
