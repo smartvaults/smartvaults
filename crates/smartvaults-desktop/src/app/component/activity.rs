@@ -325,20 +325,11 @@ impl Activity {
 
 pub struct CompletedProposalsList {
     map: Vec<GetCompletedProposal>,
-    take: Option<usize>,
 }
 
 impl CompletedProposalsList {
     pub fn new(map: Vec<GetCompletedProposal>) -> Self {
-        Self { map, take: None }
-    }
-
-    #[allow(dead_code)]
-    pub fn take(self, num: usize) -> Self {
-        Self {
-            take: Some(num),
-            ..self
-        }
+        Self { map }
     }
 
     pub fn view(self) -> Column<'static, Message> {
@@ -430,16 +421,6 @@ impl CompletedProposalsList {
                         .width(Length::Fill),
                 };
                 proposals = proposals.push(row).push(rule::horizontal());
-            }
-        }
-
-        if let Some(take) = self.take {
-            if self.map.len() > take {
-                proposals = proposals.push(
-                    Text::new("Show all")
-                        .on_press(Message::View(Stage::Activity))
-                        .view(),
-                );
             }
         }
 
