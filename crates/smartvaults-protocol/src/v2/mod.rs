@@ -5,6 +5,7 @@ pub mod constants;
 mod core;
 pub mod identifier;
 mod network;
+pub mod proposal;
 pub mod shared_key;
 pub mod vault;
 
