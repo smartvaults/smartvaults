@@ -2,3 +2,5 @@
 // Distributed under the MIT software license
 
 pub mod signer;
+
+pub use self::signer::{DeviceType, Price, SignerOffering, Temperature};
