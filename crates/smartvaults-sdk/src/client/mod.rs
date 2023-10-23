@@ -53,6 +53,7 @@ use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
 
 mod connect;
+mod key_agent;
 mod label;
 mod signers;
 mod sync;
