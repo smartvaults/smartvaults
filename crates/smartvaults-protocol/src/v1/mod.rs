@@ -8,6 +8,6 @@ pub mod label;
 pub mod util;
 
 pub use self::builder::{Error as SmartVaultsEventBuilderError, SmartVaultsEventBuilder};
-pub use self::key_agent::{DeviceType, Price, SignerOffering, Temperature};
+pub use self::key_agent::{DeviceType, KeyAgentMetadata, Price, SignerOffering, Temperature};
 pub use self::label::{Label, LabelData, LabelKind};
 pub use self::util::{Encryption, EncryptionError, Serde, SerdeSer};
