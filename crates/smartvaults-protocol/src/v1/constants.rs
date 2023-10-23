@@ -14,6 +14,7 @@ pub const COMPLETED_PROPOSAL_KIND: Kind = Kind::Custom(9292);
 pub const SIGNERS_KIND: Kind = Kind::Custom(9294);
 pub const SHARED_SIGNERS_KIND: Kind = Kind::Custom(9295);
 pub const LABELS_KIND: Kind = Kind::Custom(32121);
+pub const KEY_AGENT_SIGNER_OFFERING_KIND: Kind = Kind::Custom(32122);
 
 // Expirations
 pub const APPROVED_PROPOSAL_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7);

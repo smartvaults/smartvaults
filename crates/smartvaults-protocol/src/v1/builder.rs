@@ -7,9 +7,12 @@ use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, Proposal};
 use thiserror::Error;
 
-use super::constants::{LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND};
+use super::constants::{
+    KEY_AGENT_SIGNER_OFFERING_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
+};
+use super::key_agent::signer::SignerOffering;
 use super::util::{Encryption, EncryptionError};
-use super::Label;
+use super::{Label, Serde};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -92,6 +95,16 @@ pub trait SmartVaultsEventBuilder {
         tags.push(Tag::Identifier(identifier));
         tags.push(Tag::Event(policy_id, None, None));
         Ok(EventBuilder::new(LABELS_KIND, content, &tags).to_event(shared_key)?)
+    }
+
+    fn signer_offering(keys: &Keys, id: String, offering: SignerOffering) -> Result<Event, Error> {
+        let content: String = offering.as_json();
+        Ok(EventBuilder::new(
+            KEY_AGENT_SIGNER_OFFERING_KIND,
+            content,
+            &[Tag::Identifier(id)],
+        )
+        .to_event(keys)?)
     }
 }
 
