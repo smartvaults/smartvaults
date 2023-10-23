@@ -3,6 +3,7 @@
 
 pub mod builder;
 pub mod constants;
+pub mod key_agent;
 pub mod label;
 pub mod util;
 
