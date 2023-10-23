@@ -23,7 +23,7 @@ pub enum PolicyBuilderMessage {
     DecreaseThreshold,
     Load((GetAllSigners, User)),
     AddSigner,
-    EditSigner(usize, User, Box<DescriptorPublicKey>),
+    EditSigner(usize, Box<User>, Box<DescriptorPublicKey>),
     RemoveSigner(usize),
     SelectingSigner { index: Option<usize> },
     ErrorChanged(Option<String>),
@@ -128,7 +128,7 @@ impl State for PolicyBuilderState {
                 PolicyBuilderMessage::EditSigner(index, pk, desc) => {
                     self.selecting_signer = None;
                     match self.policy.get_mut(index) {
-                        Some(v) => *v = Some((pk, *desc)),
+                        Some(v) => *v = Some((*pk, *desc)),
                         None => {
                             self.error =
                                 Some(String::from("Impossible to edit signer: index not found"))
@@ -429,7 +429,7 @@ fn view_signer_selector<'a>(state: &PolicyBuilderState, index: usize) -> Column<
                             .on_press(
                                 PolicyBuilderMessage::EditSigner(
                                     index,
-                                    user.clone(),
+                                    Box::new(user.clone()),
                                     Box::new(descriptor),
                                 )
                                 .into(),
@@ -511,7 +511,7 @@ fn view_signer_selector<'a>(state: &PolicyBuilderState, index: usize) -> Column<
                         .on_press(
                             PolicyBuilderMessage::EditSigner(
                                 index,
-                                owner.clone(),
+                                Box::new(owner.clone()),
                                 Box::new(descriptor),
                             )
                             .into(),

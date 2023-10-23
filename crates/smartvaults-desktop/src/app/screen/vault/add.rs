@@ -20,7 +20,7 @@ pub enum AddVaultMessage {
     NameChanged(String),
     DescriptionChanged(String),
     DescriptorChanged(String),
-    Load(User, VecDeque<User>),
+    Load(Box<User>, VecDeque<User>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     SelectPublicKeys(bool),
@@ -68,7 +68,7 @@ impl State for AddVaultState {
                 contacts.push_front(profile.clone());
                 (profile, contacts)
             },
-            |(profile, contacts)| AddVaultMessage::Load(profile, contacts).into(),
+            |(profile, contacts)| AddVaultMessage::Load(Box::new(profile), contacts).into(),
         )
     }
 
@@ -83,7 +83,7 @@ impl State for AddVaultState {
                 AddVaultMessage::DescriptionChanged(desc) => self.description = desc,
                 AddVaultMessage::DescriptorChanged(desc) => self.descriptor = desc,
                 AddVaultMessage::Load(profile, contacts) => {
-                    self.profile = Some(profile);
+                    self.profile = Some(*profile);
                     self.contacts = contacts;
                     self.loading = false;
                     self.loaded = true;
