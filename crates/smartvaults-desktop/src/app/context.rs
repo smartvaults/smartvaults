@@ -125,7 +125,13 @@ pub struct Context {
     pub client: SmartVaults,
     pub hide_balances: bool,
     pub breadcrumb: Vec<Stage>,
+    // pub mode: Mode, // TODO: add mode to support different layouts based on user "role"
 }
+
+/* pub enum Mode {
+    User, // Or Peer, or ?
+    KeyAgent,
+} */
 
 impl Context {
     pub fn new(stage: Stage, client: SmartVaults) -> Self {
