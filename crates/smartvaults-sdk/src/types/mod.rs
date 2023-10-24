@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::HashSet;
 use std::ops::Deref;
 
 use nostr_sdk::{EventId, Metadata, Timestamp};
@@ -10,6 +11,7 @@ use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{ApprovedProposal, Policy, SharedSigner};
+use smartvaults_protocol::v1::SignerOffering;
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;
@@ -133,4 +135,11 @@ impl Deref for GetAddress {
 pub struct GetAllSigners {
     pub my: Vec<GetSigner>,
     pub contacts: Vec<GetSharedSigner>,
+}
+
+#[derive(Debug, Clone)]
+pub struct KeyAgent {
+    pub user: User,
+    pub list: HashSet<SignerOffering>,
+    // pub verified: bool,
 }
