@@ -4,6 +4,8 @@
 use nostr_sdk::{Event, EventBuilder, EventId, Keys};
 use smartvaults_protocol::v1::{SignerOffering, SmartVaultsEventBuilder};
 
+use crate::types::{KeyAgent, User};
+
 use super::{Error, SmartVaults};
 
 impl SmartVaults {
@@ -19,11 +21,20 @@ impl SmartVaults {
         let event: Event = EventBuilder::signer_offering(&keys, id, offering)?;
 
         // Publish event
-        let event_id: EventId = self.send_event(event).await?;
+        self.send_event(event).await
+    }
 
-        // Save to db
-        // self.db.save_label(identifier, policy_id, label).await?; TODO
-
-        Ok(event_id)
+    /// Get key agents
+    pub async fn key_agents(&self) -> Result<Vec<KeyAgent>, Error> {
+        let agents = self.key_agents.read().await;
+        let mut list = Vec::with_capacity(agents.len());
+        for (public_key, set) in agents.clone().into_iter() {
+            let metadata = self.get_public_key_metadata(public_key).await?;
+            list.push(KeyAgent {
+                user: User::new(public_key, metadata),
+                list: set,
+            })
+        }
+        Ok(list)
     }
 }

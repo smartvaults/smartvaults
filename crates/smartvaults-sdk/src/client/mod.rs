@@ -21,7 +21,7 @@ use nostr_sdk::{
     Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, UncheckedUrl,
     Url,
 };
-use parking_lot::RwLock;
+use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::signer::{SignerContext, SignerWrapper};
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
@@ -46,11 +46,12 @@ use smartvaults_protocol::v1::constants::{
 };
 use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
-    Label, LabelData, SmartVaultsEventBuilder, SmartVaultsEventBuilderError,
+    Label, LabelData, SignerOffering, SmartVaultsEventBuilder, SmartVaultsEventBuilderError,
 };
 use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::RwLock;
 
 mod connect;
 mod key_agent;
@@ -168,7 +169,7 @@ pub enum Error {
 #[derive(Debug, Clone)]
 pub struct SmartVaults {
     network: Network,
-    keechain: Arc<RwLock<KeeChain>>,
+    keechain: Arc<ParkingLotRwLock<KeeChain>>,
     client: Client,
     manager: Manager,
     config: Config,
@@ -176,6 +177,8 @@ pub struct SmartVaults {
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Message>,
     default_signer: Signer,
+    // Verified agents
+    key_agents: Arc<RwLock<BTreeMap<XOnlyPublicKey, HashSet<SignerOffering>>>>,
 }
 
 impl SmartVaults {
@@ -213,7 +216,7 @@ impl SmartVaults {
 
         let this = Self {
             network,
-            keechain: Arc::new(RwLock::new(keechain)),
+            keechain: Arc::new(ParkingLotRwLock::new(keechain)),
             client: Client::with_opts(&keys, opts),
             manager: Manager::new(db.clone(), network),
             config: Config::try_from_file(base_path, network)?,
@@ -221,6 +224,7 @@ impl SmartVaults {
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             default_signer: smartvaults_signer(seed, network)?,
+            key_agents: Arc::new(RwLock::new(BTreeMap::new())),
         };
 
         this.init().await?;
