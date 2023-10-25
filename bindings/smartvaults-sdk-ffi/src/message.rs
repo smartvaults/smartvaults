@@ -18,6 +18,7 @@ pub enum EventHandled {
     EHLabel(),
     EHEventDeletion(),
     EHRelayList(),
+    EHKeyAgentSignerOffering(),
 }
 
 impl From<EventHandledSdk> for EventHandled {
@@ -57,6 +58,7 @@ impl From<EventHandledSdk> for EventHandled {
             EventHandledSdk::Label => Self::EHLabel(),
             EventHandledSdk::EventDeletion => Self::EHEventDeletion(),
             EventHandledSdk::RelayList => Self::EHRelayList(),
+            EventHandledSdk::KeyAgentSignerOffering => Self::EHKeyAgentSignerOffering(),
         }
     }
 }
