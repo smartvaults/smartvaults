@@ -1,12 +1,11 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use nostr_sdk::{Event, EventBuilder, EventId, Keys};
+use nostr_sdk::{secp256k1::XOnlyPublicKey, Event, EventBuilder, EventId, Keys};
 use smartvaults_protocol::v1::{SignerOffering, SmartVaultsEventBuilder};
 
-use crate::types::{KeyAgent, User};
-
 use super::{Error, SmartVaults};
+use crate::types::{KeyAgent, User};
 
 impl SmartVaults {
     pub async fn signer_offering(
@@ -24,7 +23,7 @@ impl SmartVaults {
         self.send_event(event).await
     }
 
-    /// Get key agents
+    /// Get Key Agents
     pub async fn key_agents(&self) -> Result<Vec<KeyAgent>, Error> {
         let agents = self.key_agents.read().await;
         let mut list = Vec::with_capacity(agents.len());
@@ -36,5 +35,14 @@ impl SmartVaults {
             })
         }
         Ok(list)
+    }
+
+    /// Request signers to Key Agent
+    pub async fn request_signers_to_key_agent(
+        &self,
+        key_agent: XOnlyPublicKey,
+    ) -> Result<(), Error> {
+        self.add_contact(key_agent).await?;
+        Ok(())
     }
 }
