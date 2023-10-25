@@ -142,4 +142,12 @@ pub struct KeyAgent {
     pub user: User,
     pub list: HashSet<SignerOffering>,
     pub verified: bool,
+    pub is_contact: bool,
+}
+
+impl Deref for KeyAgent {
+    type Target = User;
+    fn deref(&self) -> &Self::Target {
+        &self.user
+    }
 }
