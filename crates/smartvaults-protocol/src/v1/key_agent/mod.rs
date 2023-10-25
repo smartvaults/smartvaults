@@ -3,6 +3,7 @@
 
 pub mod profile;
 pub mod signer;
+pub mod verified;
 
 pub use self::profile::KeyAgentMetadata;
 pub use self::signer::{DeviceType, Price, SignerOffering, Temperature};
