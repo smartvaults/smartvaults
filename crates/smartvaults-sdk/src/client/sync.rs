@@ -653,8 +653,8 @@ impl SmartVaults {
                 });
 
             // Send notification
-            self.sync_channel
-                .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?;
+            /* self.sync_channel
+            .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?; */
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
