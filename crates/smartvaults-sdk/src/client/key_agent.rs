@@ -32,6 +32,7 @@ impl SmartVaults {
             list.push(KeyAgent {
                 user: User::new(public_key, metadata),
                 list: set,
+                verified: false, // TODO: check if verified
             })
         }
         Ok(list)

@@ -141,5 +141,5 @@ pub struct GetAllSigners {
 pub struct KeyAgent {
     pub user: User,
     pub list: HashSet<SignerOffering>,
-    // pub verified: bool,
+    pub verified: bool,
 }
