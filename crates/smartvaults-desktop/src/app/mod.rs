@@ -20,11 +20,11 @@ use self::screen::{
     ActivityState, AddAirGapSignerState, AddContactState, AddNostrConnectSessionState,
     AddRelayState, AddSignerState, AddVaultState, AddressesState, ChangePasswordState,
     CompletedProposalState, ConfigState, ConnectState, ContactsState, DashboardState,
-    EditProfileState, HistoryState, NewProofState, PoliciesState, PolicyBuilderState,
-    PolicyTreeState, ProfileState, ProposalState, ReceiveState, RecoveryKeysState, RelayState,
-    RelaysState, RestoreVaultState, RevokeAllSignersState, SelfTransferState, SettingsState,
-    ShareSignerState, SignerState, SignersState, SpendState, TransactionState, VaultState,
-    WipeKeysState,
+    EditProfileState, HistoryState, KeyAgentsState, NewProofState, PoliciesState,
+    PolicyBuilderState, PolicyTreeState, ProfileState, ProposalState, ReceiveState,
+    RecoveryKeysState, RelayState, RelaysState, RestoreVaultState, RevokeAllSignersState,
+    SelfTransferState, SettingsState, ShareSignerState, SignerState, SignersState, SpendState,
+    TransactionState, VaultState, WipeKeysState,
 };
 use self::sync::SmartVaultsSync;
 
@@ -72,7 +72,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         //Stage::AddHWSigner => AddHWSignerState::new().into(),
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
-        Stage::KeyAgents => todo!(),
+        Stage::KeyAgents => KeyAgentsState::new().into(),
         Stage::Contacts => ContactsState::new().into(),
         Stage::AddContact => AddContactState::new().into(),
         Stage::Profile => ProfileState::new().into(),

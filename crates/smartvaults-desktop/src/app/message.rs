@@ -6,11 +6,11 @@ use super::screen::{
     ActivityMessage, AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage,
     AddRelayMessage, AddSignerMessage, AddVaultMessage, AddressesMessage, ChangePasswordMessage,
     CompletedProposalMessage, ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage,
-    EditProfileMessage, HistoryMessage, NewProofMessage, PoliciesMessage, PolicyBuilderMessage,
-    PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage, RecoveryKeysMessage,
-    RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage, SelfTransferMessage,
-    SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
-    TransactionMessage, VaultMessage, WipeKeysMessage,
+    EditProfileMessage, HistoryMessage, KeyAgentsMessage, NewProofMessage, PoliciesMessage,
+    PolicyBuilderMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage,
+    RecoveryKeysMessage, RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage,
+    SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
+    SpendMessage, TransactionMessage, VaultMessage, WipeKeysMessage,
 };
 use super::Stage;
 
@@ -41,6 +41,7 @@ pub enum Message {
     //AddHWSigner(AddHWSignerMessage),
     AddAirGapSigner(AddAirGapSignerMessage),
     ShareSigner(ShareSignerMessage),
+    KeyAgents(KeyAgentsMessage),
     Contacts(ContactsMessage),
     AddContact(AddContactMessage),
     Profile(ProfileMessage),
