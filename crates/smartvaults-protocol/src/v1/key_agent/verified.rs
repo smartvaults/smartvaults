@@ -20,12 +20,39 @@ pub enum Error {
     /// Error deserializing JSON data
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    /// Invalid format
+    #[error("invalid format")]
+    InvalidFormat,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifiedKeyAgents {
     pub names: HashMap<String, XOnlyPublicKey>,
     // pub relays: HashMap<XOnlyPublicKey, Vec<String>>,
+}
+
+impl VerifiedKeyAgents {
+    /// Check if user it's verified by [`XOnlyPublicKey`] and `smartvaults_nip05` metadata field
+    pub fn is_verified(
+        &self,
+        public_key: &XOnlyPublicKey,
+        smartvaults_nip05: &str,
+    ) -> Result<bool, Error> {
+        let data: Vec<&str> = smartvaults_nip05.split('@').collect();
+        if data.len() != 2 {
+            return Err(Error::InvalidFormat);
+        }
+        let name: &str = data[0];
+        let domain: &str = data[1];
+        if domain == MAINNET_DOMAIN || domain == TESTNET_DOMAIN {
+            match self.names.get(name) {
+                Some(pk) => Ok(pk == public_key),
+                None => Ok(false),
+            }
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 pub async fn get_verified_key_agents(network: Network) -> Result<VerifiedKeyAgents, Error> {
