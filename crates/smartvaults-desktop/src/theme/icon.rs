@@ -43,3 +43,4 @@ pub const BROWSER: char = '\u{F7D6}';
 pub const BROADCAST_PIN: char = '\u{F1D5}';
 pub const BINOCULARS: char = '\u{F18F}';
 pub const LIST: char = '\u{F479}';
+pub const PEOPLE: char = '\u{F4D0}';
