@@ -1,14 +1,17 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use core::cmp::Ordering;
 use core::fmt;
+use core::hash::Hash;
+use core::ops::Deref;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use crate::v1::Serde;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SignerOffering {
     /// Temperature
     pub temperature: Temperature,
@@ -23,7 +26,7 @@ pub struct SignerOffering {
     /// Percentage of the vault balance that should be charged
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub yearly_cost_basis_points: Option<f64>,
+    pub yearly_cost_basis_points: Option<Percentage>,
     /// Yearly cost
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
@@ -31,6 +34,42 @@ pub struct SignerOffering {
 }
 
 impl Serde for SignerOffering {}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct Percentage(f64);
+
+impl PartialEq for Percentage {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl Eq for Percentage {}
+
+impl PartialOrd for Percentage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Percentage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+
+impl Hash for Percentage {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.to_be_bytes().hash(state)
+    }
+}
+
+impl Deref for Percentage {
+    type Target = f64;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Temperature {
