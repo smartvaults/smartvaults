@@ -21,10 +21,10 @@ use smartvaults_core::{
     ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNER_OFFERING_KIND, LABELS_KIND,
+    POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
-use smartvaults_protocol::v1::{Encryption, Label, Serde};
+use smartvaults_protocol::v1::{Encryption, Label, Serde, SignerOffering};
 use smartvaults_sdk_sqlite::model::InternalGetPolicy;
 use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
@@ -51,6 +51,7 @@ pub enum EventHandled {
     Label,
     EventDeletion,
     RelayList,
+    KeyAgentSignerOffering,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -248,12 +249,14 @@ impl SmartVaults {
             .author(public_key.to_string())
             .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
+        let key_agents: Filter = Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND);
 
         vec![
             author_filter,
             pubkey_filter,
             nostr_connect_filter,
             other_filters,
+            key_agents,
         ]
     }
 
@@ -632,6 +635,26 @@ impl SmartVaults {
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::RelayList))?;
             }
+        } else if event.kind == KEY_AGENT_SIGNER_OFFERING_KIND {
+            // Deserialize Signer Offering
+            let signer_offering: SignerOffering = SignerOffering::from_json(event.content)?;
+
+            // Update Key Agents
+            let mut key_agents = self.key_agents.write().await;
+            key_agents
+                .entry(event.pubkey)
+                .and_modify(|set| {
+                    set.insert(signer_offering.clone());
+                })
+                .or_insert_with(|| {
+                    let mut set = HashSet::new();
+                    set.insert(signer_offering);
+                    set
+                });
+
+            // Send notification
+            self.sync_channel
+                .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?;
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
