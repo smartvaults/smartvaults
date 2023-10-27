@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use nostr::{Event, Tag};
+use nostr::{Event, EventBuilder, Keys, Tag};
 use serde::{Deserialize, Serialize};
 use smartvaults_core::bitcoin::network::constants::{ParseMagicError, UnknownMagic};
 use smartvaults_core::bitcoin::network::Magic;
@@ -12,6 +12,7 @@ use smartvaults_core::bitcoin::Network;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use thiserror::Error;
 
+use crate::v1::builder::{self, SmartVaultsEventBuilder};
 use crate::v1::constants::{KEY_AGENT_VERIFIED, SMARTVAULTS_PUBLIC_KEY};
 
 #[derive(Debug, Error)]
@@ -20,6 +21,8 @@ pub enum Error {
     MagicParse(#[from] ParseMagicError),
     #[error("unknown network magic: {0}")]
     Network(#[from] UnknownMagic),
+    #[error("event builder: {0}")]
+    EventBuilder(#[from] builder::Error),
     #[error("wrong kind")]
     WrongKind,
     #[error("event not authored by SmartVaults")]
@@ -35,6 +38,17 @@ pub struct VerifiedKeyAgents {
 }
 
 impl VerifiedKeyAgents {
+    pub fn new(public_keys: HashSet<XOnlyPublicKey>, network: Network) -> Self {
+        Self {
+            public_keys,
+            network,
+        }
+    }
+
+    pub fn empty(network: Network) -> Self {
+        Self::new(HashSet::new(), network)
+    }
+
     pub fn from_event(event: &Event) -> Result<Self, Error> {
         if event.kind != KEY_AGENT_VERIFIED {
             return Err(Error::WrongKind);
@@ -56,10 +70,7 @@ impl VerifiedKeyAgents {
             }
         }
 
-        Ok(Self {
-            public_keys,
-            network,
-        })
+        Ok(Self::new(public_keys, network))
     }
 
     pub fn public_keys(&self) -> HashSet<XOnlyPublicKey> {
@@ -73,5 +84,28 @@ impl VerifiedKeyAgents {
     /// Check if Key Agent it's verified
     pub fn is_verified(&self, public_key: &XOnlyPublicKey) -> bool {
         self.public_keys.contains(public_key)
+    }
+
+    /// Add new verified key agent
+    ///
+    /// Return `false` if the pubkey already exists
+    pub fn add_new_public_key(&mut self, public_key: XOnlyPublicKey) -> bool {
+        self.public_keys.insert(public_key)
+    }
+
+    /// Remove verified key agent
+    ///
+    /// Return `false` if the pubkey NOT exists
+    pub fn remove_public_key(&mut self, public_key: &XOnlyPublicKey) -> bool {
+        self.public_keys.remove(public_key)
+    }
+
+    /// Generate [`Event`]
+    pub fn to_event(&self, keys: &Keys) -> Result<Event, Error> {
+        Ok(EventBuilder::key_agents_verified(
+            keys,
+            self.public_keys.clone(),
+            self.network,
+        )?)
     }
 }

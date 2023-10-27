@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::HashSet;
+
 use nostr::nips::nip04;
 use nostr::{Event, EventBuilder, EventId, Keys, Tag};
 use smartvaults_core::bitcoin::Network;
@@ -111,7 +113,7 @@ pub trait SmartVaultsEventBuilder {
 
     fn key_agents_verified(
         keys: &Keys,
-        public_keys: Vec<XOnlyPublicKey>,
+        public_keys: HashSet<XOnlyPublicKey>,
         network: Network,
     ) -> Result<Event, Error> {
         let identifier: String = network.magic().to_string();
