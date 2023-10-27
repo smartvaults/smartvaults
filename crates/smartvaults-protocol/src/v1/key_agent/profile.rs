@@ -8,7 +8,6 @@ pub const JURISDICTION: &str = "jurisdiction";
 pub const X: &str = "x";
 pub const FACEBOOK: &str = "facebook";
 pub const LINKEDIN: &str = "linkedin";
-pub const SMARTVAULTS_NIP05: &str = "smartvaults_nip05";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyAgentMetadata {
@@ -16,7 +15,6 @@ pub struct KeyAgentMetadata {
     pub x: Option<String>,
     pub facebook: Option<String>,
     pub linkedin: Option<String>,
-    pub smartvaults_nip05: Option<String>,
 }
 
 impl KeyAgentMetadata {
@@ -39,10 +37,6 @@ impl KeyAgentMetadata {
             metadata = metadata.custom_field(LINKEDIN, &linkedin);
         }
 
-        if let Some(smartvaults_nip05) = self.smartvaults_nip05 {
-            metadata = metadata.custom_field(SMARTVAULTS_NIP05, &smartvaults_nip05);
-        }
-
         metadata
     }
 }
@@ -56,10 +50,10 @@ mod tests {
     #[test]
     fn test_key_agent_metadata() {
         let mut key_agent_metadata: KeyAgentMetadata = KeyAgentMetadata::default();
-        key_agent_metadata.smartvaults_nip05 = Some(String::from("agent@smartvaults.app"));
+        key_agent_metadata.jurisdiction = Some(String::from("British Virgin Islands (BVI)"));
 
         let metadata: Metadata = key_agent_metadata.into_metadata();
         let metadata = metadata.name("keyagent").display_name("Key Agent");
-        assert_eq!(metadata.as_json(), String::from("{\"display_name\":\"Key Agent\",\"name\":\"keyagent\",\"smartvaults_nip05\":\"agent@smartvaults.app\"}"))
+        assert_eq!(metadata.as_json(), String::from("{\"display_name\":\"Key Agent\",\"jurisdiction\":\"British Virgin Islands (BVI)\",\"name\":\"keyagent\"}"))
     }
 }
