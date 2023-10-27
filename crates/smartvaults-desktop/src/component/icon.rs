@@ -5,13 +5,13 @@ use iced::alignment::Horizontal;
 use iced::widget::{component, Component, Text};
 use iced::{Color, Element, Length, Renderer};
 
-use crate::constants::DEFAULT_ICON_SIZE;
+use crate::constants::{BIG_ICON_SIZE, DEFAULT_ICON_SIZE};
 use crate::theme::font::ICON_FONT;
 
 #[derive(Debug, Clone)]
 pub struct Icon {
     unicode: char,
-    size: u16,
+    size: u8,
     width: Length,
     color: Option<Color>,
 }
@@ -20,15 +20,22 @@ impl Icon {
     pub fn new(unicode: char) -> Self {
         Self {
             unicode,
-            size: DEFAULT_ICON_SIZE as u16,
+            size: DEFAULT_ICON_SIZE,
             width: Length::Fixed(DEFAULT_ICON_SIZE as f32),
             color: None,
         }
     }
 
-    /* pub fn size(self, size: u16) -> Self {
+    pub fn size(self, size: u8) -> Self {
         Self { size, ..self }
-    } */
+    }
+
+    pub fn big(self) -> Self {
+        Self {
+            size: BIG_ICON_SIZE,
+            ..self
+        }
+    }
 
     pub fn width(self, width: Length) -> Self {
         Self { width, ..self }
@@ -55,7 +62,7 @@ impl<Message> Component<Message, Renderer> for Icon {
             .font(ICON_FONT)
             .width(self.width)
             .horizontal_alignment(Horizontal::Center)
-            .size(self.size);
+            .size(self.size as u16);
 
         if let Some(color) = self.color {
             icon = icon.style(color);

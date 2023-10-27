@@ -9,8 +9,9 @@ use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
-use crate::component::{rule, Button, ButtonStyle, Text};
-use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD};
+use crate::component::{rule, Button, ButtonStyle, Icon, Text};
+use crate::theme::color::{GREEN, RED};
+use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PATCH_CHECK, PATCH_EXCLAMATION, PLUS, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum KeyAgentsMessage {
@@ -114,6 +115,12 @@ impl State for KeyAgentsState {
                     .push(
                         Row::new()
                             .push(
+                                Column::new()
+                                    .push(Text::new("Verified").bold().big().view())
+                                    .width(Length::Fixed(120.0))
+                                    .align_items(Alignment::Center),
+                            )
+                            .push(
                                 Text::new("Public Key")
                                     .bold()
                                     .big()
@@ -121,7 +128,7 @@ impl State for KeyAgentsState {
                                     .view(),
                             )
                             .push(Text::new("Name").bold().big().width(Length::Fill).view())
-                            .push(Text::new("NIP-05").bold().big().width(Length::Fill).view())
+                            .push(Text::new("Website").bold().big().width(Length::Fill).view())
                             .push(Space::with_width(Length::Fixed(40.0)))
                             .push(Space::with_width(Length::Fixed(40.0)))
                             .push(
@@ -145,17 +152,30 @@ impl State for KeyAgentsState {
 
                     let row = Row::new()
                         .push(
+                            Column::new()
+                                .push(
+                                    Icon::new(if key_agent.verified {
+                                        PATCH_CHECK
+                                    } else {
+                                        PATCH_EXCLAMATION
+                                    })
+                                    .color(if key_agent.verified { GREEN } else { RED })
+                                    .big(),
+                                )
+                                .width(Length::Fixed(120.0))
+                                .align_items(Alignment::Center),
+                        )
+                        .push(
                             Text::new(util::cut_public_key(public_key))
                                 .width(Length::Fill)
                                 .view(),
                         )
                         .push(Text::new(key_agent.name()).width(Length::Fill).view())
                         .push(
-                            Text::new(metadata.nip05.as_deref().unwrap_or_default())
+                            Text::new(metadata.website.as_deref().unwrap_or("-"))
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(Space::with_width(Length::Fixed(40.0)))
                         .push(
                             Button::new()
                                 .style(ButtonStyle::Bordered)
@@ -170,7 +190,7 @@ impl State for KeyAgentsState {
                                 .icon(PLUS)
                                 .width(Length::Fixed(40.0))
                                 .on_press(KeyAgentsMessage::Request(public_key).into())
-                                .loading(self.loading || !key_agent.is_contact)
+                                .loading(self.loading || key_agent.is_contact)
                                 .view(),
                         )
                         .push(

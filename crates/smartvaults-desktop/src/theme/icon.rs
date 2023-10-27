@@ -28,6 +28,7 @@ pub const HOURGLASS: char = '\u{F41F}';
 pub const NETWORK: char = '\u{F2EE}';
 pub const HISTORY: char = '\u{F292}';
 pub const PATCH_CHECK: char = '\u{F4B6}';
+pub const PATCH_EXCLAMATION: char = '\u{F4B8}';
 pub const GLOBE: char = '\u{F3EE}';
 pub const PERSON_CIRCLE: char = '\u{F4D7}';
 pub const BOX: char = '\u{F1C8}';

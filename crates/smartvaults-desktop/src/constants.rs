@@ -12,3 +12,4 @@ pub const SMALL_FONT_SIZE: u8 = 13;
 pub const SMALLER_FONT_SIZE: u8 = 11;
 
 pub const DEFAULT_ICON_SIZE: u8 = 20;
+pub const BIG_ICON_SIZE: u8 = 22;
