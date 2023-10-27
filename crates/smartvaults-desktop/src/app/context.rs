@@ -114,6 +114,7 @@ impl Stage {
                 | Stage::Activity
                 | Stage::History
                 | Stage::Signers
+                | Stage::KeyAgents
                 | Stage::Contacts
                 | Stage::Settings
                 | Stage::Profile
