@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use nostr::{Event, EventBuilder, Keys, Tag};
+use nostr::{Event, EventBuilder, Keys};
 use serde::{Deserialize, Serialize};
 use smartvaults_core::bitcoin::network::constants::{ParseMagicError, UnknownMagic};
 use smartvaults_core::bitcoin::network::Magic;
@@ -50,26 +50,25 @@ impl VerifiedKeyAgents {
     }
 
     pub fn from_event(event: &Event) -> Result<Self, Error> {
+        // Check kind
         if event.kind != KEY_AGENT_VERIFIED {
             return Err(Error::WrongKind);
         }
 
+        // Check author
         if event.pubkey.to_string() != SMARTVAULTS_PUBLIC_KEY {
             return Err(Error::NotAuthoredBySmartVaults);
         }
 
+        // Parse and check network magic
         let identifier: &str = event.identifier().ok_or(Error::IdentifierNotFound)?;
         let magic: Magic = Magic::from_str(identifier)?;
         let network: Network = Network::try_from(magic)?;
 
-        // TODO: use event.public_keys()
-        let mut public_keys: HashSet<XOnlyPublicKey> = HashSet::new();
-        for tag in event.tags.iter() {
-            if let Tag::PubKey(public_key, ..) = tag {
-                public_keys.insert(*public_key);
-            }
-        }
+        // Get public keys
+        let public_keys: HashSet<XOnlyPublicKey> = event.public_keys().copied().collect();
 
+        // Compose struct
         Ok(Self::new(public_keys, network))
     }
 
