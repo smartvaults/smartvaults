@@ -101,7 +101,7 @@ pub trait SmartVaultsEventBuilder {
         Ok(EventBuilder::new(LABELS_KIND, content, &tags).to_event(shared_key)?)
     }
 
-    fn signer_offering(keys: &Keys, id: String, offering: SignerOffering) -> Result<Event, Error> {
+    fn signer_offering(keys: &Keys, id: String, offering: &SignerOffering) -> Result<Event, Error> {
         let content: String = offering.as_json();
         Ok(EventBuilder::new(
             KEY_AGENT_SIGNER_OFFERING_KIND,

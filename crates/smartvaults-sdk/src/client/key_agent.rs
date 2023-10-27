@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::HashSet;
+
 use nostr_sdk::{secp256k1::XOnlyPublicKey, Event, EventBuilder, EventId, Keys};
 use smartvaults_protocol::v1::{SignerOffering, SmartVaultsEventBuilder};
 
@@ -17,10 +19,25 @@ impl SmartVaults {
         let keys: Keys = self.keys().await;
 
         // Compose event
-        let event: Event = EventBuilder::signer_offering(&keys, id, offering)?;
+        let event: Event = EventBuilder::signer_offering(&keys, id, &offering)?;
 
         // Publish event
-        self.send_event(event).await
+        let id: EventId = self.send_event(event).await?;
+
+        // Update key agents list // TODO: save in local DB?
+        let mut key_agents = self.key_agents.write().await;
+        key_agents
+            .entry(keys.public_key())
+            .and_modify(|set| {
+                set.insert(offering.clone());
+            })
+            .or_insert_with(|| {
+                let mut set = HashSet::new();
+                set.insert(offering);
+                set
+            });
+
+        Ok(id)
     }
 
     /// Get Key Agents
