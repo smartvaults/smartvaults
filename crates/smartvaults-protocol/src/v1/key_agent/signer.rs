@@ -4,14 +4,27 @@
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::Hash;
-use core::num::ParseFloatError;
+use core::num::{ParseFloatError, ParseIntError};
 use core::ops::Deref;
 use core::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use thiserror::Error;
 
 use crate::v1::Serde;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error(transparent)]
+    ParseInt(#[from] ParseIntError),
+    #[error(transparent)]
+    ParseFloat(#[from] ParseFloatError),
+    #[error("invalid price")]
+    InvalidPrice,
+    #[error("invalid currency: must follow ISO 4217 format (3 uppercase chars)")]
+    InvalidCurrency,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SignerOffering {
@@ -80,7 +93,7 @@ impl Percentage {
 }
 
 impl FromStr for Percentage {
-    type Err = ParseFloatError;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(s.parse()?))
     }
@@ -210,4 +223,23 @@ impl<'de> Deserialize<'de> for DeviceType {
 pub struct Price {
     pub amount: u64,
     pub currency: String,
+}
+
+impl FromStr for Price {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut split = s.split(' ');
+        if let (Some(amount_str), Some(currency)) = (split.next(), split.next()) {
+            if currency.len() == 3 && currency.chars().all(|c| c.is_uppercase()) {
+                Ok(Self {
+                    amount: amount_str.parse()?,
+                    currency: currency.to_owned(),
+                })
+            } else {
+                Err(Error::InvalidCurrency)
+            }
+        } else {
+            Err(Error::InvalidPrice)
+        }
+    }
 }
