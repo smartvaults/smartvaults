@@ -8,7 +8,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{AddCommand, ConfigCommand, ConnectCommand, SetCommand};
+use cli::{AddCommand, ConfigCommand, ConnectCommand, KeyAgentCommand, SetCommand};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use smartvaults_sdk::config::Config;
@@ -18,7 +18,7 @@ use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::types::Priority;
 use smartvaults_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
 use smartvaults_sdk::nostr::Metadata;
-use smartvaults_sdk::protocol::v1::Label;
+use smartvaults_sdk::protocol::v1::{Label, SignerOffering};
 use smartvaults_sdk::types::{GetPolicy, GetProposal};
 use smartvaults_sdk::util::format;
 use smartvaults_sdk::{logger, SmartVaults};
@@ -401,6 +401,35 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client
                     .revoke_nostr_connect_auto_approve(app_public_key)
                     .await;
+                Ok(())
+            }
+        },
+        Command::KeyAgent { command } => match command {
+            KeyAgentCommand::Signer {
+                id,
+                temperature,
+                device_type,
+                response_time,
+                cost_per_signature,
+                yearly_cost_basis_points,
+                yearly_cost,
+            } => {
+                let offering = SignerOffering {
+                    temperature,
+                    device_type,
+                    response_time,
+                    cost_per_signature,
+                    yearly_cost_basis_points,
+                    yearly_cost,
+                };
+
+                let event_id = client.signer_offering(id, offering).await?;
+                println!("Signer offering published: {event_id}");
+
+                Ok(())
+            }
+            KeyAgentCommand::ListSigners => {
+                println!("TODO");
                 Ok(())
             }
         },

@@ -14,7 +14,8 @@ use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::nostr::prelude::address::NetworkUnchecked;
 use smartvaults_sdk::nostr::prelude::NostrConnectURI;
 use smartvaults_sdk::nostr::{EventId, Url};
-use smartvaults_sdk::protocol::v1::LabelData;
+use smartvaults_sdk::protocol::v1::key_agent::signer::Percentage;
+use smartvaults_sdk::protocol::v1::{DeviceType, LabelData, Price, Temperature};
 
 pub mod batch;
 pub mod io;
@@ -189,6 +190,12 @@ pub enum Command {
         #[command(subcommand)]
         command: ConnectCommand,
     },
+    /// Key Agent commands
+    #[command(arg_required_else_help = true)]
+    KeyAgent {
+        #[command(subcommand)]
+        command: KeyAgentCommand,
+    },
     /// Add
     #[command(arg_required_else_help = true)]
     Add {
@@ -295,6 +302,36 @@ pub enum ConnectCommand {
         #[arg(required = true)]
         app_public_key: XOnlyPublicKey,
     },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum KeyAgentCommand {
+    /// Create or edit signer
+    Signer {
+        /// Unique signer ID
+        #[arg(required = true)]
+        id: String,
+        /// Temperature
+        #[arg(required = true)]
+        temperature: Temperature,
+        /// Device type
+        #[arg(required = true)]
+        device_type: DeviceType,
+        /// Response time (minutes)
+        #[arg(required = true)]
+        response_time: u16,
+        /// Cost per signature (ex. 25 USD or 250000 SAT)
+        #[clap(long)]
+        cost_per_signature: Option<Price>,
+        /// Yearly cost basis point
+        #[clap(long)]
+        yearly_cost_basis_points: Option<Percentage>,
+        /// Yearly cost
+        #[clap(long)]
+        yearly_cost: Option<Price>,
+    },
+    /// List signers
+    ListSigners,
 }
 
 #[derive(Debug, Subcommand)]
