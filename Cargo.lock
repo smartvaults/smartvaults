@@ -3967,7 +3967,6 @@ name = "smartvaults-protocol"
 version = "0.3.0"
 dependencies = [
  "nostr",
- "reqwest",
  "serde",
  "serde_json",
  "smartvaults-core",

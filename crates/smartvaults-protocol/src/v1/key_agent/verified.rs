@@ -1,70 +1,77 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashMap;
+use std::collections::HashSet;
+use std::str::FromStr;
 
-use nostr::secp256k1::XOnlyPublicKey;
-use reqwest::Client;
+use nostr::{Event, Tag};
 use serde::{Deserialize, Serialize};
+use smartvaults_core::bitcoin::network::constants::{ParseMagicError, UnknownMagic};
+use smartvaults_core::bitcoin::network::Magic;
 use smartvaults_core::bitcoin::Network;
+use smartvaults_core::secp256k1::XOnlyPublicKey;
 use thiserror::Error;
 
-const MAINNET_DOMAIN: &str = "https://smartvaults.app";
-const TESTNET_DOMAIN: &str = "https://test.smartvaults.app";
+use crate::v1::constants::{KEY_AGENT_VERIFIED, SMARTVAULTS_PUBLIC_KEY};
 
 #[derive(Debug, Error)]
 pub enum Error {
-    /// Reqwest error
-    #[error(transparent)]
-    Reqwest(#[from] reqwest::Error),
-    /// Error deserializing JSON data
-    #[error(transparent)]
-    Json(#[from] serde_json::Error),
-    /// Invalid format
-    #[error("invalid format")]
-    InvalidFormat,
+    #[error("magic parse: {0}")]
+    MagicParse(#[from] ParseMagicError),
+    #[error("unknown network magic: {0}")]
+    Network(#[from] UnknownMagic),
+    #[error("wrong kind")]
+    WrongKind,
+    #[error("event not authored by SmartVaults")]
+    NotAuthoredBySmartVaults,
+    #[error("event identifier (`d` tag) not found")]
+    IdentifierNotFound,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifiedKeyAgents {
-    pub names: HashMap<String, XOnlyPublicKey>,
-    // pub relays: HashMap<XOnlyPublicKey, Vec<String>>,
+    public_keys: HashSet<XOnlyPublicKey>,
+    network: Network,
 }
 
 impl VerifiedKeyAgents {
-    /// Check if user it's verified by [`XOnlyPublicKey`] and `smartvaults_nip05` metadata field
-    pub fn is_verified(
-        &self,
-        public_key: &XOnlyPublicKey,
-        smartvaults_nip05: &str,
-    ) -> Result<bool, Error> {
-        let data: Vec<&str> = smartvaults_nip05.split('@').collect();
-        if data.len() != 2 {
-            return Err(Error::InvalidFormat);
+    pub fn from_event(event: &Event) -> Result<Self, Error> {
+        if event.kind != KEY_AGENT_VERIFIED {
+            return Err(Error::WrongKind);
         }
-        let name: &str = data[0];
-        let domain: &str = data[1];
-        if domain == MAINNET_DOMAIN || domain == TESTNET_DOMAIN {
-            match self.names.get(name) {
-                Some(pk) => Ok(pk == public_key),
-                None => Ok(false),
+
+        if event.pubkey.to_string() != SMARTVAULTS_PUBLIC_KEY {
+            return Err(Error::NotAuthoredBySmartVaults);
+        }
+
+        let identifier: &str = event.identifier().ok_or(Error::IdentifierNotFound)?;
+        let magic: Magic = Magic::from_str(identifier)?;
+        let network: Network = Network::try_from(magic)?;
+
+        // TODO: use event.public_keys()
+        let mut public_keys: HashSet<XOnlyPublicKey> = HashSet::new();
+        for tag in event.tags.iter() {
+            if let Tag::PubKey(public_key, ..) = tag {
+                public_keys.insert(*public_key);
             }
-        } else {
-            Ok(false)
         }
+
+        Ok(Self {
+            public_keys,
+            network,
+        })
     }
-}
 
-pub async fn get_verified_key_agents(network: Network) -> Result<VerifiedKeyAgents, Error> {
-    // Compose URL
-    let base_url: &str = match network {
-        Network::Bitcoin => MAINNET_DOMAIN,
-        _ => TESTNET_DOMAIN,
-    };
-    let url = format!("{base_url}/.well-known/smartvaults.json");
+    pub fn public_keys(&self) -> HashSet<XOnlyPublicKey> {
+        self.public_keys.clone()
+    }
 
-    // Get JSON
-    let client: Client = Client::new();
-    let res = client.get(url).send().await?;
-    Ok(res.json().await?)
+    pub fn network(&self) -> Network {
+        self.network
+    }
+
+    /// Check if Key Agent it's verified
+    pub fn is_verified(&self, public_key: &XOnlyPublicKey) -> bool {
+        self.public_keys.contains(public_key)
+    }
 }
