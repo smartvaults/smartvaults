@@ -21,10 +21,11 @@ use smartvaults_core::{
     ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNER_OFFERING_KIND, LABELS_KIND,
-    POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNER_OFFERING_KIND,
+    KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
+    SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::{Encryption, Label, Serde, SignerOffering};
+use smartvaults_protocol::v1::{Encryption, Label, Serde, SignerOffering, VerifiedKeyAgents};
 use smartvaults_sdk_sqlite::model::InternalGetPolicy;
 use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
@@ -250,6 +251,9 @@ impl SmartVaults {
             .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
         let key_agents: Filter = Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND);
+        let smartvaults: Filter = Filter::new()
+            .author(SMARTVAULTS_PUBLIC_KEY)
+            .kinds(vec![KEY_AGENT_VERIFIED]);
 
         vec![
             author_filter,
@@ -257,6 +261,7 @@ impl SmartVaults {
             nostr_connect_filter,
             other_filters,
             key_agents,
+            smartvaults,
         ]
     }
 
@@ -655,6 +660,12 @@ impl SmartVaults {
             // Send notification
             /* self.sync_channel
             .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?; */
+        } else if event.kind == KEY_AGENT_VERIFIED {
+            let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
+            let mut verified_key_agents = self.verified_key_agents.write().await;
+            *verified_key_agents = new_verified_agents;
+
+            // TODO: send notification
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {

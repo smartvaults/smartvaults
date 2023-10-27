@@ -44,10 +44,10 @@ use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
-use smartvaults_protocol::v1::key_agent::verified::VerifiedKeyAgents;
 use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
     Label, LabelData, SignerOffering, SmartVaultsEventBuilder, SmartVaultsEventBuilderError,
+    VerifiedKeyAgents,
 };
 use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
