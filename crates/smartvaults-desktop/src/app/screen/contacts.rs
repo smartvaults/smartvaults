@@ -185,7 +185,6 @@ impl State for ContactsState {
                                 .width(Length::Fill)
                                 .view(),
                         )
-                        .push(Space::with_width(Length::Fixed(40.0)))
                         .push(
                             Button::new()
                                 .style(ButtonStyle::Bordered)
