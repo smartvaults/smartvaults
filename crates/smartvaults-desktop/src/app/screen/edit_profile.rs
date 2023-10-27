@@ -124,17 +124,17 @@ impl State for EditProfileState {
         let mut content = Column::new();
 
         if self.loaded {
-            let name = TextInput::new("Name", &self.name)
+            let name = TextInput::with_label("Name", &self.name)
                 .on_input(|s| EditProfileMessage::NameChanged(s).into())
                 .placeholder("Name")
                 .view();
 
-            let display_name = TextInput::new("Display name", &self.display_name)
+            let display_name = TextInput::with_label("Display name", &self.display_name)
                 .on_input(|s| EditProfileMessage::DisplayNameChanged(s).into())
                 .placeholder("Display name")
                 .view();
 
-            let nip05 = TextInput::new("NIP-05", &self.nip05)
+            let nip05 = TextInput::with_label("NIP-05", &self.nip05)
                 .on_input(|s| EditProfileMessage::NIP05Changed(s).into())
                 .placeholder("NIP-05")
                 .view();

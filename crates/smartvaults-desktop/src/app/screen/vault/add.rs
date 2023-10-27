@@ -124,17 +124,17 @@ impl State for AddVaultState {
     fn view(&self, ctx: &Context) -> Element<Message> {
         let mut center_y = true;
 
-        let name = TextInput::new("Name", &self.name)
+        let name = TextInput::with_label("Name", &self.name)
             .on_input(|s| AddVaultMessage::NameChanged(s).into())
             .placeholder("Vault name")
             .view();
 
-        let description = TextInput::new("Description", &self.description)
+        let description = TextInput::with_label("Description", &self.description)
             .on_input(|s| AddVaultMessage::DescriptionChanged(s).into())
             .placeholder("Vault description")
             .view();
 
-        let descriptor = TextInput::new("Descriptor/Policy", &self.descriptor)
+        let descriptor = TextInput::with_label("Descriptor/Policy", &self.descriptor)
             .on_input(|s| AddVaultMessage::DescriptorChanged(s).into())
             .placeholder("Vault descriptor")
             .view();

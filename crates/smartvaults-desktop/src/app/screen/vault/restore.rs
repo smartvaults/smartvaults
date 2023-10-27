@@ -141,17 +141,17 @@ impl State for RestoreVaultState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let name = TextInput::new("Name", &self.name)
+        let name = TextInput::with_label("Name", &self.name)
             .on_input(|s| RestoreVaultMessage::NameChanged(s).into())
             .placeholder("Vault name")
             .view();
 
-        let description = TextInput::new("Description", &self.description)
+        let description = TextInput::with_label("Description", &self.description)
             .on_input(|s| RestoreVaultMessage::DescriptionChanged(s).into())
             .placeholder("Vault description")
             .view();
 
-        let descriptor = TextInput::new("Descriptor", &self.descriptor)
+        let descriptor = TextInput::with_label("Descriptor", &self.descriptor)
             .placeholder("Vault descriptor")
             .view();
 

@@ -306,7 +306,7 @@ impl State for SelfTransferState {
                     .view();
 
                 let amount = if self.send_all {
-                    TextInput::new("Amount (sat)", "Send all")
+                    TextInput::with_label("Amount (sat)", "Send all")
                         .button(send_all_btn)
                         .view()
                 } else {

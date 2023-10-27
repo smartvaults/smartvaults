@@ -142,17 +142,20 @@ impl State for SettingState {
     }
 
     fn view(&self, _ctx: &Context) -> Element<Message> {
-        let electrum_endpoint = TextInput::new("Electrum Server", &self.electrum_endpoint)
+        let electrum_endpoint = TextInput::new(&self.electrum_endpoint)
+            .label("Electrum Server")
             .on_input(|s| SettingMessage::ElectrumEndpointChanged(s).into())
             .placeholder("Electrum Server")
             .view();
 
-        let proxy = TextInput::new("Proxy", &self.proxy)
+        let proxy = TextInput::new(&self.proxy)
+            .label("Proxy")
             .on_input(|s| SettingMessage::ProxyChanged(s).into())
             .placeholder("Proxy")
             .view();
 
-        let block_explorer = TextInput::new("Block Explorer", &self.block_explorer)
+        let block_explorer = TextInput::new(&self.block_explorer)
+            .label("Block Explorer")
             .on_input(|s| SettingMessage::BlockExplorerChanged(s).into())
             .placeholder("Block Explorer")
             .view();

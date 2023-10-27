@@ -84,7 +84,7 @@ impl State for WipeKeysState {
             )
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(
-                TextInput::new("Password", &self.password)
+                TextInput::with_label("Password", &self.password)
                     .placeholder("Password")
                     .on_input(|p| WipeKeysMessage::PasswordChanged(p).into())
                     .on_submit(WipeKeysMessage::Confirm.into())

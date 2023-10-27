@@ -96,24 +96,28 @@ impl State for RestoreState {
     }
 
     fn view(&self, _ctx: &Context) -> Element<Message> {
-        let name = TextInput::new("Name", &self.name)
+        let name = TextInput::new(&self.name)
+            .label("Name")
             .on_input(|s| Message::Restore(RestoreMessage::NameChanged(s)))
             .placeholder("Name of keychain")
             .view();
 
-        let password = TextInput::new("Password", &self.password)
+        let password = TextInput::new(&self.password)
+            .label("Password")
             .on_input(|s| Message::Restore(RestoreMessage::PasswordChanged(s)))
             .placeholder("Password")
             .password()
             .view();
 
-        let confirm_password = TextInput::new("Confirm password", &self.confirm_password)
+        let confirm_password = TextInput::new(&self.confirm_password)
+            .label("Confirm password")
             .on_input(|s| Message::Restore(RestoreMessage::ConfirmPasswordChanged(s)))
             .placeholder("Confirm password")
             .password()
             .view();
 
-        let mnemonic = TextInput::new("Mnemonic (BIP39)", &self.mnemonic)
+        let mnemonic = TextInput::new(&self.mnemonic)
+            .label("Mnemonic (BIP39)")
             .on_input(|s| Message::Restore(RestoreMessage::MnemonicChanged(s)))
             .placeholder("Mnemonic")
             .view();
@@ -124,7 +128,8 @@ impl State for RestoreState {
         .width(Length::Fill);
 
         let passphrase = if self.use_passphrase {
-            TextInput::new("Passphrase", &self.passphrase)
+            TextInput::new(&self.passphrase)
+                .label("NPassphraseame")
                 .on_input(|s| Message::Restore(RestoreMessage::PassphraseChanged(s)))
                 .placeholder("Passphrase")
                 .view()

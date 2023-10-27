@@ -81,7 +81,7 @@ impl State for AddRelayState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let url = TextInput::new("Relay url", &self.url)
+        let url = TextInput::with_label("Relay url", &self.url)
             .on_input(|s| AddRelayMessage::RelayUrlChanged(s).into())
             .placeholder("Relay url")
             .view();

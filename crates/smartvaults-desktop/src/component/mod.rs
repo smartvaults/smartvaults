@@ -15,7 +15,7 @@ mod text_input;
 
 pub use self::badge::{Badge, BadgeStyle};
 pub use self::button::{Button, ButtonStyle};
-pub use self::card::Card;
+pub use self::card::{Card, CardStyle};
 pub use self::circle::Circle;
 pub use self::icon::Icon;
 pub use self::modal::Modal;

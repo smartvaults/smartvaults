@@ -81,26 +81,27 @@ impl State for ChangePasswordState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let password = TextInput::new("Password", &self.password)
+        let password = TextInput::with_label("Password", &self.password)
             .on_input(|s| ChangePasswordMessage::PasswordChanged(s).into())
             .placeholder("Password")
             .password()
             .on_submit(ChangePasswordMessage::Save.into())
             .view();
 
-        let new_password = TextInput::new("New password", &self.new_password)
+        let new_password = TextInput::with_label("New password", &self.new_password)
             .on_input(|s| ChangePasswordMessage::NewPasswordChanged(s).into())
             .placeholder("New password")
             .password()
             .on_submit(ChangePasswordMessage::Save.into())
             .view();
 
-        let confirm_new_password = TextInput::new("Confirm password", &self.confirm_new_password)
-            .on_input(|s| ChangePasswordMessage::ConfirmNewPasswordChanged(s).into())
-            .placeholder("Confirm password")
-            .password()
-            .on_submit(ChangePasswordMessage::Save.into())
-            .view();
+        let confirm_new_password =
+            TextInput::with_label("Confirm password", &self.confirm_new_password)
+                .on_input(|s| ChangePasswordMessage::ConfirmNewPasswordChanged(s).into())
+                .placeholder("Confirm password")
+                .password()
+                .on_submit(ChangePasswordMessage::Save.into())
+                .view();
 
         let save_btn = Button::new()
             .text("Save")

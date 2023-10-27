@@ -459,7 +459,8 @@ impl SpendState {
 
         let address = Column::new()
             .push(
-                TextInput::new("Address", &self.to_address)
+                TextInput::new(&self.to_address)
+                    .label("Address")
                     .on_input(|s| SpendMessage::AddressChanged(s).into())
                     .placeholder("Address")
                     .view(),
@@ -482,7 +483,7 @@ impl SpendState {
             .view();
 
         let amount = if self.send_all {
-            TextInput::new("Amount (sat)", "Send all")
+            TextInput::with_label("Amount (sat)", "Send all")
                 .button(send_all_btn)
                 .view()
         } else {
@@ -516,7 +517,7 @@ impl SpendState {
             Text::new("").view()
         };
 
-        let description = TextInput::new("Description", &self.description)
+        let description = TextInput::with_label("Description", &self.description)
             .on_input(|s| SpendMessage::DescriptionChanged(s).into())
             .placeholder("Description")
             .view();

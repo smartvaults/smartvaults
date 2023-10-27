@@ -84,17 +84,17 @@ impl State for AddAirGapSignerState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let name = TextInput::new("Name", &self.name)
+        let name = TextInput::with_label("Name", &self.name)
             .on_input(|s| AddAirGapSignerMessage::NameChanged(s).into())
             .placeholder("Name")
             .view();
 
-        let fingerprint = TextInput::new("Fingerprint", &self.fingerprint)
+        let fingerprint = TextInput::with_label("Fingerprint", &self.fingerprint)
             .on_input(|s| AddAirGapSignerMessage::FingerprintChanged(s).into())
             .placeholder("Master fingerprint")
             .view();
 
-        let descriptor = TextInput::new("Descriptor", &self.descriptor)
+        let descriptor = TextInput::with_label("Descriptor", &self.descriptor)
             .on_input(|s| AddAirGapSignerMessage::DescriptorChanged(s).into())
             .placeholder("Descriptor")
             .view();

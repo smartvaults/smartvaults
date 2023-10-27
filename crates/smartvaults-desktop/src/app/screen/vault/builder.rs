@@ -191,12 +191,12 @@ impl State for PolicyBuilderState {
 
             view_signer_selector(self, index)
         } else {
-            let name = TextInput::new("Name", &self.name)
+            let name = TextInput::with_label("Name", &self.name)
                 .on_input(|s| PolicyBuilderMessage::NameChanged(s).into())
                 .placeholder("Vault name")
                 .view();
 
-            let description = TextInput::new("Description", &self.description)
+            let description = TextInput::with_label("Description", &self.description)
                 .on_input(|s| PolicyBuilderMessage::DescriptionChanged(s).into())
                 .placeholder("Vault description")
                 .view();

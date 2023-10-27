@@ -123,16 +123,16 @@ impl State for AddHWSignerState {
 
         if self.loaded {
             if let Some(device) = &self.device {
-                let name = TextInput::new("Name", &self.name)
+                let name = TextInput::with_label("Name", &self.name)
                     .on_input(|s| AddHWSignerMessage::NameChanged(s).into())
                     .placeholder("Name")
                     .view();
 
-                let device_type = TextInput::new("Type", &device.device_type.to_string()).view();
+                let device_type = TextInput::with_label("Type", &device.device_type.to_string()).view();
 
-                let device_model = TextInput::new("Model", &device.model).view();
+                let device_model = TextInput::with_label("Model", &device.model).view();
 
-                let fingerprint = TextInput::new("Fingerprint", &device.fingerprint.to_string())
+                let fingerprint = TextInput::with_label("Fingerprint", &device.fingerprint.to_string())
                     .placeholder("Master fingerprint")
                     .view();
 

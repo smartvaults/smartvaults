@@ -93,7 +93,7 @@ impl State for RecoveryKeysState {
 
             content = content
                 .push(
-                    TextInput::new(
+                    TextInput::with_label(
                         format!("Entorpy ({} bits)", secrets.entropy.len() / 2 * 8),
                         secrets.entropy,
                     )
@@ -101,14 +101,14 @@ impl State for RecoveryKeysState {
                     .view(),
                 )
                 .push(
-                    TextInput::new("Mnemonic (BIP39)", &secrets.mnemonic.to_string())
+                    TextInput::with_label("Mnemonic (BIP39)", &secrets.mnemonic.to_string())
                         .on_input(|_| RecoveryKeysMessage::Null.into())
                         .view(),
                 );
 
             if let Some(passphrase) = secrets.passphrase {
                 content = content.push(
-                    TextInput::new("Passphrase", &passphrase)
+                    TextInput::with_label("Passphrase", &passphrase)
                         .on_input(|_| RecoveryKeysMessage::Null.into())
                         .view(),
                 );
@@ -116,24 +116,24 @@ impl State for RecoveryKeysState {
 
             content = content
                 .push(
-                    TextInput::new("Seed HEX", &secrets.seed_hex)
+                    TextInput::with_label("Seed HEX", &secrets.seed_hex)
                         .on_input(|_| RecoveryKeysMessage::Null.into())
                         .view(),
                 )
                 .push(
-                    TextInput::new("Root Key (BIP32)", &secrets.root_key.to_string())
+                    TextInput::with_label("Root Key (BIP32)", &secrets.root_key.to_string())
                         .on_input(|_| RecoveryKeysMessage::Null.into())
                         .view(),
                 )
                 .push(
-                    TextInput::new("Fingerprint (BIP32)", &secrets.fingerprint.to_string())
+                    TextInput::with_label("Fingerprint (BIP32)", &secrets.fingerprint.to_string())
                         .on_input(|_| RecoveryKeysMessage::Null.into())
                         .view(),
                 );
         } else {
             content = content
                 .push(
-                    TextInput::new("Password", &self.password)
+                    TextInput::with_label("Password", &self.password)
                         .placeholder("Password")
                         .on_input(|p| RecoveryKeysMessage::PasswordChanged(p).into())
                         .on_submit(RecoveryKeysMessage::Confirm.into())

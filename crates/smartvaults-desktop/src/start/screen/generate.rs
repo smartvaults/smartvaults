@@ -91,18 +91,21 @@ impl State for GenerateState {
     }
 
     fn view(&self, _ctx: &Context) -> Element<Message> {
-        let name = TextInput::new("Name", &self.name)
+        let name = TextInput::new(&self.name)
+            .label("Name")
             .on_input(|s| GenerateMessage::NameChanged(s).into())
             .placeholder("Name of keychain")
             .view();
 
-        let password = TextInput::new("Password", &self.password)
+        let password = TextInput::new(&self.password)
+            .label("Password")
             .on_input(|s| GenerateMessage::PasswordChanged(s).into())
             .placeholder("Password")
             .password()
             .view();
 
-        let confirm_password = TextInput::new("Confirm password", &self.confirm_password)
+        let confirm_password = TextInput::new(&self.confirm_password)
+            .label("Confirm password")
             .on_input(|s| GenerateMessage::ConfirmPasswordChanged(s).into())
             .placeholder("Confirm password")
             .password()
@@ -114,7 +117,8 @@ impl State for GenerateState {
         .width(Length::Fill);
 
         let passphrase = if self.use_passphrase {
-            TextInput::new("Passphrase", &self.passphrase)
+            TextInput::new(&self.passphrase)
+                .label("Passphrase")
                 .on_input(|s| GenerateMessage::PassphraseChanged(s).into())
                 .placeholder("Passphrase")
                 .view()

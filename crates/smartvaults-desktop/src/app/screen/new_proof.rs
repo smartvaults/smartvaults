@@ -126,7 +126,7 @@ impl State for NewProofState {
                 )
                 .spacing(5);
 
-            let message = TextInput::new("Message", &self.message)
+            let message = TextInput::with_label("Message", &self.message)
                 .on_input(|s| NewProofMessage::MessageChanged(s).into())
                 .placeholder("Message")
                 .view();

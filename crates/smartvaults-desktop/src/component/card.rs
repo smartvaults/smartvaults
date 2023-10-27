@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use iced::widget::{container, Column, Container};
-use iced::{theme, Background, BorderRadius, Element, Theme};
+use iced::{theme, Background, BorderRadius, Element, Length, Theme};
 
 use crate::theme::color::WHITE;
 
@@ -10,6 +10,8 @@ pub struct Card<Message> {
     head: Element<'static, Message>,
     body: Element<'static, Message>,
     foot: Option<Element<'static, Message>>,
+    width: Option<Length>,
+    height: Option<Length>,
     max_width: f32,
 }
 
@@ -26,6 +28,8 @@ where
             head: head.into(),
             body: body.into(),
             foot: None,
+            width: None,
+            height: None,
             max_width: u32::MAX as f32,
         }
     }
@@ -38,6 +42,16 @@ where
         self
     }
 
+    /* pub fn width(mut self, width: Length) -> Self {
+        self.width = Some(width);
+        self
+    }
+
+    pub fn height(mut self, height: Length) -> Self {
+        self.height = Some(height);
+        self
+    } */
+
     pub fn max_width(mut self, width: f32) -> Self {
         self.max_width = width;
         self
@@ -48,6 +62,14 @@ where
 
         if let Some(foot) = self.foot {
             card = card.push(foot);
+        }
+
+        if let Some(width) = self.width {
+            card = card.width(width);
+        }
+
+        if let Some(height) = self.height {
+            card = card.height(height);
         }
 
         card = card.max_width(self.max_width);

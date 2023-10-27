@@ -71,7 +71,7 @@ impl State for AddNostrConnectSessionState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let uri = TextInput::new("Nostr Connect URI", &self.uri)
+        let uri = TextInput::with_label("Nostr Connect URI", &self.uri)
             .on_input(|s| AddNostrConnectSessionMessage::URIChanged(s).into())
             .placeholder("Nostr Connect URI")
             .view();

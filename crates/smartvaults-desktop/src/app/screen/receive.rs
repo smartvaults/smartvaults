@@ -192,7 +192,7 @@ impl State for ReceiveState {
             if let Some(address) = self.address.clone() {
                 content = content
                     .push(
-                        TextInput::new("Label", &self.label)
+                        TextInput::with_label("Label", &self.label)
                             .on_input(|l| ReceiveMessage::LabelChanged(l).into())
                             .placeholder("Label")
                             .button(

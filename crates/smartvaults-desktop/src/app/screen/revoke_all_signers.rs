@@ -61,7 +61,7 @@ impl State for RevokeAllSignersState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let confirm = TextInput::new("To confirm, type 'CONFIRM'", &self.confirm)
+        let confirm = TextInput::with_label("To confirm, type 'CONFIRM'", &self.confirm)
             .placeholder("To confirm, type 'CONFIRM'")
             .on_input(|s| RevokeAllSignersMessage::ConfirmChanged(s).into())
             .view();

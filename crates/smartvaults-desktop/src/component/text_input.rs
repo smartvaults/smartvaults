@@ -8,9 +8,9 @@ use crate::constants::DEFAULT_FONT_SIZE;
 use super::Text;
 
 pub struct TextInput<Message> {
-    name: String,
     value: String,
     placeholder: String,
+    label: Option<String>,
     password: bool,
     button: Option<Button<'static, Message>>,
     on_input: Option<Box<dyn Fn(String) -> Message>>,
@@ -21,19 +21,26 @@ impl<Message> TextInput<Message>
 where
     Message: Clone + 'static,
 {
-    pub fn new<S>(name: S, value: S) -> Self
+    pub fn new<S>(value: S) -> Self
     where
         S: Into<String>,
     {
         Self {
-            name: name.into(),
             value: value.into(),
             placeholder: String::new(),
+            label: None,
             password: false,
             button: None,
             on_input: None,
             on_submit: None,
         }
+    }
+
+    pub fn with_label<S>(label: S, value: S) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::new(value).label(label)
     }
 
     pub fn placeholder<S>(self, placeholder: S) -> Self
@@ -44,6 +51,14 @@ where
             placeholder: placeholder.into(),
             ..self
         }
+    }
+
+    pub fn label<S>(mut self, label: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.label = Some(label.into());
+        self
     }
 
     pub fn password(self) -> Self {
@@ -97,9 +112,12 @@ where
             input_row = input_row.push(btn).spacing(5);
         }
 
-        Column::new()
-            .push(Row::new().push(Text::new(self.name).view()))
-            .push(input_row)
-            .spacing(5)
+        let mut content = Column::new().spacing(5);
+
+        if let Some(label) = self.label {
+            content = content.push(Row::new().push(Text::new(label).view()));
+        }
+
+        content.push(input_row)
     }
 }

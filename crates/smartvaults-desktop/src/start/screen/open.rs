@@ -104,7 +104,8 @@ impl State for OpenState {
             )
             .spacing(5);
 
-        let password = TextInput::new("Password", &self.password)
+        let password = TextInput::new(&self.password)
+            .label("Password")
             .on_input(|s| Message::Open(OpenMessage::PasswordChanged(s)))
             .placeholder("Enter password")
             .on_submit(Message::Open(OpenMessage::OpenButtonPressed))

@@ -135,17 +135,17 @@ impl State for ConfigState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let electrum_endpoint = TextInput::new("Electrum Server", &self.electrum_endpoint)
+        let electrum_endpoint = TextInput::with_label("Electrum Server", &self.electrum_endpoint)
             .on_input(|s| ConfigMessage::ElectrumEndpointChanged(s).into())
             .placeholder("Electrum Server")
             .view();
 
-        let proxy = TextInput::new("Proxy", &self.proxy)
+        let proxy = TextInput::with_label("Proxy", &self.proxy)
             .on_input(|s| ConfigMessage::ProxyChanged(s).into())
             .placeholder("Proxy")
             .view();
 
-        let block_explorer = TextInput::new("Block Explorer", &self.block_explorer)
+        let block_explorer = TextInput::with_label("Block Explorer", &self.block_explorer)
             .on_input(|s| ConfigMessage::BlockExplorerChanged(s).into())
             .placeholder("Block Explorer")
             .view();

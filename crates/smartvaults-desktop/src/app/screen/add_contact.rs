@@ -69,7 +69,7 @@ impl State for AddContactState {
     }
 
     fn view(&self, ctx: &Context) -> Element<Message> {
-        let public_key = TextInput::new("Public Key", &self.public_key)
+        let public_key = TextInput::with_label("Public Key", &self.public_key)
             .on_input(|s| AddContactMessage::PublicKeyChanged(s).into())
             .placeholder("Public Key")
             .view();
