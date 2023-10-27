@@ -18,16 +18,25 @@ use self::sidebar::Sidebar;
 #[derive(Clone, Default)]
 pub struct Dashboard {
     loaded: bool,
+    scrollable: bool,
 }
 
 impl Dashboard {
     pub fn new() -> Self {
-        Self { loaded: true }
+        Self {
+            loaded: true,
+            scrollable: true,
+        }
     }
 
     #[allow(clippy::needless_update)]
     pub fn loaded(self, loaded: bool) -> Self {
         Self { loaded, ..self }
+    }
+
+    pub fn scrollable(mut self, scrollable: bool) -> Self {
+        self.scrollable = scrollable;
+        self
     }
 
     pub fn view<'a, T>(
@@ -40,9 +49,13 @@ impl Dashboard {
     where
         T: Into<Element<'a, Message>>,
     {
-        let mut content = Container::new(Scrollable::new(content))
-            .width(Length::Fill)
-            .height(Length::Fill);
+        let mut content = if self.scrollable {
+            Container::new(Scrollable::new(content))
+        } else {
+            Container::new(content)
+        }
+        .width(Length::Fill)
+        .height(Length::Fill);
 
         if center_x {
             content = content.center_x();

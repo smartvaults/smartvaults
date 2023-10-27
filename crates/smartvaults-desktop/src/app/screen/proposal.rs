@@ -340,12 +340,13 @@ impl State for ProposalState {
                             .bold()
                             .view(),
                         )
-                        .push(Space::with_height(Length::Fixed(40.0)))
-                        .push(
-                            Text::new(format!("Vault ID: {}", util::cut_event_id(policy_id)))
-                                .on_press(Message::View(Stage::Vault(policy_id)))
-                                .view(),
-                        );
+                        .push(Space::with_height(Length::Fixed(40.0)));
+
+                    let mut left_content = Column::new().spacing(10).width(Length::Fill).push(
+                        Text::new(format!("Vault ID: {}", util::cut_event_id(policy_id)))
+                            .on_press(Message::View(Stage::Vault(policy_id)))
+                            .view(),
+                    );
 
                     let finalize_btn_text: &str = match proposal {
                         Proposal::Spending {
@@ -355,7 +356,7 @@ impl State for ProposalState {
                             psbt,
                             ..
                         } => {
-                            content = content
+                            left_content = left_content
                                 .push(Text::new("Type: spending").view())
                                 .push(
                                     Text::new(format!(
@@ -374,7 +375,7 @@ impl State for ProposalState {
 
                             match psbt.fee() {
                                 Ok(fee) => {
-                                    content = content.push(
+                                    left_content = left_content.push(
                                         Text::new(format!(
                                             "Fee: {} sat",
                                             util::format::number(fee.to_sat())
@@ -388,14 +389,14 @@ impl State for ProposalState {
                             };
 
                             if !description.is_empty() {
-                                content = content
+                                left_content = left_content
                                     .push(Text::new(format!("Description: {description}")).view());
                             }
 
                             "Broadcast"
                         }
                         Proposal::ProofOfReserve { message, .. } => {
-                            content = content
+                            left_content = left_content
                                 .push(Text::new("Type: proof-of-reserve").view())
                                 .push(Text::new(format!("Message: {message}")).view());
 
@@ -411,7 +412,7 @@ impl State for ProposalState {
                         status = status.push(Text::new("unsigned").color(YELLOW).view());
                     }
 
-                    content = content.push(status).push(
+                    left_content = left_content.push(status).push(
                         Text::new(format!(
                             "Signer: {}",
                             self.signer
@@ -473,7 +474,7 @@ impl State for ProposalState {
                         .loading(self.loading)
                         .view();
 
-                    content = content
+                    left_content = left_content
                         .push(Space::with_height(10.0))
                         .push(
                             Row::new()
@@ -487,11 +488,11 @@ impl State for ProposalState {
                         .push(Space::with_height(20.0));
 
                     if let Some(error) = &self.error {
-                        content = content.push(Text::new(error).color(RED).view());
+                        left_content = left_content.push(Text::new(error).color(RED).view());
                     };
 
                     if !self.approved_proposals.is_empty() {
-                        content = content
+                        left_content = left_content
                             .push(Text::new("Approvals").bold().big().view())
                             .push(Space::with_height(10.0))
                             .push(
@@ -559,15 +560,20 @@ impl State for ProposalState {
                                         .push(Space::with_width(Length::Fixed(40.0))),
                                 );
                             }
-                            content = content.push(row).push(rule::horizontal());
+                            left_content = left_content.push(row).push(rule::horizontal());
                         }
                     }
+
+                    content = content.push(
+                        Row::new().spacing(20).push(left_content), //.push(self.view_chat()),
+                    );
                 }
             }
         };
 
         let dashboard = Dashboard::new()
             .loaded(self.loaded)
+            .scrollable(true) // TODO: change when show chat
             .view(ctx, content, false, false);
 
         if let Some(modal) = &self.modal {
@@ -584,7 +590,7 @@ impl State for ProposalState {
                             .spacing(10)
                             .padding(5)
                             .push(
-                                TextInput::new("Password", &self.password)
+                                TextInput::with_label("Password", &self.password)
                                     .password()
                                     .placeholder("Password")
                                     .on_input(|p| ProposalMessage::PasswordChanged(p).into())
@@ -655,6 +661,36 @@ impl State for ProposalState {
         }
     }
 }
+
+/* impl ProposalState {
+    fn view_chat<'a>(&self) -> Container<'a, Message> {
+        let chat = Column::new().spacing(10);
+        let content = Column::new()
+            .push(Text::new("Chat").bold().bigger().view())
+            .push(rule::horizontal())
+            .push(Scrollable::new(chat).height(Length::Fill))
+            .push(rule::horizontal())
+            .push(
+                Row::new()
+                    .spacing(10)
+                    .push(
+                        TextInput::new("")
+                            .placeholder("Message")
+                            .view()
+                            .width(Length::Fill),
+                    )
+                    .push(Button::new().text("Send").width(Length::Fixed(80.0)).view())
+                    .width(Length::Fill),
+            )
+            .max_width(450.0)
+            .spacing(10)
+            .padding(15)
+            .height(Length::Shrink);
+        Container::new(content)
+            .style(CardStyle::Primary)
+            .height(Length::Shrink)
+    }
+} */
 
 impl From<ProposalState> for Box<dyn State> {
     fn from(s: ProposalState) -> Box<dyn State> {
