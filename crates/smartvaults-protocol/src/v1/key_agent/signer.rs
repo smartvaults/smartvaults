@@ -4,7 +4,9 @@
 use core::cmp::Ordering;
 use core::fmt;
 use core::hash::Hash;
+use core::num::ParseFloatError;
 use core::ops::Deref;
+use core::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
@@ -68,6 +70,19 @@ impl Deref for Percentage {
     type Target = f64;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Percentage {
+    pub fn new(p: f64) -> Self {
+        Self(p)
+    }
+}
+
+impl FromStr for Percentage {
+    type Err = ParseFloatError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::new(s.parse()?))
     }
 }
 
