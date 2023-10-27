@@ -44,6 +44,7 @@ use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
+use smartvaults_protocol::v1::key_agent::verified::VerifiedKeyAgents;
 use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
     Label, LabelData, SignerOffering, SmartVaultsEventBuilder, SmartVaultsEventBuilderError,
@@ -177,7 +178,7 @@ pub struct SmartVaults {
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Message>,
     default_signer: Signer,
-    // Verified agents
+    verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
     key_agents: Arc<RwLock<BTreeMap<XOnlyPublicKey, HashSet<SignerOffering>>>>,
 }
 
@@ -224,6 +225,7 @@ impl SmartVaults {
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             default_signer: smartvaults_signer(seed, network)?,
+            verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
             key_agents: Arc::new(RwLock::new(BTreeMap::new())),
         };
 

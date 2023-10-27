@@ -26,6 +26,7 @@ impl SmartVaults {
     /// Get Key Agents
     pub async fn key_agents(&self) -> Result<Vec<KeyAgent>, Error> {
         let contacts = self.db.get_contacts_public_keys().await?;
+        let verified_key_agents = self.verified_key_agents.read().await;
         let agents = self.key_agents.read().await;
         let mut list = Vec::with_capacity(agents.len());
         for (public_key, set) in agents.clone().into_iter() {
@@ -33,7 +34,7 @@ impl SmartVaults {
             list.push(KeyAgent {
                 user: User::new(public_key, metadata),
                 list: set,
-                verified: false, // TODO: check if verified
+                verified: verified_key_agents.is_verified(&public_key),
                 is_contact: contacts.contains(&public_key),
             })
         }
