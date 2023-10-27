@@ -3,12 +3,14 @@
 
 use nostr::nips::nip04;
 use nostr::{Event, EventBuilder, EventId, Keys, Tag};
+use smartvaults_core::bitcoin::Network;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, Proposal};
 use thiserror::Error;
 
 use super::constants::{
-    KEY_AGENT_SIGNER_OFFERING_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
+    KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
+    SHARED_KEY_KIND,
 };
 use super::key_agent::signer::SignerOffering;
 use super::util::{Encryption, EncryptionError};
@@ -105,6 +107,18 @@ pub trait SmartVaultsEventBuilder {
             &[Tag::Identifier(id)],
         )
         .to_event(keys)?)
+    }
+
+    fn key_agents_verified(
+        keys: &Keys,
+        public_keys: Vec<XOnlyPublicKey>,
+        network: Network,
+    ) -> Result<Event, Error> {
+        let identifier: String = network.magic().to_string();
+        let mut tags: Vec<Tag> = Vec::with_capacity(1 + public_keys.len());
+        tags.push(Tag::Identifier(identifier));
+        tags.extend(public_keys.into_iter().map(|p| Tag::PubKey(p, None)));
+        Ok(EventBuilder::new(KEY_AGENT_VERIFIED, "", &tags).to_event(keys)?)
     }
 }
 
