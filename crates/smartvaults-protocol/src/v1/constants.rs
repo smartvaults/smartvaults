@@ -1,15 +1,22 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::str::FromStr;
 use std::time::Duration;
 
 use nostr::Kind;
+use once_cell::sync::Lazy;
+use smartvaults_core::secp256k1::XOnlyPublicKey;
 
-// Smart Vaults Public Key (hex)
-pub const SMARTVAULTS_MAINNET_PUBLIC_KEY: &str =
-    "5f5d73eee1b08e1743142538b1acb65ec16c1475b6b6902ca2380b19b6b4c006"; // TODO: to replace
-pub const SMARTVAULTS_TESTNET_PUBLIC_KEY: &str =
-    "2c2dcda12330dda3b9600237a419003c5d9bf3d757303e63ecee121b4aaa2fa0";
+// Smart Vaults Public Keys
+pub static SMARTVAULTS_MAINNET_PUBLIC_KEY: Lazy<XOnlyPublicKey> = Lazy::new(|| {
+    XOnlyPublicKey::from_str("5f5d73eee1b08e1743142538b1acb65ec16c1475b6b6902ca2380b19b6b4c006")
+        .expect("Invalid public key") // TODO: to replace
+});
+pub static SMARTVAULTS_TESTNET_PUBLIC_KEY: Lazy<XOnlyPublicKey> = Lazy::new(|| {
+    XOnlyPublicKey::from_str("2c2dcda12330dda3b9600237a419003c5d9bf3d757303e63ecee121b4aaa2fa0")
+        .expect("Invalid public key")
+});
 
 // Kinds
 pub const SHARED_KEY_KIND: Kind = Kind::Custom(9288);

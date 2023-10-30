@@ -184,9 +184,7 @@ impl SmartVaults {
                     Ok(public_keys) => {
                         if !public_keys.is_empty() {
                             let timeout = Duration::from_secs(10 * public_keys.len() as u64);
-                            let filter = Filter::new()
-                                .kind(Kind::Metadata)
-                                .authors(public_keys.into_iter().map(|p| p.to_string()).collect());
+                            let filter = Filter::new().kind(Kind::Metadata).authors(public_keys);
                             this.client.req_events_of(vec![filter], Some(timeout)).await;
                         } else {
                             tracing::debug!("No public keys metadata to sync")
@@ -239,24 +237,21 @@ impl SmartVaults {
         let keys: Keys = self.keys().await;
         let public_key: XOnlyPublicKey = keys.public_key();
 
-        let author_filter: Filter = base_filter
-            .clone()
-            .author(public_key.to_string())
-            .since(since);
+        let author_filter: Filter = base_filter.clone().author(public_key).since(since);
         let pubkey_filter: Filter = base_filter.pubkey(public_key).since(since);
         let nostr_connect_filter = Filter::new()
             .pubkey(public_key)
             .kind(Kind::NostrConnect)
             .since(since);
         let other_filters: Filter = Filter::new()
-            .author(public_key.to_string())
+            .author(public_key)
             .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
         let key_agents: Filter = Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND);
         let smartvaults: Filter = Filter::new()
             .author(match self.network {
-                Network::Bitcoin => SMARTVAULTS_MAINNET_PUBLIC_KEY,
-                _ => SMARTVAULTS_TESTNET_PUBLIC_KEY,
+                Network::Bitcoin => *SMARTVAULTS_MAINNET_PUBLIC_KEY,
+                _ => *SMARTVAULTS_TESTNET_PUBLIC_KEY,
             })
             .kinds(vec![KEY_AGENT_VERIFIED]);
 

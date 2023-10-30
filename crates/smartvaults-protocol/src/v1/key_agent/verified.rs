@@ -63,10 +63,9 @@ impl VerifiedKeyAgents {
         let network: Network = Network::try_from(magic)?;
 
         // Check author
-        let pk: String = event.pubkey.to_string();
         let authored_by_smartvaults: bool = match network {
-            Network::Bitcoin => pk == SMARTVAULTS_MAINNET_PUBLIC_KEY,
-            _ => pk == SMARTVAULTS_TESTNET_PUBLIC_KEY,
+            Network::Bitcoin => event.pubkey == *SMARTVAULTS_MAINNET_PUBLIC_KEY,
+            _ => event.pubkey == *SMARTVAULTS_TESTNET_PUBLIC_KEY,
         };
 
         if !authored_by_smartvaults {

@@ -2682,7 +2682,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=2799d037ecef0f14e993ef140920ed9c90d8374b#2799d037ecef0f14e993ef140920ed9c90d8374b"
+source = "git+https://github.com/rust-nostr/nostr?rev=bf0bdb29a02202e3907c8fea5c6e38a2408a51e6#bf0bdb29a02202e3907c8fea5c6e38a2408a51e6"
 dependencies = [
  "aes",
  "base64 0.21.4",
@@ -2704,7 +2704,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=2799d037ecef0f14e993ef140920ed9c90d8374b#2799d037ecef0f14e993ef140920ed9c90d8374b"
+source = "git+https://github.com/rust-nostr/nostr?rev=bf0bdb29a02202e3907c8fea5c6e38a2408a51e6#bf0bdb29a02202e3907c8fea5c6e38a2408a51e6"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2713,7 +2713,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=2799d037ecef0f14e993ef140920ed9c90d8374b#2799d037ecef0f14e993ef140920ed9c90d8374b"
+source = "git+https://github.com/rust-nostr/nostr?rev=bf0bdb29a02202e3907c8fea5c6e38a2408a51e6#bf0bdb29a02202e3907c8fea5c6e38a2408a51e6"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2727,7 +2727,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=2799d037ecef0f14e993ef140920ed9c90d8374b#2799d037ecef0f14e993ef140920ed9c90d8374b"
+source = "git+https://github.com/rust-nostr/nostr?rev=bf0bdb29a02202e3907c8fea5c6e38a2408a51e6#bf0bdb29a02202e3907c8fea5c6e38a2408a51e6"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2739,7 +2739,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=2799d037ecef0f14e993ef140920ed9c90d8374b#2799d037ecef0f14e993ef140920ed9c90d8374b"
+source = "git+https://github.com/rust-nostr/nostr?rev=bf0bdb29a02202e3907c8fea5c6e38a2408a51e6#bf0bdb29a02202e3907c8fea5c6e38a2408a51e6"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -3967,6 +3967,7 @@ name = "smartvaults-protocol"
 version = "0.3.0"
 dependencies = [
  "nostr",
+ "once_cell",
  "serde",
  "serde_json",
  "smartvaults-core",

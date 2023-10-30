@@ -695,7 +695,7 @@ impl SmartVaults {
             self.client
                 .req_events_of(
                     vec![Filter::new()
-                        .author(public_key.to_string())
+                        .author(public_key)
                         .kind(Kind::Metadata)
                         .limit(1)],
                     Some(Duration::from_secs(60)),
@@ -736,7 +736,7 @@ impl SmartVaults {
             self.client
                 .req_events_of(
                     vec![Filter::new()
-                        .author(public_key.to_string())
+                        .author(public_key)
                         .kind(Kind::Metadata)
                         .limit(1)],
                     Some(Duration::from_secs(60)),
