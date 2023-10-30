@@ -6,7 +6,10 @@ use std::time::Duration;
 use nostr::Kind;
 
 // Smart Vaults Public Key (hex)
-pub const SMARTVAULTS_PUBLIC_KEY: &str = "000000";
+pub const SMARTVAULTS_MAINNET_PUBLIC_KEY: &str =
+    "5f5d73eee1b08e1743142538b1acb65ec16c1475b6b6902ca2380b19b6b4c006"; // TODO: to replace
+pub const SMARTVAULTS_TESTNET_PUBLIC_KEY: &str =
+    "2c2dcda12330dda3b9600237a419003c5d9bf3d757303e63ecee121b4aaa2fa0";
 
 // Kinds
 pub const SHARED_KEY_KIND: Kind = Kind::Custom(9288);

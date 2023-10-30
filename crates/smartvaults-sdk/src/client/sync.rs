@@ -17,13 +17,15 @@ use nostr_sdk::{
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
+use smartvaults_core::bitcoin::Network;
 use smartvaults_core::{
     ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNER_OFFERING_KIND,
     KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
-    SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_PUBLIC_KEY,
+    SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
+    SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Encryption, Label, Serde, SignerOffering, VerifiedKeyAgents};
 use smartvaults_sdk_sqlite::model::InternalGetPolicy;
@@ -252,7 +254,10 @@ impl SmartVaults {
             .since(since);
         let key_agents: Filter = Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND);
         let smartvaults: Filter = Filter::new()
-            .author(SMARTVAULTS_PUBLIC_KEY)
+            .author(match self.network {
+                Network::Bitcoin => SMARTVAULTS_MAINNET_PUBLIC_KEY,
+                _ => SMARTVAULTS_TESTNET_PUBLIC_KEY,
+            })
             .kinds(vec![KEY_AGENT_VERIFIED]);
 
         vec![

@@ -13,7 +13,9 @@ use smartvaults_core::secp256k1::XOnlyPublicKey;
 use thiserror::Error;
 
 use crate::v1::builder::{self, SmartVaultsEventBuilder};
-use crate::v1::constants::{KEY_AGENT_VERIFIED, SMARTVAULTS_PUBLIC_KEY};
+use crate::v1::constants::{
+    KEY_AGENT_VERIFIED, SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -55,15 +57,21 @@ impl VerifiedKeyAgents {
             return Err(Error::WrongKind);
         }
 
-        // Check author
-        if event.pubkey.to_string() != SMARTVAULTS_PUBLIC_KEY {
-            return Err(Error::NotAuthoredBySmartVaults);
-        }
-
         // Parse and check network magic
         let identifier: &str = event.identifier().ok_or(Error::IdentifierNotFound)?;
         let magic: Magic = Magic::from_str(identifier)?;
         let network: Network = Network::try_from(magic)?;
+
+        // Check author
+        let pk: String = event.pubkey.to_string();
+        let authored_by_smartvaults: bool = match network {
+            Network::Bitcoin => pk == SMARTVAULTS_MAINNET_PUBLIC_KEY,
+            _ => pk == SMARTVAULTS_TESTNET_PUBLIC_KEY,
+        };
+
+        if !authored_by_smartvaults {
+            return Err(Error::NotAuthoredBySmartVaults);
+        }
 
         // Get public keys
         let public_keys: HashSet<XOnlyPublicKey> = event.public_keys().copied().collect();
