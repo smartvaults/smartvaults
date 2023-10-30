@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use smartvaults_sdk::core::bitcoin::absolute;
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
-use smartvaults_sdk::core::{self, bitcoin, Locktime};
+use smartvaults_sdk::core::{self, bitcoin};
 
 use crate::error::Result;
 use crate::Descriptor;
@@ -55,6 +55,56 @@ impl AbsoluteLockTime {
     }
 }
 
+pub struct Locktime {
+    inner: core::Locktime,
+}
+
+impl Deref for Locktime {
+    type Target = core::Locktime;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl Locktime {
+    pub fn absolute(absolute: Arc<AbsoluteLockTime>) -> Self {
+        Self {
+            inner: core::Locktime::After(**absolute),
+        }
+    }
+
+    pub fn relative(relative: Arc<RelativeLockTime>) -> Self {
+        Self {
+            inner: core::Locktime::Older(**relative),
+        }
+    }
+}
+
+pub struct DecayingTime {
+    inner: core::DecayingTime,
+}
+
+impl Deref for DecayingTime {
+    type Target = core::DecayingTime;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DecayingTime {
+    pub fn single(locktime: Arc<Locktime>) -> Self {
+        Self {
+            inner: core::DecayingTime::Single(**locktime),
+        }
+    }
+
+    pub fn multiple(locktimes: Vec<Arc<Locktime>>) -> Self {
+        Self {
+            inner: core::DecayingTime::Multiple(locktimes.into_iter().map(|l| **l).collect()),
+        }
+    }
+}
+
 pub struct RecoveryTemplate {
     inner: core::RecoveryTemplate,
 }
@@ -67,13 +117,13 @@ impl Deref for RecoveryTemplate {
 }
 
 impl RecoveryTemplate {
-    pub fn new(threshold: u64, keys: Vec<Arc<Descriptor>>, after: Arc<AbsoluteLockTime>) -> Self {
+    pub fn new(threshold: u64, keys: Vec<Arc<Descriptor>>, locktime: Arc<Locktime>) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
         Self {
-            inner: core::RecoveryTemplate::new(threshold as usize, keys, Locktime::After(**after)),
+            inner: core::RecoveryTemplate::new(threshold as usize, keys, **locktime),
         }
     }
 }
@@ -115,11 +165,26 @@ impl PolicyTemplate {
         }
     }
 
-    pub fn hold(my_key: Arc<Descriptor>, after: Arc<AbsoluteLockTime>) -> Self {
+    pub fn hold(my_key: Arc<Descriptor>, locktime: Arc<Locktime>) -> Self {
         Self {
-            inner: core::PolicyTemplate::hold(
-                my_key.as_ref().deref().clone(),
-                Locktime::After(**after),
+            inner: core::PolicyTemplate::hold(my_key.as_ref().deref().clone(), **locktime),
+        }
+    }
+
+    pub fn decaying(
+        start_threshold: u64,
+        keys: Vec<Arc<Descriptor>>,
+        time: Arc<DecayingTime>,
+    ) -> Self {
+        let keys: Vec<DescriptorPublicKey> = keys
+            .into_iter()
+            .map(|k| k.as_ref().deref().clone())
+            .collect();
+        Self {
+            inner: core::PolicyTemplate::decaying(
+                start_threshold as usize,
+                keys,
+                time.as_ref().deref().clone(),
             ),
         }
     }

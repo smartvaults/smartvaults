@@ -357,8 +357,22 @@ interface AbsoluteLockTime {
     constructor(u32 timestamp);
 };
 
+interface Locktime {
+    [Name=absolute]
+    constructor(AbsoluteLockTime absolute);
+    [Name=relative]
+    constructor(RelativeLockTime relative);
+};
+
+interface DecayingTime {
+    [Name=single]
+    constructor(Locktime locktime);
+    [Name=multiple]
+    constructor(sequence<Locktime> locktimes);
+};
+
 interface RecoveryTemplate {
-    constructor(u64 threshold, sequence<Descriptor> keys, AbsoluteLockTime after);
+    constructor(u64 threshold, sequence<Descriptor> keys, Locktime locktime);
 };
 
 enum PolicyTemplateType {
@@ -374,7 +388,9 @@ interface PolicyTemplate {
     [Name=recovery]
     constructor(Descriptor my_key, RecoveryTemplate recovery);
     [Name=hold]
-    constructor(Descriptor my_key, AbsoluteLockTime older);
+    constructor(Descriptor my_key, Locktime locktime);
+    [Name=decaying]
+    constructor(u64 start_threshold, sequence<Descriptor> keys, DecayingTime time);
 };
 
 interface Amount {

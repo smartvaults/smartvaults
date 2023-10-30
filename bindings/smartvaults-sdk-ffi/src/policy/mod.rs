@@ -12,7 +12,9 @@ use smartvaults_sdk::types;
 
 mod template;
 
-pub use self::template::{AbsoluteLockTime, PolicyTemplate, RecoveryTemplate, RelativeLockTime};
+pub use self::template::{
+    AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, RecoveryTemplate, RelativeLockTime,
+};
 use crate::error::Result;
 use crate::{Balance, Network, Signer};
 
