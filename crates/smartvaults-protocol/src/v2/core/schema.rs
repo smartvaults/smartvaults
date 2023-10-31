@@ -11,12 +11,9 @@ pub enum Error {
     /// Unknown version
     #[error("unknown version: {0}")]
     UnknownVersion(u8),
-    /// Version not found
-    #[error("version not found")]
-    VersionNotFound,
-    /// Data not found
-    #[error("data not found")]
-    DataNotFound,
+    /// Wrong schema
+    #[error("wrong schema")]
+    WrongSchema,
 }
 
 pub type SchemaVersion = Version;
@@ -65,13 +62,12 @@ where
 }
 
 pub fn decode(payload: &[u8]) -> Result<Schema<'_>, Error> {
-    // Get version byte
-    let version: u8 = *payload.first().ok_or(Error::VersionNotFound)?;
-    let version: Version = Version::try_from(version)?;
-
-    // Get data
-    let data: &[u8] = payload.get(1..).ok_or(Error::DataNotFound)?;
-
-    // Compose schema
-    Ok(Schema { version, data })
+    if let Some((&version, data)) = payload.split_first() {
+        Ok(Schema {
+            version: Version::try_from(version)?,
+            data,
+        })
+    } else {
+        Err(Error::WrongSchema)
+    }
 }

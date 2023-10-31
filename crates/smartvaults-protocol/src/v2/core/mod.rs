@@ -41,9 +41,8 @@ pub trait ProtocolEncoding: Sized {
 pub trait ProtocolEncryption: ProtocolEncoding
 where
     <Self as ProtocolEncoding>::Err: From<schema::Error>,
-    <Self as ProtocolEncryption>::Err: From<<Self as ProtocolEncoding>::Err>,
-    <Self as ProtocolEncryption>::Err: From<CryptoError>,
-    <Self as ProtocolEncryption>::Err: From<nostr::key::Error>,
+    <Self as ProtocolEncryption>::Err:
+        From<<Self as ProtocolEncoding>::Err> + From<CryptoError> + From<nostr::key::Error>,
 {
     type Err;
 

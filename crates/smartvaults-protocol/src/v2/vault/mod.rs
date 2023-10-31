@@ -73,8 +73,8 @@ impl Vault {
         self.policy.clone()
     }
 
-    pub fn shared_key(&self) -> SecretKey {
-        self.shared_key
+    pub fn shared_key(&self) -> &SecretKey {
+        &self.shared_key
     }
 }
 
