@@ -16,11 +16,11 @@ pub trait ProtocolEncoding: Sized {
 
     /// Encode
     fn encode(&self) -> Vec<u8> {
-        let (version, buf): (SchemaVersion, Vec<u8>) = self.encode_pre_schema();
+        let (version, buf): (SchemaVersion, Vec<u8>) = self.pre_encoding();
         schema::encode(buf, version)
     }
 
-    fn encode_pre_schema(&self) -> (SchemaVersion, Vec<u8>);
+    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>);
 
     /// Decode `payload`
     fn decode<T>(payload: T) -> Result<Self, Self::Err>
@@ -30,12 +30,12 @@ pub trait ProtocolEncoding: Sized {
     {
         let Schema { version, data } = schema::decode(payload.as_ref())?;
         match version {
-            SchemaVersion::ProtoBuf => Self::decode_proto(data),
+            SchemaVersion::ProtoBuf => Self::decode_protobuf(data),
         }
     }
 
     /// Decode protobuf data
-    fn decode_proto(data: &[u8]) -> Result<Self, Self::Err>;
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err>;
 }
 
 pub trait ProtocolEncryption: ProtocolEncoding

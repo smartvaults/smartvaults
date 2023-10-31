@@ -122,16 +122,9 @@ impl From<&Vault> for ProtoVault {
     }
 }
 
-impl ProtocolEncoding for Vault {
-    type Err = Error;
-
-    fn encode_pre_schema(&self) -> (SchemaVersion, Vec<u8>) {
-        let vault: ProtoVault = self.into();
-        (SchemaVersion::ProtoBuf, vault.encode_to_vec())
-    }
-
-    fn decode_proto(data: &[u8]) -> Result<Self, Self::Err> {
-        let vault: ProtoVault = ProtoVault::decode(data)?;
+impl TryFrom<ProtoVault> for Vault {
+    type Error = Error;
+    fn try_from(vault: ProtoVault) -> Result<Self, Self::Error> {
         match vault.object {
             Some(obj) => match obj {
                 ProtoVaultObject::V1(v) => {
@@ -148,6 +141,20 @@ impl ProtocolEncoding for Vault {
             },
             None => Err(Error::NotFound(String::from("protobuf vault obj"))),
         }
+    }
+}
+
+impl ProtocolEncoding for Vault {
+    type Err = Error;
+
+    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+        let vault: ProtoVault = self.into();
+        (SchemaVersion::ProtoBuf, vault.encode_to_vec())
+    }
+
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoVault = ProtoVault::decode(data)?;
+        Self::try_from(vault)
     }
 }
 
