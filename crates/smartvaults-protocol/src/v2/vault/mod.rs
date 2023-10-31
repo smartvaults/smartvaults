@@ -4,29 +4,27 @@
 use core::ops::Deref;
 use core::str::FromStr;
 
-use nostr::{Event, EventBuilder, Keys, Tag};
+use nostr::{Event, EventBuilder, Keys};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::{self, Descriptor};
 use smartvaults_core::policy::{self, Policy};
+use smartvaults_core::secp256k1::{self, SecretKey, XOnlyPublicKey};
 use smartvaults_core::PolicyTemplate;
 use thiserror::Error;
 
 pub mod metadata;
-mod proto;
 
 pub use self::metadata::VaultMetadata;
-use self::proto::vault::Object as ProtoObject;
-use self::proto::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
 use super::constants::VAULT_KIND_V2;
-use super::core::{
-    schema, CryptoError, ProtocolEncoding, ProtocolEncryption, Schema, SchemaError, SchemaVersion,
-};
+use super::core::{CryptoError, ProtocolEncoding, ProtocolEncryption, SchemaError, SchemaVersion};
 use super::network::{self, NetworkMagic};
-use super::SharedKey;
+use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
+    Secp256k1(#[from] secp256k1::Error),
     #[error(transparent)]
     Policy(#[from] policy::Error),
     #[error(transparent)]
@@ -45,8 +43,6 @@ pub enum Error {
     EventBuilder(#[from] nostr::event::builder::Error),
     #[error("{0} not found")]
     NotFound(String),
-    #[error("network not match: expected={expected}, found={found}")]
-    NetworkNotMatch { expected: Network, found: Network },
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -55,10 +51,11 @@ pub enum Version {
     V1 = 0x01,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vault {
     version: Version,
     policy: Policy,
+    shared_key: SecretKey,
 }
 
 impl Deref for Vault {
@@ -70,36 +67,33 @@ impl Deref for Vault {
 }
 
 impl Vault {
-    pub fn new<S, P>(
-        _name: S,
-        _description: S,
-        descriptor: P,
+    pub fn new<S>(
+        descriptor: S,
         network: Network,
+        shared_key: SecretKey,
     ) -> Result<Self, policy::Error>
     where
         S: Into<String>,
-        P: Into<String>,
     {
-        let policy: Policy = Policy::from_desc_or_miniscript(descriptor, network)?;
         Ok(Self {
             version: Version::default(),
-            policy,
+            policy: Policy::from_desc_or_miniscript(descriptor, network)?,
+            shared_key,
         })
     }
 
     pub fn from_template<S>(
-        _name: S,
-        _description: S,
         template: PolicyTemplate,
         network: Network,
+        shared_key: SecretKey,
     ) -> Result<Self, policy::Error>
     where
         S: Into<String>,
     {
-        let policy: Policy = Policy::from_template(template, network)?;
         Ok(Self {
             version: Version::default(),
-            policy,
+            policy: Policy::from_template(template, network)?,
+            shared_key,
         })
     }
 
@@ -110,46 +104,50 @@ impl Vault {
     pub fn policy(&self) -> Policy {
         self.policy.clone()
     }
+
+    pub fn shared_key(&self) -> SecretKey {
+        self.shared_key
+    }
+}
+
+impl From<&Vault> for ProtoVault {
+    fn from(vault: &Vault) -> Self {
+        ProtoVault {
+            object: Some(ProtoVaultObject::V1(ProtoVaultV1 {
+                descriptor: vault.as_descriptor().to_string(),
+                network: vault.network().magic().to_bytes().to_vec(),
+                shared_key: vault.shared_key.secret_bytes().to_vec(),
+            })),
+        }
+    }
 }
 
 impl ProtocolEncoding for Vault {
     type Err = Error;
 
-    fn decode<T>(payload: T) -> Result<Self, Self::Err>
-    where
-        T: AsRef<[u8]>,
-    {
-        let Schema { version, data } = schema::decode(payload.as_ref())?;
-        match version {
-            SchemaVersion::ProtoBuf => {
-                let vault: ProtoVault = ProtoVault::decode(data)?;
-                match vault.object {
-                    Some(obj) => match obj {
-                        ProtoObject::V1(v) => {
-                            let descriptor: Descriptor<String> =
-                                Descriptor::from_str(&v.descriptor)?;
-                            let network: NetworkMagic = NetworkMagic::from_slice(&v.network)?;
-                            Ok(Self {
-                                version: Version::V1,
-                                policy: Policy::new(descriptor, *network)?,
-                            })
-                        }
-                    },
-                    None => Err(Error::NotFound(String::from("protobuf vault obj"))),
-                }
-            }
-        }
+    fn encode_pre_schema(&self) -> (SchemaVersion, Vec<u8>) {
+        let vault: ProtoVault = self.into();
+        (SchemaVersion::ProtoBuf, vault.encode_to_vec())
     }
 
-    fn encode(&self) -> Vec<u8> {
-        let vault: ProtoVault = ProtoVault {
-            object: Some(ProtoObject::V1(ProtoVaultV1 {
-                descriptor: self.as_descriptor().to_string(),
-                network: self.network().magic().to_bytes().to_vec(),
-            })),
-        };
-        let buf: Vec<u8> = vault.encode_to_vec();
-        schema::encode(buf, SchemaVersion::ProtoBuf)
+    fn decode_proto(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoVault = ProtoVault::decode(data)?;
+        match vault.object {
+            Some(obj) => match obj {
+                ProtoVaultObject::V1(v) => {
+                    let descriptor: Descriptor<String> = Descriptor::from_str(&v.descriptor)?;
+                    let network: NetworkMagic = NetworkMagic::from_slice(&v.network)?;
+                    let shared_key: SecretKey = SecretKey::from_slice(&v.shared_key)?;
+
+                    Ok(Self {
+                        version: Version::V1,
+                        policy: Policy::new(descriptor, *network)?,
+                        shared_key,
+                    })
+                }
+            },
+            None => Err(Error::NotFound(String::from("protobuf vault obj"))),
+        }
     }
 }
 
@@ -157,23 +155,23 @@ impl ProtocolEncryption for Vault {
     type Err = Error;
 }
 
-pub fn build_event(vault: &Vault, shared_key: &SharedKey) -> Result<Event, Error> {
-    if vault.network() != shared_key.network() {
-        return Err(Error::NetworkNotMatch {
-            expected: vault.network(),
-            found: shared_key.network(),
-        });
-    }
+/// Build [`Vault`] invitation [`Event`]
+pub fn build_invitation_event(vault: &Vault, _receiver: XOnlyPublicKey) -> Result<Event, Error> {
+    // Encrypt
+    let keys = Keys::generate();
+    let _encrypted_content: String = vault.encrypt_with_keys(&keys)?;
 
-    // Encrypt Shared Key
-    let keys: Keys = Keys::new(shared_key.secret_key());
-    let encrypted_content: String = vault.encrypt_with_keys(&keys)?;
+    //Ok(EventBuilder::new(kind, encrypted_content, &[Tag::PubKey(receiver, None)]).to_event(&keys)?)
+    todo!()
+}
+
+/// Build [`Vault`] event
+///
+/// Must use **own** [`Keys`] (not random or shared key)!
+pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {
+    // Encrypt
+    let encrypted_content: String = vault.encrypt_with_keys(keys)?;
 
     // Compose and build event
-    Ok(EventBuilder::new(
-        VAULT_KIND_V2,
-        encrypted_content,
-        &[Tag::Identifier("TODO".into())], // TODO: tags and identifier
-    )
-    .to_event(&keys)?)
+    Ok(EventBuilder::new(VAULT_KIND_V2, encrypted_content, &[]).to_event(keys)?)
 }

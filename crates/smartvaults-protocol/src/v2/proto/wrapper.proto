@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package wrapper;
+
+import "vault.proto";
+
+message Wrapper {
+  oneof object {
+    vault.Vault vault = 1;
+  }
+}

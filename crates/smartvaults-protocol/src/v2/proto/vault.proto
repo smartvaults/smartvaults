@@ -2,11 +2,6 @@ syntax = "proto3";
 
 package vault;
 
-message VaultMetadata {
-  string name = 1;
-  string description = 2;
-}
-
 message Vault {
   oneof object {
     VaultV1 v1 = 1;
@@ -16,4 +11,10 @@ message Vault {
 message VaultV1 {
   string descriptor = 1;
   bytes network = 2;
+  bytes shared_key = 3;
+}
+
+message VaultMetadata {
+  string name = 1;
+  string description = 2;
 }

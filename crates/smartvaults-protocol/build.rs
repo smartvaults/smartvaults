@@ -3,8 +3,8 @@
 
 fn main() {
     prost_build::compile_protos(
-        &["src/v2/proto/vault.proto", "src/v2/proto/shared_key.proto"],
-        &["src/"],
+        &["src/v2/proto/vault.proto", "src/v2/proto/wrapper.proto"],
+        &["src/v2/proto"],
     )
     .unwrap();
 }

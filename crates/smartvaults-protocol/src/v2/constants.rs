@@ -3,8 +3,10 @@
 
 use nostr::Kind;
 
-// Kinds
-pub const SHARED_KEY_KIND_V2: Kind = Kind::Custom(8288);
+/// Wrapper Kind (used for vault invitation, approvals, shared signers, ...)
+pub const WRAPPER_KIND: Kind = Kind::Custom(8288);
+
+/// Vault kind
 pub const VAULT_KIND_V2: Kind = Kind::Custom(8289);
 
 /// Vault Metadata Kind
