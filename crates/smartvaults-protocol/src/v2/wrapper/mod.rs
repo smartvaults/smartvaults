@@ -2,30 +2,10 @@
 // Distributed under the MIT software license
 
 use prost::Message;
-use thiserror::Error;
 
-use super::core::{CryptoError, SchemaError, SchemaVersion};
+use super::core::SchemaVersion;
 use super::proto::wrapper::{ProtoWrapper, ProtoWrapperObject};
-use super::vault::Error as VaultError;
-use super::{ProtocolEncoding, ProtocolEncryption, Vault};
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(transparent)]
-    Crypto(#[from] CryptoError),
-    #[error(transparent)]
-    Schema(#[from] SchemaError),
-    #[error(transparent)]
-    Proto(#[from] prost::DecodeError),
-    #[error(transparent)]
-    Keys(#[from] nostr::key::Error),
-    #[error(transparent)]
-    EventBuilder(#[from] nostr::event::builder::Error),
-    #[error(transparent)]
-    Vault(#[from] VaultError),
-    #[error("{0} not found")]
-    NotFound(String),
-}
+use super::{Error, ProtocolEncoding, ProtocolEncryption, Vault};
 
 pub enum Wrapper {
     VaultInvite { vault: Vault },

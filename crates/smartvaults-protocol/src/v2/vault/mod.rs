@@ -7,44 +7,18 @@ use core::str::FromStr;
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::miniscript::{self, Descriptor};
-use smartvaults_core::policy::{self, Policy};
-use smartvaults_core::secp256k1::{self, SecretKey, XOnlyPublicKey};
+use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::policy::Policy;
+use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::PolicyTemplate;
-use thiserror::Error;
 
 pub mod metadata;
 
 pub use self::metadata::VaultMetadata;
 use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
-use super::core::{CryptoError, ProtocolEncoding, ProtocolEncryption, SchemaError, SchemaVersion};
-use super::network::{self, NetworkMagic};
+use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
-use super::wrapper::Wrapper;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error(transparent)]
-    Secp256k1(#[from] secp256k1::Error),
-    #[error(transparent)]
-    Policy(#[from] policy::Error),
-    #[error(transparent)]
-    Network(#[from] network::Error),
-    #[error(transparent)]
-    Miniscript(#[from] miniscript::Error),
-    #[error(transparent)]
-    Crypto(#[from] CryptoError),
-    #[error(transparent)]
-    Schema(#[from] SchemaError),
-    #[error(transparent)]
-    Proto(#[from] prost::DecodeError),
-    #[error(transparent)]
-    Keys(#[from] nostr::key::Error),
-    #[error(transparent)]
-    EventBuilder(#[from] nostr::event::builder::Error),
-    #[error("{0} not found")]
-    NotFound(String),
-}
+use super::{Error, NetworkMagic, Wrapper};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Version {
@@ -168,7 +142,7 @@ pub fn build_invitation_event(vault: &Vault, receiver: XOnlyPublicKey) -> Result
 
     // Encrypt
     let keys = Keys::generate();
-    let encrypted_content: String = wrapper.encrypt_with_keys(&keys).unwrap();
+    let encrypted_content: String = wrapper.encrypt_with_keys(&keys)?;
 
     // Compose and sign event
     Ok(EventBuilder::new(
