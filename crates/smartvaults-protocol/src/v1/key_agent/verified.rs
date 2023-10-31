@@ -1,10 +1,10 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::str::FromStr;
 
-use nostr::{Event, EventBuilder, Keys};
+use nostr::{Event, EventBuilder, Keys, Timestamp};
 use serde::{Deserialize, Serialize};
 use smartvaults_core::bitcoin::network::constants::{ParseMagicError, UnknownMagic};
 use smartvaults_core::bitcoin::network::Magic;
@@ -25,6 +25,8 @@ pub enum Error {
     Network(#[from] UnknownMagic),
     #[error("event builder: {0}")]
     EventBuilder(#[from] builder::Error),
+    #[error("JSON: {0}")]
+    JSON(#[from] serde_json::Error),
     #[error("wrong kind")]
     WrongKind,
     #[error("event not authored by SmartVaults")]
@@ -33,14 +35,24 @@ pub enum Error {
     IdentifierNotFound,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VerifiedKeyAgentData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub approved_at: Option<Timestamp>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifiedKeyAgents {
-    public_keys: HashSet<XOnlyPublicKey>,
+    public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData>,
     network: Network,
 }
 
 impl VerifiedKeyAgents {
-    pub fn new(public_keys: HashSet<XOnlyPublicKey>, network: Network) -> Self {
+    pub fn new(
+        public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData>,
+        network: Network,
+    ) -> Self {
         Self {
             public_keys,
             network,
@@ -48,7 +60,7 @@ impl VerifiedKeyAgents {
     }
 
     pub fn empty(network: Network) -> Self {
-        Self::new(HashSet::new(), network)
+        Self::new(HashMap::new(), network)
     }
 
     pub fn from_event(event: &Event) -> Result<Self, Error> {
@@ -73,13 +85,14 @@ impl VerifiedKeyAgents {
         }
 
         // Get public keys
-        let public_keys: HashSet<XOnlyPublicKey> = event.public_keys().copied().collect();
+        let public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData> =
+            serde_json::from_str(&event.content)?;
 
         // Compose struct
         Ok(Self::new(public_keys, network))
     }
 
-    pub fn public_keys(&self) -> HashSet<XOnlyPublicKey> {
+    pub fn public_keys(&self) -> HashMap<XOnlyPublicKey, VerifiedKeyAgentData> {
         self.public_keys.clone()
     }
 
@@ -89,21 +102,25 @@ impl VerifiedKeyAgents {
 
     /// Check if Key Agent it's verified
     pub fn is_verified(&self, public_key: &XOnlyPublicKey) -> bool {
-        self.public_keys.contains(public_key)
+        self.public_keys.contains_key(public_key)
     }
 
     /// Add new verified key agent
     ///
     /// Return `false` if the pubkey already exists
-    pub fn add_new_public_key(&mut self, public_key: XOnlyPublicKey) -> bool {
-        self.public_keys.insert(public_key)
+    pub fn add_new_public_key(
+        &mut self,
+        public_key: XOnlyPublicKey,
+        data: VerifiedKeyAgentData,
+    ) -> bool {
+        self.public_keys.insert(public_key, data).is_none()
     }
 
     /// Remove verified key agent
     ///
     /// Return `false` if the pubkey NOT exists
     pub fn remove_public_key(&mut self, public_key: &XOnlyPublicKey) -> bool {
-        self.public_keys.remove(public_key)
+        self.public_keys.remove(public_key).is_some()
     }
 
     /// Generate [`Event`]

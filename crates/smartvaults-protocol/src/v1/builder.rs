@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use nostr::nips::nip04;
 use nostr::{Event, EventBuilder, EventId, Keys, Tag};
@@ -15,6 +15,7 @@ use super::constants::{
     SHARED_KEY_KIND,
 };
 use super::key_agent::signer::SignerOffering;
+use super::key_agent::verified::VerifiedKeyAgentData;
 use super::util::{Encryption, EncryptionError};
 use super::{Label, Serde};
 
@@ -113,14 +114,14 @@ pub trait SmartVaultsEventBuilder {
 
     fn key_agents_verified(
         keys: &Keys,
-        public_keys: HashSet<XOnlyPublicKey>,
+        public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData>,
         network: Network,
     ) -> Result<Event, Error> {
         let identifier: String = network.magic().to_string();
+        let content: String = serde_json::json!(public_keys).to_string();
         let mut tags: Vec<Tag> = Vec::with_capacity(1 + public_keys.len());
         tags.push(Tag::Identifier(identifier));
-        tags.extend(public_keys.into_iter().map(|p| Tag::PubKey(p, None)));
-        Ok(EventBuilder::new(KEY_AGENT_VERIFIED, "", &tags).to_event(keys)?)
+        Ok(EventBuilder::new(KEY_AGENT_VERIFIED, content, &tags).to_event(keys)?)
     }
 }
 
