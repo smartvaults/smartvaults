@@ -4,24 +4,43 @@
 use nostr::Keys;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 
-pub(crate) mod crypto;
-pub(crate) mod schema;
+mod crypto;
+mod schema;
 
-pub use self::crypto::{Error as CryptoError, Version as CryptoVersion};
-pub use self::schema::{Error as SchemaError, Schema, SchemaVersion};
+pub use self::crypto::Error as CryptoError;
+use self::schema::Schema;
+pub use self::schema::{Error as SchemaError, SchemaVersion};
 
 pub trait ProtocolEncoding: Sized {
     type Err;
 
+    /// Encode
+    fn encode(&self) -> Vec<u8> {
+        let (version, buf): (SchemaVersion, Vec<u8>) = self.encode_pre_schema();
+        schema::encode(buf, version)
+    }
+
+    fn encode_pre_schema(&self) -> (SchemaVersion, Vec<u8>);
+
+    /// Decode `payload`
     fn decode<T>(payload: T) -> Result<Self, Self::Err>
     where
-        T: AsRef<[u8]>;
+        T: AsRef<[u8]>,
+        <Self as ProtocolEncoding>::Err: From<schema::Error>,
+    {
+        let Schema { version, data } = schema::decode(payload.as_ref())?;
+        match version {
+            SchemaVersion::ProtoBuf => Self::decode_proto(data),
+        }
+    }
 
-    fn encode(&self) -> Vec<u8>;
+    /// Decode protobuf data
+    fn decode_proto(data: &[u8]) -> Result<Self, Self::Err>;
 }
 
 pub trait ProtocolEncryption: ProtocolEncoding
 where
+    <Self as ProtocolEncoding>::Err: From<schema::Error>,
     <Self as ProtocolEncryption>::Err: From<<Self as ProtocolEncoding>::Err>,
     <Self as ProtocolEncryption>::Err: From<CryptoError>,
     <Self as ProtocolEncryption>::Err: From<nostr::key::Error>,
@@ -50,7 +69,7 @@ where
             secret_key,
             public_key,
             buf,
-            crypto::Version::XChaCha20Poly1305,
+            crypto::Version::default(),
         )?)
     }
 
