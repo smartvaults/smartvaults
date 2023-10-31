@@ -21,11 +21,12 @@ pub enum Error {
 
 pub type SchemaVersion = Version;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum Version {
     /// Protocol Buffers
-    ProtoBuf = 0x00,
+    #[default]
+    ProtoBuf = 0x01,
 }
 
 impl Version {
@@ -40,7 +41,7 @@ impl TryFrom<u8> for Version {
 
     fn try_from(version: u8) -> Result<Self, Self::Error> {
         match version {
-            0x00 => Ok(Self::ProtoBuf),
+            0x01 => Ok(Self::ProtoBuf),
             v => Err(Error::UnknownVersion(v)),
         }
     }

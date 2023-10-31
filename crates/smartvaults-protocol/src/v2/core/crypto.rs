@@ -37,11 +37,12 @@ pub enum Error {
 }
 
 /// Payload version
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum Version {
     /// XChaCha20Poly1305
-    XChaCha20Poly1305 = 0x00,
+    #[default]
+    XChaCha20Poly1305 = 0x01,
 }
 
 impl Version {
@@ -56,7 +57,7 @@ impl TryFrom<u8> for Version {
 
     fn try_from(version: u8) -> Result<Self, Self::Error> {
         match version {
-            0x00 => Ok(Self::XChaCha20Poly1305),
+            0x01 => Ok(Self::XChaCha20Poly1305),
             v => Err(Error::UnknownVersion(v)),
         }
     }
