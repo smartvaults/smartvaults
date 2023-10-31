@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use core::time::Duration;
+
 use nostr::Kind;
 
 /// Wrapper Kind (used for vault invitation, approvals, shared signers, ...)
@@ -14,3 +16,6 @@ pub const VAULT_METADATA_KIND_V2: Kind = Kind::ParameterizedReplaceable(38289);
 
 /// Used both for pending and completed proposals
 pub const PROPOSAL_KIND_V2: Kind = Kind::ParameterizedReplaceable(39290);
+
+/// Wrapper event expiration
+pub const WRAPPER_EXIPRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7); // 7 days

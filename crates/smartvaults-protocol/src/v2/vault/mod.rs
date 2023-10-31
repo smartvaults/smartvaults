@@ -4,7 +4,7 @@
 use core::ops::Deref;
 use core::str::FromStr;
 
-use nostr::{Event, EventBuilder, Keys};
+use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::{self, Descriptor};
@@ -16,10 +16,11 @@ use thiserror::Error;
 pub mod metadata;
 
 pub use self::metadata::VaultMetadata;
-use super::constants::VAULT_KIND_V2;
+use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
 use super::core::{CryptoError, ProtocolEncoding, ProtocolEncryption, SchemaError, SchemaVersion};
 use super::network::{self, NetworkMagic};
 use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
+use super::wrapper::Wrapper;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -67,11 +68,7 @@ impl Deref for Vault {
 }
 
 impl Vault {
-    pub fn new<S>(
-        descriptor: S,
-        network: Network,
-        shared_key: SecretKey,
-    ) -> Result<Self, policy::Error>
+    pub fn new<S>(descriptor: S, network: Network, shared_key: SecretKey) -> Result<Self, Error>
     where
         S: Into<String>,
     {
@@ -86,7 +83,7 @@ impl Vault {
         template: PolicyTemplate,
         network: Network,
         shared_key: SecretKey,
-    ) -> Result<Self, policy::Error>
+    ) -> Result<Self, Error>
     where
         S: Into<String>,
     {
@@ -163,16 +160,29 @@ impl ProtocolEncryption for Vault {
 }
 
 /// Build [`Vault`] invitation [`Event`]
-pub fn build_invitation_event(vault: &Vault, _receiver: XOnlyPublicKey) -> Result<Event, Error> {
+pub fn build_invitation_event(vault: &Vault, receiver: XOnlyPublicKey) -> Result<Event, Error> {
+    // Compose wrapper
+    let wrapper: Wrapper = Wrapper::VaultInvite {
+        vault: vault.clone(),
+    };
+
     // Encrypt
     let keys = Keys::generate();
-    let _encrypted_content: String = vault.encrypt_with_keys(&keys)?;
+    let encrypted_content: String = wrapper.encrypt_with_keys(&keys).unwrap();
 
-    //Ok(EventBuilder::new(kind, encrypted_content, &[Tag::PubKey(receiver, None)]).to_event(&keys)?)
-    todo!()
+    // Compose and sign event
+    Ok(EventBuilder::new(
+        WRAPPER_KIND,
+        encrypted_content,
+        &[
+            Tag::PubKey(receiver, None),
+            Tag::Expiration(Timestamp::now() + WRAPPER_EXIPRATION),
+        ],
+    )
+    .to_event(&keys)?)
 }
 
-/// Build [`Vault`] event
+/// Build [`Vault`] event (used to accept an invitation)
 ///
 /// Must use **own** [`Keys`] (not random or shared key)!
 pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {
