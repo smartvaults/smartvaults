@@ -53,14 +53,11 @@ impl Vault {
         })
     }
 
-    pub fn from_template<S>(
+    pub fn from_template(
         template: PolicyTemplate,
         network: Network,
         shared_key: SecretKey,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<Self, Error> {
         Ok(Self {
             version: Version::default(),
             policy: Policy::from_template(template, network)?,
@@ -165,4 +162,40 @@ pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {
 
     // Compose and build event
     Ok(EventBuilder::new(VAULT_KIND_V2, encrypted_content, &[]).to_event(keys)?)
+}
+
+#[cfg(bench)]
+mod benches {
+    use test::{black_box, Bencher};
+
+    use super::*;
+
+    const NETWORK: Network = Network::Testnet;
+    const SECRET_KEY: &str = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
+
+    #[bench]
+    pub fn encrypt_vault(bh: &mut Bencher) {
+        let desc = "tr(c0e6675756101c53287237945c4ed0fbb780b20c5ca6e36b4178ac89075f629c,multi_a(2,[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))#ccsgt5j5";
+        let shared_key = Keys::generate();
+        let vault = Vault::new(desc, NETWORK, shared_key.secret_key().unwrap()).unwrap();
+
+        let secret_key = SecretKey::from_str(SECRET_KEY).unwrap();
+        let keys = Keys::new(secret_key);
+
+        bh.iter(|| {
+            black_box(vault.encrypt_with_keys(&keys)).unwrap();
+        });
+    }
+
+    #[bench]
+    pub fn decrypt_vault(bh: &mut Bencher) {
+        let encrypted_vault = "AfJFkHTpOdA7RR6qfam/Pj6p37hqz0h0FtIZqV96LvkMsHeZUFIG7d154QDyQUdelV/C6n4kupJwElqTiJD9JXiLZixlrGHJrswwxAYRjTBqtT5pQAay3f2jwNO6/MeYYA7q0mDh2FpXc/7II9CI0wKoVZWg3aZz+D3F6RkCPwMChlSjq616BlyBxHVQPo2X4PgCQPuGwBUyr+ED999wFQl5i6389BW1n5A+DIimbLPegW4dAeZPqASZWc/mbOgZwif8MN0NQjoy3ExTuGY9cxDRq47eKrJnrvxe/xIgePiWI8FsAVnxf43p9jaRthXpS/bLDyjcXTGTd+Jv8f2/xmANsCIHS0hEy9QZFUml1vsMUyo3hKPxhgubMsmMm0f/HYOdO8H/QYHYvKv9bBnGK8F7fn5oQcIiEA4A5sDc9e9ZJM4BjA+rxypF0boE8PGR68MSkFSMuTwgd3lNnfNeKv6IdtA9RaRKloP1c2f+nREclpXEh4HL31hM+VngWou9zoWSaDpOnwT9r+bnz1zi7/rLsn60CswfK5OSnOvSa+ssr16QSAPyV8zfotV7HR9yvHH8qXtykjqkkM+ImYasT6JUWTyPYrf4EG0=";
+
+        let secret_key = SecretKey::from_str(SECRET_KEY).unwrap();
+        let keys = Keys::new(secret_key);
+
+        bh.iter(|| {
+            black_box(Vault::decrypt_with_keys(&keys, encrypted_vault)).unwrap();
+        });
+    }
 }

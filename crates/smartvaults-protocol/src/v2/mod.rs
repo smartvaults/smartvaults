@@ -1,6 +1,10 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+//! Smart Vaults Protocol V2
+
+#![allow(missing_docs)] // TODO: to remove
+
 pub mod constants;
 mod core;
 mod error;

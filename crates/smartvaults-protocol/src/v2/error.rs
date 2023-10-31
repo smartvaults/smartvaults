@@ -1,12 +1,16 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+//! Error
+
 use smartvaults_core::{miniscript, policy, secp256k1};
 use thiserror::Error;
 
 use super::core::{CryptoError, SchemaError};
 use super::network;
 
+/// Protocol V2 Error
+#[allow(missing_docs)]
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]

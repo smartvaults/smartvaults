@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+//! Network
+
 use core::ops::Deref;
 
 use smartvaults_core::bitcoin::network::constants::UnknownMagic;

@@ -38,6 +38,9 @@ check-crates:
 check-docs:
 	@bash contrib/scripts/check-docs.sh
 
+bench:
+	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-protocol
+
 clean:
 	cargo clean
 

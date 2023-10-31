@@ -1,6 +1,10 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+//! Smart Vaults Protocol V1
+
+#![allow(missing_docs)]
+
 pub mod builder;
 pub mod constants;
 pub mod key_agent;
