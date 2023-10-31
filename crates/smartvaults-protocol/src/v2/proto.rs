@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+#![allow(clippy::module_inception)]
+
 pub mod vault {
     include!(concat!(env!("OUT_DIR"), "/vault.rs"));
 
