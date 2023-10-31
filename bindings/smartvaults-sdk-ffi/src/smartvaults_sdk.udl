@@ -271,8 +271,13 @@ interface KeychainSeed {
 [Enum]
 interface PolicyPath {
     Single(PolicyPathSelector pp);
-    Multiple(record<Signer, PolicyPathSelector?> map);
+    Multiple(sequence<PolicyPathSigner> list);
     None();
+};
+
+dictionary PolicyPathSigner {
+    Signer signer;
+    PolicyPathSelector? policy_path;
 };
 
 [Enum]
