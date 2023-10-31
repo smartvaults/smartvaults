@@ -11,7 +11,9 @@ pub use self::crypto::Error as CryptoError;
 use self::schema::Schema;
 pub use self::schema::{Error as SchemaError, SchemaVersion};
 
+/// Protocol encoding/decoding
 pub trait ProtocolEncoding: Sized {
+    /// Error
     type Err;
 
     /// Encode
@@ -20,6 +22,7 @@ pub trait ProtocolEncoding: Sized {
         schema::encode(buf, version)
     }
 
+    /// Pre-encoding (not include the schema version)
     fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>);
 
     /// Decode `payload`
@@ -38,14 +41,17 @@ pub trait ProtocolEncoding: Sized {
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err>;
 }
 
+/// Protocol encryption
 pub trait ProtocolEncryption: ProtocolEncoding
 where
     <Self as ProtocolEncoding>::Err: From<schema::Error>,
     <Self as ProtocolEncryption>::Err:
         From<<Self as ProtocolEncoding>::Err> + From<CryptoError> + From<nostr::key::Error>,
 {
+    /// Error
     type Err;
 
+    /// Decrypt
     fn decrypt<T>(
         secret_key: &SecretKey,
         public_key: &XOnlyPublicKey,
@@ -58,6 +64,7 @@ where
         Ok(Self::decode(payload)?)
     }
 
+    /// Encrypt
     fn encrypt(
         &self,
         secret_key: &SecretKey,
@@ -72,6 +79,7 @@ where
         )?)
     }
 
+    /// Decrypt with [`Keys`] (for self-decryption)
     fn decrypt_with_keys<T>(
         keys: &Keys,
         payload: T,
@@ -82,6 +90,7 @@ where
         Self::decrypt(&keys.secret_key()?, &keys.public_key(), payload)
     }
 
+    /// Encrypt with [`Keys`] (for self-encryption)
     fn encrypt_with_keys(&self, keys: &Keys) -> Result<String, <Self as ProtocolEncryption>::Err> {
         self.encrypt(&keys.secret_key()?, &keys.public_key())
     }

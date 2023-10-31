@@ -3,8 +3,6 @@
 
 //! Smart Vaults Protocol V2
 
-#![allow(missing_docs)] // TODO: to remove
-
 pub mod constants;
 mod core;
 mod error;

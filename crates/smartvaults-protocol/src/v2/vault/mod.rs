@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+//! Vault v2
+
 use core::ops::Deref;
 use core::str::FromStr;
 
@@ -20,12 +22,15 @@ use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
 use super::{Error, NetworkMagic, Wrapper};
 
+/// vault version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Version {
+    /// V1
     #[default]
     V1 = 0x01,
 }
 
+/// Vault
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vault {
     version: Version,
@@ -42,6 +47,7 @@ impl Deref for Vault {
 }
 
 impl Vault {
+    /// Construct from descriptor or uncompiled policy
     pub fn new<S>(descriptor: S, network: Network, shared_key: SecretKey) -> Result<Self, Error>
     where
         S: Into<String>,
@@ -53,6 +59,7 @@ impl Vault {
         })
     }
 
+    /// Construct from [`PolicyTemplate`]
     pub fn from_template(
         template: PolicyTemplate,
         network: Network,
@@ -65,14 +72,17 @@ impl Vault {
         })
     }
 
+    /// Get [`Version`]
     pub fn version(&self) -> Version {
         self.version
     }
 
+    /// Get [`Policy`]
     pub fn policy(&self) -> Policy {
         self.policy.clone()
     }
 
+    /// Get reference of [`SecretKey`]
     pub fn shared_key(&self) -> &SecretKey {
         &self.shared_key
     }

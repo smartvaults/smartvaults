@@ -18,6 +18,7 @@ pub enum Error {
     Magic(#[from] UnknownMagic),
 }
 
+/// Network magic
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NetworkMagic {
     inner: Network,
@@ -38,10 +39,12 @@ impl Deref for NetworkMagic {
 }
 
 impl NetworkMagic {
+    /// Construct from [`Network`]
     pub fn new(network: Network) -> Self {
         Self::from(network)
     }
 
+    /// Construct from bytes
     pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
         let magic: Magic = consensus::deserialize(slice)?;
         Ok(Self {

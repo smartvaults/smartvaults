@@ -1,14 +1,21 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+//! Wrapper
+
 use prost::Message;
 
 use super::core::SchemaVersion;
 use super::proto::wrapper::{ProtoWrapper, ProtoWrapperObject};
 use super::{Error, ProtocolEncoding, ProtocolEncryption, Vault};
 
+/// Smart Vaults Wrapper
 pub enum Wrapper {
-    VaultInvite { vault: Vault },
+    /// Vault invite
+    VaultInvite {
+        /// Vault
+        vault: Vault,
+    },
 }
 
 impl ProtocolEncoding for Wrapper {
