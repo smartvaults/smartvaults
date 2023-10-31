@@ -7,10 +7,8 @@
 // When a pending proposal it's finalized, replace the it with the completed
 
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::Address;
+use smartvaults_core::bitcoin::{Address, Network};
 use smartvaults_core::miniscript::Descriptor;
-
-use super::NetworkMagic;
 
 /// Address recipient
 pub struct Recipient {
@@ -20,12 +18,37 @@ pub struct Recipient {
     pub amount: u64,
 }
 
+/// Proposal type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ProposalType {
+    /// Spending
+    Spending,
+    /// Proof of reserve
+    ProofOfReserve,
+}
+
 /// Proposal
 pub struct Proposal {
     /// Status
     pub status: ProposalStatus,
     /// Network
-    pub network: NetworkMagic,
+    pub network: Network,
+}
+
+impl Proposal {
+    /// Get [`ProposalType`]
+    pub fn r#type(&self) -> ProposalType {
+        match &self.status {
+            ProposalStatus::Pending(p) => match p {
+                PendingProposal::Spending { .. } => ProposalType::Spending,
+                PendingProposal::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
+            },
+            ProposalStatus::Completed(p) => match p {
+                CompletedProposal::Spending { .. } => ProposalType::Spending,
+                CompletedProposal::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
+            },
+        }
+    }
 }
 
 /// Proposal status
@@ -49,10 +72,14 @@ pub enum PendingProposal {
         /// PSBT
         psbt: PartiallySignedTransaction,
     },
+    /// Proof of reserve
+    ProofOfReserve {},
 }
 
 /// Completed proposal
 pub enum CompletedProposal {
     /// Spending
     Spending {},
+    /// Proof of reserve
+    ProofOfReserve {},
 }
