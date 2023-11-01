@@ -12,6 +12,8 @@ pub enum FFIError {
     Generic { err: String },
 }
 
+impl std::error::Error for FFIError {}
+
 impl fmt::Display for FFIError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
