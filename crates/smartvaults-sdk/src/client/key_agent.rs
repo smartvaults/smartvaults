@@ -1,10 +1,16 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
-use nostr_sdk::{secp256k1::XOnlyPublicKey, Event, EventBuilder, EventId, Keys};
+use nostr_sdk::secp256k1::XOnlyPublicKey;
+use nostr_sdk::{Event, EventBuilder, EventId, Keys};
+use smartvaults_core::bitcoin::address::NetworkUnchecked;
+use smartvaults_core::bitcoin::{Address, OutPoint};
+use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::{Amount, FeeRate, Proposal};
 use smartvaults_protocol::v1::{SignerOffering, SmartVaultsEventBuilder};
+use smartvaults_sdk_sqlite::model::GetProposal;
 
 use super::{Error, SmartVaults};
 use crate::types::{KeyAgent, User};
@@ -65,5 +71,54 @@ impl SmartVaults {
     ) -> Result<(), Error> {
         self.add_contact(key_agent).await?;
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn key_agent_payment<S>(
+        &self,
+        policy_id: EventId,
+        signer_descriptor: Descriptor<String>,
+        address: Address<NetworkUnchecked>,
+        amount: Amount,
+        description: S,
+        fee_rate: FeeRate,
+        utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+        skip_frozen_utxos: bool,
+    ) -> Result<GetProposal, Error>
+    where
+        S: Into<String>,
+    {
+        let mut prop: GetProposal = self
+            .spend(
+                policy_id,
+                address,
+                amount,
+                description,
+                fee_rate,
+                utxos,
+                policy_path,
+                skip_frozen_utxos,
+            )
+            .await?;
+        if let Proposal::Spending {
+            descriptor,
+            amount,
+            description,
+            psbt,
+            ..
+        } = prop.proposal
+        {
+            prop.proposal = Proposal::KeyAgentPayment {
+                descriptor,
+                signer_descriptor,
+                amount,
+                description,
+                psbt,
+            };
+            Ok(prop)
+        } else {
+            Err(Error::UnexpectedProposal)
+        }
     }
 }
