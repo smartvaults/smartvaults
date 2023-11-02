@@ -10,6 +10,7 @@ license.workspace = true
 [lib]
 name = "smartvaults_sdk_ffi"
 crate-type = ["cdylib", "staticlib"]
+doctest = false
 
 [[bin]]
 name = "uniffi-bindgen"

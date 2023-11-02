@@ -1,0 +1,4 @@
+[Error]
+interface FFIError {
+    Generic(string err);
+};

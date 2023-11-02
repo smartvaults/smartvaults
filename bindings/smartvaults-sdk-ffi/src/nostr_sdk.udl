@@ -1,0 +1,34 @@
+[Error]
+interface NostrSdkError {
+    Generic(string err);
+};
+
+interface RelayConnectionStats {
+    u64 attempts();
+    u64 success();
+    f64 uptime();
+    u64 bytes_sent();
+    u64 bytes_received();
+    duration? latency();
+    Timestamp connected_at();
+};
+
+enum RelayStatus {
+    "Initialized",
+    "Pending",
+    "Connecting",
+    "Connected",
+    "Disconnected",
+    "Stopped",
+    "Terminated",
+};
+
+interface Relay {
+    string url();
+    string? proxy();
+    RelayStatus status();
+    boolean is_connected();
+    RelayInformationDocument document();
+    RelayConnectionStats stats();
+    u64 queue();
+};

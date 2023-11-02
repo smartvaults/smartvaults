@@ -1,0 +1,4 @@
+interface Balance {
+    u64 get_spendable();
+    u64 get_total();
+};

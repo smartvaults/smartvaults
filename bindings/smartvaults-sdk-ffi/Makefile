@@ -28,7 +28,7 @@ clean-android:
 	rm -rf ffi/kotlin
 
 kotlin: clean-android android
-	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/smartvaults_sdk.udl --language kotlin --no-format -o ffi/kotlin
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/common.udl --language kotlin --no-format -o ffi/kotlin
 
 android: aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
@@ -66,13 +66,13 @@ ios-universal: $(SOURCES)
 	lipo -create -output ../../target/ios-universal-sim/release/libsmartvaults_sdk_ffi.a ../../target/aarch64-apple-ios-sim/release/libsmartvaults_sdk_ffi.a ../../target/x86_64-apple-ios/release/libsmartvaults_sdk_ffi.a
 
 swift-ios: ios-universal
-	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/smartvaults_sdk.udl -l swift -o ffi/swift-ios
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/common.udl -l swift -o ffi/swift-ios
 	cp ../../target/ios-universal/release/libsmartvaults_sdk_ffi.a ffi/swift-ios
 	cd ffi/swift-ios && "swiftc" "-emit-module" "-module-name" "smartvaults_sdk_ffi"  "-Xcc" "-fmodule-map-file=$(CURRENT_DIR)/ffi/swift-ios/smartvaults_sdkFFI.modulemap" "-I" "."  "-L" "." "-lsmartvaults_sdk_ffi" smartvaults_sdk.swift
 
 bindings-swift: ios-universal
 	mkdir -p bindings-swift/Sources/SmartVaultsSDK
-	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/smartvaults_sdk.udl --no-format --language swift --out-dir bindings-swift/Sources/SmartVaultsSDK
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/common.udl --no-format --language swift --out-dir bindings-swift/Sources/SmartVaultsSDK
 	mv bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdk.swift bindings-swift/Sources/SmartVaultsSDK/SmartVaultsSDK.swift
 	cp bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdkFFI.h bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64/smartvaults_sdkFFI.framework/Headers
 	cp bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdkFFI.h bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64_x86_64-simulator/smartvaults_sdkFFI.framework/Headers
@@ -85,7 +85,7 @@ python:
 	rm -rf bindings-python/dist
 	#pip install -r bindings-python/requirements.txt
 	cargo build --release
-	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/smartvaults_sdk.udl --language python --no-format -o bindings-python/src/smartvaults-sdk/
+	cargo run --features=uniffi/cli --bin uniffi-bindgen generate src/common.udl --language python --no-format -o bindings-python/src/smartvaults-sdk/
 	cp ../../target/release/libsmartvaults_sdk_ffi.so bindings-python/src/smartvaults-sdk/ | true
 	cp ../../target/release/libsmartvaults_sdk_ffi.dylib bindings-python/src/smartvaults-sdk/ | true
 	cd bindings-python && python setup.py --verbose bdist_wheel

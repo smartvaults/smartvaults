@@ -2,8 +2,8 @@
 // Distributed under the MIT software license
 
 pub use nostr_sdk_ffi::{
-    EventId, Keys, Metadata, NostrConnectURI, PublicKey, Relay, RelayConnectionStats,
-    RelayInformationDocument, SecretKey, Timestamp,
+    EventId, Keys, Metadata, NostrConnectURI, NostrSdkError, PublicKey, Relay,
+    RelayConnectionStats, RelayInformationDocument, SecretKey, Timestamp,
 };
 pub use smartvaults_sdk::core::policy::PolicyTemplateType;
 pub use smartvaults_sdk::core::signer::SignerType;
@@ -79,4 +79,4 @@ pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<Str
 }
 
 // UDL
-uniffi::include_scaffolding!("smartvaults_sdk");
+uniffi::include_scaffolding!("common");

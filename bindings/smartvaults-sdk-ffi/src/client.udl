@@ -1,0 +1,163 @@
+interface SmartVaults {
+    [Throws=FFIError, Name=open]
+    constructor(string base_path, string name, string password, Network network);
+    [Throws=FFIError, Name=generate]
+    constructor(string base_path, string name, string password, string confirm_password, WordCount word_count, string? passphrase, Network network);
+    [Throws=FFIError, Name=restore]
+    constructor(string base_path, string name, string password, string confirm_password, string mnemonic, string? passphrase, Network network);
+
+    string? name();
+    boolean check_password(string password);
+    [Throws=FFIError]
+    void rename(string new_name);
+    [Throws=FFIError]
+    void change_password(string password, string new_password, string confirm_password);
+    [Throws=FFIError]
+    void wipe(string password);
+    void start();
+    [Throws=FFIError]
+    void stop();
+    [Throws=FFIError]
+    void clear_cache();
+
+    [Throws=FFIError]
+    KeychainSeed seed(string password);
+    Keys keys();
+
+    Network network();
+
+    [Throws=FFIError]
+    void add_relay(string url);
+    sequence<Relay> relays();
+    sequence<string> default_relays();
+    [Throws=FFIError]
+    void remove_relay(string url);
+    [Throws=FFIError]
+    void shutdown();
+    Config config();
+    u32 block_height();
+
+    [Throws=FFIError]
+    void set_metadata(Metadata metadata);
+    [Throws=FFIError]
+    User get_profile();
+    [Throws=FFIError]
+    Metadata get_public_key_metadata(PublicKey public_key);
+    [Throws=FFIError]
+    sequence<User> get_contacts();
+    [Throws=FFIError]
+    void add_contact(PublicKey public_key);
+    [Throws=FFIError]
+    void remove_contact(PublicKey public_key);
+
+    [Throws=FFIError]
+    GetPolicy get_policy_by_id(EventId policy_id);  
+    [Throws=FFIError]
+    GetProposal get_proposal_by_id(EventId proposal_id);  
+    [Throws=FFIError]
+    GetCompletedProposal get_completed_proposal_by_id(EventId completed_proposal_id);
+    [Throws=FFIError]
+    Signer get_signer_by_id(EventId signer_id); 
+
+    [Throws=FFIError]
+    void delete_policy_by_id(EventId policy_id);  
+    [Throws=FFIError]
+    void delete_proposal_by_id(EventId proposal_id);  
+    [Throws=FFIError]
+    void delete_completed_proposal_by_id(EventId completed_proposal_id);
+    [Throws=FFIError]
+    void delete_signer_by_id(EventId signer_id); 
+
+    [Throws=FFIError]
+    sequence<GetPolicy> get_policies();
+    [Throws=FFIError]
+    sequence<GetProposal> get_proposals();
+    [Throws=FFIError]
+    sequence<GetProposal> get_proposals_by_policy_id(EventId policy_id);
+    [Throws=FFIError]
+    sequence<GetApproval> get_approvals_by_proposal_id(EventId proposal_id);
+    [Throws=FFIError]
+    sequence<GetCompletedProposal> get_completed_proposals();
+
+    [Throws=FFIError]
+    EventId save_policy(string name, string description, string descriptor, sequence<PublicKey> public_keys);
+    [Throws=FFIError]
+    EventId save_policy_from_template(string name, string description, PolicyTemplate template, sequence<PublicKey> public_keys);
+    [Throws=FFIError]
+    GetProposal spend(EventId policy_id, string to_address, Amount amount, string description, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path, boolean skip_frozen_utxos);
+    [Throws=FFIError]
+    GetProposal self_transfer(EventId from_policy_id, EventId to_policy_id, Amount amount, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path, boolean skip_frozen_utxos);   
+    [Throws=FFIError]
+    EventId approve(string password, EventId proposal_id);
+    [Throws=FFIError]
+    EventId approve_with_signed_psbt(EventId proposal_id, string signed_psbt);
+    [Throws=FFIError]
+    void revoke_approval(EventId approval_id);
+    [Throws=FFIError]
+    CompletedProposal finalize(EventId proposal_id);
+    [Throws=FFIError]
+    EventId new_proof_proposal(EventId policy_id, string message);
+
+    [Throws=FFIError]
+    boolean smartvaults_signer_exists();
+    [Throws=FFIError]
+    EventId save_smartvaults_signer();
+    [Throws=FFIError]
+    sequence<GetSigner> get_signers();
+    [Throws=FFIError]
+    EventId share_signer(EventId signer_id, PublicKey public_key);
+    [Throws=FFIError]
+    void share_signer_to_multiple_public_keys(EventId signer_id, sequence<PublicKey> public_keys);
+    [Throws=FFIError]
+    void revoke_all_shared_signers();
+    [Throws=FFIError]
+    void revoke_shared_signer(EventId shared_signer_id);
+    [Throws=FFIError]
+    sequence<GetSharedSigner> get_shared_signers();
+    [Throws=FFIError]
+    sequence<PublicKey> get_shared_signers_public_keys(boolean include_contacts);
+    [Throws=FFIError]
+    sequence<GetSharedSigner> get_shared_signers_by_public_key(PublicKey public_key);
+
+    Balance? get_balance(EventId policy_id);
+    [Throws=FFIError]
+    sequence<GetTransaction> get_txs(EventId policy_id);
+    [Throws=FFIError]
+    GetTransaction get_tx(EventId policy_id, string txid);
+    [Throws=FFIError]
+    sequence<Utxo> get_utxos(EventId policy_id);
+    [Throws=FFIError]
+    Balance get_total_balance();
+    [Throws=FFIError]
+    sequence<GetTransaction> get_all_txs();
+    [Throws=FFIError]
+    GetAddress get_address(EventId policy_id, AddressIndex index);
+    [Throws=FFIError]
+    GetAddress get_last_unused_address(EventId policy_id);
+
+    [Throws=FFIError]
+    void rebroadcast_all_events();
+    [Throws=FFIError]
+    void republish_shared_key_for_policy(EventId policy_id);
+    
+    [Throws=FFIError]
+    void new_nostr_connect_session(NostrConnectURI uri);
+    [Throws=FFIError]
+    sequence<NostrConnectSession> get_nostr_connect_sessions();
+    [Throws=FFIError]
+    void disconnect_nostr_connect_session(PublicKey app_public_key);
+    [Throws=FFIError]
+    sequence<NostrConnectRequest> get_nostr_connect_requests(boolean approved);
+    [Throws=FFIError]
+    void approve_nostr_connect_request(EventId event_id);
+    [Throws=FFIError]
+    void reject_nostr_connect_request(EventId event_id);
+    void auto_approve_nostr_connect_requests(PublicKey app_public_key, duration duration);
+
+    [Self=ByArc]
+    AbortHandle handle_sync(SyncHandler handler);
+};
+
+callback interface SyncHandler {
+    void handle(Message msg);
+};

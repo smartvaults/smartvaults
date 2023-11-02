@@ -1,0 +1,11 @@
+[Enum]
+interface AddressIndex {
+  New();
+  LastUnused();
+  Peek(u32 index);
+};
+
+interface GetAddress {
+    string address();
+    string? label();
+};

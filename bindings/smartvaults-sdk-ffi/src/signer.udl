@@ -1,0 +1,31 @@
+enum SignerType {
+    "Seed",
+    "Hardware",
+    "AirGap",
+};
+
+interface Signer {
+    string name();
+    string fingerprint();
+    [Throws=FFIError]
+    Descriptor descriptor();
+    SignerType signer_type();
+    string display();
+};
+
+interface GetSigner {
+    EventId signer_id();
+    Signer signer();
+};
+
+interface SharedSigner {
+    string fingerprint();
+    [Throws=FFIError]
+    Descriptor descriptor();
+};
+
+interface GetSharedSigner {
+    EventId shared_signer_id();
+    User owner();
+    SharedSigner shared_signer();
+};

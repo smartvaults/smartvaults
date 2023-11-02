@@ -1,0 +1,4 @@
+interface AbortHandle {
+    void abort();
+    boolean is_aborted();
+};

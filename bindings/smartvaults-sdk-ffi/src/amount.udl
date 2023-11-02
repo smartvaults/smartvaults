@@ -1,0 +1,6 @@
+interface Amount {
+    [Name=custom]
+    constructor(u64 amount);
+    [Name=max]
+    constructor();
+};

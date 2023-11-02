@@ -1,0 +1,5 @@
+interface User {
+    PublicKey public_key();
+    Metadata metadata();
+    string name();
+};

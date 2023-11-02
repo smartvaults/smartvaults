@@ -1,0 +1,4 @@
+interface KeychainSeed {
+    string mnemonic();
+    string? passphrase();
+};

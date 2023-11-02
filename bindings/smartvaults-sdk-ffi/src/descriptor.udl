@@ -1,0 +1,5 @@
+interface Descriptor {
+    [Throws=FFIError, Name=from_str]
+    constructor(string str);
+    string to_str();
+};
