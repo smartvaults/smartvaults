@@ -331,6 +331,21 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                         _ => (),
                     };
                 }
+                CompletedProposal::KeyAgentPayment { tx, .. } => {
+                    let txid = tx.txid();
+
+                    println!("Key agent payment broadcasted: {txid}");
+
+                    match client.network() {
+                        Network::Bitcoin => {
+                            println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                        }
+                        Network::Testnet => {
+                            println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
+                        }
+                        _ => (),
+                    };
+                }
                 CompletedProposal::ProofOfReserve { .. } => println!("Proof of Reserve finalized"),
             };
 

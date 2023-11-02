@@ -13,6 +13,11 @@ pub enum CompletedProposal {
         txid: String,
         description: String,
     },
+    KeyAgentPayment {
+        txid: String,
+        signer_descriptor: String,
+        description: String,
+    },
     ProofOfReserve {
         descriptor: String,
         message: String,
@@ -25,6 +30,15 @@ impl From<proposal::CompletedProposal> for CompletedProposal {
         match value {
             proposal::CompletedProposal::Spending { description, tx } => Self::Spending {
                 txid: tx.txid().to_string(),
+                description,
+            },
+            proposal::CompletedProposal::KeyAgentPayment {
+                tx,
+                signer_descriptor,
+                description,
+            } => Self::KeyAgentPayment {
+                txid: tx.txid().to_string(),
+                signer_descriptor: signer_descriptor.to_string(),
                 description,
             },
             proposal::CompletedProposal::ProofOfReserve {

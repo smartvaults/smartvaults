@@ -242,6 +242,22 @@ impl State for CompletedProposalState {
                                 )
                                 .push(Text::new(format!("Description: {description}")).view());
                         }
+                        CompletedProposal::KeyAgentPayment {
+                            tx, description, ..
+                        } => {
+                            let txid = tx.txid();
+                            content = content
+                                .push(Text::new("Type: key-agent-payment").view())
+                                .push(
+                                    Text::new(format!("Txid: {txid}"))
+                                        .on_press(Message::View(Stage::Transaction {
+                                            policy_id,
+                                            txid,
+                                        }))
+                                        .view(),
+                                )
+                                .push(Text::new(format!("Description: {description}")).view());
+                        }
                         CompletedProposal::ProofOfReserve { message, .. } => {
                             let mut status = Row::new().push(Text::new("Status: ").view());
 

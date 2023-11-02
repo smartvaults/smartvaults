@@ -12,6 +12,7 @@ use crate::User;
 #[derive(Clone)]
 pub enum ApprovedProposal {
     Spending { psbt: String },
+    KeyAgentPayment { psbt: String },
     ProofOfReserve { psbt: String },
 }
 
@@ -19,6 +20,9 @@ impl From<proposal::ApprovedProposal> for ApprovedProposal {
     fn from(value: proposal::ApprovedProposal) -> Self {
         match value {
             proposal::ApprovedProposal::Spending { psbt } => Self::Spending {
+                psbt: psbt.to_string(),
+            },
+            proposal::ApprovedProposal::KeyAgentPayment { psbt } => Self::KeyAgentPayment {
                 psbt: psbt.to_string(),
             },
             proposal::ApprovedProposal::ProofOfReserve { psbt } => Self::ProofOfReserve {

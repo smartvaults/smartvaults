@@ -23,6 +23,13 @@ pub enum ApprovedProposal {
         )]
         psbt: PartiallySignedTransaction,
     },
+    KeyAgentPayment {
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
 }
 
 impl ApprovedProposal {
@@ -34,10 +41,15 @@ impl ApprovedProposal {
         Self::ProofOfReserve { psbt }
     }
 
+    pub fn key_agent_payment(psbt: PartiallySignedTransaction) -> Self {
+        Self::KeyAgentPayment { psbt }
+    }
+
     pub fn get_type(&self) -> ProposalType {
         match self {
             Self::Spending { .. } => ProposalType::Spending,
             Self::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
+            Self::KeyAgentPayment { .. } => ProposalType::KeyAgentPayment,
         }
     }
 
@@ -45,6 +57,7 @@ impl ApprovedProposal {
         match self {
             Self::Spending { psbt, .. } => psbt.clone(),
             Self::ProofOfReserve { psbt, .. } => psbt.clone(),
+            Self::KeyAgentPayment { psbt } => psbt.clone(),
         }
     }
 }

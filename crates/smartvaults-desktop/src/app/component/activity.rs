@@ -4,7 +4,7 @@
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
-use smartvaults_sdk::core::proposal::{CompletedProposal, Proposal};
+use smartvaults_sdk::core::proposal::Proposal;
 use smartvaults_sdk::nostr::Timestamp;
 use smartvaults_sdk::types::{GetCompletedProposal, GetProposal, GetTransaction};
 use smartvaults_sdk::util::{self, format};
@@ -92,6 +92,11 @@ impl Activity {
             {
                 let row = match proposal {
                     Proposal::Spending {
+                        amount,
+                        description,
+                        ..
+                    }
+                    | Proposal::KeyAgentPayment {
                         amount,
                         description,
                         ..
@@ -362,64 +367,36 @@ impl CompletedProposalsList {
                 proposal,
             } in self.map.iter()
             {
-                let row = match proposal {
-                    CompletedProposal::Spending { description, .. } => Row::new()
-                        .push(
-                            Text::new(util::cut_event_id(*completed_proposal_id))
-                                .width(Length::Fixed(115.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new(util::cut_event_id(*policy_id))
-                                .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Vault(*policy_id)))
-                                .view(),
-                        )
-                        .push(Text::new("spending").width(Length::Fixed(125.0)).view())
-                        .push(Text::new(description).width(Length::Fill).view())
-                        .push(
-                            Button::new()
-                                .icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::CompletedProposal(
-                                    *completed_proposal_id,
-                                )))
-                                .width(Length::Fixed(40.0))
-                                .view(),
-                        )
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill),
-                    CompletedProposal::ProofOfReserve { message, .. } => Row::new()
-                        .push(
-                            Text::new(util::cut_event_id(*completed_proposal_id))
-                                .width(Length::Fixed(115.0))
-                                .view(),
-                        )
-                        .push(
-                            Text::new(util::cut_event_id(*policy_id))
-                                .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Vault(*policy_id)))
-                                .view(),
-                        )
-                        .push(
-                            Text::new("proof-of-reserve")
-                                .width(Length::Fixed(125.0))
-                                .view(),
-                        )
-                        .push(Text::new(message).width(Length::Fill).view())
-                        .push(
-                            Button::new()
-                                .icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::CompletedProposal(
-                                    *completed_proposal_id,
-                                )))
-                                .width(Length::Fixed(40.0))
-                                .view(),
-                        )
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill),
-                };
+                let row = Row::new()
+                    .push(
+                        Text::new(util::cut_event_id(*completed_proposal_id))
+                            .width(Length::Fixed(115.0))
+                            .view(),
+                    )
+                    .push(
+                        Text::new(util::cut_event_id(*policy_id))
+                            .width(Length::Fixed(115.0))
+                            .on_press(Message::View(Stage::Vault(*policy_id)))
+                            .view(),
+                    )
+                    .push(
+                        Text::new(proposal.get_type().to_string())
+                            .width(Length::Fixed(125.0))
+                            .view(),
+                    )
+                    .push(Text::new(proposal.desc()).width(Length::Fill).view())
+                    .push(
+                        Button::new()
+                            .icon(FULLSCREEN)
+                            .on_press(Message::View(Stage::CompletedProposal(
+                                *completed_proposal_id,
+                            )))
+                            .width(Length::Fixed(40.0))
+                            .view(),
+                    )
+                    .spacing(10)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill);
                 proposals = proposals.push(row).push(rule::horizontal());
             }
         }

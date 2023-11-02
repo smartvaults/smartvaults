@@ -355,6 +355,18 @@ pub fn print_proposal(proposal: GetProposal) {
             println!("- Amount: {amount}");
             println!("- Signed: {signed}");
         }
+        Proposal::KeyAgentPayment {
+            signer_descriptor,
+            amount,
+            description,
+            ..
+        } => {
+            println!("- Type: key-agent-payment");
+            println!("- Description: {description}");
+            println!("- Signer: {signer_descriptor}");
+            println!("- Amount: {amount}");
+            println!("- Signed: {signed}");
+        }
         Proposal::ProofOfReserve { message, .. } => {
             println!("- Type: proof-of-reserve");
             println!("- Message: {message}");
@@ -372,7 +384,7 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
         "Policy ID",
         "Type",
         "Desc/Msg",
-        "Address",
+        "Address/Signer",
         "Amount",
         "Signed",
     ]);
@@ -401,6 +413,23 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
                     "spending",
                     description,
                     to_address.assume_checked(),
+                    format!("{} sat", format::number(amount)),
+                    signed
+                ]);
+            }
+            Proposal::KeyAgentPayment {
+                signer_descriptor,
+                amount,
+                description,
+                ..
+            } => {
+                table.add_row(row![
+                    index + 1,
+                    proposal_id,
+                    util::cut_event_id(policy_id),
+                    "key-agent-payment",
+                    description,
+                    signer_descriptor,
                     format!("{} sat", format::number(amount)),
                     signed
                 ]);
@@ -446,6 +475,18 @@ pub fn print_completed_proposals(proposals: Vec<GetCompletedProposal>) {
                     completed_proposal_id,
                     util::cut_event_id(policy_id),
                     "spending",
+                    tx.txid(),
+                    description,
+                ]);
+            }
+            CompletedProposal::KeyAgentPayment {
+                tx, description, ..
+            } => {
+                table.add_row(row![
+                    index + 1,
+                    completed_proposal_id,
+                    util::cut_event_id(policy_id),
+                    "key-agent-payment",
                     tx.txid(),
                     description,
                 ]);

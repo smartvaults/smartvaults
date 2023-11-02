@@ -253,6 +253,12 @@ impl State for ProposalState {
                                             txid: tx.txid(),
                                         })
                                     }
+                                    CompletedProposal::KeyAgentPayment { tx, .. } => {
+                                        Message::View(Stage::Transaction {
+                                            policy_id,
+                                            txid: tx.txid(),
+                                        })
+                                    }
                                     CompletedProposal::ProofOfReserve { .. } => {
                                         Message::View(Stage::History)
                                     }
@@ -364,6 +370,49 @@ impl State for ProposalState {
                                         to_address.clone().assume_checked()
                                     ))
                                     .view(),
+                                )
+                                .push(
+                                    Text::new(format!(
+                                        "Amount: {} sat",
+                                        util::format::number(*amount)
+                                    ))
+                                    .view(),
+                                );
+
+                            match psbt.fee() {
+                                Ok(fee) => {
+                                    left_content = left_content.push(
+                                        Text::new(format!(
+                                            "Fee: {} sat",
+                                            util::format::number(fee.to_sat())
+                                        ))
+                                        .view(),
+                                    )
+                                }
+                                Err(e) => {
+                                    tracing::error!("Impossible to calculate fee: {e}");
+                                }
+                            };
+
+                            if !description.is_empty() {
+                                left_content = left_content
+                                    .push(Text::new(format!("Description: {description}")).view());
+                            }
+
+                            "Broadcast"
+                        }
+                        Proposal::KeyAgentPayment {
+                            signer_descriptor,
+                            amount,
+                            description,
+                            psbt,
+                            ..
+                        } => {
+                            left_content = left_content
+                                .push(Text::new("Type: key-agent-payment").view())
+                                .push(
+                                    Text::new(format!("Paying for signer: {signer_descriptor}"))
+                                        .view(),
                                 )
                                 .push(
                                     Text::new(format!(

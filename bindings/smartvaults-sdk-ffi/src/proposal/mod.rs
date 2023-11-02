@@ -22,6 +22,13 @@ pub enum Proposal {
         description: String,
         psbt: String,
     },
+    KeyAgentPayment {
+        descriptor: String,
+        signer_descriptor: String,
+        amount: u64,
+        description: String,
+        psbt: String,
+    },
     ProofOfReserve {
         descriptor: String,
         message: String,
@@ -41,6 +48,19 @@ impl From<proposal::Proposal> for Proposal {
             } => Self::Spending {
                 descriptor: descriptor.to_string(),
                 to_address: to_address.assume_checked().to_string(),
+                amount,
+                description,
+                psbt: psbt.to_string(),
+            },
+            proposal::Proposal::KeyAgentPayment {
+                descriptor,
+                signer_descriptor,
+                amount,
+                description,
+                psbt,
+            } => Self::KeyAgentPayment {
+                descriptor: descriptor.to_string(),
+                signer_descriptor: signer_descriptor.to_string(),
                 amount,
                 description,
                 psbt: psbt.to_string(),

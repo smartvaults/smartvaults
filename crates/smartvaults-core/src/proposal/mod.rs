@@ -54,6 +54,7 @@ pub enum Error {
 pub enum ProposalType {
     Spending,
     ProofOfReserve,
+    KeyAgentPayment,
 }
 
 impl fmt::Display for ProposalType {
@@ -61,6 +62,7 @@ impl fmt::Display for ProposalType {
         match self {
             Self::Spending => write!(f, "spending"),
             Self::ProofOfReserve => write!(f, "proof-of-reserve"),
+            Self::KeyAgentPayment => write!(f, "key-agent-payment"),
         }
     }
 }
@@ -81,6 +83,18 @@ pub enum Proposal {
     ProofOfReserve {
         descriptor: Descriptor<String>,
         message: String,
+        #[serde(
+            serialize_with = "serialize_psbt",
+            deserialize_with = "deserialize_psbt"
+        )]
+        psbt: PartiallySignedTransaction,
+    },
+    KeyAgentPayment {
+        descriptor: Descriptor<String>,
+        /// Needed to indentify the Key Agent and the signer used
+        signer_descriptor: Descriptor<String>,
+        amount: u64,
+        description: String,
         #[serde(
             serialize_with = "serialize_psbt",
             deserialize_with = "deserialize_psbt"
@@ -136,10 +150,30 @@ impl Proposal {
         }
     }
 
+    pub fn key_agent_payment<S>(
+        descriptor: Descriptor<String>,
+        signer_descriptor: Descriptor<String>,
+        amount: u64,
+        description: S,
+        psbt: PartiallySignedTransaction,
+    ) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::KeyAgentPayment {
+            descriptor,
+            signer_descriptor,
+            amount,
+            description: description.into(),
+            psbt,
+        }
+    }
+
     pub fn get_type(&self) -> ProposalType {
         match self {
             Self::Spending { .. } => ProposalType::Spending,
             Self::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
+            Self::KeyAgentPayment { .. } => ProposalType::KeyAgentPayment,
         }
     }
 
@@ -147,6 +181,7 @@ impl Proposal {
         match self {
             Self::Spending { descriptor, .. } => descriptor.clone(),
             Self::ProofOfReserve { descriptor, .. } => descriptor.clone(),
+            Self::KeyAgentPayment { descriptor, .. } => descriptor.clone(),
         }
     }
 
@@ -154,6 +189,7 @@ impl Proposal {
         match self {
             Self::Spending { description, .. } => description.clone(),
             Self::ProofOfReserve { message, .. } => message.clone(),
+            Self::KeyAgentPayment { description, .. } => description.clone(),
         }
     }
 
@@ -161,6 +197,7 @@ impl Proposal {
         match self {
             Self::Spending { psbt, .. } => psbt.clone(),
             Self::ProofOfReserve { psbt, .. } => psbt.clone(),
+            Self::KeyAgentPayment { psbt, .. } => psbt.clone(),
         }
     }
 
@@ -182,6 +219,7 @@ impl Proposal {
         match self {
             Proposal::Spending { .. } => Ok(ApprovedProposal::spending(psbt)),
             Proposal::ProofOfReserve { .. } => Ok(ApprovedProposal::proof_of_reserve(psbt)),
+            Proposal::KeyAgentPayment { .. } => Ok(ApprovedProposal::key_agent_payment(psbt)),
         }
     }
 
@@ -195,6 +233,9 @@ impl Proposal {
                 Proposal::Spending { .. } => Ok(ApprovedProposal::spending(signed_psbt)),
                 Proposal::ProofOfReserve { .. } => {
                     Ok(ApprovedProposal::proof_of_reserve(signed_psbt))
+                }
+                Proposal::KeyAgentPayment { .. } => {
+                    Ok(ApprovedProposal::key_agent_payment(signed_psbt))
                 }
             }
         } else {
@@ -235,32 +276,45 @@ impl Proposal {
     ) -> Result<CompletedProposal, Error> {
         let mut base_psbt: PartiallySignedTransaction = self.psbt();
 
-        let first_type: ProposalType = approved_proposals
-            .first()
-            .ok_or(Error::EmptyApprovedProposals)?
-            .get_type();
-
         // Combine PSBTs
         for proposal in approved_proposals.into_iter() {
-            if proposal.get_type() != first_type {
+            if proposal.get_type() != self.get_type() {
                 return Err(Error::ApprovedProposalTypeMismatch);
             }
             base_psbt.combine(proposal.psbt())?;
         }
 
         // Finalize the proposal
-        match first_type {
-            ProposalType::Spending => {
+        match self {
+            Self::Spending { description, .. } => {
                 base_psbt
                     .finalize_mut(&SECP256K1)
                     .map_err(Error::ImpossibleToFinalizePsbt)?;
                 Ok(CompletedProposal::spending(
                     base_psbt.extract_tx(),
-                    self.description(),
+                    description,
                 ))
             }
-            ProposalType::ProofOfReserve => {
-                let wallet = Wallet::new_no_persist(&self.descriptor().to_string(), None, network)?;
+            Self::KeyAgentPayment {
+                signer_descriptor,
+                description,
+                ..
+            } => {
+                base_psbt
+                    .finalize_mut(&SECP256K1)
+                    .map_err(Error::ImpossibleToFinalizePsbt)?;
+                Ok(CompletedProposal::key_agent_payment(
+                    base_psbt.extract_tx(),
+                    signer_descriptor.clone(),
+                    description,
+                ))
+            }
+            Self::ProofOfReserve {
+                descriptor,
+                message,
+                ..
+            } => {
+                let wallet = Wallet::new_no_persist(&descriptor.to_string(), None, network)?;
                 let signopts = SignOptions {
                     trust_witness_utxo: true,
                     remove_partial_sigs: false,
@@ -268,8 +322,8 @@ impl Proposal {
                 };
                 if wallet.finalize_psbt(&mut base_psbt, signopts)? {
                     Ok(CompletedProposal::proof_of_reserve(
-                        self.description(),
-                        self.descriptor(),
+                        message,
+                        descriptor.clone(),
                         base_psbt,
                     ))
                 } else {

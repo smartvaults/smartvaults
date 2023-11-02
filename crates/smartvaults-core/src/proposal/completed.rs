@@ -25,6 +25,11 @@ pub enum CompletedProposal {
         )]
         psbt: PartiallySignedTransaction,
     },
+    KeyAgentPayment {
+        tx: Transaction,
+        signer_descriptor: Descriptor<String>,
+        description: String,
+    },
 }
 
 impl CompletedProposal {
@@ -53,16 +58,33 @@ impl CompletedProposal {
         }
     }
 
+    pub fn key_agent_payment<S>(
+        tx: Transaction,
+        signer_descriptor: Descriptor<String>,
+        description: S,
+    ) -> Self
+    where
+        S: Into<String>,
+    {
+        Self::KeyAgentPayment {
+            tx,
+            signer_descriptor,
+            description: description.into(),
+        }
+    }
+
     pub fn get_type(&self) -> ProposalType {
         match self {
             Self::Spending { .. } => ProposalType::Spending,
             Self::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
+            Self::KeyAgentPayment { .. } => ProposalType::KeyAgentPayment,
         }
     }
 
     pub fn tx(&self) -> Option<Transaction> {
         match self {
             Self::Spending { tx, .. } => Some(tx.clone()),
+            Self::KeyAgentPayment { tx, .. } => Some(tx.clone()),
             _ => None,
         }
     }
@@ -71,6 +93,7 @@ impl CompletedProposal {
         match self {
             Self::Spending { description, .. } => description.clone(),
             Self::ProofOfReserve { message, .. } => message.clone(),
+            Self::KeyAgentPayment { description, .. } => description.clone(),
         }
     }
 
