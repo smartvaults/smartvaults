@@ -67,6 +67,14 @@ impl fmt::Display for ProposalType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Period {
+    /// From timestamp
+    pub from: u64,
+    /// To timestamp
+    pub to: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Proposal {
     Spending {
@@ -95,6 +103,7 @@ pub enum Proposal {
         signer_descriptor: Descriptor<String>,
         amount: u64,
         description: String,
+        period: Period,
         #[serde(
             serialize_with = "serialize_psbt",
             deserialize_with = "deserialize_psbt"
@@ -155,6 +164,7 @@ impl Proposal {
         signer_descriptor: Descriptor<String>,
         amount: u64,
         description: S,
+        period: Period,
         psbt: PartiallySignedTransaction,
     ) -> Self
     where
@@ -165,6 +175,7 @@ impl Proposal {
             signer_descriptor,
             amount,
             description: description.into(),
+            period,
             psbt,
         }
     }
@@ -298,6 +309,7 @@ impl Proposal {
             Self::KeyAgentPayment {
                 signer_descriptor,
                 description,
+                period,
                 ..
             } => {
                 base_psbt
@@ -307,6 +319,7 @@ impl Proposal {
                     base_psbt.extract_tx(),
                     signer_descriptor.clone(),
                     description,
+                    *period,
                 ))
             }
             Self::ProofOfReserve {

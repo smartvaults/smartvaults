@@ -3,11 +3,12 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::EventId;
+use nostr_sdk_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
 
-#[derive(Clone)]
+use super::Period;
+
 pub enum CompletedProposal {
     Spending {
         txid: String,
@@ -17,6 +18,7 @@ pub enum CompletedProposal {
         txid: String,
         signer_descriptor: String,
         description: String,
+        period: Period,
     },
     ProofOfReserve {
         descriptor: String,
@@ -36,10 +38,15 @@ impl From<proposal::CompletedProposal> for CompletedProposal {
                 tx,
                 signer_descriptor,
                 description,
+                period,
             } => Self::KeyAgentPayment {
                 txid: tx.txid().to_string(),
                 signer_descriptor: signer_descriptor.to_string(),
                 description,
+                period: Period {
+                    from: Arc::new(Timestamp::from_secs(period.from)),
+                    to: Arc::new(Timestamp::from_secs(period.to)),
+                },
             },
             proposal::CompletedProposal::ProofOfReserve {
                 descriptor,

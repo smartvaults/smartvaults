@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::util::{deserialize_psbt, serialize_psbt};
 
-use super::ProposalType;
+use super::{Period, ProposalType};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CompletedProposal {
@@ -29,6 +29,7 @@ pub enum CompletedProposal {
         tx: Transaction,
         signer_descriptor: Descriptor<String>,
         description: String,
+        period: Period,
     },
 }
 
@@ -62,6 +63,7 @@ impl CompletedProposal {
         tx: Transaction,
         signer_descriptor: Descriptor<String>,
         description: S,
+        period: Period,
     ) -> Self
     where
         S: Into<String>,
@@ -70,6 +72,7 @@ impl CompletedProposal {
             tx,
             signer_descriptor,
             description: description.into(),
+            period,
         }
     }
 

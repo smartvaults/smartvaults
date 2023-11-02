@@ -50,7 +50,8 @@ pub use crate::policy::{
     PolicyPathSigner, PolicyTemplate, RecoveryTemplate, RelativeLockTime,
 };
 pub use crate::proposal::{
-    ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal, Proposal,
+    ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal, Period,
+    Proposal,
 };
 pub use crate::seed::Seed as KeychainSeed;
 pub use crate::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer};

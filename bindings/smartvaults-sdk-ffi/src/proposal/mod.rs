@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::EventId;
+use nostr_sdk_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
 
@@ -13,7 +13,11 @@ mod completed;
 pub use self::approved::{ApprovedProposal, GetApproval};
 pub use self::completed::{CompletedProposal, GetCompletedProposal};
 
-#[derive(Clone)]
+pub struct Period {
+    pub from: Arc<Timestamp>,
+    pub to: Arc<Timestamp>,
+}
+
 pub enum Proposal {
     Spending {
         descriptor: String,
@@ -27,6 +31,7 @@ pub enum Proposal {
         signer_descriptor: String,
         amount: u64,
         description: String,
+        period: Period,
         psbt: String,
     },
     ProofOfReserve {
@@ -57,12 +62,17 @@ impl From<proposal::Proposal> for Proposal {
                 signer_descriptor,
                 amount,
                 description,
+                period,
                 psbt,
             } => Self::KeyAgentPayment {
                 descriptor: descriptor.to_string(),
                 signer_descriptor: signer_descriptor.to_string(),
                 amount,
                 description,
+                period: Period {
+                    from: Arc::new(Timestamp::from_secs(period.from)),
+                    to: Arc::new(Timestamp::from_secs(period.to)),
+                },
                 psbt: psbt.to_string(),
             },
             proposal::Proposal::ProofOfReserve {

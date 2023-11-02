@@ -8,6 +8,7 @@ use nostr_sdk::{Event, EventBuilder, EventId, Keys};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::{Address, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::proposal::Period;
 use smartvaults_core::{Amount, FeeRate, Proposal};
 use smartvaults_protocol::v1::{SignerOffering, SmartVaultsEventBuilder};
 use smartvaults_sdk_sqlite::model::GetProposal;
@@ -77,10 +78,11 @@ impl SmartVaults {
     pub async fn key_agent_payment<S>(
         &self,
         policy_id: EventId,
-        signer_descriptor: Descriptor<String>,
         address: Address<NetworkUnchecked>,
         amount: Amount,
         description: S,
+        signer_descriptor: Descriptor<String>,
+        period: Period,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
@@ -114,6 +116,7 @@ impl SmartVaults {
                 signer_descriptor,
                 amount,
                 description,
+                period,
                 psbt,
             };
             Ok(prop)
