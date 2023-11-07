@@ -308,9 +308,9 @@ pub enum ConnectCommand {
 pub enum KeyAgentCommand {
     /// Create or edit signer
     Signer {
-        /// Unique signer ID
+        /// Signer ID
         #[arg(required = true)]
-        id: String,
+        signer_id: EventId,
         /// Temperature
         #[arg(required = true)]
         temperature: Temperature,

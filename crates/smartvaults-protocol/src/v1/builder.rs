@@ -7,7 +7,7 @@ use nostr::nips::nip04;
 use nostr::{Event, EventBuilder, EventId, Keys, Tag};
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_core::{Policy, Proposal};
+use smartvaults_core::{Policy, Proposal, Signer};
 use thiserror::Error;
 
 use super::constants::{
@@ -106,12 +106,16 @@ pub trait SmartVaultsEventBuilder {
         Ok(EventBuilder::new(KEY_AGENT_SIGNALING, "", &[]).to_event(keys)?)
     }
 
-    fn signer_offering(keys: &Keys, id: String, offering: &SignerOffering) -> Result<Event, Error> {
+    fn signer_offering(
+        keys: &Keys,
+        signer: &Signer,
+        offering: &SignerOffering,
+    ) -> Result<Event, Error> {
         let content: String = offering.as_json();
         Ok(EventBuilder::new(
             KEY_AGENT_SIGNER_OFFERING_KIND,
             content,
-            &[Tag::Identifier(id)],
+            &[Tag::Identifier(signer.generate_identifier())],
         )
         .to_event(keys)?)
     }

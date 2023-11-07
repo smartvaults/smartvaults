@@ -5,6 +5,7 @@ use std::fmt;
 
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
 use keechain_core::bitcoin::Network;
+use keechain_core::crypto::hash;
 use keechain_core::descriptors::{self, ToDescriptor};
 use keechain_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
 use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
@@ -167,6 +168,12 @@ impl Signer {
 
     pub fn signer_type(&self) -> SignerType {
         self.t
+    }
+
+    /// Generate deterministic identifier
+    pub fn generate_identifier(&self) -> String {
+        let hash = hash::sha256(self.fingerprint).to_string();
+        hash[..32].to_string()
     }
 
     pub fn to_shared_signer(&self) -> SharedSigner {

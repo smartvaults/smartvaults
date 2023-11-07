@@ -9,7 +9,7 @@ use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::{Address, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::proposal::Period;
-use smartvaults_core::{Amount, FeeRate, Proposal};
+use smartvaults_core::{Amount, FeeRate, Proposal, Signer};
 use smartvaults_protocol::v1::{SignerOffering, SmartVaultsEventBuilder};
 use smartvaults_sdk_sqlite::model::GetProposal;
 
@@ -19,14 +19,14 @@ use crate::types::{KeyAgent, User};
 impl SmartVaults {
     pub async fn signer_offering(
         &self,
-        id: String,
+        signer: &Signer,
         offering: SignerOffering,
     ) -> Result<EventId, Error> {
         // Get keys
         let keys: Keys = self.keys().await;
 
         // Compose event
-        let event: Event = EventBuilder::signer_offering(&keys, id, &offering)?;
+        let event: Event = EventBuilder::signer_offering(&keys, signer, &offering)?;
 
         // Publish event
         let id: EventId = self.send_event(event).await?;

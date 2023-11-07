@@ -17,7 +17,7 @@ use smartvaults_sdk::core::bitcoin::Network;
 use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::types::Priority;
 use smartvaults_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
-use smartvaults_sdk::nostr::Metadata;
+use smartvaults_sdk::nostr::{EventId, Metadata};
 use smartvaults_sdk::protocol::v1::{Label, SignerOffering};
 use smartvaults_sdk::types::{GetPolicy, GetProposal};
 use smartvaults_sdk::util::format;
@@ -421,7 +421,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
         },
         Command::KeyAgent { command } => match command {
             KeyAgentCommand::Signer {
-                id,
+                signer_id,
                 temperature,
                 device_type,
                 response_time,
@@ -429,7 +429,9 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 yearly_cost_basis_points,
                 yearly_cost,
             } => {
-                let offering = SignerOffering {
+                let signer: Signer = client.get_signer_by_id(signer_id).await?;
+
+                let offering: SignerOffering = SignerOffering {
                     temperature,
                     device_type,
                     response_time,
@@ -438,7 +440,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     yearly_cost,
                 };
 
-                let event_id = client.signer_offering(id, offering).await?;
+                let event_id: EventId = client.signer_offering(&signer, offering).await?;
                 println!("Signer offering published: {event_id}");
 
                 Ok(())
