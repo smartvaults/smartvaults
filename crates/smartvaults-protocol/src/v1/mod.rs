@@ -5,6 +5,7 @@ pub mod builder;
 pub mod constants;
 pub mod key_agent;
 pub mod label;
+mod network;
 pub mod util;
 
 pub use self::builder::{Error as SmartVaultsEventBuilderError, SmartVaultsEventBuilder};

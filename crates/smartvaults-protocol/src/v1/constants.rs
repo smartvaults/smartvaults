@@ -26,10 +26,10 @@ pub const APPROVED_PROPOSAL_KIND: Kind = Kind::Custom(9291);
 pub const COMPLETED_PROPOSAL_KIND: Kind = Kind::Custom(9292);
 pub const SIGNERS_KIND: Kind = Kind::Custom(9294);
 pub const SHARED_SIGNERS_KIND: Kind = Kind::Custom(9295);
-pub const LABELS_KIND: Kind = Kind::Custom(32121);
-pub const KEY_AGENT_SIGNALING: Kind = Kind::Replaceable(12121);
-pub const KEY_AGENT_SIGNER_OFFERING_KIND: Kind = Kind::Custom(32122);
-pub const KEY_AGENT_VERIFIED: Kind = Kind::Custom(32123);
+pub const LABELS_KIND: Kind = Kind::ParameterizedReplaceable(32121);
+pub const KEY_AGENT_SIGNER_OFFERING_KIND: Kind = Kind::ParameterizedReplaceable(32122);
+pub const KEY_AGENT_VERIFIED: Kind = Kind::ParameterizedReplaceable(32123);
+pub const KEY_AGENT_SIGNALING: Kind = Kind::ParameterizedReplaceable(32124);
 
 // Expirations
 pub const APPROVED_PROPOSAL_EXPIRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7);

@@ -644,22 +644,27 @@ impl SmartVaults {
             // Deserialize Signer Offering
             let signer_offering: SignerOffering = SignerOffering::from_json(event.content)?;
 
-            // Update Key Agents
-            let mut key_agents = self.key_agents.write().await;
-            key_agents
-                .entry(event.pubkey)
-                .and_modify(|set| {
-                    set.insert(signer_offering.clone());
-                })
-                .or_insert_with(|| {
-                    let mut set = HashSet::new();
-                    set.insert(signer_offering);
-                    set
-                });
+            // Check network
+            if signer_offering.network == self.network {
+                // Update Key Agents
+                let mut key_agents = self.key_agents.write().await;
+                key_agents
+                    .entry(event.pubkey)
+                    .and_modify(|set| {
+                        set.insert(signer_offering.clone());
+                    })
+                    .or_insert_with(|| {
+                        let mut set = HashSet::new();
+                        set.insert(signer_offering);
+                        set
+                    });
 
-            // Send notification
-            /* self.sync_channel
-            .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?; */
+                // Send notification
+                /* self.sync_channel
+                .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?; */
+            } else {
+                tracing::warn!("Received signer offering for another network");
+            }
         } else if event.kind == KEY_AGENT_VERIFIED {
             let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
             let mut verified_key_agents = self.verified_key_agents.write().await;

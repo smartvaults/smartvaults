@@ -10,8 +10,10 @@ use core::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
+use smartvaults_core::bitcoin::Network;
 use thiserror::Error;
 
+use crate::v1::network::{deserialize_network, serialize_network};
 use crate::v1::Serde;
 
 #[derive(Debug, Error)]
@@ -46,6 +48,12 @@ pub struct SignerOffering {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub yearly_cost: Option<Price>,
+    /// Network
+    #[serde(
+        serialize_with = "serialize_network",
+        deserialize_with = "deserialize_network"
+    )]
+    pub network: Network,
 }
 
 impl Serde for SignerOffering {}

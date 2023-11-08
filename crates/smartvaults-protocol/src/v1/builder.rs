@@ -102,20 +102,25 @@ pub trait SmartVaultsEventBuilder {
         Ok(EventBuilder::new(LABELS_KIND, content, &tags).to_event(shared_key)?)
     }
 
-    fn key_agent_signaling(keys: &Keys) -> Result<Event, Error> {
-        Ok(EventBuilder::new(KEY_AGENT_SIGNALING, "", &[]).to_event(keys)?)
+    fn key_agent_signaling(keys: &Keys, network: Network) -> Result<Event, Error> {
+        let identifier: String = network.magic().to_string();
+        Ok(
+            EventBuilder::new(KEY_AGENT_SIGNALING, "", &[Tag::Identifier(identifier)])
+                .to_event(keys)?,
+        )
     }
 
     fn signer_offering(
         keys: &Keys,
         signer: &Signer,
         offering: &SignerOffering,
+        network: Network,
     ) -> Result<Event, Error> {
         let content: String = offering.as_json();
         Ok(EventBuilder::new(
             KEY_AGENT_SIGNER_OFFERING_KIND,
             content,
-            &[Tag::Identifier(signer.generate_identifier())],
+            &[Tag::Identifier(signer.generate_identifier(network))],
         )
         .to_event(keys)?)
     }

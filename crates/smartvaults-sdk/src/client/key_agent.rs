@@ -26,7 +26,7 @@ impl SmartVaults {
         let keys: Keys = self.keys().await;
 
         // Compose event
-        let event: Event = EventBuilder::signer_offering(&keys, signer, &offering)?;
+        let event: Event = EventBuilder::signer_offering(&keys, signer, &offering, self.network)?;
 
         // Publish event
         let id: EventId = self.send_event(event).await?;

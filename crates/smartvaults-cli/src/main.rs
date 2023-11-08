@@ -438,6 +438,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     cost_per_signature,
                     yearly_cost_basis_points,
                     yearly_cost,
+                    network: client.network(),
                 };
 
                 let event_id: EventId = client.signer_offering(&signer, offering).await?;
