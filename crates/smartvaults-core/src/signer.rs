@@ -171,8 +171,9 @@ impl Signer {
     }
 
     /// Generate deterministic identifier
-    pub fn generate_identifier(&self) -> String {
-        let hash = hash::sha256(self.fingerprint).to_string();
+    pub fn generate_identifier(&self, network: Network) -> String {
+        let unhashed: String = format!("{}:{}", network.magic(), self.fingerprint);
+        let hash: String = hash::sha256(unhashed.as_bytes()).to_string();
         hash[..32].to_string()
     }
 
