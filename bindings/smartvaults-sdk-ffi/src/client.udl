@@ -80,6 +80,9 @@ interface SmartVaults {
     sequence<GetCompletedProposal> get_completed_proposals();
 
     [Throws=FFIError]
+    sequence<User> get_members_of_policy(EventId policy_id);
+
+    [Throws=FFIError]
     EventId save_policy(string name, string description, string descriptor, sequence<PublicKey> public_keys);
     [Throws=FFIError]
     EventId save_policy_from_template(string name, string description, PolicyTemplate template, sequence<PublicKey> public_keys);

@@ -983,6 +983,17 @@ impl SmartVaults {
         Ok(self.db.completed_proposals().await?)
     }
 
+    pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<User>, Error> {
+        let public_keys = self.db.get_nostr_pubkeys(policy_id).await?;
+        let mut users = Vec::with_capacity(public_keys.len());
+        for public_key in public_keys.into_iter() {
+            let metadata = self.get_public_key_metadata(public_key).await?;
+            let user = User::new(public_key, metadata);
+            users.push(user);
+        }
+        Ok(users)
+    }
+
     pub async fn save_policy<S>(
         &self,
         name: S,

@@ -374,6 +374,18 @@ impl SmartVaults {
         })
     }
 
+    pub fn get_members_of_policy(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<User>>> {
+        block_on(async move {
+            Ok(self
+                .inner
+                .get_members_of_policy(**policy_id)
+                .await?
+                .into_iter()
+                .map(|u| Arc::new(u.into()))
+                .collect())
+        })
+    }
+
     pub fn save_policy(
         &self,
         name: String,
