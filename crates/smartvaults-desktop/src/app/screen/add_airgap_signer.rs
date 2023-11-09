@@ -65,7 +65,13 @@ impl State for AddAirGapSignerState {
                         async move {
                             let fingerprint = Fingerprint::from_str(&fingerprint)?;
                             let descriptor = Descriptor::from_str(&descriptor)?;
-                            let signer = Signer::airgap(name, None, fingerprint, descriptor)?;
+                            let signer = Signer::airgap(
+                                name,
+                                None,
+                                fingerprint,
+                                descriptor,
+                                client.network(),
+                            )?;
                             client.save_signer(signer).await?;
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },

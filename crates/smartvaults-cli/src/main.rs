@@ -489,7 +489,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 descriptor,
                 share_with_contacts,
             } => {
-                let signer = Signer::airgap(name, None, fingerprint, descriptor)?;
+                let signer = Signer::airgap(name, None, fingerprint, descriptor, client.network())?;
                 let signer_id = client.save_signer(signer).await?;
                 if share_with_contacts {
                     for user in client.get_contacts().await? {

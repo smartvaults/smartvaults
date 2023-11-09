@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use bdk::Wallet;
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
 use keechain_core::bitcoin::Network;
 use keechain_core::crypto::hash;
@@ -24,6 +25,8 @@ pub enum Error {
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
+    #[error(transparent)]
+    BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
 }
@@ -67,11 +70,16 @@ impl Signer {
         fingerprint: Fingerprint,
         descriptor: Descriptor<DescriptorPublicKey>,
         t: SignerType,
+        network: Network,
     ) -> Result<Self, Error>
     where
         S: Into<String>,
     {
         if let DescriptorType::Tr = descriptor.desc_type() {
+            // Check network
+            Wallet::new_no_persist(&descriptor.to_string(), None, network)?;
+
+            // Compose signer
             Ok(Self {
                 name: name.into(),
                 description: description.map(|d| d.into()),
@@ -102,6 +110,7 @@ impl Signer {
             seed.fingerprint(network, &SECP256K1)?,
             descriptor,
             SignerType::Seed,
+            network,
         )
     }
 
@@ -134,6 +143,7 @@ impl Signer {
         description: Option<S>,
         fingerprint: Fingerprint,
         descriptor: Descriptor<DescriptorPublicKey>,
+        network: Network,
     ) -> Result<Self, Error>
     where
         S: Into<String>,
@@ -144,6 +154,7 @@ impl Signer {
             fingerprint,
             descriptor,
             SignerType::AirGap,
+            network,
         )
     }
 
