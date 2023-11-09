@@ -78,6 +78,13 @@ impl State for AddSignerState {
             )
             .push(
                 Button::new()
+                    .text("Add Coldcard Signer")
+                    .on_press(Message::View(Stage::AddColdcardSigner))
+                    .width(Length::Fill)
+                    .view(),
+            )
+            .push(
+                Button::new()
                     .text("Add AirGap Signer")
                     .on_press(Message::View(Stage::AddAirGapSigner))
                     .width(Length::Fill)

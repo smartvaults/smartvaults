@@ -16,7 +16,6 @@ pub const ICON_FONT: Font = Font::with_name("bootstrap-icons");
 pub const REGULAR: Font = Font {
     family: Family::Name("Roboto Mono"),
     weight: Weight::Normal,
-    monospaced: false,
     stretch: Stretch::Normal,
     style: Style::Normal,
 };
@@ -24,7 +23,6 @@ pub const REGULAR: Font = Font {
 pub const EXTRA_LIGHT: Font = Font {
     family: Family::Name("Roboto Mono"),
     weight: Weight::Light,
-    monospaced: false,
     stretch: Stretch::Normal,
     style: Style::Normal,
 };
@@ -32,7 +30,6 @@ pub const EXTRA_LIGHT: Font = Font {
 pub const BOLD: Font = Font {
     family: Family::Name("Roboto Mono"),
     weight: Weight::Bold,
-    monospaced: false,
     stretch: Stretch::Normal,
     style: Style::Normal,
 };

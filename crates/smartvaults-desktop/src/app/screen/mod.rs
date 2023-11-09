@@ -5,6 +5,7 @@ mod add_airgap_signer;
 mod add_contact;
 //mod add_hw_signer;
 mod activities;
+mod add_coldcard_signer;
 mod add_signer;
 mod addresses;
 mod completed_proposal;
@@ -29,6 +30,7 @@ mod transaction;
 mod vault;
 
 pub use self::add_airgap_signer::{AddAirGapSignerMessage, AddAirGapSignerState};
+pub use self::add_coldcard_signer::{AddColdcardSignerMessage, AddColdcardSignerState};
 pub use self::add_contact::{AddContactMessage, AddContactState};
 //pub use self::add_hw_signer::{AddHWSignerMessage, AddHWSignerState};
 pub use self::activities::{ActivityMessage, ActivityState};

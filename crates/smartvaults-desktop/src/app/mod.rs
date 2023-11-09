@@ -17,10 +17,10 @@ pub use self::context::{Context, Stage};
 pub use self::message::Message;
 //use self::screen::AddHWSignerState;
 use self::screen::{
-    ActivityState, AddAirGapSignerState, AddContactState, AddNostrConnectSessionState,
-    AddRelayState, AddSignerState, AddVaultState, AddressesState, ChangePasswordState,
-    CompletedProposalState, ConfigState, ConnectState, ContactsState, DashboardState,
-    EditProfileState, HistoryState, KeyAgentsState, NewProofState, PoliciesState,
+    ActivityState, AddAirGapSignerState, AddColdcardSignerState, AddContactState,
+    AddNostrConnectSessionState, AddRelayState, AddSignerState, AddVaultState, AddressesState,
+    ChangePasswordState, CompletedProposalState, ConfigState, ConnectState, ContactsState,
+    DashboardState, EditProfileState, HistoryState, KeyAgentsState, NewProofState, PoliciesState,
     PolicyBuilderState, PolicyTreeState, ProfileState, ProposalState, ReceiveState,
     RecoveryKeysState, RelayState, RelaysState, RestoreVaultState, RevokeAllSignersState,
     SelfTransferState, SettingsState, ShareSignerState, SignerState, SignersState, SpendState,
@@ -71,6 +71,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddSigner => AddSignerState::new().into(),
         //Stage::AddHWSigner => AddHWSignerState::new().into(),
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
+        Stage::AddColdcardSigner => AddColdcardSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
         Stage::KeyAgents => KeyAgentsState::new().into(),
         Stage::Contacts => ContactsState::new().into(),

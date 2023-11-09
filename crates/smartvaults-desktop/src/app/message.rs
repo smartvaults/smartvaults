@@ -3,14 +3,15 @@
 
 //use super::screen::AddHWSignerMessage;
 use super::screen::{
-    ActivityMessage, AddAirGapSignerMessage, AddContactMessage, AddNostrConnectSessionMessage,
-    AddRelayMessage, AddSignerMessage, AddVaultMessage, AddressesMessage, ChangePasswordMessage,
-    CompletedProposalMessage, ConfigMessage, ConnectMessage, ContactsMessage, DashboardMessage,
-    EditProfileMessage, HistoryMessage, KeyAgentsMessage, NewProofMessage, PoliciesMessage,
-    PolicyBuilderMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage,
-    RecoveryKeysMessage, RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage,
-    SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
-    SpendMessage, TransactionMessage, VaultMessage, WipeKeysMessage,
+    ActivityMessage, AddAirGapSignerMessage, AddColdcardSignerMessage, AddContactMessage,
+    AddNostrConnectSessionMessage, AddRelayMessage, AddSignerMessage, AddVaultMessage,
+    AddressesMessage, ChangePasswordMessage, CompletedProposalMessage, ConfigMessage,
+    ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage, HistoryMessage,
+    KeyAgentsMessage, NewProofMessage, PoliciesMessage, PolicyBuilderMessage, PolicyTreeMessage,
+    ProfileMessage, ProposalMessage, ReceiveMessage, RecoveryKeysMessage, RelayMessage,
+    RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage, SelfTransferMessage,
+    SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
+    TransactionMessage, VaultMessage, WipeKeysMessage,
 };
 use super::Stage;
 
@@ -40,6 +41,7 @@ pub enum Message {
     AddSigner(AddSignerMessage),
     //AddHWSigner(AddHWSignerMessage),
     AddAirGapSigner(AddAirGapSignerMessage),
+    AddColdcardSigner(AddColdcardSignerMessage),
     ShareSigner(ShareSignerMessage),
     KeyAgents(KeyAgentsMessage),
     Contacts(ContactsMessage),
