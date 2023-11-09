@@ -66,7 +66,7 @@ mod test {
             })
             .unwrap();
 
-        /* let address = wallet.get_address(AddressIndex::New).address;
+        let address = wallet.get_address(AddressIndex::New).address;
         wallet
             .insert_tx(
                 Transaction {
@@ -85,7 +85,7 @@ mod test {
                     time: 1694533020,
                 },
             )
-            .unwrap(); */
+            .unwrap();
 
         let address = wallet.get_address(AddressIndex::New).address;
         wallet
@@ -138,13 +138,13 @@ mod test {
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
         let desc_a: DescriptorPublicKey =
-            seed_a.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
+            seed_a.to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         // User B
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
         let desc_b: DescriptorPublicKey =
-            seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
+            seed_b.to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
@@ -180,13 +180,13 @@ mod test {
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
         let desc_a: DescriptorPublicKey =
-            seed_a.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
+            seed_a.to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         // User B
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
         let desc_b: DescriptorPublicKey =
-            seed_b.to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)?;
+            seed_b.to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
@@ -213,7 +213,7 @@ mod test {
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
         let desc_a: DescriptorPublicKey = seed_a.to_descriptor(
-            Purpose::TR,
+            Purpose::BIP86,
             Some(SMARTVAULTS_ACCOUNT_INDEX),
             false,
             NETWORK,
@@ -224,7 +224,7 @@ mod test {
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
         let desc_b: DescriptorPublicKey = seed_b.to_descriptor(
-            Purpose::TR,
+            Purpose::BIP86,
             Some(SMARTVAULTS_ACCOUNT_INDEX),
             false,
             NETWORK,

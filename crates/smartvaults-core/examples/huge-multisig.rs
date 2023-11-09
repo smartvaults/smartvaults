@@ -23,7 +23,7 @@ fn main() {
         let mnemonic = Mnemonic::from_entropy(&entropy).unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
         let desc = seed
-            .to_descriptor(Purpose::TR, Some(7291640), false, NETWORK, &SECP256K1)
+            .to_descriptor(Purpose::BIP86, Some(7291640), false, NETWORK, &SECP256K1)
             .unwrap();
         descriptors.push(desc);
     }

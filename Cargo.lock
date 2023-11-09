@@ -348,7 +348,7 @@ dependencies = [
 [[package]]
 name = "bdk"
 version = "1.0.0-alpha.2"
-source = "git+https://github.com/bitcoindevkit/bdk?rev=2e4bc3c5e27814c7981fd520265a9b907cdec2fb#2e4bc3c5e27814c7981fd520265a9b907cdec2fb"
+source = "git+https://github.com/bitcoindevkit/bdk?rev=c450499bc1dec7c10b97eb4c60c791253495c2e4#c450499bc1dec7c10b97eb4c60c791253495c2e4"
 dependencies = [
  "bdk_chain",
  "bitcoin",
@@ -364,7 +364,7 @@ dependencies = [
 [[package]]
 name = "bdk_chain"
 version = "0.6.0"
-source = "git+https://github.com/bitcoindevkit/bdk?rev=2e4bc3c5e27814c7981fd520265a9b907cdec2fb#2e4bc3c5e27814c7981fd520265a9b907cdec2fb"
+source = "git+https://github.com/bitcoindevkit/bdk?rev=c450499bc1dec7c10b97eb4c60c791253495c2e4#c450499bc1dec7c10b97eb4c60c791253495c2e4"
 dependencies = [
  "bitcoin",
  "miniscript",
@@ -374,7 +374,7 @@ dependencies = [
 [[package]]
 name = "bdk_electrum"
 version = "0.4.0"
-source = "git+https://github.com/bitcoindevkit/bdk?rev=2e4bc3c5e27814c7981fd520265a9b907cdec2fb#2e4bc3c5e27814c7981fd520265a9b907cdec2fb"
+source = "git+https://github.com/bitcoindevkit/bdk?rev=c450499bc1dec7c10b97eb4c60c791253495c2e4#c450499bc1dec7c10b97eb4c60c791253495c2e4"
 dependencies = [
  "bdk_chain",
  "electrum-client",
@@ -2269,7 +2269,7 @@ dependencies = [
 [[package]]
 name = "keechain-core"
 version = "0.1.0"
-source = "git+https://github.com/yukibtc/keechain?rev=20b854a48d89e8b0002744f9622e94dd140ef0c8#20b854a48d89e8b0002744f9622e94dd140ef0c8"
+source = "git+https://github.com/yukibtc/keechain?rev=4daa4b37e5030aaa876951a57cc6c26a3847afa1#4daa4b37e5030aaa876951a57cc6c26a3847afa1"
 dependencies = [
  "aes",
  "bdk",

@@ -95,7 +95,7 @@ impl Signer {
         S: Into<String>,
     {
         let descriptor =
-            seed.to_typed_descriptor(Purpose::TR, account, false, network, &SECP256K1)?;
+            seed.to_typed_descriptor(Purpose::BIP86, account, false, network, &SECP256K1)?;
         Self::new(
             name,
             description,

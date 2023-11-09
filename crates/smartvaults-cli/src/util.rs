@@ -15,8 +15,7 @@ use smartvaults_sdk::core::bitcoin::bip32::ExtendedPubKey;
 use smartvaults_sdk::core::bitcoin::{Network, ScriptBuf};
 use smartvaults_sdk::core::proposal::{CompletedProposal, Proposal};
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::core::types::Purpose;
-use smartvaults_sdk::core::{Keychain, Result, SECP256K1};
+use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{EventId, Keys, Relay, Timestamp, Url};
 use smartvaults_sdk::types::{
@@ -52,8 +51,8 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
 
     let root_key = keychain.seed.to_bip32_root_key(network)?;
     let descriptors = keychain.descriptors(network, None, &SECP256K1)?;
-    let external = descriptors.get_by_purpose(Purpose::TR, false).unwrap();
-    let internal = descriptors.get_by_purpose(Purpose::TR, true).unwrap();
+    let external = descriptors.get_by_purpose(Purpose::BIP86, false).unwrap();
+    let internal = descriptors.get_by_purpose(Purpose::BIP86, true).unwrap();
 
     println!("\nBitcoin");
     println!("  Root Private Key: {root_key}");
