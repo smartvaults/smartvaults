@@ -244,7 +244,6 @@ impl Manager {
         Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn spend<S>(
         &self,
         policy_id: EventId,

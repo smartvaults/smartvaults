@@ -428,7 +428,6 @@ impl SmartVaults {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn spend(
         &self,
         policy_id: Arc<EventId>,
@@ -463,7 +462,6 @@ impl SmartVaults {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn self_transfer(
         &self,
         from_policy_id: Arc<EventId>,
@@ -827,7 +825,7 @@ impl SmartVaults {
         block_on(async move {
             Ok(Arc::new(
                 self.inner
-                    .signer_offering(&**signer, offering.into())
+                    .signer_offering(&signer, offering.into())
                     .await?
                     .into(),
             ))

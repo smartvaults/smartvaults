@@ -288,7 +288,6 @@ impl SmartVaultsWallet {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn spend<S>(
         &self,
         address: Address<NetworkUnchecked>,

@@ -1070,7 +1070,6 @@ impl SmartVaults {
     }
 
     /// Make a spending proposal
-    #[allow(clippy::too_many_arguments)]
     pub async fn spend<S>(
         &self,
         policy_id: EventId,
@@ -1177,7 +1176,6 @@ impl SmartVaults {
     }
 
     /// Spend to another [`Policy`]
-    #[allow(clippy::too_many_arguments)]
     pub async fn self_transfer(
         &self,
         from_policy_id: EventId,

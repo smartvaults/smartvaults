@@ -538,7 +538,6 @@ impl Policy {
         Ok(None)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn spend<D, S>(
         &self,
         wallet: &mut Wallet<D>,

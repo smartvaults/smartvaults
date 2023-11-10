@@ -74,7 +74,6 @@ impl SmartVaults {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn key_agent_payment<S>(
         &self,
         policy_id: EventId,
