@@ -17,6 +17,18 @@ use super::{Error, SmartVaults};
 use crate::types::{KeyAgent, User};
 
 impl SmartVaults {
+    /// Announce as Key Agent
+    pub async fn announce_key_agent(&self) -> Result<EventId, Error> {
+        // Get keys
+        let keys: Keys = self.keys().await;
+
+        // Compose event
+        let event: Event = EventBuilder::key_agent_signaling(&keys, self.network)?;
+
+        // Publish event
+        self.send_event(event).await
+    }
+
     pub async fn signer_offering(
         &self,
         signer: &Signer,

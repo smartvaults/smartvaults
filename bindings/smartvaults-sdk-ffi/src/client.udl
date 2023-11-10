@@ -158,6 +158,8 @@ interface SmartVaults {
     void auto_approve_nostr_connect_requests(PublicKey app_public_key, duration duration);
 
     [Throws=FFIError]
+    EventId announce_key_agent();
+    [Throws=FFIError]
     EventId signer_offering(Signer signer, SignerOffering offering);
     [Throws=FFIError]
     sequence<KeyAgent> key_agents();

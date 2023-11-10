@@ -817,6 +817,10 @@ impl SmartVaults {
 
     // TODO: add get_nostr_connect_pre_authorizations
 
+    pub fn announce_key_agent(&self) -> Result<Arc<EventId>> {
+        block_on(async move { Ok(Arc::new(self.inner.announce_key_agent().await?.into())) })
+    }
+
     pub fn signer_offering(
         &self,
         signer: Arc<Signer>,
