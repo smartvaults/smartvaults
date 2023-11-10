@@ -18,6 +18,15 @@ pub struct Period {
     pub to: Arc<Timestamp>,
 }
 
+impl From<Period> for proposal::Period {
+    fn from(value: Period) -> Self {
+        Self {
+            from: value.from.as_u64(),
+            to: value.to.as_u64(),
+        }
+    }
+}
+
 pub enum Proposal {
     Spending {
         descriptor: String,

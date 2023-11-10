@@ -19,6 +19,7 @@ mod client;
 mod config;
 mod descriptor;
 mod error;
+mod key_agent;
 mod message;
 mod network;
 mod nip46;
@@ -32,33 +33,34 @@ mod user;
 use self::error::Result;
 
 // Error
-pub use crate::error::FFIError;
+pub use self::error::FFIError;
 
 // SmartVaults
-pub use crate::abortable::AbortHandle;
-pub use crate::address::{AddressIndex, GetAddress};
-pub use crate::amount::Amount;
-pub use crate::balance::Balance;
-pub use crate::client::{SmartVaults, SyncHandler};
-pub use crate::config::Config;
-pub use crate::descriptor::Descriptor;
-pub use crate::message::{EventHandled, Message};
-pub use crate::network::Network;
-pub use crate::nip46::{NostrConnectRequest, NostrConnectSession};
-pub use crate::policy::{
+pub use self::abortable::AbortHandle;
+pub use self::address::{AddressIndex, GetAddress};
+pub use self::amount::Amount;
+pub use self::balance::Balance;
+pub use self::client::{SmartVaults, SyncHandler};
+pub use self::config::Config;
+pub use self::descriptor::Descriptor;
+pub use self::key_agent::{DeviceType, KeyAgent, Price, SignerOffering, Temperature};
+pub use self::message::{EventHandled, Message};
+pub use self::network::Network;
+pub use self::nip46::{NostrConnectRequest, NostrConnectSession};
+pub use self::policy::{
     AbsoluteLockTime, DecayingTime, GetPolicy, Locktime, Policy, PolicyPath, PolicyPathSelector,
     PolicyPathSigner, PolicyTemplate, RecoveryTemplate, RelativeLockTime,
 };
-pub use crate::proposal::{
+pub use self::proposal::{
     ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal, Period,
     Proposal,
 };
-pub use crate::seed::Seed as KeychainSeed;
-pub use crate::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer};
-pub use crate::transaction::{
+pub use self::seed::Seed as KeychainSeed;
+pub use self::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer};
+pub use self::transaction::{
     BlockTime, GetTransaction, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
 };
-pub use crate::user::User;
+pub use self::user::User;
 
 pub fn git_hash_version() -> String {
     smartvaults_sdk::git_hash_version().to_string()

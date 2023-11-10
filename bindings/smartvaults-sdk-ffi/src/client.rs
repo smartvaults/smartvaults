@@ -15,6 +15,7 @@ use smartvaults_sdk::client;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
 use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_sdk::core::bitcoin::{Address, Txid};
+use smartvaults_sdk::core::miniscript::Descriptor;
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::types::{FeeRate, Priority, WordCount};
 use smartvaults_sdk::nostr::block_on;
@@ -23,8 +24,8 @@ use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
-    KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
-    OutPoint, PolicyTemplate, Relay, Signer, User, Utxo,
+    KeyAgent, KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession,
+    NostrConnectURI, OutPoint, Period, PolicyTemplate, Relay, Signer, SignerOffering, User, Utxo,
 };
 
 pub struct SmartVaults {
@@ -817,6 +818,75 @@ impl SmartVaults {
     // TODO: add revoke_nostr_connect_auto_approve
 
     // TODO: add get_nostr_connect_pre_authorizations
+
+    pub fn signer_offering(
+        &self,
+        signer: Arc<Signer>,
+        offering: SignerOffering,
+    ) -> Result<Arc<EventId>> {
+        block_on(async move {
+            Ok(Arc::new(
+                self.inner
+                    .signer_offering(&**signer, offering.into())
+                    .await?
+                    .into(),
+            ))
+        })
+    }
+
+    pub fn key_agents(&self) -> Result<Vec<KeyAgent>> {
+        block_on(async move {
+            Ok(self
+                .inner
+                .key_agents()
+                .await?
+                .into_iter()
+                .map(|k| k.into())
+                .collect())
+        })
+    }
+
+    pub fn request_signers_to_key_agent(&self, key_agent: Arc<PublicKey>) -> Result<()> {
+        self.add_contact(key_agent)
+    }
+
+    pub fn key_agent_payment(
+        &self,
+        policy_id: Arc<EventId>,
+        to_address: String,
+        amount: Arc<Amount>,
+        description: String,
+        signer_descriptor: String,
+        period: Period,
+        target_blocks: u8,
+        utxos: Option<Vec<Arc<OutPoint>>>,
+        policy_path: Option<HashMap<String, Vec<u64>>>,
+        skip_frozen_utxos: bool,
+    ) -> Result<Arc<GetProposal>> {
+        block_on(async move {
+            let to_address = Address::from_str(&to_address)?;
+            let proposal = self
+                .inner
+                .key_agent_payment(
+                    **policy_id,
+                    to_address,
+                    amount.inner(),
+                    description,
+                    Descriptor::from_str(&signer_descriptor)?,
+                    period.into(),
+                    FeeRate::Priority(Priority::Custom(target_blocks)),
+                    utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
+                    policy_path.map(|pp| {
+                        pp.into_iter()
+                            .map(|(k, v)| (k, v.into_iter().map(|i| i as usize).collect()))
+                            .collect()
+                    }),
+                    skip_frozen_utxos,
+                )
+                .await?;
+            Ok(Arc::new(proposal.into()))
+        })
+    }
 
     pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
         tracing::info!("Spawning new `handle_sync` thread");

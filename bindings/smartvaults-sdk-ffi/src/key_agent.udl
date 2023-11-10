@@ -1,0 +1,41 @@
+dictionary KeyAgent {
+    User user;
+    boolean verified;
+    sequence<SignerOffering> signer_offerings;
+    boolean is_contact;
+};
+
+dictionary SignerOffering {
+    Temperature temperature;
+    u16 response_time;
+    DeviceType device_type;
+    Price? cost_per_signature;
+    f64? yearly_cost_basis_points;
+    Price? yearly_cost;
+    Network network;
+};
+
+dictionary Price {
+    u64 amount;
+    string currency;
+};
+
+[Enum]
+interface Temperature {
+    Warm();
+    Cold();
+    AirGapped();
+    Other(string other);
+};
+
+[Enum]
+interface DeviceType {
+    Coldcard();
+    BitBox02();
+    Ledger();
+    Mobile();
+    Desktop();
+    CloudBased();
+    Undisclosed();
+    Other(string other);
+};

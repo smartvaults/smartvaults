@@ -157,6 +157,15 @@ interface SmartVaults {
     void reject_nostr_connect_request(EventId event_id);
     void auto_approve_nostr_connect_requests(PublicKey app_public_key, duration duration);
 
+    [Throws=FFIError]
+    EventId signer_offering(Signer signer, SignerOffering offering);
+    [Throws=FFIError]
+    sequence<KeyAgent> key_agents();
+    [Throws=FFIError]
+    void request_signers_to_key_agent(PublicKey key_agent);
+    [Throws=FFIError]
+    GetProposal key_agent_payment(EventId policy_id, string to_address, Amount amount, string description, string signer_descriptor, Period period, u8 target_blocks, sequence<OutPoint>? utxos, record<DOMString, sequence<u64>>? policy_path, boolean skip_frozen_utxos);
+
     [Self=ByArc]
     AbortHandle handle_sync(SyncHandler handler);
 };

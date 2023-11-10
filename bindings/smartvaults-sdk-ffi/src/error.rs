@@ -148,6 +148,12 @@ impl From<smartvaults_sdk::core::bitcoin::absolute::Error> for FFIError {
     }
 }
 
+impl From<smartvaults_sdk::core::miniscript::Error> for FFIError {
+    fn from(e: smartvaults_sdk::core::miniscript::Error) -> Self {
+        Self::Generic { err: e.to_string() }
+    }
+}
+
 impl From<nostr_sdk_ffi::NostrError> for FFIError {
     fn from(e: nostr_sdk_ffi::NostrError) -> FFIError {
         Self::Generic { err: e.to_string() }
