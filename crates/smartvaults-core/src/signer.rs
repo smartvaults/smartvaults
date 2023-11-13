@@ -3,14 +3,16 @@
 
 use std::fmt;
 
+use bdk::miniscript::descriptor::Tr;
 use bdk::Wallet;
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
+use keechain_core::bips::bip48::ScriptType;
 use keechain_core::bitcoin::Network;
 use keechain_core::crypto::hash;
 use keechain_core::descriptors::{self, ToDescriptor};
 use keechain_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
 use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
-use keechain_core::{Purpose, Seed};
+use keechain_core::{ColdcardGenericJson, Purpose, Seed};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -24,9 +26,13 @@ pub enum Error {
     #[error(transparent)]
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
+    Miniscript(#[from] bdk::miniscript::Error),
+    #[error(transparent)]
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
     #[error(transparent)]
     BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
+    #[error(transparent)]
+    Coldcard(#[from] keechain_core::export::coldcard::Error),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
 }
@@ -156,6 +162,22 @@ impl Signer {
             SignerType::AirGap,
             network,
         )
+    }
+
+    /// Build [`Signer`] from Coldcard generic JSON
+    pub fn from_coldcard<S>(
+        name: S,
+        coldcard: ColdcardGenericJson,
+        network: Network,
+    ) -> Result<Self, Error>
+    where
+        S: Into<String>,
+    {
+        let descriptor = coldcard.descriptor(Purpose::BIP48 {
+            script: ScriptType::P2TR,
+        })?;
+        let descriptor = Descriptor::Tr(Tr::new(descriptor, None)?);
+        Self::airgap(name, None, coldcard.fingerprint(), descriptor, network)
     }
 
     pub fn name(&self) -> String {

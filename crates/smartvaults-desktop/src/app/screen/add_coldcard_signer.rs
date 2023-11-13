@@ -4,11 +4,9 @@
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::core::miniscript::Descriptor;
 use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::ColdcardGenericJson;
 use smartvaults_sdk::prelude::bips::bip48::ScriptType;
-use smartvaults_sdk::prelude::miniscript::descriptor::Tr;
 use smartvaults_sdk::prelude::Purpose;
 
 use crate::app::component::Dashboard;
@@ -85,19 +83,11 @@ impl State for AddColdcardSignerState {
                         self.loading = true;
                         let client = ctx.client.clone();
                         let name = self.name.clone();
-                        let json = generic_json.clone();
+                        let coldcard = generic_json.clone();
                         return Command::perform(
                             async move {
-                                let fingerprint = json.fingerprint();
-                                let descriptor = json.descriptor(PURPOSE)?;
-                                let descriptor = Descriptor::Tr(Tr::new(descriptor, None)?);
-                                let signer = Signer::airgap(
-                                    name,
-                                    None,
-                                    fingerprint,
-                                    descriptor,
-                                    client.network(),
-                                )?;
+                                let signer =
+                                    Signer::from_coldcard(name, coldcard, client.network())?;
                                 client.save_signer(signer).await?;
                                 Ok::<(), Box<dyn std::error::Error>>(())
                             },
