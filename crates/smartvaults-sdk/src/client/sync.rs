@@ -27,7 +27,7 @@ use smartvaults_protocol::v1::constants::{
     SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::{Encryption, Label, Serde, SignerOffering, VerifiedKeyAgents};
+use smartvaults_protocol::v1::{Encryption, Label, Serde, VerifiedKeyAgents};
 use smartvaults_sdk_sqlite::model::InternalGetPolicy;
 use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
@@ -220,7 +220,9 @@ impl SmartVaults {
             .author(public_key)
             .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
-        let key_agents: Filter = Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND);
+        let key_agents: Filter = Filter::new()
+            .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
+            .since(since);
         let smartvaults: Filter = Filter::new()
             .author(match self.network {
                 Network::Bitcoin => *SMARTVAULTS_MAINNET_PUBLIC_KEY,
@@ -602,31 +604,6 @@ impl SmartVaults {
 
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::RelayList))?;
-            }
-        } else if event.kind == KEY_AGENT_SIGNER_OFFERING_KIND {
-            // Deserialize Signer Offering
-            let signer_offering: SignerOffering = SignerOffering::from_json(event.content)?;
-
-            // Check network
-            if signer_offering.network == self.network {
-                // Update Key Agents
-                let mut key_agents = self.key_agents.write().await;
-                key_agents
-                    .entry(event.pubkey)
-                    .and_modify(|set| {
-                        set.insert(signer_offering.clone());
-                    })
-                    .or_insert_with(|| {
-                        let mut set = HashSet::new();
-                        set.insert(signer_offering);
-                        set
-                    });
-
-                // Send notification
-                /* self.sync_channel
-                .send(Message::EventHandled(EventHandled::KeyAgentSignerOffering))?; */
-            } else {
-                tracing::warn!("Received signer offering for another network");
             }
         } else if event.kind == KEY_AGENT_VERIFIED {
             let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;

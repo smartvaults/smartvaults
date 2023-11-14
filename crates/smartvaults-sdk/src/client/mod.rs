@@ -47,8 +47,7 @@ use smartvaults_protocol::v1::constants::{
 };
 use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
-    Label, LabelData, SignerOffering, SmartVaultsEventBuilder, SmartVaultsEventBuilderError,
-    VerifiedKeyAgents,
+    Label, LabelData, SmartVaultsEventBuilder, SmartVaultsEventBuilderError, VerifiedKeyAgents,
 };
 use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
@@ -184,7 +183,6 @@ pub struct SmartVaults {
     sync_channel: Sender<Message>,
     default_signer: Signer,
     verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
-    key_agents: Arc<RwLock<BTreeMap<XOnlyPublicKey, HashSet<SignerOffering>>>>,
 }
 
 impl SmartVaults {
@@ -238,7 +236,6 @@ impl SmartVaults {
             sync_channel: sender,
             default_signer: smartvaults_signer(seed, network)?,
             verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
-            key_agents: Arc::new(RwLock::new(BTreeMap::new())),
         };
 
         this.init().await?;
