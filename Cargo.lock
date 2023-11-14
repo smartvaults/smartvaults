@@ -1330,6 +1330,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "flatbuffers"
+version = "23.5.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dac53e22462d78c16d64a1cd22371b54cc3fe94aa15e7886a2fa6e5d1ab8640"
+dependencies = [
+ "bitflags 1.3.2",
+ "rustc_version",
+]
+
+[[package]]
 name = "flate2"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2812,8 +2822,8 @@ dependencies = [
 
 [[package]]
 name = "nostr"
-version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=057573c7086142108ba997302fa830b0c4f420bd#057573c7086142108ba997302fa830b0c4f420bd"
+version = "0.25.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
 dependencies = [
  "aes",
  "base64 0.21.5",
@@ -2833,9 +2843,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nostr-database"
+version = "0.1.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
+dependencies = [
+ "async-trait",
+ "flatbuffers",
+ "nostr",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=057573c7086142108ba997302fa830b0c4f420bd#057573c7086142108ba997302fa830b0c4f420bd"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2843,12 +2866,14 @@ dependencies = [
 
 [[package]]
 name = "nostr-sdk"
-version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=057573c7086142108ba997302fa830b0c4f420bd#057573c7086142108ba997302fa830b0c4f420bd"
+version = "0.25.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
 dependencies = [
  "async-utility",
  "nostr",
+ "nostr-database",
  "nostr-sdk-net",
+ "nostr-sqlite",
  "once_cell",
  "thiserror",
  "tokio",
@@ -2858,7 +2883,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=057573c7086142108ba997302fa830b0c4f420bd#057573c7086142108ba997302fa830b0c4f420bd"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2869,8 +2894,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-sdk-net"
-version = "0.24.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=057573c7086142108ba997302fa830b0c4f420bd#057573c7086142108ba997302fa830b0c4f420bd"
+version = "0.25.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -2881,6 +2906,21 @@ dependencies = [
  "url-fork",
  "webpki-roots",
  "ws_stream_wasm",
+]
+
+[[package]]
+name = "nostr-sqlite"
+version = "0.1.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=53962ec0bc3ca716af3bc05ad92a54e2a748b230#53962ec0bc3ca716af3bc05ad92a54e2a748b230"
+dependencies = [
+ "async-trait",
+ "deadpool-sqlite",
+ "nostr",
+ "nostr-database",
+ "rusqlite",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

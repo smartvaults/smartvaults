@@ -64,6 +64,14 @@ where
     Ok(path.join(format!("{public_key}.db"))) // TODO: update extension to `sqlite3` if needed a breaking change in DB migrations
 }
 
+pub(crate) fn nostr_db<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
+where
+    P: AsRef<Path>,
+{
+    let path = network_path(base_path, network)?;
+    Ok(path.join("nostr.db"))
+}
+
 pub(crate) fn get_keychains_list<P>(base_path: P, network: Network) -> Result<Vec<String>, Error>
 where
     P: AsRef<Path>,

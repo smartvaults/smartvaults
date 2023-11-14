@@ -13,13 +13,14 @@ use async_utility::thread;
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
+use nostr_sdk::database::{DatabaseError, NostrDatabaseExt};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::relay::pool;
 use nostr_sdk::util::TryIntoUrl;
 use nostr_sdk::{
-    nips, Client, ClientMessage, Contact, Event, EventBuilder, EventId, Filter, Keys, Kind,
-    Metadata, Options, Relay, RelayPoolNotification, Result, Tag, TagKind, Timestamp, UncheckedUrl,
-    Url,
+    nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
+    JsonUtil, Keys, Kind, Metadata, Options, Relay, RelayPoolNotification, Result, SQLiteDatabase,
+    SQLiteError, Tag, TagKind, Timestamp, UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -88,6 +89,10 @@ pub enum Error {
     Client(#[from] nostr_sdk::client::Error),
     #[error(transparent)]
     RelayPool(#[from] nostr_sdk::relay::pool::Error),
+    #[error(transparent)]
+    NostrDatabase(#[from] DatabaseError),
+    #[error(transparent)]
+    NostrDatabaseSQLite(#[from] SQLiteError),
     #[error(transparent)]
     Keys(#[from] nostr_sdk::key::Error),
     #[error(transparent)]
@@ -206,19 +211,26 @@ impl SmartVaults {
         )
         .await?;
 
+        // Nostr client
+        let nostr_db_path = util::dir::nostr_db(base_path, network)?;
+        let nostr_db = SQLiteDatabase::open(nostr_db_path).await?;
         let opts = Options::new()
             .wait_for_connection(false)
             .wait_for_send(true)
             .wait_for_subscription(false)
             .skip_disconnected_relays(true)
             .send_timeout(Some(SEND_TIMEOUT));
+        let client: Client = ClientBuilder::new(&keys)
+            .database(nostr_db)
+            .opts(opts)
+            .build();
 
         let (sender, _) = broadcast::channel::<Message>(4096);
 
         let this = Self {
             network,
             keechain: Arc::new(ParkingLotRwLock::new(keechain)),
-            client: Client::with_opts(&keys, opts),
+            client,
             manager: Manager::new(db.clone(), network),
             config: Config::try_from_file(base_path, network)?,
             db,
@@ -450,7 +462,6 @@ impl SmartVaults {
                 if let RelayPoolNotification::Stop = notification {
                     self.db.wipe().await?;
                     self.manager.unload_policies().await;
-                    self.client.clear_already_seen_events().await;
                     self.client.start().await;
                     self.sync();
                 }
@@ -535,7 +546,7 @@ impl SmartVaults {
             .map(|url| (UncheckedUrl::from(url), None))
             .collect();
         let event = EventBuilder::relay_list(list).to_event(&keys)?;
-        self.send_event(event).await
+        Ok(self.client.send_event(event).await?)
     }
 
     /// Get default relays for current [`Network`]
@@ -638,11 +649,6 @@ impl SmartVaults {
         Ok(self.client.shutdown().await?)
     }
 
-    async fn send_event(&self, event: Event) -> Result<EventId, Error> {
-        self.db.save_event(event.clone()).await?;
-        Ok(self.client.send_event(event).await?)
-    }
-
     /// Get config
     pub fn config(&self) -> Config {
         self.config.clone()
@@ -670,15 +676,14 @@ impl SmartVaults {
     pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {
         let keys: Keys = self.keys().await;
         let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
-        self.send_event(event).await?;
-        self.db.set_metadata(keys.public_key(), metadata).await?;
+        self.client.send_event(event).await?;
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_profile(&self) -> Result<User, Error> {
         let public_key: XOnlyPublicKey = self.keys().await.public_key();
-        let metadata = self.db.get_metadata(public_key).await?;
+        let metadata = self.client.database().profile(public_key).await?;
         Ok(User::new(public_key, metadata))
     }
 
@@ -690,7 +695,7 @@ impl SmartVaults {
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Metadata, Error> {
-        let metadata: Metadata = self.db.get_metadata(public_key).await?;
+        let metadata: Metadata = self.client.database().profile(public_key).await?;
         if metadata == Metadata::default() {
             self.client
                 .req_events_of(
@@ -707,9 +712,11 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_contacts(&self) -> Result<Vec<User>, Error> {
+        let keys = self.keys().await;
         Ok(self
-            .db
-            .get_contacts_with_metadata()
+            .client
+            .database()
+            .contacts(keys.public_key())
             .await?
             .into_iter()
             .map(|(public_key, metadata)| User::new(public_key, metadata))
@@ -721,16 +728,16 @@ impl SmartVaults {
         if public_key != keys.public_key() {
             // Add contact
             let mut contacts: Vec<Contact> = self
-                .db
-                .get_contacts_public_keys()
+                .client
+                .database()
+                .contacts_public_keys(keys.public_key())
                 .await?
                 .into_iter()
                 .map(|p| Contact::new::<String>(p, None, None))
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
             let event = EventBuilder::set_contact_list(contacts).to_event(&keys)?;
-            self.send_event(event).await?;
-            self.db.save_contact(public_key).await?;
+            self.client.send_event(event).await?;
 
             // Request contact metadata
             self.client
@@ -750,16 +757,16 @@ impl SmartVaults {
     pub async fn remove_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
         let keys: Keys = self.keys().await;
         let contacts: Vec<Contact> = self
-            .db
-            .get_contacts_public_keys()
+            .client
+            .database()
+            .contacts_public_keys(keys.public_key())
             .await?
             .into_iter()
             .filter(|p| p != &public_key)
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
         let event = EventBuilder::set_contact_list(contacts).to_event(&keys)?;
-        self.send_event(event).await?;
-        self.db.delete_contact(public_key).await?;
+        self.client.send_event(event).await?;
         Ok(())
     }
 
@@ -816,7 +823,7 @@ impl SmartVaults {
                 .for_each(|id| tags.push(Tag::Event(id, None, None)));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-            self.send_event(event).await?;
+            self.client.send_event(event).await?;
 
             self.db.delete_policy(policy_id).await?;
 
@@ -862,7 +869,7 @@ impl SmartVaults {
             } */
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-            self.send_event(event).await?;
+            self.client.send_event(event).await?;
 
             self.db.delete_proposal(proposal_id).await?;
 
@@ -907,7 +914,7 @@ impl SmartVaults {
             tags.push(Tag::Event(completed_proposal_id, None, None));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
-            self.send_event(event).await?;
+            self.client.send_event(event).await?;
 
             self.db
                 .delete_completed_proposal(completed_proposal_id)
@@ -967,7 +974,7 @@ impl SmartVaults {
             timestamp,
         } in approvals.into_iter()
         {
-            let metadata: Metadata = self.db.get_metadata(public_key).await?;
+            let metadata: Metadata = self.client.database().profile(public_key).await?;
             list.push(GetApproval {
                 approval_id,
                 user: User::new(public_key, metadata),
@@ -1035,7 +1042,7 @@ impl SmartVaults {
         }
 
         // Publish the event
-        self.send_event(policy_event).await?;
+        self.client.send_event(policy_event).await?;
 
         // Cache policy
         self.db.save_shared_key(policy_id, shared_key).await?;
@@ -1142,7 +1149,7 @@ impl SmartVaults {
             let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
             let event: Event =
                 EventBuilder::proposal(&shared_key, policy_id, &proposal, &nostr_pubkeys)?;
-            let proposal_id = self.send_event(event).await?;
+            let proposal_id = self.client.send_event(event).await?;
 
             // Send DM msg
             // TODO: send withoud wait for OK
@@ -1268,7 +1275,7 @@ impl SmartVaults {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event).await?;
+        let event_id = self.client.send_event(event).await?;
 
         // Cache approved proposal
         self.db
@@ -1320,7 +1327,7 @@ impl SmartVaults {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event).await?;
+        let event_id = self.client.send_event(event).await?;
 
         // Cache approved proposal
         self.db
@@ -1372,7 +1379,7 @@ impl SmartVaults {
         let timestamp = event.created_at;
 
         // Publish the event
-        let event_id = self.send_event(event).await?;
+        let event_id = self.client.send_event(event).await?;
 
         // Cache approved proposal
         self.db.save_approved_proposal(
@@ -1402,7 +1409,7 @@ impl SmartVaults {
             tags.push(Tag::Event(approval_id, None, None));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
-            self.send_event(event).await?;
+            self.client.send_event(event).await?;
 
             self.db.delete_approval(approval_id).await?;
 
@@ -1474,7 +1481,7 @@ impl SmartVaults {
             EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
 
         // Publish the event
-        let event_id = self.send_event(event).await?;
+        let event_id = self.client.send_event(event).await?;
 
         // Delete the proposal
         if let Err(e) = self.delete_proposal_by_id(proposal_id).await {
@@ -1516,7 +1523,7 @@ impl SmartVaults {
         let content = proposal.encrypt_with_keys(&shared_keys)?;
         // Publish proposal with `shared_key` so every owner can delete it
         let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
-        let proposal_id = self.send_event(event).await?;
+        let proposal_id = self.client.send_event(event).await?;
 
         // Send DM msg
         // TODO: send withoud wait for OK
@@ -1879,12 +1886,17 @@ impl SmartVaults {
     }
 
     pub async fn get_known_public_keys_with_metadata(&self) -> Result<Vec<User>, Error> {
+        let filter = Filter::new().kind(Kind::Metadata);
         Ok(self
-            .db
-            .get_known_public_keys_with_metadata()
+            .client
+            .database()
+            .query(vec![filter])
             .await?
             .into_iter()
-            .map(|(public_key, metadata)| User::new(public_key, metadata))
+            .map(|e| {
+                let metadata = Metadata::from_json(e.content).unwrap_or_default();
+                User::new(e.pubkey, metadata)
+            })
             .collect())
     }
 }

@@ -26,7 +26,6 @@ use smartvaults_protocol::nostr::{Event, JsonUtil, Keys, Timestamp};
 use tokio::sync::RwLock;
 
 mod connect;
-mod contacts;
 mod label;
 mod policy;
 mod relays;
@@ -56,7 +55,6 @@ pub enum Type {
 pub struct Store {
     pool: Pool,
     cipher: XChaCha20Poly1305,
-    public_key: XOnlyPublicKey,
     network: Network,
     nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
 }
@@ -85,7 +83,6 @@ impl Store {
         Ok(Self {
             pool,
             cipher: XChaCha20Poly1305::new(&key.into()),
-            public_key: keys.public_key(),
             network,
             nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
         })

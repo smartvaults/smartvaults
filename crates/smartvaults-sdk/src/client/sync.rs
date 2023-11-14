@@ -12,8 +12,8 @@ use futures_util::stream::AbortHandle;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, Metadata,
-    RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
+    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, RelayMessage,
+    RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -33,7 +33,7 @@ use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
-use crate::constants::{METADATA_SYNC_INTERVAL, WALLET_SYNC_INTERVAL};
+use crate::constants::WALLET_SYNC_INTERVAL;
 
 use crate::manager::{Error as ManagerError, WalletError};
 use crate::util;
@@ -172,33 +172,6 @@ impl SmartVaults {
         })
     }
 
-    fn sync_metadata(&self) -> AbortHandle {
-        let this = self.clone();
-        thread::abortable(async move {
-            loop {
-                match this
-                    .db
-                    .get_unsynced_metadata_pubkeys(METADATA_SYNC_INTERVAL)
-                    .await
-                {
-                    Ok(public_keys) => {
-                        if !public_keys.is_empty() {
-                            let timeout = Duration::from_secs(10 * public_keys.len() as u64);
-                            let filter = Filter::new().kind(Kind::Metadata).authors(public_keys);
-                            this.client.req_events_of(vec![filter], Some(timeout)).await;
-                        } else {
-                            tracing::debug!("No public keys metadata to sync")
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!("Impossible to get unsynced metadata public keys: {e}")
-                    }
-                }
-                thread::sleep(Duration::from_secs(60)).await;
-            }
-        })
-    }
-
     fn rebroadcaster(&self) -> AbortHandle {
         let this = self.clone();
         thread::abortable(async move {
@@ -280,7 +253,7 @@ impl SmartVaults {
 
                 // Pending events handler
                 let pending_event_handler = this.handle_pending_events();
-                let metadata_sync = this.sync_metadata();
+                // TODO: let metadata_sync = this.sync_metadata();
 
                 // Rebroadcaster
                 let rebroadcaster = this.rebroadcaster();
@@ -336,7 +309,6 @@ impl SmartVaults {
                                 block_height_syncer.abort();
                                 policies_syncer.abort();
                                 pending_event_handler.abort();
-                                metadata_sync.abort();
                                 rebroadcaster.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
@@ -594,18 +566,9 @@ impl SmartVaults {
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::EventDeletion))?;
         } else if event.kind == Kind::ContactList {
-            let mut contacts = HashSet::new();
-            for tag in event.tags.into_iter() {
-                if let Tag::ContactList { pk, .. } = tag {
-                    contacts.insert(pk);
-                }
-            }
-            self.db.save_contacts(contacts).await?;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Contacts))?;
         } else if event.kind == Kind::Metadata {
-            let metadata = Metadata::from_json(event.content)?;
-            self.db.set_metadata(event.pubkey, metadata).await?;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
         } else if event.kind == Kind::RelayList {

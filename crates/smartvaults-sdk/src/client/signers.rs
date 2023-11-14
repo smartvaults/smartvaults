@@ -3,6 +3,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
+use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Metadata, Tag};
 use smartvaults_core::miniscript::Descriptor;
@@ -39,7 +40,7 @@ impl SmartVaults {
         }
 
         let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
-        self.send_event(event).await?;
+        self.client.send_event(event).await?;
 
         self.db.delete_signer(signer_id).await?;
 
@@ -64,7 +65,7 @@ impl SmartVaults {
         let event = EventBuilder::new(SIGNERS_KIND, content, &[]).to_event(&keys)?;
 
         // Publish the event
-        let signer_id = self.send_event(event).await?;
+        let signer_id = self.client.send_event(event).await?;
 
         // Save signer in db
         self.db.save_signer(signer_id, signer).await?;
@@ -132,7 +133,7 @@ impl SmartVaults {
             ];
             let event: Event =
                 EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
-            let event_id = self.send_event(event).await?;
+            let event_id = self.client.send_event(event).await?;
             self.db
                 .save_my_shared_signer(signer_id, event_id, public_key)
                 .await?;
@@ -197,7 +198,7 @@ impl SmartVaults {
                 Tag::Event(shared_signer_id, None, None),
             ];
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-            self.send_event(event).await?;
+            self.client.send_event(event).await?;
             self.db.delete_shared_signer(shared_signer_id).await?;
         }
         Ok(())
@@ -214,7 +215,7 @@ impl SmartVaults {
             Tag::Event(shared_signer_id, None, None),
         ];
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-        self.send_event(event).await?;
+        self.client.send_event(event).await?;
         self.db.delete_shared_signer(shared_signer_id).await?;
         Ok(())
     }
@@ -242,7 +243,7 @@ impl SmartVaults {
             .get_my_shared_signers_by_signer_id(signer_id)
             .await?;
         for (key, pk) in ssbs.into_iter() {
-            let metadata: Metadata = self.db.get_metadata(pk).await?;
+            let metadata: Metadata = self.client.database().profile(pk).await?;
             map.insert(key, User::new(pk, metadata));
         }
         Ok(map)
@@ -258,7 +259,7 @@ impl SmartVaults {
             shared_signer,
         } in ss.into_iter()
         {
-            let metadata: Metadata = self.db.get_metadata(owner_public_key).await?;
+            let metadata: Metadata = self.client.database().profile(owner_public_key).await?;
             list.push(GetSharedSigner {
                 shared_signer_id,
                 owner: User::new(owner_public_key, metadata),
@@ -276,7 +277,13 @@ impl SmartVaults {
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
-            let contacts: HashSet<XOnlyPublicKey> = self.db.get_contacts_public_keys().await?;
+            let keys = self.client.keys().await;
+            let contacts: Vec<XOnlyPublicKey> = self
+                .client
+                .database()
+                .contacts_public_keys(keys.public_key())
+                .await?;
+            let contacts: HashSet<XOnlyPublicKey> = contacts.into_iter().collect();
             Ok(public_keys.difference(&contacts).copied().collect())
         }
     }
@@ -286,7 +293,7 @@ impl SmartVaults {
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Vec<GetSharedSigner>, Error> {
-        let metadata: Metadata = self.db.get_metadata(public_key).await?;
+        let metadata: Metadata = self.client.database().profile(public_key).await?;
         let user = User::new(public_key, metadata);
         Ok(self
             .db

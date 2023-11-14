@@ -18,7 +18,7 @@ impl SmartVaults {
         let event: Event = EventBuilder::label(&shared_key, policy_id, &label, &nostr_pubkeys)?;
 
         // Publish event
-        let event_id: EventId = self.send_event(event).await?;
+        let event_id: EventId = self.client.send_event(event).await?;
 
         // Save to db
         let identifier: String = label.generate_identifier(&shared_key)?;

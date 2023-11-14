@@ -3,6 +3,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
+use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{Event, EventBuilder, EventId, Keys};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
@@ -26,7 +27,7 @@ impl SmartVaults {
         let event: Event = EventBuilder::key_agent_signaling(&keys, self.network)?;
 
         // Publish event
-        self.send_event(event).await
+        Ok(self.client.send_event(event).await?)
     }
 
     pub async fn signer_offering(
@@ -41,7 +42,7 @@ impl SmartVaults {
         let event: Event = EventBuilder::signer_offering(&keys, signer, &offering, self.network)?;
 
         // Publish event
-        let id: EventId = self.send_event(event).await?;
+        let id: EventId = self.client.send_event(event).await?;
 
         // Update key agents list // TODO: save in local DB?
         let mut key_agents = self.key_agents.write().await;
@@ -61,7 +62,12 @@ impl SmartVaults {
 
     /// Get Key Agents
     pub async fn key_agents(&self) -> Result<Vec<KeyAgent>, Error> {
-        let contacts = self.db.get_contacts_public_keys().await?;
+        let keys = self.client.keys().await;
+        let contacts = self
+            .client
+            .database()
+            .contacts_public_keys(keys.public_key())
+            .await?;
         let verified_key_agents = self.verified_key_agents.read().await;
         let agents = self.key_agents.read().await;
         let mut list = Vec::with_capacity(agents.len());
