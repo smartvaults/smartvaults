@@ -803,7 +803,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
-        let Event { pubkey, .. } = self.db.get_event_by_id(policy_id).await?;
+        let Event { pubkey, .. } = self.client.database().event_by_id(policy_id).await?;
 
         // Get nostr pubkeys and shared keys
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
@@ -837,7 +837,7 @@ impl SmartVaults {
 
     pub async fn delete_proposal_by_id(&self, proposal_id: EventId) -> Result<(), Error> {
         // Get the proposal
-        let proposal_event = self.db.get_event_by_id(proposal_id).await?;
+        let proposal_event = self.client.database().event_by_id(proposal_id).await?;
         if proposal_event.kind != PROPOSAL_KIND {
             return Err(Error::ProposalNotFound);
         }
@@ -884,7 +884,11 @@ impl SmartVaults {
         completed_proposal_id: EventId,
     ) -> Result<(), Error> {
         // Get the completed proposal
-        let proposal_event = self.db.get_event_by_id(completed_proposal_id).await?;
+        let proposal_event = self
+            .client
+            .database()
+            .event_by_id(completed_proposal_id)
+            .await?;
         if proposal_event.kind != COMPLETED_PROPOSAL_KIND {
             return Err(Error::ProposalNotFound);
         }
@@ -1394,7 +1398,7 @@ impl SmartVaults {
     } */
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        let Event { pubkey, .. } = self.db.get_event_by_id(approval_id).await?;
+        let Event { pubkey, .. } = self.client.database().event_by_id(approval_id).await?;
         let keys: Keys = self.keys().await;
         if pubkey == keys.public_key() {
             let policy_id = self.db.get_policy_id_by_approval_id(approval_id).await?;
@@ -1807,7 +1811,7 @@ impl SmartVaults {
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {
         let pool = self.client.pool();
-        let events: Vec<Event> = self.db.get_events().await?;
+        let events: Vec<Event> = self.client.database().query(vec![Filter::new()]).await?;
         for event in events.into_iter() {
             pool.send_msg(ClientMessage::new_event(event), None).await?;
         }
@@ -1821,7 +1825,7 @@ impl SmartVaults {
     {
         let url: String = url.into();
         let pool = self.client.pool();
-        let events: Vec<Event> = self.db.get_events().await?;
+        let events: Vec<Event> = self.client.database().query(vec![Filter::new()]).await?;
         for event in events.into_iter() {
             pool.send_msg_to(&*url, ClientMessage::new_event(event), None)
                 .await?;

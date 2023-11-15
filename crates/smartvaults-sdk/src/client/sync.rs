@@ -576,7 +576,9 @@ impl SmartVaults {
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event(event_id, ..) = tag {
-                    if let Ok(Event { pubkey, .. }) = self.db.get_event_by_id(*event_id).await {
+                    if let Ok(Event { pubkey, .. }) =
+                        self.client.database().event_by_id(*event_id).await
+                    {
                         if pubkey == event.pubkey {
                             self.db.delete_generic_event_id(*event_id).await?;
                         } else {
