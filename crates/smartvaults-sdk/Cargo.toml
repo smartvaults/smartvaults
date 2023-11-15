@@ -22,7 +22,7 @@ smartvaults-protocol = { path = "../smartvaults-protocol" }
 smartvaults-sdk-sqlite = { path = "../smartvaults-sdk-sqlite" }
 futures = "0.3"
 futures-util = "0.3"
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "696ffd596c7fc69d299c4389fc2148c66538f226", default-features = false, features = ["nip04", "nip06", "nip46", "sqlite"] }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "46fcdff9efc286c05b610afe50e3756eaafb3235", default-features = false, features = ["nip04", "nip06", "nip46", "sqlite"] }
 parking_lot = "0.12"
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"

@@ -19,7 +19,7 @@ pub mod backup;
 pub use self::backup::PolicyBackup;
 use crate::{manager::TransactionDetails, util};
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone)]
 pub struct User {
     public_key: XOnlyPublicKey,
     metadata: Metadata,
@@ -28,6 +28,20 @@ pub struct User {
 impl PartialEq for User {
     fn eq(&self, other: &Self) -> bool {
         self.public_key == other.public_key
+    }
+}
+
+impl Eq for User {}
+
+impl PartialOrd for User {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for User {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name().cmp(&other.name())
     }
 }
 

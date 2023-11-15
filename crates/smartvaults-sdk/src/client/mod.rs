@@ -711,14 +711,16 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_contacts(&self) -> Result<Vec<User>, Error> {
         let keys = self.keys().await;
-        Ok(self
+        let mut contacts: Vec<User> = self
             .client
             .database()
             .contacts(keys.public_key())
             .await?
             .into_iter()
             .map(|(public_key, metadata)| User::new(public_key, metadata))
-            .collect())
+            .collect();
+        contacts.sort();
+        Ok(contacts)
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
