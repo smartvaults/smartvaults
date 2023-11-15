@@ -459,6 +459,7 @@ impl SmartVaults {
                 if let RelayPoolNotification::Stop = notification {
                     self.db.wipe().await?;
                     self.manager.unload_policies().await;
+                    self.client.database().wipe().await?;
                     self.client.start().await;
                     self.sync();
                 }
