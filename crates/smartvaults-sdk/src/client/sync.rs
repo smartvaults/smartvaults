@@ -13,8 +13,8 @@ use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, RelayMessage,
-    RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
+    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyOptions,
+    RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -333,6 +333,15 @@ impl SmartVaults {
                     })
                     .await;
                 tracing::debug!("Exited from nostr sync thread");
+            });
+
+            // Negentropy reconciliation
+            let this = self.clone();
+            thread::spawn(async move {
+                let opts = NegentropyOptions::new().timeout(Duration::from_secs(60));
+                for filter in this.sync_filters(Timestamp::from(0)).await.into_iter() {
+                    this.client.reconcile(filter, opts).await.unwrap();
+                }
             });
         }
     }
