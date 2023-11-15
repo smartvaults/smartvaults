@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use async_utility::thread;
 use futures_util::stream::AbortHandle;
+use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
@@ -209,6 +210,12 @@ impl SmartVaults {
 
         let keys: Keys = self.keys().await;
         let public_key: XOnlyPublicKey = keys.public_key();
+        let contacts: Vec<XOnlyPublicKey> = self
+            .client
+            .database()
+            .contacts_public_keys(public_key)
+            .await
+            .unwrap_or_default();
 
         let author_filter: Filter = base_filter.clone().author(public_key).since(since);
         let pubkey_filter: Filter = base_filter.pubkey(public_key).since(since);
@@ -230,14 +237,20 @@ impl SmartVaults {
             })
             .kinds(vec![KEY_AGENT_VERIFIED]);
 
-        vec![
+        let mut filters = vec![
             author_filter,
             pubkey_filter,
             nostr_connect_filter,
             other_filters,
             key_agents,
             smartvaults,
-        ]
+        ];
+
+        if !contacts.is_empty() {
+            filters.push(Filter::new().authors(contacts).since(since));
+        }
+
+        filters
     }
 
     pub(crate) fn sync(&self) {
