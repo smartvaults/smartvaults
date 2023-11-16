@@ -338,9 +338,7 @@ impl SmartVaults {
             // Negentropy reconciliation
             let this = self.clone();
             thread::spawn(async move {
-                let opts = NegentropyOptions::new()
-                    .timeout(Duration::from_secs(60))
-                    .single_reconciliation_timeout(Duration::from_secs(45));
+                let opts = NegentropyOptions::new().bidirectional(false);
                 for filter in this.sync_filters(Timestamp::from(0)).await.into_iter() {
                     this.client.reconcile(filter, opts).await.unwrap();
                 }
