@@ -67,19 +67,19 @@ CREATE TABLE IF NOT EXISTS relays (
 
 CREATE UNIQUE INDEX IF NOT EXISTS relays_index ON relays(url);
 
--- Events
+-- Events - Removed in v2
 CREATE TABLE IF NOT EXISTS events (
     event_id BLOB PRIMARY KEY NOT NULL,
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     event BLOB NOT NULL
 );
 
--- Contacts
+-- Contacts - Removed in v2
 CREATE TABLE IF NOT EXISTS contacts (
     public_key BLOB PRIMARY KEY NOT NULL
 );
 
--- Metadata
+-- Metadata - Removed in v2
 CREATE TABLE IF NOT EXISTS metadata (
     public_key BLOB PRIMARY KEY NOT NULL,
     metadata BLOB NOT NULL,

@@ -347,17 +347,6 @@ impl SmartVaults {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        if self.db.event_was_deleted(event.id).await? {
-            tracing::warn!("Received an event that was deleted: {}", event.id);
-            return Ok(());
-        }
-
-        if event.kind != Kind::NostrConnect {
-            if let Err(e) = self.db.save_event(event.clone()).await {
-                tracing::error!("Impossible to save event {}: {e}", event.id);
-            }
-        }
-
         if event.kind == SHARED_KEY_KIND {
             let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
             if !self.db.exists(Type::SharedKey { policy_id }).await? {

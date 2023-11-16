@@ -361,8 +361,6 @@ impl Store {
     }
 
     pub async fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
-        self.set_event_as_deleted(proposal_id).await?;
-
         // Delete proposal
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
@@ -498,8 +496,6 @@ impl Store {
     }
 
     pub async fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        self.set_event_as_deleted(approval_id).await?;
-
         // Delete policy
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
@@ -626,8 +622,6 @@ impl Store {
         &self,
         completed_proposal_id: EventId,
     ) -> Result<(), Error> {
-        self.set_event_as_deleted(completed_proposal_id).await?;
-
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             conn.execute(
@@ -732,80 +726,9 @@ impl Store {
                 .await?
         {
             self.delete_shared_signer(event_id).await?;
-        } else {
-            self.set_event_as_deleted(event_id).await?;
         };
 
         Ok(())
-    }
-
-    pub async fn save_event(&self, event: Event) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn
-                .prepare_cached("INSERT OR IGNORE INTO events (event_id, event) VALUES (?, ?);")?;
-            stmt.execute((event.id.to_hex(), event.as_json()))?;
-            Ok(())
-        })
-        .await?
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_events(&self) -> Result<Vec<Event>, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached("SELECT event FROM events;")?;
-            let mut rows = stmt.query([])?;
-            let mut events: Vec<Event> = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let json: String = row.get(0)?;
-                let event: Event = Event::from_json(json)?;
-                events.push(event);
-            }
-            Ok(events)
-        })
-        .await?
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_event_by_id(&self, event_id: EventId) -> Result<Event, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT event FROM events WHERE event_id = ? LIMIT 1;")?;
-            let mut rows = stmt.query([event_id.to_hex()])?;
-            let row = rows.next()?.ok_or(Error::NotFound("event".into()))?;
-            let json: String = row.get(0)?;
-            Ok(Event::from_json(json)?)
-        })
-        .await?
-    }
-
-    pub async fn event_was_deleted(&self, event_id: EventId) -> Result<bool, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM events WHERE event_id = ? AND deleted = 1 LIMIT 1);",
-            )?;
-            let mut rows = stmt.query([event_id.to_hex()])?;
-            let exists: u8 = match rows.next()? {
-                Some(row) => row.get(0)?,
-                None => 0,
-            };
-            Ok(exists == 1)
-        })
-        .await?
-    }
-
-    pub async fn set_event_as_deleted(&self, event_id: EventId) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("UPDATE events SET deleted = 1 WHERE event_id = ?")?;
-            stmt.execute([event_id.to_hex()])?;
-            Ok(())
-        })
-        .await?
     }
 
     pub async fn save_pending_event(&self, event: Event) -> Result<(), Error> {

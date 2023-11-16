@@ -175,7 +175,6 @@ impl SmartVaults {
                 let event_id: EventId = event.id;
 
                 // TODO: use send_batch_event method from nostr-sdk
-                self.db.save_event(event.clone()).await?;
                 self.client
                     .pool()
                     .send_msg(ClientMessage::new_event(event), None)
