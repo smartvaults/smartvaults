@@ -250,7 +250,11 @@ impl SmartVaultsWallet {
 
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config: ElectrumConfig = ElectrumConfig::builder().socks5(proxy).build();
+            let config: ElectrumConfig = ElectrumConfig::builder()
+                .timeout(Some(120))
+                .retry(3)
+                .socks5(proxy)
+                .build();
             let client: ElectrumClient = ElectrumClient::from_config(&endpoint, config)?;
 
             let (
