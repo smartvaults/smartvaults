@@ -581,6 +581,11 @@ impl SmartVaults {
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::EventDeletion))?;
         } else if event.kind == Kind::ContactList {
+            let pubkeys = event.public_keys().copied();
+            let filter: Filter = Filter::new().authors(pubkeys).kind(Kind::Metadata);
+            self.client
+                .req_events_of(vec![filter], Some(Duration::from_secs(60)))
+                .await;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Contacts))?;
         } else if event.kind == Kind::Metadata {
