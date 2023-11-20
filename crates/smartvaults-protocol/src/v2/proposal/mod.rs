@@ -3,11 +3,16 @@
 
 //! Proposals
 
+use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network};
 use smartvaults_core::miniscript::Descriptor;
 
 mod proto;
+
+use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
+use super::Error;
+use crate::v2::proto::proposal::ProtoProposal;
 
 /// Address recipient
 pub struct Recipient {
@@ -103,4 +108,22 @@ pub enum CompletedProposal {
     ProofOfReserve {},
     /// Key Agent Payment
     KeyAgentPayment {},
+}
+
+impl ProtocolEncoding for Proposal {
+    type Err = Error;
+
+    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+        let proposal: ProtoProposal = self.into();
+        (SchemaVersion::ProtoBuf, proposal.encode_to_vec())
+    }
+
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoProposal = ProtoProposal::decode(data)?;
+        Self::try_from(vault)
+    }
+}
+
+impl ProtocolEncryption for Proposal {
+    type Err = Error;
 }
