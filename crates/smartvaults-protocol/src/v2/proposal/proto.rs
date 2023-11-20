@@ -3,6 +3,7 @@
 
 use std::str::FromStr;
 
+use smartvaults_core::bitcoin::consensus;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network};
 use smartvaults_core::miniscript::Descriptor;
@@ -41,8 +42,10 @@ impl From<&PendingProposal> for ProtoPendingProposal {
                     description: description.to_owned(),
                     psbt: psbt.to_string(),
                 }),
-                PendingProposal::ProofOfReserve {} => {
-                    ProtoPendingProposalEnum::ProofOfReserve(ProtoPendingProofOfReserve {})
+                PendingProposal::ProofOfReserve { psbt } => {
+                    ProtoPendingProposalEnum::ProofOfReserve(ProtoPendingProofOfReserve {
+                        psbt: psbt.to_string(),
+                    })
                 }
                 PendingProposal::KeyAgentPayment {
                     descriptor,
@@ -66,14 +69,20 @@ impl From<&CompletedProposal> for ProtoCompletedProposal {
     fn from(value: &CompletedProposal) -> Self {
         Self {
             proposal: Some(match value {
-                CompletedProposal::Spending {} => {
-                    ProtoCompletedProposalEnum::Spending(ProtoCompletedSpending {})
+                CompletedProposal::Spending { tx } => {
+                    ProtoCompletedProposalEnum::Spending(ProtoCompletedSpending {
+                        tx: consensus::serialize(tx),
+                    })
                 }
-                CompletedProposal::ProofOfReserve {} => {
-                    ProtoCompletedProposalEnum::ProofOfReserve(ProtoCompletedProofOfReserve {})
+                CompletedProposal::ProofOfReserve { psbt } => {
+                    ProtoCompletedProposalEnum::ProofOfReserve(ProtoCompletedProofOfReserve {
+                        psbt: psbt.to_string(),
+                    })
                 }
-                CompletedProposal::KeyAgentPayment { .. } => {
-                    ProtoCompletedProposalEnum::KeyAgentPayment(ProtoCompletedKeyAgentPayment {})
+                CompletedProposal::KeyAgentPayment { tx } => {
+                    ProtoCompletedProposalEnum::KeyAgentPayment(ProtoCompletedKeyAgentPayment {
+                        tx: consensus::serialize(tx),
+                    })
                 }
             }),
         }
@@ -87,9 +96,15 @@ impl TryFrom<ProtoCompletedProposal> for CompletedProposal {
             .proposal
             .ok_or(Error::NotFound(String::from("completed proposal")))?
         {
-            ProtoCompletedProposalEnum::Spending(_inner) => Ok(Self::Spending {}),
-            ProtoCompletedProposalEnum::ProofOfReserve(_inner) => Ok(Self::ProofOfReserve {}),
-            ProtoCompletedProposalEnum::KeyAgentPayment(_inner) => Ok(Self::KeyAgentPayment {}),
+            ProtoCompletedProposalEnum::Spending(inner) => Ok(Self::Spending {
+                tx: consensus::deserialize(&inner.tx)?,
+            }),
+            ProtoCompletedProposalEnum::ProofOfReserve(inner) => Ok(Self::ProofOfReserve {
+                psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
+            }),
+            ProtoCompletedProposalEnum::KeyAgentPayment(inner) => Ok(Self::KeyAgentPayment {
+                tx: consensus::deserialize(&inner.tx)?,
+            }),
         }
     }
 }
@@ -148,8 +163,10 @@ impl TryFrom<ProtoProposal> for Proposal {
                         description: inner.description,
                         psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
                     },
-                    ProtoPendingProposalEnum::ProofOfReserve(_inner) => {
-                        PendingProposal::ProofOfReserve {}
+                    ProtoPendingProposalEnum::ProofOfReserve(inner) => {
+                        PendingProposal::ProofOfReserve {
+                            psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
+                        }
                     }
                     ProtoPendingProposalEnum::KeyAgentPayment(inner) => {
                         let recipient = inner

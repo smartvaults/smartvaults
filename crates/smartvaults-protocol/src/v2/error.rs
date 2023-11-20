@@ -3,8 +3,8 @@
 
 //! Error
 
-use smartvaults_core::bitcoin::address;
 use smartvaults_core::bitcoin::psbt::PsbtParseError;
+use smartvaults_core::bitcoin::{address, consensus};
 use smartvaults_core::{miniscript, policy, secp256k1};
 use thiserror::Error;
 
@@ -15,6 +15,8 @@ use super::network;
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
+    BitcoinConsensus(#[from] consensus::encode::Error),
     #[error(transparent)]
     Secp256k1(#[from] secp256k1::Error),
     #[error(transparent)]

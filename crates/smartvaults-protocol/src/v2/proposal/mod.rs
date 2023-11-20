@@ -3,15 +3,18 @@
 
 //! Proposals
 
+use nostr::{Event, EventBuilder, Keys, Tag};
 use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{Address, Network};
+use smartvaults_core::bitcoin::{Address, Network, Transaction};
+use smartvaults_core::crypto::hash;
 use smartvaults_core::miniscript::Descriptor;
 
 mod proto;
 
+use super::constants::PROPOSAL_KIND_V2;
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
-use super::Error;
+use super::{Error, Vault};
 use crate::v2::proto::proposal::ProtoProposal;
 
 /// Address recipient
@@ -57,6 +60,30 @@ impl Proposal {
             },
         }
     }
+
+    /// Generate unique deterministic identifier
+    ///
+    /// WARNING: the deterministic identifier it's generated using the TXID
+    /// so if the TX inside the PSBT change, the deterministic identifer will be different.
+    pub fn generate_identifier(&self) -> String {
+        // Extract TX
+        let tx: &Transaction = match &self.status {
+            ProposalStatus::Pending(inner) => match inner {
+                PendingProposal::Spending { psbt, .. } => &psbt.unsigned_tx,
+                PendingProposal::ProofOfReserve { psbt, .. } => &psbt.unsigned_tx,
+                PendingProposal::KeyAgentPayment { psbt, .. } => &psbt.unsigned_tx,
+            },
+            ProposalStatus::Completed(inner) => match inner {
+                CompletedProposal::Spending { tx, .. } => tx,
+                CompletedProposal::ProofOfReserve { psbt, .. } => &psbt.unsigned_tx,
+                CompletedProposal::KeyAgentPayment { tx, .. } => tx,
+            },
+        };
+
+        let unhashed_identifier: String = format!("{}:{}", self.network.magic(), tx.txid());
+        let hash: String = hash::sha256(unhashed_identifier).to_string();
+        hash[..32].to_string()
+    }
 }
 
 /// Proposal status
@@ -81,7 +108,10 @@ pub enum PendingProposal {
         psbt: PartiallySignedTransaction,
     },
     /// Proof of reserve
-    ProofOfReserve {},
+    ProofOfReserve {
+        /// PSBT
+        psbt: PartiallySignedTransaction,
+    },
     /// Key Agent Payment
     KeyAgentPayment {
         /// Descriptor
@@ -103,11 +133,20 @@ pub enum PendingProposal {
 /// Completed proposal
 pub enum CompletedProposal {
     /// Spending
-    Spending {},
+    Spending {
+        /// TX
+        tx: Transaction,
+    },
     /// Proof of reserve
-    ProofOfReserve {},
+    ProofOfReserve {
+        /// PSBT
+        psbt: PartiallySignedTransaction,
+    },
     /// Key Agent Payment
-    KeyAgentPayment {},
+    KeyAgentPayment {
+        /// TX
+        tx: Transaction,
+    },
 }
 
 impl ProtocolEncoding for Proposal {
@@ -126,4 +165,17 @@ impl ProtocolEncoding for Proposal {
 
 impl ProtocolEncryption for Proposal {
     type Err = Error;
+}
+
+/// Build [`Proposal`] event
+pub fn build_event(vault: &Vault, proposal: &Proposal) -> Result<Event, Error> {
+    // Keys
+    let keys: Keys = Keys::new(vault.shared_key());
+
+    // Encrypt
+    let encrypted_content: String = proposal.encrypt_with_keys(&keys)?;
+
+    // Compose and build event
+    let identifier = Tag::Identifier(proposal.generate_identifier());
+    Ok(EventBuilder::new(PROPOSAL_KIND_V2, encrypted_content, &[identifier]).to_event(&keys)?)
 }
