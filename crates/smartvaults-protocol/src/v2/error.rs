@@ -3,6 +3,8 @@
 
 //! Error
 
+use smartvaults_core::bitcoin::address;
+use smartvaults_core::bitcoin::psbt::PsbtParseError;
 use smartvaults_core::{miniscript, policy, secp256k1};
 use thiserror::Error;
 
@@ -19,6 +21,10 @@ pub enum Error {
     Policy(#[from] policy::Error),
     #[error(transparent)]
     Network(#[from] network::Error),
+    #[error(transparent)]
+    Address(#[from] address::Error),
+    #[error(transparent)]
+    Psbt(#[from] PsbtParseError),
     #[error(transparent)]
     Miniscript(#[from] miniscript::Error),
     #[error(transparent)]

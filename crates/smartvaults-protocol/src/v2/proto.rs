@@ -27,7 +27,7 @@ pub mod proposal {
     };
     pub use self::inner::proposal_status::{
         CompletedProposal as ProtoCompletedProposal, PendingProposal as ProtoPendingProposal,
-        Proposal as ProtoProposalEnum,
+        Proposal as ProtoProposalStatusEnum,
     };
     pub use self::inner::{
         Proposal as ProtoProposal, ProposalStatus as ProtoProposalStatus,

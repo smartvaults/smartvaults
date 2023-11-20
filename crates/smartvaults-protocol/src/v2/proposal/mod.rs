@@ -4,18 +4,18 @@
 //! Proposals
 
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::Network;
+use smartvaults_core::bitcoin::{Address, Network};
 use smartvaults_core::miniscript::Descriptor;
 
-mod recipient;
+mod proto;
 
-pub use self::recipient::Recipient;
-use crate::v2::proto::proposal::{
-    ProtoCompletedKeyAgentPayment, ProtoCompletedProofOfReserve, ProtoCompletedProposal,
-    ProtoCompletedProposalEnum, ProtoCompletedSpending, ProtoPendingKeyAgentPayment,
-    ProtoPendingProofOfReserve, ProtoPendingProposal, ProtoPendingProposalEnum,
-    ProtoPendingSpending, ProtoProposal, ProtoProposalEnum, ProtoProposalStatus,
-};
+/// Address recipient
+pub struct Recipient {
+    /// Address
+    pub address: Address,
+    /// Amount in SAT
+    pub amount: u64,
+}
 
 /// Proposal type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -103,83 +103,4 @@ pub enum CompletedProposal {
     ProofOfReserve {},
     /// Key Agent Payment
     KeyAgentPayment {},
-}
-
-/* Self {
-    address: Address::from_str(&recipient.address)?,
-    amount: recipient.amount,
-} */
-
-impl From<&PendingProposal> for ProtoPendingProposal {
-    fn from(value: &PendingProposal) -> Self {
-        Self {
-            proposal: Some(match value {
-                PendingProposal::Spending {
-                    descriptor,
-                    addresses,
-                    description,
-                    psbt,
-                } => ProtoPendingProposalEnum::Spending(ProtoPendingSpending {
-                    descriptor: descriptor.to_string(),
-                    addresses: addresses.iter().map(|r| r.into()).collect(),
-                    description: description.to_owned(),
-                    psbt: psbt.to_string(),
-                }),
-                PendingProposal::ProofOfReserve {} => {
-                    ProtoPendingProposalEnum::ProofOfReserve(ProtoPendingProofOfReserve {})
-                }
-                PendingProposal::KeyAgentPayment {
-                    descriptor,
-                    signer_descriptor,
-                    recipient,
-                    description,
-                    psbt,
-                } => ProtoPendingProposalEnum::KeyAgentPayment(ProtoPendingKeyAgentPayment {
-                    descriptor: descriptor.to_string(),
-                    signer_descriptor: signer_descriptor.to_string(),
-                    recipient: Some(recipient.into()),
-                    description: description.to_owned(),
-                    psbt: psbt.to_string(),
-                }),
-            }),
-        }
-    }
-}
-
-impl From<&CompletedProposal> for ProtoCompletedProposal {
-    fn from(value: &CompletedProposal) -> Self {
-        Self {
-            proposal: Some(match value {
-                CompletedProposal::Spending {} => {
-                    ProtoCompletedProposalEnum::Spending(ProtoCompletedSpending {})
-                }
-                CompletedProposal::ProofOfReserve {} => {
-                    ProtoCompletedProposalEnum::ProofOfReserve(ProtoCompletedProofOfReserve {})
-                }
-                CompletedProposal::KeyAgentPayment { .. } => {
-                    ProtoCompletedProposalEnum::KeyAgentPayment(ProtoCompletedKeyAgentPayment {})
-                }
-            }),
-        }
-    }
-}
-
-impl From<&ProposalStatus> for ProtoProposalEnum {
-    fn from(value: &ProposalStatus) -> Self {
-        match value {
-            ProposalStatus::Pending(pending) => Self::Pending(pending.into()),
-            ProposalStatus::Completed(completed) => Self::Completed(completed.into()),
-        }
-    }
-}
-
-impl From<&Proposal> for ProtoProposal {
-    fn from(proposal: &Proposal) -> Self {
-        ProtoProposal {
-            status: Some(ProtoProposalStatus {
-                proposal: Some((&proposal.status).into()),
-            }),
-            network: proposal.network.magic().to_bytes().to_vec(),
-        }
-    }
 }

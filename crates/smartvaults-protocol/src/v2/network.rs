@@ -30,6 +30,12 @@ impl From<Network> for NetworkMagic {
     }
 }
 
+impl From<NetworkMagic> for Network {
+    fn from(magic: NetworkMagic) -> Self {
+        magic.inner
+    }
+}
+
 impl Deref for NetworkMagic {
     type Target = Network;
 
