@@ -149,7 +149,7 @@ pub fn build_invitation_event(vault: &Vault, receiver: XOnlyPublicKey) -> Result
 
     // Encrypt
     let keys = Keys::generate();
-    let encrypted_content: String = wrapper.encrypt_with_keys(&keys)?;
+    let encrypted_content: String = wrapper.encrypt(&keys.secret_key()?, &receiver)?;
 
     // Compose and sign event
     Ok(EventBuilder::new(
