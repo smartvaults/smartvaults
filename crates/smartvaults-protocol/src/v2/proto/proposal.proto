@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package proposal;
+
+message Recipient {
+  string address = 1;
+  fixed64 amount = 2;
+}
+
+message Proposal {
+  ProposalStatus status = 1;
+  bytes network = 2;
+}
+
+message ProposalStatus {
+  message PendingProposal {
+    message Spending {
+      string descriptor = 1;
+      repeated Recipient addresses = 2;
+      string description = 3;
+      string psbt = 4;
+    }
+
+    message ProofOfReserve {}
+
+    message KeyAgentPayment {
+      string descriptor = 1;
+      string signer_descriptor = 2;
+      Recipient recipient = 3;
+      string description = 4;
+      string psbt = 5;
+    }
+
+    oneof proposal {
+      Spending spending = 1;
+      ProofOfReserve proof_of_reserve = 2;
+      KeyAgentPayment key_agent_payment = 3;
+    }
+  }
+
+  message CompletedProposal {
+    message Spending {}
+
+    message ProofOfReserve {}
+
+    message KeyAgentPayment {}
+
+    oneof proposal {
+      Spending spending = 1;
+      ProofOfReserve proof_of_reserve = 2;
+      KeyAgentPayment key_agent_payment = 3;
+    }
+  }
+
+  oneof proposal {
+    PendingProposal pending = 1;
+    CompletedProposal completed = 2;
+  }
+}
