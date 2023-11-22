@@ -35,6 +35,17 @@ pub mod proposal {
     };
 }
 
+pub mod signer {
+    mod inner {
+        include!(concat!(env!("OUT_DIR"), "/signer.rs"));
+    }
+
+    pub use self::inner::{
+        DescriptorKeyValue as ProtoDescriptor, Purpose as ProtoPurpose, Signer as ProtoSigner,
+        SignerType as ProtoSignerType,
+    };
+}
+
 pub mod wrapper {
     include!(concat!(env!("OUT_DIR"), "/wrapper.rs"));
 

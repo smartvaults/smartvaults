@@ -14,6 +14,8 @@ use smartvaults_core::signer::{CoreSigner, Error as CoreSignerError};
 use smartvaults_core::{ColdcardGenericJson, Purpose, Seed};
 use thiserror::Error;
 
+mod proto;
+
 /// Signer error
 #[derive(Debug, Error)]
 pub enum Error {

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package signer;
+
+enum SignerType {
+  SEED = 0;
+  HARDWARE = 1;
+  AIRGAP = 2;
+}
+
+enum Purpose {
+  BIP44 = 0;
+  BIP49 = 1;
+  BIP84 = 2;
+  BIP86 = 3;
+  BIP48_1 = 4;
+  BIP48_2 = 5;
+  BIP48_3 = 6;
+}
+
+message DescriptorKeyValue {
+  Purpose purpose = 1;
+  string descriptor = 2;
+}
+
+message Signer {
+  string fingerprint = 1;
+  repeated DescriptorKeyValue descriptors = 2;
+  SignerType type = 3;
+  string name = 4;
+  string description = 5;
+}
