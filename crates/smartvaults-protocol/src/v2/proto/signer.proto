@@ -26,7 +26,8 @@ message DescriptorKeyValue {
 message Signer {
   string fingerprint = 1;
   repeated DescriptorKeyValue descriptors = 2;
-  SignerType type = 3;
-  string name = 4;
-  string description = 5;
+  bytes network = 3;
+  SignerType type = 4;
+  string name = 5;
+  string description = 6;
 }

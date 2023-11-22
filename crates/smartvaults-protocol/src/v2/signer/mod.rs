@@ -10,19 +10,11 @@ use std::collections::BTreeMap;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::DescriptorPublicKey;
-use smartvaults_core::signer::{CoreSigner, Error as CoreSignerError};
-use smartvaults_core::{ColdcardGenericJson, Purpose, Seed};
-use thiserror::Error;
+use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
 
 mod proto;
 
-/// Signer error
-#[derive(Debug, Error)]
-pub enum Error {
-    /// Core Signer error
-    #[error(transparent)]
-    CoreSigner(#[from] CoreSignerError),
-}
+use crate::v2::Error;
 
 /// Signer Type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

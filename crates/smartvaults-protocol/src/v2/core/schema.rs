@@ -1,7 +1,18 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-//! Versioned de/serialization schema
+//! Smart Vaults Protocol Messages
+//!
+//! TODO:
+//! ```notrust
+//!                 Protocol version   Encoding version        Encoded object
+//!                            |          |                          |
+//!                         |----|      |----||--------------------------------------------------------|
+//! [0xF9, 0xBE, 0xB4, 0xD9, 0x01, 0x01, 0x01, 0x00, 0xB4, 0xAA, 0x19 0xF4, 0x39, 0x00, 0x12, 0x21, ...]
+//! |----------------------|      |----|
+//!             |                    |
+//!       Network magic        Object version
+//! ```
 
 use thiserror::Error;
 
