@@ -3,12 +3,10 @@
 
 use std::collections::BTreeMap;
 
-use bdk::descriptor::IntoWalletDescriptor;
-use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
+use keechain_core::bips::bip32::{self, Bip32, ChildNumber, DerivationPath, Fingerprint};
 use keechain_core::bips::bip48::ScriptType;
 use keechain_core::bitcoin::Network;
 use keechain_core::descriptors::{self, ToDescriptor};
-use keechain_core::miniscript::descriptor::DescriptorKeyParseError;
 use keechain_core::miniscript::DescriptorPublicKey;
 use keechain_core::{ColdcardGenericJson, Purpose, Seed};
 use serde::{Deserialize, Serialize};
@@ -33,13 +31,13 @@ pub enum Error {
     #[error(transparent)]
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
-    Miniscript(#[from] bdk::miniscript::Error),
-    #[error(transparent)]
-    DescriptorKeyParse(#[from] DescriptorKeyParseError),
-    #[error(transparent)]
-    BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
-    #[error(transparent)]
     Coldcard(#[from] keechain_core::export::coldcard::Error),
+    #[error("fingerprint not match")]
+    FingerprintNotMatch,
+    #[error("network not match")]
+    NetworkNotMatch,
+    #[error("derivation path not found")]
+    DerivationPathNotFound,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -55,15 +53,30 @@ impl CoreSigner {
         descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
         network: Network,
     ) -> Result<Self, Error> {
-        // Check network
+        // Check descriptors
         for descriptor in descriptors.values() {
-            // TODO: remove this
-            descriptor
-                .to_string()
-                .into_wallet_descriptor(&SECP256K1, network)?;
+            // Check if fingerprint match
+            if fingerprint != descriptor.master_fingerprint() {
+                return Err(Error::FingerprintNotMatch);
+            }
 
-            // TODO: check if network match
-            // TODO: check if fingerprint it's the same for every descriptor
+            // Check network
+            let path: DerivationPath = descriptor
+                .full_derivation_path()
+                .ok_or(Error::DerivationPathNotFound)?;
+            let mut path_iter = path.into_iter();
+            let _purpose = path_iter.next();
+            let res: bool = match path_iter.next() {
+                Some(ChildNumber::Hardened { index }) => match network {
+                    Network::Bitcoin => *index == 0, // Mainnet
+                    _ => *index == 1,                // Testnet, Signer or Regtest
+                },
+                _ => false,
+            };
+
+            if !res {
+                return Err(Error::NetworkNotMatch);
+            }
         }
 
         // Compose signer
