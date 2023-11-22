@@ -32,12 +32,18 @@ pub enum Error {
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
     Coldcard(#[from] keechain_core::export::coldcard::Error),
-    #[error("fingerprint not match")]
-    FingerprintNotMatch,
-    #[error("network not match")]
-    NetworkNotMatch,
     #[error("derivation path not found")]
     DerivationPathNotFound,
+    #[error("fingerprint not match")]
+    FingerprintNotMatch,
+    #[error("network not found")]
+    NetworkNotFound,
+    #[error("network not match")]
+    NetworkNotMatch,
+    #[error("purpose not found")]
+    PurposeNotFound,
+    #[error("purpose not match")]
+    PurposeNotMatch,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -55,20 +61,33 @@ impl CoreSigner {
         network: Network,
     ) -> Result<Self, Error> {
         // Check descriptors
-        for descriptor in descriptors.values() {
+        for (purpose, descriptor) in descriptors.iter() {
             // Check if fingerprint match
             if fingerprint != descriptor.master_fingerprint() {
                 return Err(Error::FingerprintNotMatch);
             }
 
-            // Check network
+            // Get derivation path
             let path: DerivationPath = descriptor
                 .full_derivation_path()
                 .ok_or(Error::DerivationPathNotFound)?;
             let mut path_iter = path.into_iter();
-            let _purpose = path_iter.next();
-            let res: bool = match path_iter.next() {
-                Some(ChildNumber::Hardened { index }) => match network {
+
+            // Check purpose
+            let purp = path_iter.next().ok_or(Error::PurposeNotFound)?;
+            match purp {
+                ChildNumber::Hardened { index } => {
+                    if *index != purpose.as_u32() {
+                        return Err(Error::PurposeNotMatch);
+                    }
+                }
+                _ => return Err(Error::PurposeNotMatch),
+            };
+
+            // Check network
+            let coin: &ChildNumber = path_iter.next().ok_or(Error::NetworkNotFound)?;
+            let res: bool = match coin {
+                ChildNumber::Hardened { index } => match network {
                     Network::Bitcoin => *index == 0, // Mainnet
                     _ => *index == 1,                // Testnet, Signer or Regtest
                 },
