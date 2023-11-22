@@ -7,6 +7,7 @@ use core::fmt;
 use core::ops::Deref;
 use std::collections::BTreeMap;
 
+use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::DescriptorPublicKey;
@@ -14,6 +15,8 @@ use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
 
 mod proto;
 
+use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
+use crate::v2::proto::signer::ProtoSigner;
 use crate::v2::Error;
 
 /// Signer Type
@@ -117,4 +120,22 @@ impl Signer {
     {
         self.description = description.into();
     }
+}
+
+impl ProtocolEncoding for Signer {
+    type Err = Error;
+
+    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+        let proposal: ProtoSigner = self.into();
+        (SchemaVersion::ProtoBuf, proposal.encode_to_vec())
+    }
+
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoSigner = ProtoSigner::decode(data)?;
+        Self::try_from(vault)
+    }
+}
+
+impl ProtocolEncryption for Signer {
+    type Err = Error;
 }
