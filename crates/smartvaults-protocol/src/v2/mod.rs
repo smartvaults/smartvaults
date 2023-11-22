@@ -9,6 +9,7 @@ mod error;
 mod network;
 pub mod proposal;
 mod proto;
+pub mod signer;
 pub mod vault;
 pub mod wrapper;
 
@@ -16,5 +17,6 @@ pub use self::core::{ProtocolEncoding, ProtocolEncryption};
 pub use self::error::Error;
 pub use self::network::NetworkMagic;
 pub use self::proposal::Proposal;
+pub use self::signer::{Signer, SignerType};
 pub use self::vault::Vault;
 use self::wrapper::Wrapper;
