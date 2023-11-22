@@ -44,6 +44,7 @@ pub enum Error {
 pub struct CoreSigner {
     fingerprint: Fingerprint,
     descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+    network: Network,
     // TODO: keep type?
 }
 
@@ -83,6 +84,7 @@ impl CoreSigner {
         Ok(Self {
             fingerprint,
             descriptors,
+            network,
         })
     }
 
@@ -114,6 +116,10 @@ impl CoreSigner {
 
     pub fn fingerprint(&self) -> Fingerprint {
         self.fingerprint
+    }
+
+    pub fn network(&self) -> Network {
+        self.network
     }
 
     pub fn descriptors(&self) -> &BTreeMap<Purpose, DescriptorPublicKey> {
