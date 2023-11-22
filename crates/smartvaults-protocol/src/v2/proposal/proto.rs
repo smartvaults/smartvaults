@@ -3,9 +3,8 @@
 
 use std::str::FromStr;
 
-use smartvaults_core::bitcoin::consensus;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{Address, Network};
+use smartvaults_core::bitcoin::{consensus, Address, Network};
 use smartvaults_core::miniscript::Descriptor;
 
 use super::{CompletedProposal, PendingProposal, Proposal, ProposalStatus, Recipient};
@@ -91,6 +90,7 @@ impl From<&CompletedProposal> for ProtoCompletedProposal {
 
 impl TryFrom<ProtoCompletedProposal> for CompletedProposal {
     type Error = Error;
+
     fn try_from(value: ProtoCompletedProposal) -> Result<Self, Self::Error> {
         match value
             .proposal
@@ -131,6 +131,7 @@ impl From<&Proposal> for ProtoProposal {
 
 impl TryFrom<ProtoProposal> for Proposal {
     type Error = Error;
+
     fn try_from(value: ProtoProposal) -> Result<Self, Self::Error> {
         let network: Network = NetworkMagic::from_slice(&value.network)?.into();
         let status = value

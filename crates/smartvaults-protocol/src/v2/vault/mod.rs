@@ -102,6 +102,7 @@ impl From<&Vault> for ProtoVault {
 
 impl TryFrom<ProtoVault> for Vault {
     type Error = Error;
+
     fn try_from(vault: ProtoVault) -> Result<Self, Self::Error> {
         match vault.object {
             Some(obj) => match obj {

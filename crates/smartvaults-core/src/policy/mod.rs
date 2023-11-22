@@ -37,7 +37,7 @@ use crate::proposal::Proposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
 use crate::util::Unspendable;
-use crate::{Amount, Signer, SECP256K1};
+use crate::{Amount, CoreSigner, SECP256K1};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -102,7 +102,7 @@ pub enum PolicyPathSelector {
 #[serde(rename_all = "snake_case")]
 pub enum PolicyPath {
     Single(PolicyPathSelector),
-    Multiple(HashMap<Signer, Option<PolicyPathSelector>>),
+    Multiple(HashMap<CoreSigner, Option<PolicyPathSelector>>),
     None,
 }
 
@@ -343,16 +343,19 @@ impl Policy {
     }
 
     /// Search used signers in this [`Policy`]
-    pub fn search_used_signers<I>(&self, signers: I) -> Result<Vec<Signer>, Error>
+    pub fn search_used_signers<I>(&self, signers: I) -> Result<Vec<CoreSigner>, Error>
     where
-        I: IntoIterator<Item = Signer>,
+        I: IntoIterator<Item = CoreSigner>,
     {
         let descriptor: String = self.descriptor.to_string();
-        let mut list: Vec<Signer> = Vec::new();
-        for signer in signers {
-            let signer_descriptor: String = signer.descriptor_public_key()?.to_string();
-            if descriptor.contains(&signer_descriptor) && !list.contains(&signer) {
-                list.push(signer);
+        let mut list: Vec<CoreSigner> = Vec::new();
+        for signer in signers.into_iter() {
+            for desc in signer.descriptors().values() {
+                let signer_descriptor: String = desc.to_string();
+                if descriptor.contains(&signer_descriptor) && !list.contains(&signer) {
+                    list.push(signer);
+                    break; // Signer added, exit from loop
+                }
             }
         }
         Ok(list)
@@ -362,7 +365,7 @@ impl Policy {
     fn map_selectable_conditions_for_signer(
         &self,
         selectable_conditions: &[SelectableCondition],
-        signer: &Signer,
+        signer: &CoreSigner,
     ) -> Result<BTreeMap<String, (usize, Vec<usize>)>, Error> {
         let mut map = BTreeMap::new();
         for SelectableCondition {
@@ -388,7 +391,7 @@ impl Policy {
     /// Automatically select the `policy path` to use for the passed [Signer].
     pub fn get_policy_path_from_signer(
         &self,
-        signer: &Signer,
+        signer: &CoreSigner,
     ) -> Result<Option<PolicyPathSelector>, Error> {
         // Get selectable conditions
         let selectable_conditions = self.selectable_conditions()?;
@@ -498,12 +501,11 @@ impl Policy {
 
     pub fn get_policy_paths_from_signers<I>(&self, signers: I) -> Result<PolicyPath, Error>
     where
-        I: IntoIterator<Item = Signer>,
+        I: IntoIterator<Item = CoreSigner>,
     {
-        let used_signers: Vec<Signer> = self.search_used_signers(signers)?;
+        let used_signers: Vec<CoreSigner> = self.search_used_signers(signers)?;
 
-        #[allow(clippy::mutable_key_type)]
-        let mut map: HashMap<Signer, Option<PolicyPathSelector>> =
+        let mut map: HashMap<CoreSigner, Option<PolicyPathSelector>> =
             HashMap::with_capacity(used_signers.len());
         for signer in used_signers.into_iter() {
             let pp: Option<PolicyPathSelector> = self.get_policy_path_from_signer(&signer)?;
@@ -866,10 +868,9 @@ fn satisfiable_item_contains_fingerprint(
 mod tests {
     use bdk::keys::DescriptorPublicKey;
     use keechain_core::bips::bip39::Mnemonic;
-    use keechain_core::Seed;
+    use keechain_core::{Purpose, Seed};
 
     use super::*;
-    use crate::signer::smartvaults_signer;
 
     const NETWORK: Network = Network::Testnet;
 
@@ -964,7 +965,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
         let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -977,7 +978,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
 
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
@@ -994,7 +995,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
 
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
@@ -1023,7 +1024,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
         let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -1051,13 +1052,15 @@ mod tests {
     fn test_get_policy_path_from_signers() {
         // Signer 1
         let fing1 = Fingerprint::from_str("165200fa").unwrap();
-        let desc1 = Descriptor::from_str("tr([165200fa/86'/1'/0']tpubDDMDcGB9jV7K5vj64NhwWwDC6rrjTF9H1qtzbgK9Daw8S9aF7ueoqtGhwmWoG8ugdkufaiux21EmZU7ymim1cTZWvuy8gPNbxCVDCR7ponD/0/*)").unwrap();
-        let signer1 = Signer::airgap("", None, fing1, desc1, NETWORK).unwrap();
+        let mut desc1 = BTreeMap::new();
+        desc1.insert(Purpose::BIP86, DescriptorPublicKey::from_str("[165200fa/86'/1'/0']tpubDDMDcGB9jV7K5vj64NhwWwDC6rrjTF9H1qtzbgK9Daw8S9aF7ueoqtGhwmWoG8ugdkufaiux21EmZU7ymim1cTZWvuy8gPNbxCVDCR7ponD/0/*").unwrap());
+        let signer1 = CoreSigner::new(fing1, desc1, NETWORK).unwrap();
 
         // Signer 2
         let fing2 = Fingerprint::from_str("bd5efadb").unwrap();
-        let desc2 = Descriptor::from_str("tr([bd5efadb/86'/1'/784923']tpubDDFdQjA7WGJaD5DcuZL2rKzcYNpA6p3E8TpoV2isBSfvrUBf2XhBxm7qxxAURFK5tBA5i4YEJG1gLZiaXt9P96vVRdYGgGjvHyk5BfCG9cV/0/*)").unwrap();
-        let signer2 = Signer::airgap("", None, fing2, desc2, NETWORK).unwrap();
+        let mut desc2 = BTreeMap::new();
+        desc2.insert(Purpose::BIP86, DescriptorPublicKey::from_str("[bd5efadb/86'/1'/784923']tpubDDFdQjA7WGJaD5DcuZL2rKzcYNpA6p3E8TpoV2isBSfvrUBf2XhBxm7qxxAURFK5tBA5i4YEJG1gLZiaXt9P96vVRdYGgGjvHyk5BfCG9cV/0/*").unwrap());
+        let signer2 = CoreSigner::new(fing2, desc2, NETWORK).unwrap();
 
         // Policy
         let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();

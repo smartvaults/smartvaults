@@ -124,7 +124,7 @@ pub enum PendingProposal {
         recipient: Recipient,
         /// Description/note
         description: String,
-        //period: Period,
+        // period: Period,
         /// PSBT
         psbt: PartiallySignedTransaction,
     },

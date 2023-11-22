@@ -12,7 +12,6 @@ use keechain_core::secp256k1::{rand, All, Secp256k1};
 pub use keechain_core::*;
 use once_cell::sync::Lazy;
 
-pub mod constants;
 pub mod policy;
 pub mod proposal;
 #[cfg(feature = "reserves")]
@@ -26,7 +25,7 @@ pub use self::policy::{
     RecoveryTemplate, SelectableCondition, Sequence,
 };
 pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
-pub use self::signer::{SharedSigner, Signer, SignerType};
+pub use self::signer::CoreSigner;
 pub use self::types::{Amount, FeeRate, Priority};
 
 pub static SECP256K1: Lazy<Secp256k1<All>> = Lazy::new(|| {
@@ -52,7 +51,6 @@ mod tests {
     use keechain_core::{Purpose, Result, Seed};
 
     use super::*;
-    use crate::constants::SMARTVAULTS_ACCOUNT_INDEX;
     use crate::proposal::ProposalType;
     #[cfg(feature = "reserves")]
     use crate::reserves::ProofOfReserves;
@@ -225,24 +223,14 @@ mod tests {
         // User A
         let mnemonic_a: Mnemonic = Mnemonic::from_str(MNEMONIC_A)?;
         let seed_a: Seed = Seed::from_mnemonic(mnemonic_a);
-        let desc_a: DescriptorPublicKey = seed_a.to_descriptor(
-            Purpose::BIP86,
-            Some(SMARTVAULTS_ACCOUNT_INDEX),
-            false,
-            NETWORK,
-            &SECP256K1,
-        )?;
+        let desc_a: DescriptorPublicKey =
+            seed_a.to_descriptor(Purpose::BIP86, None, false, NETWORK, &SECP256K1)?;
 
         // User B
         let mnemonic_b: Mnemonic = Mnemonic::from_str(MNEMONIC_B)?;
         let seed_b: Seed = Seed::from_mnemonic(mnemonic_b);
-        let desc_b: DescriptorPublicKey = seed_b.to_descriptor(
-            Purpose::BIP86,
-            Some(SMARTVAULTS_ACCOUNT_INDEX),
-            false,
-            NETWORK,
-            &SECP256K1,
-        )?;
+        let desc_b: DescriptorPublicKey =
+            seed_b.to_descriptor(Purpose::BIP86, None, false, NETWORK, &SECP256K1)?;
 
         let template = PolicyTemplate::multisig(1, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template(template, NETWORK)?;
