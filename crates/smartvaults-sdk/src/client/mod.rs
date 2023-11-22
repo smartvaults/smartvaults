@@ -32,19 +32,18 @@ use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::signer::smartvaults_signer;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
 use smartvaults_core::{
-    Amount, ApprovedProposal, CompletedProposal, FeeRate, PolicyTemplate, Proposal, Signer,
-    SECP256K1,
+    Amount, ApprovedProposal, CompletedProposal, FeeRate, PolicyTemplate, Proposal, SECP256K1,
 };
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
+use smartvaults_protocol::v1::signer::smartvaults_signer;
 use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
-    Label, LabelData, SmartVaultsEventBuilder, SmartVaultsEventBuilderError, Vault,
+    Label, LabelData, Signer, SmartVaultsEventBuilder, SmartVaultsEventBuilderError, Vault,
     VerifiedKeyAgents,
 };
 use smartvaults_sdk_sqlite::model::GetApprovalRaw;

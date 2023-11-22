@@ -10,9 +10,8 @@ use nostr_sdk::{
     Tag,
 };
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::signer::{SharedSigner, Signer};
 use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
-use smartvaults_protocol::v1::util::{Encryption, Serde};
+use smartvaults_protocol::v1::{Encryption, Serde, SharedSigner, Signer};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalSharedSigner;

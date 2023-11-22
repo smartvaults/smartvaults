@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::protocol::v1::Signer;
 use smartvaults_sdk::types::{GetPolicy, GetProposal, GetTransaction};
 use smartvaults_sdk::util;
 

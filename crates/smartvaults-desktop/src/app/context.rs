@@ -6,10 +6,9 @@ use std::fmt;
 
 use smartvaults_sdk::core::bdk::FeeRate;
 use smartvaults_sdk::core::bitcoin::Txid;
-use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::Priority;
 use smartvaults_sdk::nostr::{EventId, Url};
-use smartvaults_sdk::protocol::v1::{SignerOffering, Vault};
+use smartvaults_sdk::protocol::v1::{Signer, SignerOffering, Vault};
 use smartvaults_sdk::types::{GetPolicy, GetSigner};
 use smartvaults_sdk::{util, SmartVaults};
 

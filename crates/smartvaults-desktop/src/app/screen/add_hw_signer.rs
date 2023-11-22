@@ -4,7 +4,7 @@
 use smartvaults_sdk::core::constants::SMARTVAULTS_ACCOUNT_INDEX;
 use smartvaults_sdk::core::hwi::types::HWIDevice;
 use smartvaults_sdk::core::hwi::HWIClient;
-use smartvaults_sdk::core::signer::Signer;
+use smartvaults_sdk::protocol::v1::Signer;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 

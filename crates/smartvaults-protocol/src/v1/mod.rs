@@ -10,6 +10,7 @@ pub mod constants;
 pub mod key_agent;
 pub mod label;
 mod network;
+pub mod signer;
 pub mod util;
 pub mod vault;
 
@@ -19,5 +20,6 @@ pub use self::key_agent::{
     VerifiedKeyAgentData, VerifiedKeyAgents,
 };
 pub use self::label::{Label, LabelData, LabelKind};
+pub use self::signer::{SharedSigner, Signer, SignerType};
 pub use self::util::{Encryption, EncryptionError, Serde, SerdeSer};
 pub use self::vault::Vault;
