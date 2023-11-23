@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+//! Smart Vauls Policy
+
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 use core::str::FromStr;
@@ -106,6 +108,7 @@ pub enum PolicyPath {
     None,
 }
 
+/// Policy
 #[derive(Debug, Clone)]
 pub struct Policy {
     /// Descriptor
@@ -169,6 +172,9 @@ impl Policy {
         }
     }
 
+    /// Construct [`Policy`] from descriptor string
+    ///
+    /// The descriptor must be typed, for example: `tr(...)` or `wsh(...)`
     pub fn from_descriptor<S>(descriptor: S, network: Network) -> Result<Self, Error>
     where
         S: AsRef<str>,
@@ -177,6 +183,9 @@ impl Policy {
         Self::new(descriptor, network)
     }
 
+    /// Construct [`Policy`] from miniscripto policy
+    ///
+    /// <https://bitcoin.sipa.be/miniscript/>
     pub fn from_miniscript<S>(miniscript: S, network: Network) -> Result<Self, Error>
     where
         S: AsRef<str>,
@@ -188,6 +197,9 @@ impl Policy {
         Self::new(descriptor, network)
     }
 
+    /// Try to construct [`Policy`] from descriptor string or miniscript policy
+    ///
+    /// Internally try before to construct the [`Policy`] from a descriptor string. If fail, try from miniscript policy.
     pub fn from_desc_or_miniscript<S>(
         desc_or_miniscript: S,
         network: Network,
@@ -205,6 +217,7 @@ impl Policy {
         }
     }
 
+    /// Construct [`Policy`] from [`PolicyTemplate`]
     pub fn from_template(template: PolicyTemplate, network: Network) -> Result<Self, Error> {
         match template.build()? {
             PolicyTemplateResult::Singlesig(key) => {
@@ -217,16 +230,19 @@ impl Policy {
         }
     }
 
+    /// Get descriptor
     #[inline]
     pub fn descriptor(&self) -> Descriptor<String> {
         self.descriptor.clone()
     }
 
+    /// Get reference of descriptor
     #[inline]
     pub fn as_descriptor(&self) -> &Descriptor<String> {
         &self.descriptor
     }
 
+    /// Get network
     #[inline]
     pub fn network(&self) -> Network {
         self.network
@@ -266,7 +282,7 @@ impl Policy {
 
     /// Get list of [SelectableCondition]
     ///
-    /// Return `None` if the [Policy] not contains a timelock
+    /// Return `None` if the [Policy] not contains timelocks
     pub fn selectable_conditions(&self) -> Result<Option<Vec<SelectableCondition>>, Error> {
         if self.has_timelock() {
             fn selectable_conditions(
@@ -654,6 +670,7 @@ impl Policy {
         Some(psbt.unsigned_tx.vsize())
     }
 
+    /// Create a new PSBT for [`Policy`]
     pub fn spend<D, S>(
         &self,
         wallet: &mut Wallet<D>,
@@ -787,6 +804,7 @@ impl Policy {
         ))
     }
 
+    /// Create new Proof of Reserve for [`Policy`]
     #[cfg(feature = "reserves")]
     pub fn proof_of_reserve<D, S>(
         &self,
