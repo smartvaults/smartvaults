@@ -16,7 +16,7 @@ use bdk::wallet::tx_builder::AddUtxoError;
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
-use keechain_core::bitcoin::address::NetworkUnchecked;
+use keechain_core::bitcoin::address::NetworkChecked;
 use keechain_core::bitcoin::bip32::Fingerprint;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
@@ -645,7 +645,7 @@ impl Policy {
     pub fn estimate_tx_vsize<D>(
         &self,
         wallet: &mut Wallet<D>,
-        address: Address<NetworkUnchecked>,
+        address: Address<NetworkChecked>,
         amount: Amount,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
@@ -659,7 +659,6 @@ impl Policy {
                 wallet,
                 address,
                 amount,
-                "",
                 FeeRate::default_min_relay_fee(),
                 utxos,
                 frozen_utxos,
@@ -671,12 +670,11 @@ impl Policy {
     }
 
     /// Create a new PSBT for [`Policy`]
-    pub fn spend<D, S>(
+    pub fn spend<D>(
         &self,
         wallet: &mut Wallet<D>,
-        address: Address<NetworkUnchecked>,
+        address: Address<NetworkChecked>, /* TODO: allow batch send. Use enum to allow to drain to single address? */
         amount: Amount,
-        description: S,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
@@ -684,7 +682,6 @@ impl Policy {
     ) -> Result<Proposal, Error>
     where
         D: PersistBackend<ChangeSet>,
-        S: Into<String>,
     {
         let wallet_utxos: HashMap<OutPoint, LocalOutput> = wallet
             .list_unspent()
@@ -795,13 +792,7 @@ impl Policy {
             Amount::Custom(amount) => amount,
         };
 
-        Ok(Proposal::spending(
-            self.descriptor.clone(),
-            address,
-            amount,
-            description,
-            psbt,
-        ))
+        Ok(Proposal::spending(self.descriptor.clone(), amount, psbt))
     }
 
     /// Create new Proof of Reserve for [`Policy`]

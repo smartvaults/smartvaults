@@ -4,43 +4,22 @@
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::Transaction;
 use keechain_core::miniscript::Descriptor;
-use serde::{Deserialize, Serialize};
 
-use super::{Period, ProposalType};
-use crate::util::{deserialize_psbt, serialize_psbt};
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CompletedProposal {
     Spending {
         tx: Transaction,
-        description: String,
     },
     ProofOfReserve {
         message: String,
         descriptor: Descriptor<String>,
-        #[serde(
-            serialize_with = "serialize_psbt",
-            deserialize_with = "deserialize_psbt"
-        )]
         psbt: PartiallySignedTransaction,
-    },
-    KeyAgentPayment {
-        tx: Transaction,
-        signer_descriptor: Descriptor<String>,
-        description: String,
-        period: Period,
     },
 }
 
 impl CompletedProposal {
-    pub fn spending<S>(tx: Transaction, description: S) -> Self
-    where
-        S: Into<String>,
-    {
-        Self::Spending {
-            tx,
-            description: description.into(),
-        }
+    pub fn spending(tx: Transaction) -> Self {
+        Self::Spending { tx }
     }
 
     pub fn proof_of_reserve<S>(
@@ -58,47 +37,7 @@ impl CompletedProposal {
         }
     }
 
-    pub fn key_agent_payment<S>(
-        tx: Transaction,
-        signer_descriptor: Descriptor<String>,
-        description: S,
-        period: Period,
-    ) -> Self
-    where
-        S: Into<String>,
-    {
-        Self::KeyAgentPayment {
-            tx,
-            signer_descriptor,
-            description: description.into(),
-            period,
-        }
-    }
-
-    pub fn get_type(&self) -> ProposalType {
-        match self {
-            Self::Spending { .. } => ProposalType::Spending,
-            Self::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
-            Self::KeyAgentPayment { .. } => ProposalType::KeyAgentPayment,
-        }
-    }
-
-    pub fn tx(&self) -> Option<Transaction> {
-        match self {
-            Self::Spending { tx, .. } => Some(tx.clone()),
-            Self::KeyAgentPayment { tx, .. } => Some(tx.clone()),
-            _ => None,
-        }
-    }
-
-    pub fn desc(&self) -> String {
-        match self {
-            Self::Spending { description, .. } => description.clone(),
-            Self::ProofOfReserve { message, .. } => message.clone(),
-            Self::KeyAgentPayment { description, .. } => description.clone(),
-        }
-    }
-
+    /// Export Proof of Reserve
     pub fn export_proof(&self) -> Option<String> {
         match self {
             Self::ProofOfReserve {

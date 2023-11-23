@@ -28,7 +28,7 @@ pub use self::policy::{
     AbsoluteLockTime, DecayingTime, Locktime, Policy, PolicyTemplate, PolicyTemplateType,
     RecoveryTemplate, SelectableCondition, Sequence,
 };
-pub use self::proposal::{ApprovedProposal, CompletedProposal, Proposal};
+pub use self::proposal::{CompletedProposal, Proposal};
 pub use self::signer::CoreSigner;
 pub use self::types::{Amount, FeeRate, Priority};
 
@@ -49,6 +49,7 @@ mod tests {
     use keechain_core::bips::bip39::Mnemonic;
     use keechain_core::bitcoin::absolute::Height;
     use keechain_core::bitcoin::hashes::Hash;
+    use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
     use keechain_core::bitcoin::{absolute, Address, BlockHash, Network, Transaction, TxOut};
     use keechain_core::descriptors::ToDescriptor;
     use keechain_core::miniscript::DescriptorPublicKey;
@@ -162,22 +163,20 @@ mod tests {
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy.spend(
             &mut wallet,
-            Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
+            Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?.require_network(NETWORK)?,
             Amount::Custom(1120),
-            "Testing",
             FeeRate::from_sat_per_vb(1.0),
             None,
             None,
             None,
         )?;
 
-        let approved_a: ApprovedProposal = proposal.approve(&seed_a, Vec::new(), NETWORK)?;
-        let approved_b: ApprovedProposal = proposal.approve(&seed_b, Vec::new(), NETWORK)?;
+        let approved_a: PartiallySignedTransaction =
+            proposal.approve(&seed_a, Vec::new(), NETWORK)?;
+        let approved_b: PartiallySignedTransaction =
+            proposal.approve(&seed_b, Vec::new(), NETWORK)?;
 
-        let completed_proposal: CompletedProposal =
-            proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
-
-        assert_eq!(completed_proposal.get_type(), ProposalType::Spending);
+        proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
 
         Ok(())
     }
@@ -205,13 +204,12 @@ mod tests {
         let proposal: Proposal =
             policy.proof_of_reserve(&mut wallet, "Testing proof of reserve")?;
 
-        let approved_a: ApprovedProposal = proposal.approve(&seed_a, Vec::new(), NETWORK)?;
-        let approved_b: ApprovedProposal = proposal.approve(&seed_b, Vec::new(), NETWORK)?;
+        let approved_a: PartiallySignedTransaction =
+            proposal.approve(&seed_a, Vec::new(), NETWORK)?;
+        let approved_b: PartiallySignedTransaction =
+            proposal.approve(&seed_b, Vec::new(), NETWORK)?;
 
-        let completed_proposal: CompletedProposal =
-            proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
-
-        assert_eq!(completed_proposal.get_type(), ProposalType::ProofOfReserve);
+        proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
 
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = completed_proposal {
             wallet.verify_proof(&psbt, message, None).unwrap();
@@ -243,20 +241,18 @@ mod tests {
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy.spend(
             &mut wallet,
-            Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
+            Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?.require_network(NETWORK)?,
             Amount::Custom(1120),
-            "Testing",
             FeeRate::from_sat_per_vb(1.0),
             None,
             None,
             None,
         )?;
 
-        let approved_a: ApprovedProposal = proposal.approve(&seed_a, Vec::new(), NETWORK)?;
+        let approved_a: PartiallySignedTransaction =
+            proposal.approve(&seed_a, Vec::new(), NETWORK)?;
 
-        let completed_proposal: CompletedProposal = proposal.finalize(vec![approved_a], NETWORK)?;
-
-        assert_eq!(completed_proposal.get_type(), ProposalType::Spending);
+        proposal.finalize(vec![approved_a], NETWORK)?;
 
         Ok(())
     }
@@ -278,9 +274,11 @@ mod tests {
         let proposal: Proposal = policy
             .spend(
                 &mut wallet,
-                Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap(),
+                Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")
+                    .unwrap()
+                    .require_network(NETWORK)
+                    .unwrap(),
                 Amount::Custom(2000),
-                "Testing",
                 FeeRate::from_sat_per_vb(1.0),
                 None,
                 None,
@@ -288,7 +286,8 @@ mod tests {
             )
             .unwrap();
 
-        let approved_a: ApprovedProposal = proposal.approve(&seed, Vec::new(), network).unwrap();
+        let approved_a: PartiallySignedTransaction =
+            proposal.approve(&seed, Vec::new(), network).unwrap();
 
         proposal.finalize(vec![approved_a], network).unwrap();
     }

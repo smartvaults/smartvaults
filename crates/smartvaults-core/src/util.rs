@@ -1,12 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use std::str::FromStr;
-
-use ::serde::{Deserialize, Deserializer, Serializer};
 use keechain_core::bdk::descriptor::{DescriptorError, IntoWalletDescriptor};
 use keechain_core::bdk::keys::KeyError;
-use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::secp256k1::rand::rngs::OsRng;
 use keechain_core::bitcoin::Network;
 use keechain_core::miniscript::Descriptor;
@@ -33,26 +29,7 @@ impl Unspendable for XOnlyPublicKey {
     }
 }
 
-pub(crate) fn serialize_psbt<S>(
-    psbt: &PartiallySignedTransaction,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str(&psbt.to_string())
-}
-
-pub(crate) fn deserialize_psbt<'de, D>(
-    deserializer: D,
-) -> Result<PartiallySignedTransaction, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let psbt = String::deserialize(deserializer)?;
-    PartiallySignedTransaction::from_str(&psbt).map_err(::serde::de::Error::custom)
-}
-
+// TODO: move to protocol v1
 /// Search the [`Network`] of the descriptor
 #[tracing::instrument(skip_all, level = "trace")]
 pub fn search_network_for_descriptor(desc: &Descriptor<String>) -> Option<Network> {
