@@ -30,7 +30,7 @@ pub mod proposal {
         Proposal as ProtoProposalStatusEnum,
     };
     pub use self::inner::{
-        Proposal as ProtoProposal, ProposalStatus as ProtoProposalStatus,
+        Period as ProtoPeriod, Proposal as ProtoProposal, ProposalStatus as ProtoProposalStatus,
         Recipient as ProtoRecipient,
     };
 }

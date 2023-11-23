@@ -7,12 +7,12 @@ use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{consensus, Address, Network};
 use smartvaults_core::miniscript::Descriptor;
 
-use super::{CompletedProposal, PendingProposal, Proposal, ProposalStatus, Recipient};
+use super::{CompletedProposal, PendingProposal, Period, Proposal, ProposalStatus, Recipient};
 use crate::v2::proto::proposal::{
     ProtoCompletedKeyAgentPayment, ProtoCompletedProofOfReserve, ProtoCompletedProposal,
     ProtoCompletedProposalEnum, ProtoCompletedSpending, ProtoPendingKeyAgentPayment,
     ProtoPendingProofOfReserve, ProtoPendingProposal, ProtoPendingProposalEnum,
-    ProtoPendingSpending, ProtoProposal, ProtoProposalStatus, ProtoProposalStatusEnum,
+    ProtoPendingSpending, ProtoPeriod, ProtoProposal, ProtoProposalStatus, ProtoProposalStatusEnum,
     ProtoRecipient,
 };
 use crate::v2::{Error, NetworkMagic};
@@ -22,6 +22,15 @@ impl From<&Recipient> for ProtoRecipient {
         ProtoRecipient {
             address: recipient.address.to_string(),
             amount: recipient.amount,
+        }
+    }
+}
+
+impl From<&Period> for ProtoPeriod {
+    fn from(period: &Period) -> Self {
+        ProtoPeriod {
+            from: period.from.as_u64(),
+            to: period.to.as_u64(),
         }
     }
 }
@@ -50,12 +59,14 @@ impl From<&PendingProposal> for ProtoPendingProposal {
                     descriptor,
                     signer_descriptor,
                     recipient,
+                    period,
                     description,
                     psbt,
                 } => ProtoPendingProposalEnum::KeyAgentPayment(ProtoPendingKeyAgentPayment {
                     descriptor: descriptor.to_string(),
                     signer_descriptor: signer_descriptor.to_string(),
                     recipient: Some(recipient.into()),
+                    period: Some(period.into()),
                     description: description.to_owned(),
                     psbt: psbt.to_string(),
                 }),
@@ -170,9 +181,12 @@ impl TryFrom<ProtoProposal> for Proposal {
                         }
                     }
                     ProtoPendingProposalEnum::KeyAgentPayment(inner) => {
-                        let recipient = inner
+                        let recipient: ProtoRecipient = inner
                             .recipient
                             .ok_or(Error::NotFound(String::from("recipient")))?;
+                        let period: ProtoPeriod = inner
+                            .period
+                            .ok_or(Error::NotFound(String::from("period")))?;
                         PendingProposal::KeyAgentPayment {
                             descriptor: Descriptor::from_str(&inner.descriptor)?,
                             signer_descriptor: Descriptor::from_str(&inner.signer_descriptor)?,
@@ -180,6 +194,10 @@ impl TryFrom<ProtoProposal> for Proposal {
                                 address: Address::from_str(&recipient.address)?
                                     .require_network(network)?,
                                 amount: recipient.amount,
+                            },
+                            period: Period {
+                                from: period.from.into(),
+                                to: period.to.into(),
                             },
                             description: inner.description,
                             psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,

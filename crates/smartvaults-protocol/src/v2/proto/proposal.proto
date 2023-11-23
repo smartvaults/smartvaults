@@ -7,6 +7,11 @@ message Recipient {
   fixed64 amount = 2;
 }
 
+message Period {
+  fixed64 from = 1;
+  fixed64 to = 2;
+}
+
 message Proposal {
   ProposalStatus status = 1;
   bytes network = 2;
@@ -29,8 +34,9 @@ message ProposalStatus {
       string descriptor = 1;
       string signer_descriptor = 2;
       Recipient recipient = 3;
-      string description = 4;
-      string psbt = 5;
+      Period period = 4;
+      string description = 5;
+      string psbt = 6;
     }
 
     oneof proposal {

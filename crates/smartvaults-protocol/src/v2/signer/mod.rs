@@ -56,6 +56,7 @@ pub struct Signer {
 
 impl Deref for Signer {
     type Target = CoreSigner;
+
     fn deref(&self) -> &Self::Target {
         &self.core
     }

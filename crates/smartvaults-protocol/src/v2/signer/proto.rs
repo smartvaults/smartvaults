@@ -95,6 +95,7 @@ impl From<&Signer> for ProtoSigner {
 
 impl TryFrom<ProtoSigner> for Signer {
     type Error = Error;
+
     fn try_from(value: ProtoSigner) -> Result<Self, Self::Error> {
         let proto_signer_type: ProtoSignerType = ProtoSignerType::try_from(value.r#type)?;
         let fingerprint: Fingerprint = Fingerprint::from_str(&value.fingerprint)?;
