@@ -12,10 +12,11 @@ use keechain_core::{ColdcardGenericJson, Purpose, Seed};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg(feature = "hwi")]
+use crate::hwi::BoxedHWI;
 use crate::SECP256K1;
 
-const PURPOSES: [Purpose; 3] = [
-    Purpose::BIP86,
+const PURPOSES: [Purpose; 2] = [
     Purpose::BIP48 {
         script: ScriptType::P2WSH,
     },
@@ -32,6 +33,10 @@ pub enum Error {
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
     Coldcard(#[from] keechain_core::export::coldcard::Error),
+    /// HWI error
+    #[cfg(feature = "hwi")]
+    #[error(transparent)]
+    HWI(#[from] async_hwi::Error),
     #[error("derivation path not found")]
     DerivationPathNotFound,
     #[error("fingerprint not match")]
@@ -131,6 +136,22 @@ impl CoreSigner {
         }
 
         Self::new(coldcard.fingerprint(), descriptors, network)
+    }
+
+    #[cfg(feature = "hwi")]
+    pub async fn from_hwi(device: BoxedHWI, network: Network) -> Result<Self, Error> {
+        let root_fingerprint: Fingerprint = device.get_master_fingerprint().await?;
+
+        let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
+        for purpose in PURPOSES.into_iter() {
+            let path: DerivationPath = purpose.to_account_extended_path(network, None)?;
+            let pubkey = device.get_extended_pubkey(&path).await?;
+            let (_, descriptor): (_, DescriptorPublicKey) =
+                descriptors::descriptor(root_fingerprint, pubkey, &path, false)?;
+            descriptors.insert(purpose, descriptor);
+        }
+
+        Self::new(root_fingerprint, descriptors, network)
     }
 
     pub fn fingerprint(&self) -> Fingerprint {

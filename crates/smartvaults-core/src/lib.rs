@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+//! Smart Vaults Core library
+
 #![forbid(unsafe_code)]
 #![cfg_attr(bench, feature(test))]
 
@@ -12,6 +14,8 @@ use keechain_core::secp256k1::{rand, All, Secp256k1};
 pub use keechain_core::*;
 use once_cell::sync::Lazy;
 
+#[cfg(feature = "hwi")]
+pub mod hwi;
 pub mod policy;
 pub mod proposal;
 #[cfg(feature = "reserves")]
