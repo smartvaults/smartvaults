@@ -7,8 +7,8 @@ use std::io::Write;
 use iced::widget::{Column, Row, Space};
 use iced::{Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::core::proposal::CompletedProposal;
 use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::protocol::v1::CompletedProposal;
 use smartvaults_sdk::types::GetCompletedProposal;
 use smartvaults_sdk::util;
 

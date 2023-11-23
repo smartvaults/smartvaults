@@ -9,11 +9,10 @@ use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile, PublicKey};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::{Address, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::proposal::Period;
-use smartvaults_core::{Amount, FeeRate, Proposal};
+use smartvaults_core::{Amount, FeeRate};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
 use smartvaults_protocol::v1::{
-    Serde, Signer, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents,
+    Period, Proposal, Serde, Signer, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents,
 };
 
 use super::{Error, SmartVaults};

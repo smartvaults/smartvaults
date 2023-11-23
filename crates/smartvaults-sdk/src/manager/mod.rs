@@ -19,7 +19,7 @@ use nostr_sdk::{EventId, Timestamp};
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewOrLoadError};
 use smartvaults_core::bdk::{FeeRate, LocalOutput, Wallet};
-use smartvaults_core::bitcoin::address::NetworkUnchecked;
+use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
 use smartvaults_core::{Amount, Policy, Priority, Proposal};
@@ -397,7 +397,7 @@ impl Manager {
     pub async fn estimate_tx_vsize(
         &self,
         policy_id: EventId,
-        address: Address<NetworkUnchecked>,
+        address: Address<NetworkChecked>,
         amount: Amount,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
@@ -410,32 +410,20 @@ impl Manager {
             .await)
     }
 
-    pub async fn spend<S>(
+    pub async fn spend(
         &self,
         policy_id: EventId,
-        address: Address<NetworkUnchecked>,
+        address: Address<NetworkChecked>,
         amount: Amount,
-        description: S,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<Proposal, Error> {
         Ok(self
             .wallet(policy_id)
             .await?
-            .spend(
-                address,
-                amount,
-                description,
-                fee_rate,
-                utxos,
-                frozen_utxos,
-                policy_path,
-            )
+            .spend(address, amount, fee_rate, utxos, frozen_utxos, policy_path)
             .await?)
     }
 

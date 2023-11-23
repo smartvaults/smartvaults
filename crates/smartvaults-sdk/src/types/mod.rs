@@ -11,8 +11,9 @@ use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Proposal, SharedSigner};
-use smartvaults_protocol::v1::{SharedSigner, SignerOffering, Vault};
+use smartvaults_protocol::v1::{
+    ApprovedProposal, CompletedProposal, Proposal, SharedSigner, SignerOffering, Vault,
+};
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;

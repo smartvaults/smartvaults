@@ -5,10 +5,9 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_sdk::core::proposal::Proposal;
-use smartvaults_sdk::core::{CompletedProposal, PsbtUtility};
+use smartvaults_sdk::core::PsbtUtility;
 use smartvaults_sdk::nostr::{EventId, PublicKey};
-use smartvaults_sdk::protocol::v1::{Signer, SignerType};
+use smartvaults_sdk::protocol::v1::{CompletedProposal, Proposal, Signer, SignerType};
 use smartvaults_sdk::types::{GetApproval, GetProposal};
 use smartvaults_sdk::util;
 

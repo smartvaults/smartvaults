@@ -13,10 +13,10 @@ use smartvaults_sdk::core::bdk::descriptor::policy::{PkOrF, SatisfiableItem};
 use smartvaults_sdk::core::bips::bip32::Bip32;
 use smartvaults_sdk::core::bitcoin::bip32::ExtendedPubKey;
 use smartvaults_sdk::core::bitcoin::{Network, ScriptBuf};
-use smartvaults_sdk::core::proposal::{CompletedProposal, Proposal};
 use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{EventId, Keys, Profile, PublicKey, Relay, Timestamp, Url};
+use smartvaults_sdk::protocol::v1::{CompletedProposal, Proposal};
 use smartvaults_sdk::types::{
     GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetSignerOffering,
     GetTransaction, GetUtxo, NostrConnectRequest,

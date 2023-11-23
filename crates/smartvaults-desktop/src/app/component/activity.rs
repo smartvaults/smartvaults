@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
-use smartvaults_sdk::core::proposal::Proposal;
 use smartvaults_sdk::nostr::Timestamp;
+use smartvaults_sdk::protocol::v1::Proposal;
 use smartvaults_sdk::types::{GetCompletedProposal, GetProposal, GetTransaction};
 use smartvaults_sdk::util;
 

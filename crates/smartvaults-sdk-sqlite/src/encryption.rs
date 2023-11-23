@@ -8,8 +8,9 @@ use chacha20poly1305::{AeadCore, XChaCha20Poly1305};
 use smartvaults_core::bdk::wallet::ChangeSet;
 use smartvaults_core::secp256k1::SecretKey;
 use smartvaults_core::util::serde::deserialize;
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Proposal};
-use smartvaults_protocol::v1::{Label, Serde, SharedSigner, Signer, Vault};
+use smartvaults_protocol::v1::{
+    ApprovedProposal, CompletedProposal, Label, Proposal, Serde, SharedSigner, Signer, Vault,
+};
 
 /// Error
 #[derive(Debug, PartialEq, Eq)]

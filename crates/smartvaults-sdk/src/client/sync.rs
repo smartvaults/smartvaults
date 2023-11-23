@@ -27,7 +27,8 @@ use smartvaults_protocol::v1::constants::{
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{
-    Encryption, Label, Serde, SharedSigner, Signer, Vault, VerifiedKeyAgents,
+    ApprovedProposal, CompletedProposal, Encryption, Label, Proposal, Serde, SharedSigner, Signer,
+    Vault, VerifiedKeyAgents,
 };
 use smartvaults_sdk_sqlite::model::InternalGetPolicy;
 use smartvaults_sdk_sqlite::Type;

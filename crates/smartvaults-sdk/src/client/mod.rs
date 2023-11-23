@@ -27,15 +27,13 @@ use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
 use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
-use smartvaults_core::bitcoin::address::NetworkUnchecked;
+use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
-use smartvaults_core::{
-    Amount, ApprovedProposal, CompletedProposal, FeeRate, PolicyTemplate, Proposal, SECP256K1,
-};
+use smartvaults_core::{Amount, FeeRate, PolicyTemplate, Proposal as CoreProposal, SECP256K1};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
@@ -43,8 +41,8 @@ use smartvaults_protocol::v1::constants::{
 use smartvaults_protocol::v1::signer::smartvaults_signer;
 use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
-    Label, LabelData, Signer, SmartVaultsEventBuilder, SmartVaultsEventBuilderError, Vault,
-    VerifiedKeyAgents,
+    ApprovedProposal, CompletedProposal, Label, LabelData, Proposal, Signer,
+    SmartVaultsEventBuilder, SmartVaultsEventBuilderError, Vault, VerifiedKeyAgents,
 };
 use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
@@ -1119,8 +1117,6 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        let description: &str = &description.into();
-
         // Check and calculate fee rate
         if !fee_rate.is_valid() {
             return Err(Error::InvalidFeeRate);
@@ -1151,13 +1147,14 @@ impl SmartVaults {
         }
 
         // Build spending proposal
-        let proposal: Proposal = self
+        let checked_addr: Address<NetworkChecked> =
+            address.clone().require_network(self.network)?;
+        let proposal: CoreProposal = self
             .manager
             .spend(
                 policy_id,
-                address,
+                checked_addr,
                 amount,
-                description,
                 fee_rate,
                 utxos,
                 frozen_utxos,
@@ -1165,7 +1162,19 @@ impl SmartVaults {
             )
             .await?;
 
-        if let Proposal::Spending { psbt, .. } = &proposal {
+        if let CoreProposal::Spending {
+            descriptor,
+            amount,
+            psbt,
+        } = proposal
+        {
+            let proposal: Proposal = Proposal::Spending {
+                descriptor,
+                to_address: address,
+                amount,
+                description: description.into(),
+                psbt,
+            };
             // Get shared keys
             let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 
@@ -1200,17 +1209,6 @@ impl SmartVaults {
                         proposal: proposal.clone(),
                         timestamp,
                     },
-                )
-                .await;
-
-            // Froze UTXOs
-            self.storage
-                .freeze_utxos(
-                    policy_id,
-                    psbt.unsigned_tx
-                        .input
-                        .iter()
-                        .map(|txin| txin.previous_output),
                 )
                 .await;
 
@@ -1552,45 +1550,60 @@ impl SmartVaults {
         let message: &str = &message.into();
 
         // Build proposal
-        let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message).await?;
+        let proposal: CoreProposal = self.manager.proof_of_reserve(policy_id, message).await?;
 
-        // Get shared keys
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
+        if let CoreProposal::ProofOfReserve {
+            descriptor,
+            message,
+            psbt,
+        } = proposal
+        {
+            let proposal: Proposal = Proposal::ProofOfReserve {
+                descriptor,
+                message,
+                psbt,
+            };
 
-        // Compose the event
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        let mut tags: Vec<Tag> = public_keys.iter().copied().map(Tag::public_key).collect();
-        tags.push(Tag::event(policy_id));
-        let content = proposal.encrypt_with_keys(&shared_key)?;
-        // Publish proposal with `shared_key` so every owner can delete it
-        let event = EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
-        let timestamp = event.created_at;
-        let proposal_id = self.client.send_event(event).await?;
+            // Get shared keys
+            let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 
-        // Send DM msg
-        // TODO: send withoud wait for OK
-        // let sender = self.client.keys().public_key();
-        // let mut msg = String::from("New Proof of Reserve request:\n");
-        // msg.push_str(&format!("- Message: {message}"));
-        // for pubkey in nostr_pubkeys.into_iter() {
-        // if sender != pubkey {
-        // self.client.send_direct_msg(pubkey, &msg, None).await?;
-        // }
-        // }
+            // Compose the event
+            let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
+            let mut tags: Vec<Tag> = public_keys.iter().copied().map(Tag::public_key).collect();
+            tags.push(Tag::event(policy_id));
+            let content = proposal.encrypt_with_keys(&shared_key)?;
+            // Publish proposal with `shared_key` so every owner can delete it
+            let event = EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
+            let timestamp = event.created_at;
+            let proposal_id = self.client.send_event(event).await?;
 
-        // Index proposal
-        self.storage
-            .save_proposal(
-                proposal_id,
-                InternalProposal {
-                    policy_id,
-                    proposal: proposal.clone(),
-                    timestamp,
-                },
-            )
-            .await;
+            // Send DM msg
+            // TODO: send withoud wait for OK
+            // let sender = self.client.keys().public_key();
+            // let mut msg = String::from("New Proof of Reserve request:\n");
+            // msg.push_str(&format!("- Message: {message}"));
+            // for pubkey in nostr_pubkeys.into_iter() {
+            // if sender != pubkey {
+            // self.client.send_direct_msg(pubkey, &msg, None).await?;
+            // }
+            // }
 
-        Ok((proposal_id, proposal, policy_id))
+            // Index proposal
+            self.storage
+                .save_proposal(
+                    proposal_id,
+                    InternalProposal {
+                        policy_id,
+                        proposal: proposal.clone(),
+                        timestamp,
+                    },
+                )
+                .await;
+
+            Ok((proposal_id, proposal, policy_id))
+        } else {
+            Err(Error::UnexpectedProposal)
+        }
     }
 
     pub async fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
@@ -1704,7 +1717,8 @@ impl SmartVaults {
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<GetAddress, Error> {
-        let address = self.manager.get_address(policy_id, index).await?.address;
+        let address: Address<NetworkChecked> =
+            self.manager.get_address(policy_id, index).await?.address;
 
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
         let address = Address::new(self.network, address.payload);
