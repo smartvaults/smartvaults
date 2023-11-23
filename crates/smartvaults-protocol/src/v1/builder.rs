@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use nostr::nips::nip04;
 use nostr::{Event, EventBuilder, EventId, Keys, PublicKey, Tag};
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::Proposal;
 use thiserror::Error;
 
 use super::constants::{
@@ -18,7 +17,7 @@ use super::key_agent::verified::VerifiedKeyAgentData;
 use super::signer::Signer;
 use super::util::{Encryption, EncryptionError};
 use super::vault::Vault;
-use super::{Label, Serde};
+use super::{Label, Proposal, Serde};
 
 #[derive(Debug, Error)]
 pub enum Error {

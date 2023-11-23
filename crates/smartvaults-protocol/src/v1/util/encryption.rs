@@ -6,9 +6,9 @@ use smartvaults_core::bdk::wallet::ChangeSet;
 use smartvaults_core::bitcoin::secp256k1::SecretKey;
 use smartvaults_core::crypto::aes;
 use smartvaults_core::util::serde::deserialize;
-use smartvaults_core::{secp256k1, ApprovedProposal, CompletedProposal, Proposal};
 
 use super::serde::Serde;
+use crate::v1::proposal::{ApprovedProposal, CompletedProposal, Proposal};
 use crate::v1::signer::{SharedSigner, Signer};
 use crate::v1::vault::Vault;
 
