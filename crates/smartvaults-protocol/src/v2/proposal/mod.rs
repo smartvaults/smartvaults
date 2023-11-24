@@ -9,6 +9,7 @@ use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, Transaction};
 use smartvaults_core::crypto::hash;
 use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::{ProofOfReserveProposal, ProposalSigning, Seed, SpendingProposal};
 
 mod proto;
 
@@ -71,6 +72,49 @@ impl Proposal {
                 CompletedProposal::ProofOfReserve { .. } => ProposalType::ProofOfReserve,
                 CompletedProposal::KeyAgentPayment { .. } => ProposalType::KeyAgentPayment,
             },
+        }
+    }
+
+    /// Approve a **pending** proposal
+    pub fn approve(&self, seed: &Seed) -> Result<PartiallySignedTransaction, Error> {
+        if let ProposalStatus::Pending(pending) = &self.status {
+            match pending {
+                PendingProposal::Spending {
+                    descriptor, psbt, ..
+                } => {
+                    let spending = SpendingProposal {
+                        descriptor: descriptor.clone(),
+                        psbt: psbt.clone(),
+                        network: self.network,
+                    };
+                    Ok(spending.approve(seed, Vec::new())?)
+                }
+                PendingProposal::KeyAgentPayment {
+                    descriptor, psbt, ..
+                } => {
+                    let spending = SpendingProposal {
+                        descriptor: descriptor.clone(),
+                        psbt: psbt.clone(),
+                        network: self.network,
+                    };
+                    Ok(spending.approve(seed, Vec::new())?)
+                }
+                PendingProposal::ProofOfReserve {
+                    descriptor,
+                    message,
+                    psbt,
+                } => {
+                    let proof_of_reserve = ProofOfReserveProposal {
+                        descriptor: descriptor.clone(),
+                        message: message.to_owned(),
+                        psbt: psbt.clone(),
+                        network: self.network,
+                    };
+                    Ok(proof_of_reserve.approve(seed, Vec::new())?)
+                }
+            }
+        } else {
+            Err(Error::ProposalAlreadyFinalized)
         }
     }
 
