@@ -5,6 +5,7 @@ set -e
 
 buildargs=(
     "-p smartvaults-core"
+    "-p smartvaults-core --features hwi"
     "-p smartvaults-core --features reserves"
     "-p smartvaults-core --target wasm32-unknown-unknown"
     "-p smartvaults-protocol"
