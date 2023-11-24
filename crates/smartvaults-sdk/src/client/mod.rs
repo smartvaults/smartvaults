@@ -33,7 +33,7 @@ use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
-use smartvaults_core::{Amount, FeeRate, PolicyTemplate, Proposal as CoreProposal, SECP256K1};
+use smartvaults_core::{Amount, FeeRate, PolicyTemplate, SECP256K1};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
@@ -1149,32 +1149,21 @@ impl SmartVaults {
         // Build spending proposal
         let checked_addr: Address<NetworkChecked> =
             address.clone().require_network(self.network)?;
-        let proposal: CoreProposal = self
+        let proposal: Proposal = self
             .manager
             .spend(
                 policy_id,
                 checked_addr,
                 amount,
                 fee_rate,
+                description,
                 utxos,
                 frozen_utxos,
                 policy_path,
             )
             .await?;
 
-        if let CoreProposal::Spending {
-            descriptor,
-            amount,
-            psbt,
-        } = proposal
-        {
-            let proposal: Proposal = Proposal::Spending {
-                descriptor,
-                to_address: address,
-                amount,
-                description: description.into(),
-                psbt,
-            };
+        if let Proposal::Spending { .. } = &proposal {
             // Get shared keys
             let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 
@@ -1550,20 +1539,9 @@ impl SmartVaults {
         let message: &str = &message.into();
 
         // Build proposal
-        let proposal: CoreProposal = self.manager.proof_of_reserve(policy_id, message).await?;
+        let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message).await?;
 
-        if let CoreProposal::ProofOfReserve {
-            descriptor,
-            message,
-            psbt,
-        } = proposal
-        {
-            let proposal: Proposal = Proposal::ProofOfReserve {
-                descriptor,
-                message,
-                psbt,
-            };
-
+        if let Proposal::ProofOfReserve { .. } = &proposal {
             // Get shared keys
             let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 

@@ -22,10 +22,11 @@ use smartvaults_core::bdk::wallet::error::CreateTxError;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
 use smartvaults_core::bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
-use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
+use smartvaults_core::bitcoin::psbt::{self, PartiallySignedTransaction};
 use smartvaults_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Transaction, Txid};
 use smartvaults_core::reserves::ProofOfReserves;
-use smartvaults_core::{Amount, Policy, Proposal};
+use smartvaults_core::{Amount, Policy, ProofOfReserveProposal, SpendingProposal};
+use smartvaults_protocol::v1::Proposal;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -54,6 +55,8 @@ pub enum Error {
     BdkCreateTx(#[from] CreateTxError<StorageError>),
     #[error(transparent)]
     Storage(#[from] StorageError),
+    #[error(transparent)]
+    PSBT(#[from] psbt::Error),
     #[error("impossible to read wallet")]
     ImpossibleToReadWallet,
     #[error("not found")]
@@ -528,26 +531,48 @@ impl SmartVaultsWallet {
         )
     }
 
-    pub async fn spend(
+    pub async fn spend<S>(
         &self,
         address: Address<NetworkChecked>,
         amount: Amount,
         fee_rate: FeeRate,
+        description: S,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error> {
+    ) -> Result<Proposal, Error>
+    where
+        S: Into<String>,
+    {
         let mut wallet = self.wallet.write().await;
-        let proposal = self.policy.spend(
+        let proposal: SpendingProposal = self.policy.spend(
             &mut wallet,
-            address,
+            address.clone(),
             amount,
             fee_rate,
             utxos,
             frozen_utxos,
             policy_path,
         )?;
-        Ok(proposal)
+
+        // Calculate amount
+        let amount: u64 = match amount {
+            Amount::Max => {
+                let fee: u64 = proposal.psbt.fee()?.to_sat();
+                let (sent, received) = wallet.sent_and_received(&proposal.psbt.unsigned_tx);
+                sent.saturating_sub(received).saturating_sub(fee)
+            }
+            Amount::Custom(amount) => amount,
+        };
+
+        // Compose proposal
+        Ok(Proposal::Spending {
+            descriptor: proposal.descriptor,
+            to_address: Address::new(address.network, address.payload),
+            amount,
+            description: description.into(),
+            psbt: proposal.psbt,
+        })
     }
 
     pub async fn proof_of_reserve<S>(&self, message: S) -> Result<Proposal, Error>
@@ -555,8 +580,13 @@ impl SmartVaultsWallet {
         S: Into<String>,
     {
         let mut wallet = self.wallet.write().await;
-        let proposal = self.policy.proof_of_reserve(&mut wallet, message)?;
-        Ok(proposal)
+        let proposal: ProofOfReserveProposal =
+            self.policy.proof_of_reserve(&mut wallet, message)?;
+        Ok(Proposal::ProofOfReserve {
+            descriptor: proposal.descriptor,
+            message: proposal.message,
+            psbt: proposal.psbt,
+        })
     }
 
     pub async fn verify_proof<S>(

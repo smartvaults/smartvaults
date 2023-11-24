@@ -22,7 +22,8 @@ use smartvaults_core::bdk::{FeeRate, LocalOutput, Wallet};
 use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
-use smartvaults_core::{Amount, Policy, Priority, Proposal};
+use smartvaults_core::{Amount, Policy, Priority};
+use smartvaults_protocol::v1::Proposal;
 use smartvaults_sdk_sqlite::Store;
 use thiserror::Error;
 use tokio::sync::broadcast::Sender;
@@ -410,20 +411,32 @@ impl Manager {
             .await)
     }
 
-    pub async fn spend(
+    pub async fn spend<S>(
         &self,
         policy_id: EventId,
         address: Address<NetworkChecked>,
         amount: Amount,
         fee_rate: FeeRate,
+        descriptor: S,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error> {
+    ) -> Result<Proposal, Error>
+    where
+        S: Into<String>,
+    {
         Ok(self
             .wallet(policy_id)
             .await?
-            .spend(address, amount, fee_rate, utxos, frozen_utxos, policy_path)
+            .spend(
+                address,
+                amount,
+                fee_rate,
+                descriptor,
+                utxos,
+                frozen_utxos,
+                policy_path,
+            )
             .await?)
     }
 
