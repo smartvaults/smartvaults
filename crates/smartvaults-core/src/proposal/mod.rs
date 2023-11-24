@@ -61,7 +61,7 @@ pub trait ProposalSigning<T> {
         psbt.sign_custom(
             seed,
             Some(self.descriptor()),
-            custom_signers.clone(),
+            custom_signers,
             self.network(),
             &SECP256K1,
         )?;
