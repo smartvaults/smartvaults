@@ -10,11 +10,9 @@ use keechain_core::miniscript::Descriptor;
 use keechain_core::psbt::{Error as KPsbtError, PsbtUtility};
 use keechain_core::types::Seed;
 
-#[cfg(feature = "reserves")]
 mod reserves;
 mod spending;
 
-#[cfg(feature = "reserves")]
 pub use self::reserves::ProofOfReserveProposal;
 pub use self::spending::SpendingProposal;
 use crate::SECP256K1;

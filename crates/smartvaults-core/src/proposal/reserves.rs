@@ -9,7 +9,13 @@ use keechain_core::bitcoin::Network;
 use keechain_core::miniscript::Descriptor;
 
 use super::{Error, ProposalSigning};
-use crate::ProofOfReserve;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ProofOfReserve {
+    pub descriptor: Descriptor<String>,
+    pub message: String,
+    pub psbt: PartiallySignedTransaction,
+}
 
 /// Proof of Reserve proposal
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

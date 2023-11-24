@@ -28,11 +28,9 @@ pub use self::policy::{
     AbsoluteLockTime, DecayingTime, Locktime, Policy, PolicyTemplate, PolicyTemplateType,
     RecoveryTemplate, SelectableCondition, Sequence,
 };
+pub use self::proposal::{ProofOfReserveProposal, ProposalSigning, SpendingProposal};
 #[cfg(feature = "reserves")]
-pub use self::proposal::ProofOfReserveProposal;
-pub use self::proposal::{ProposalSigning, SpendingProposal};
-#[cfg(feature = "reserves")]
-pub use self::reserves::{ProofOfReserve, ProofOfReserves};
+pub use self::reserves::ProofOfReserves;
 pub use self::signer::CoreSigner;
 pub use self::types::{Amount, FeeRate, Priority};
 
