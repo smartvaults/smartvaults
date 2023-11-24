@@ -35,6 +35,8 @@ pub use self::template::{
     AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate,
     Sequence,
 };
+#[cfg(feature = "hwi")]
+use crate::hwi;
 #[cfg(feature = "reserves")]
 use crate::proposal::ProofOfReserveProposal;
 use crate::proposal::SpendingProposal;
@@ -60,6 +62,9 @@ pub enum Error {
     #[cfg(feature = "reserves")]
     #[error(transparent)]
     ProofOfReserves(#[from] crate::reserves::ProofError),
+    #[cfg(feature = "hwi")]
+    #[error(transparent)]
+    HWI(#[from] hwi::Error),
     #[error(transparent)]
     Signer(#[from] crate::signer::Error),
     #[error(transparent)]
@@ -80,6 +85,8 @@ pub enum Error {
     AbsoluteTimelockNotSatisfied,
     #[error("Relative timelock not satisfied")]
     RelativeTimelockNotSatisfied,
+    #[error("Signer not found")]
+    SignerNotFound,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -820,6 +827,24 @@ impl Policy {
             psbt,
             network: self.network,
         })
+    }
+}
+
+#[cfg(feature = "hwi")]
+impl Policy {
+    pub async fn register_to_hwi<I, S>(&self, signers: I, name: S) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = CoreSigner>,
+        S: AsRef<str>,
+    {
+        let signers: Vec<CoreSigner> = self.search_used_signers(signers)?;
+        let signer: &CoreSigner = signers.first().ok_or(Error::SignerNotFound)?;
+        let device = hwi::find_device(signer.fingerprint(), self.network).await?;
+        device
+            .register_wallet(name.as_ref(), &self.descriptor.to_string())
+            .await
+            .map_err(|e| Error::HWI(hwi::Error::HWI(e)))?;
+        Ok(())
     }
 }
 
