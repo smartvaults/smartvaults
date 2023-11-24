@@ -28,7 +28,11 @@ pub use self::policy::{
     AbsoluteLockTime, DecayingTime, Locktime, Policy, PolicyTemplate, PolicyTemplateType,
     RecoveryTemplate, SelectableCondition, Sequence,
 };
-pub use self::proposal::{CompletedProposal, Proposal};
+#[cfg(feature = "reserves")]
+pub use self::proposal::ProofOfReserveProposal;
+pub use self::proposal::{ProposalSigning, SpendingProposal};
+#[cfg(feature = "reserves")]
+pub use self::reserves::{ProofOfReserve, ProofOfReserves};
 pub use self::signer::CoreSigner;
 pub use self::types::{Amount, FeeRate, Priority};
 
@@ -161,7 +165,7 @@ mod tests {
         let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
-        let proposal: Proposal = policy.spend(
+        let proposal: SpendingProposal = policy.spend(
             &mut wallet,
             Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?.require_network(NETWORK)?,
             Amount::Custom(1120),
@@ -171,12 +175,10 @@ mod tests {
             None,
         )?;
 
-        let approved_a: PartiallySignedTransaction =
-            proposal.approve(&seed_a, Vec::new(), NETWORK)?;
-        let approved_b: PartiallySignedTransaction =
-            proposal.approve(&seed_b, Vec::new(), NETWORK)?;
+        let approved_a: PartiallySignedTransaction = proposal.approve(&seed_a, Vec::new())?;
+        let approved_b: PartiallySignedTransaction = proposal.approve(&seed_b, Vec::new())?;
 
-        proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
+        proposal.finalize(vec![approved_a, approved_b])?;
 
         Ok(())
     }
@@ -201,15 +203,13 @@ mod tests {
         let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
-        let proposal: Proposal =
+        let proposal: ProofOfReserveProposal =
             policy.proof_of_reserve(&mut wallet, "Testing proof of reserve")?;
 
-        let approved_a: PartiallySignedTransaction =
-            proposal.approve(&seed_a, Vec::new(), NETWORK)?;
-        let approved_b: PartiallySignedTransaction =
-            proposal.approve(&seed_b, Vec::new(), NETWORK)?;
+        let approved_a: PartiallySignedTransaction = proposal.approve(&seed_a, Vec::new())?;
+        let approved_b: PartiallySignedTransaction = proposal.approve(&seed_b, Vec::new())?;
 
-        proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
+        proposal.finalize(vec![approved_a, approved_b])?;
 
         if let CompletedProposal::ProofOfReserve { message, psbt, .. } = completed_proposal {
             wallet.verify_proof(&psbt, message, None).unwrap();
@@ -239,7 +239,7 @@ mod tests {
         let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
-        let proposal: Proposal = policy.spend(
+        let proposal: SpendingProposal = policy.spend(
             &mut wallet,
             Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?.require_network(NETWORK)?,
             Amount::Custom(1120),
@@ -249,10 +249,9 @@ mod tests {
             None,
         )?;
 
-        let approved_a: PartiallySignedTransaction =
-            proposal.approve(&seed_a, Vec::new(), NETWORK)?;
+        let approved_a: PartiallySignedTransaction = proposal.approve(&seed_a, Vec::new())?;
 
-        proposal.finalize(vec![approved_a], NETWORK)?;
+        proposal.finalize(vec![approved_a])?;
 
         Ok(())
     }
@@ -271,7 +270,7 @@ mod tests {
         let policy = Policy::from_descriptor(descriptor, network).unwrap();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
-        let proposal: Proposal = policy
+        let proposal: SpendingProposal = policy
             .spend(
                 &mut wallet,
                 Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")
@@ -286,9 +285,8 @@ mod tests {
             )
             .unwrap();
 
-        let approved_a: PartiallySignedTransaction =
-            proposal.approve(&seed, Vec::new(), network).unwrap();
+        let approved_a: PartiallySignedTransaction = proposal.approve(&seed, Vec::new()).unwrap();
 
-        proposal.finalize(vec![approved_a], network).unwrap();
+        proposal.finalize(vec![approved_a]).unwrap();
     }
 }

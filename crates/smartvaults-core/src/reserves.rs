@@ -14,6 +14,8 @@ use keechain_core::bitcoin::hashes::{hash160, sha256d, Hash};
 use keechain_core::bitcoin::psbt::{Input, PartiallySignedTransaction};
 use keechain_core::bitcoin::sighash::EcdsaSighashType;
 use keechain_core::bitcoin::{Address, Network, Sequence};
+use keechain_core::miniscript::Descriptor;
+use serde::{Deserialize, Serialize};
 
 /// Proof error
 #[derive(Debug, thiserror::Error)]
@@ -59,6 +61,13 @@ pub enum ProofError {
     BdkAddForeignUtxo(#[from] AddForeignUtxoError),
     #[error("{0}")]
     BdkCreateTx(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProofOfReserve {
+    pub descriptor: Descriptor<String>,
+    pub message: String,
+    pub psbt: PartiallySignedTransaction,
 }
 
 /// The API for proof of reserves

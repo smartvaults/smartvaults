@@ -35,7 +35,9 @@ pub use self::template::{
     AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate,
     Sequence,
 };
-use crate::proposal::Proposal;
+#[cfg(feature = "reserves")]
+use crate::proposal::ProofOfReserveProposal;
+use crate::proposal::SpendingProposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
 use crate::util::Unspendable;
@@ -679,7 +681,7 @@ impl Policy {
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error>
+    ) -> Result<SpendingProposal, Error>
     where
         D: PersistBackend<ChangeSet>,
     {
@@ -783,16 +785,11 @@ impl Policy {
             }
         }
 
-        let amount: u64 = match amount {
-            Amount::Max => {
-                let fee: u64 = psbt.fee()?.to_sat();
-                let (sent, received) = wallet.sent_and_received(&psbt.unsigned_tx);
-                sent.saturating_sub(received).saturating_sub(fee)
-            }
-            Amount::Custom(amount) => amount,
-        };
-
-        Ok(Proposal::spending(self.descriptor.clone(), amount, psbt))
+        Ok(SpendingProposal {
+            descriptor: self.descriptor(),
+            psbt,
+            network: self.network,
+        })
     }
 
     /// Create new Proof of Reserve for [`Policy`]
@@ -801,12 +798,12 @@ impl Policy {
         &self,
         wallet: &mut Wallet<D>,
         message: S,
-    ) -> Result<Proposal, Error>
+    ) -> Result<ProofOfReserveProposal, Error>
     where
         D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
-        let message: &str = &message.into();
+        let message: String = message.into();
 
         // Get policies and specify which ones to use
         let wallet_policy: SpendingPolicy = wallet
@@ -815,13 +812,14 @@ impl Policy {
         let mut path = BTreeMap::new();
         path.insert(wallet_policy.id, vec![1]);
 
-        let psbt: PartiallySignedTransaction = wallet.create_proof(message)?;
+        let psbt: PartiallySignedTransaction = wallet.create_proof(&message)?;
 
-        Ok(Proposal::proof_of_reserve(
-            self.descriptor.clone(),
+        Ok(ProofOfReserveProposal {
+            descriptor: self.descriptor(),
             message,
             psbt,
-        ))
+            network: self.network,
+        })
     }
 }
 
