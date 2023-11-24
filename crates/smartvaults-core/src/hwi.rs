@@ -6,6 +6,7 @@ use async_hwi::bitbox::{BitBox02, PairingBitbox02WithLocalCache};
 use async_hwi::ledger::{HidApi, Ledger, LedgerSimulator, TransportHID};
 use async_hwi::specter::{Specter, SpecterSimulator};
 pub use async_hwi::HWI;
+use keechain_core::bips::bip32::Fingerprint;
 use keechain_core::bitcoin::Network;
 use thiserror::Error;
 
@@ -16,7 +17,9 @@ pub enum Error {
     #[error(transparent)]
     HWI(#[from] async_hwi::Error),
     #[error(transparent)]
-    HidApi(Box<dyn std::error::Error>),
+    HidApi(Box<dyn std::error::Error + Send>),
+    #[error("device not found")]
+    DeviceNotFound,
 }
 
 /// Get list of Hardware Wallets connected
@@ -62,4 +65,13 @@ pub async fn list(network: Network) -> Result<Vec<BoxedHWI>, Error> {
     }
 
     Ok(hws)
+}
+
+pub async fn find_device(fingerprint: Fingerprint, network: Network) -> Result<BoxedHWI, Error> {
+    for device in list(network).await?.into_iter() {
+        if fingerprint == device.get_master_fingerprint().await? {
+            return Ok(device);
+        }
+    }
+    Err(Error::DeviceNotFound)
 }

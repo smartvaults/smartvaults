@@ -667,7 +667,7 @@ impl Policy {
                 policy_path,
             )
             .ok()?;
-        let psbt = proposal.psbt();
+        let psbt = proposal.psbt;
         Some(psbt.unsigned_tx.vsize())
     }
 

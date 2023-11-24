@@ -4985,6 +4985,7 @@ name = "smartvaults-core"
 version = "0.4.0"
 dependencies = [
  "async-hwi",
+ "async-trait",
  "bdk",
  "bitcoinconsensus",
  "keechain-core",

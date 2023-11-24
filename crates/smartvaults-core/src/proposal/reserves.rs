@@ -32,6 +32,7 @@ impl Ord for ProofOfReserveProposal {
     }
 }
 
+#[cfg_attr(feature = "hwi", async_trait::async_trait)]
 impl ProposalSigning<ProofOfReserve> for ProofOfReserveProposal {
     fn psbt(&self) -> PartiallySignedTransaction {
         self.psbt.clone()

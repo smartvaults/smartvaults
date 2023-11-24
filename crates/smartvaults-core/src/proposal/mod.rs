@@ -18,6 +18,8 @@ mod spending;
 pub use self::reserves::ProofOfReserveProposal;
 pub use self::spending::SpendingProposal;
 use crate::SECP256K1;
+#[cfg(feature = "hwi")]
+use crate::{hwi, CoreSigner};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -31,6 +33,9 @@ pub enum Error {
     KPsbt(#[from] KPsbtError),
     #[error(transparent)]
     PsbtParse(#[from] PsbtParseError),
+    #[cfg(feature = "hwi")]
+    #[error(transparent)]
+    HWI(#[from] hwi::Error),
     #[error("PSBT not signed (equal to base PSBT)")]
     PsbtNotSigned,
     #[error("approved proposals not proveded")]
@@ -41,6 +46,7 @@ pub enum Error {
     ImpossibleToFinalizeNonStdPsbt,
 }
 
+#[cfg_attr(feature = "hwi", async_trait::async_trait)]
 pub trait ProposalSigning<T> {
     fn psbt(&self) -> PartiallySignedTransaction;
 
@@ -61,59 +67,22 @@ pub trait ProposalSigning<T> {
             self.network(),
             &SECP256K1,
         )?;
-
-        match self {
-            Proposal::Spending { .. } => Ok(ApprovedProposal::spending(psbt)),
-            Proposal::ProofOfReserve { .. } => Ok(ApprovedProposal::proof_of_reserve(psbt)),
-            Proposal::KeyAgentPayment { .. } => Ok(ApprovedProposal::key_agent_payment(psbt)),
-        }
+        Ok(psbt)
     }
 
-    pub fn approve_with_signed_psbt(
+    #[cfg(feature = "hwi")]
+    async fn approve_with_hwi(
         &self,
-        signed_psbt: PartiallySignedTransaction,
-    ) -> Result<ApprovedProposal, Error> {
-        if signed_psbt != self.psbt() {
-            // TODO: check if psbt was signed with the correct signer
-            match self {
-                Proposal::Spending { .. } => Ok(ApprovedProposal::spending(signed_psbt)),
-                Proposal::ProofOfReserve { .. } => {
-                    Ok(ApprovedProposal::proof_of_reserve(signed_psbt))
-                }
-                Proposal::KeyAgentPayment { .. } => {
-                    Ok(ApprovedProposal::key_agent_payment(signed_psbt))
-                }
-            }
-        } else {
-            Err(Error::PsbtNotSigned)
-        }
+        signer: CoreSigner,
+    ) -> Result<PartiallySignedTransaction, Error> {
+        let mut base_psbt = self.psbt();
+        let device = hwi::find_device(signer.fingerprint(), self.network()).await?;
+        device
+            .sign_tx(&mut base_psbt)
+            .await
+            .map_err(|e| Error::HWI(hwi::Error::HWI(e)))?;
+        Ok(base_psbt)
     }
-
-    // pub fn approve_with_hwi_signer(
-    // &self,
-    // signer: Signer,
-    // network: Network,
-    // ) -> Result<ApprovedProposal, Error> {
-    // let client = HWIClient::find_device(
-    // None,
-    // None,
-    // Some(&signer.fingerprint().to_string()),
-    // false,
-    // network,
-    // )?;
-    // let base_psbt = self.psbt();
-    // let hwi_psbt = client.sign_tx(&base_psbt)?;
-    // if hwi_psbt.psbt != base_psbt {
-    // match self {
-    // Proposal::Spending { .. } => Ok(ApprovedProposal::spending(hwi_psbt.psbt)),
-    // Proposal::ProofOfReserve { .. } => {
-    // Ok(ApprovedProposal::proof_of_reserve(hwi_psbt.psbt))
-    // }
-    // }
-    // } else {
-    // Err(Error::PsbtNotSigned)
-    // }
-    // }
 
     fn finalize<I>(&self, psbts: I) -> Result<T, Error>
     where

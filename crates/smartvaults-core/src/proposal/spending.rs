@@ -31,6 +31,7 @@ impl Ord for SpendingProposal {
     }
 }
 
+#[cfg_attr(feature = "hwi", async_trait::async_trait)]
 impl ProposalSigning<Transaction> for SpendingProposal {
     fn psbt(&self) -> PartiallySignedTransaction {
         self.psbt.clone()
