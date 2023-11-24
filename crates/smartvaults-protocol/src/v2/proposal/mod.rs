@@ -124,6 +124,10 @@ pub enum PendingProposal {
     },
     /// Proof of reserve
     ProofOfReserve {
+        /// Descriptor
+        descriptor: Descriptor<String>,
+        /// Message
+        message: String,
         /// PSBT
         psbt: PartiallySignedTransaction,
     },

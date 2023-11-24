@@ -8,7 +8,7 @@ use smartvaults_core::bitcoin::psbt::PsbtParseError;
 use smartvaults_core::bitcoin::{address, consensus};
 use smartvaults_core::miniscript::descriptor::DescriptorKeyParseError;
 use smartvaults_core::signer::Error as CoreSignerError;
-use smartvaults_core::{miniscript, policy, secp256k1};
+use smartvaults_core::{miniscript, policy, proposal, secp256k1};
 use thiserror::Error;
 
 use super::core::{CryptoError, SchemaError};
@@ -26,6 +26,8 @@ pub enum Error {
     Hex(#[from] hex::Error),
     #[error(transparent)]
     Policy(#[from] policy::Error),
+    #[error(transparent)]
+    Proposal(#[from] proposal::Error),
     #[error(transparent)]
     Network(#[from] network::Error),
     #[error(transparent)]
@@ -50,4 +52,6 @@ pub enum Error {
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
     #[error("{0} not found")]
     NotFound(String),
+    #[error("proposal already finalized")]
+    ProposalAlreadyFinalized,
 }

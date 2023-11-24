@@ -27,7 +27,9 @@ message ProposalStatus {
     }
 
     message ProofOfReserve {
-        string psbt = 1;
+      string descriptor = 1;
+      string message = 2;
+      string psbt = 3;
     }
 
     message KeyAgentPayment {

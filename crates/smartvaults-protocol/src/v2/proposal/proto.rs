@@ -50,11 +50,15 @@ impl From<&PendingProposal> for ProtoPendingProposal {
                     description: description.to_owned(),
                     psbt: psbt.to_string(),
                 }),
-                PendingProposal::ProofOfReserve { psbt } => {
-                    ProtoPendingProposalEnum::ProofOfReserve(ProtoPendingProofOfReserve {
-                        psbt: psbt.to_string(),
-                    })
-                }
+                PendingProposal::ProofOfReserve {
+                    descriptor,
+                    message,
+                    psbt,
+                } => ProtoPendingProposalEnum::ProofOfReserve(ProtoPendingProofOfReserve {
+                    descriptor: descriptor.to_string(),
+                    message: message.to_owned(),
+                    psbt: psbt.to_string(),
+                }),
                 PendingProposal::KeyAgentPayment {
                     descriptor,
                     signer_descriptor,
@@ -177,6 +181,8 @@ impl TryFrom<ProtoProposal> for Proposal {
                     },
                     ProtoPendingProposalEnum::ProofOfReserve(inner) => {
                         PendingProposal::ProofOfReserve {
+                            descriptor: Descriptor::from_str(&inner.descriptor)?,
+                            message: inner.message,
                             psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
                         }
                     }
