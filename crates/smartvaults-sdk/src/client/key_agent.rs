@@ -31,6 +31,7 @@ impl SmartVaults {
         Ok(self.client.send_event(event).await?)
     }
 
+    /// Create new signer offering
     pub async fn signer_offering(
         &self,
         signer: &Signer,
@@ -44,6 +45,29 @@ impl SmartVaults {
 
         // Publish event
         Ok(self.client.send_event(event).await?)
+    }
+
+    /// Get my signer offerings
+    pub async fn my_signer_offerings(&self) -> Result<Vec<SignerOffering>, Error> {
+        let keys = self.client.keys().await;
+        let filter = Filter::new()
+            .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
+            .author(keys.public_key());
+        Ok(self
+            .client
+            .database()
+            .query(vec![filter])
+            .await?
+            .into_iter()
+            .filter_map(|event| {
+                let offering = SignerOffering::from_json(event.content).ok()?;
+                if offering.network == self.network {
+                    Some(offering)
+                } else {
+                    None
+                }
+            })
+            .collect())
     }
 
     /// Get Key Agents
