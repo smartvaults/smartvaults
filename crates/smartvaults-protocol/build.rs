@@ -4,9 +4,10 @@
 fn main() {
     prost_build::compile_protos(
         &[
-            "src/v2/proto/vault.proto",
+            "src/v2/proto/approval.proto",
             "src/v2/proto/proposal.proto",
             "src/v2/proto/signer.proto",
+            "src/v2/proto/vault.proto",
             "src/v2/proto/wrapper.proto",
         ],
         &["src/v2/proto"],

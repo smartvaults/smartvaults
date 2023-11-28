@@ -3,11 +3,11 @@
 
 #![allow(clippy::module_inception)]
 
-pub mod vault {
-    include!(concat!(env!("OUT_DIR"), "/vault.rs"));
+pub mod approval {
+    include!(concat!(env!("OUT_DIR"), "/approval.rs"));
 
-    pub use self::vault::Object as ProtoVaultObject;
-    pub use self::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
+    pub use self::approval::Object as ProtoApprovalObject;
+    pub use self::{Approval as ProtoApproval, ApprovalV1 as ProtoApprovalV1};
 }
 
 pub mod proposal {
@@ -44,6 +44,13 @@ pub mod signer {
         DescriptorKeyValue as ProtoDescriptor, Purpose as ProtoPurpose, Signer as ProtoSigner,
         SignerType as ProtoSignerType,
     };
+}
+
+pub mod vault {
+    include!(concat!(env!("OUT_DIR"), "/vault.rs"));
+
+    pub use self::vault::Object as ProtoVaultObject;
+    pub use self::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
 }
 
 pub mod wrapper {
