@@ -3,6 +3,7 @@
 
 //! Smart Vaults Protocol V2
 
+pub mod approval;
 pub mod constants;
 mod core;
 mod error;
@@ -13,6 +14,7 @@ pub mod signer;
 pub mod vault;
 pub mod wrapper;
 
+pub use self::approval::{Approval, ApprovalType};
 pub use self::core::{ProtocolEncoding, ProtocolEncryption};
 pub use self::error::Error;
 pub use self::network::NetworkMagic;

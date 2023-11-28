@@ -22,7 +22,7 @@ use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
 use super::{Error, NetworkMagic, Wrapper};
 
-/// vault version
+/// Vault version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Version {
     /// V1
