@@ -59,6 +59,28 @@ impl Sidebar {
         let settings_button =
             SidebarButton::new("Settings", SETTING).view(ctx, Message::View(Stage::Settings));
 
+        let menu_buttons = match ctx.mode {
+            Mode::User => vec![
+                home_button,
+                vaults_button,
+                history_button,
+                addresses_button,
+                signers_button,
+                key_agents_button,
+                contacts_button,
+                connect_button,
+                settings_button,
+            ],
+            Mode::KeyAgent => vec![
+                home_button,
+                vaults_button,
+                signers_button,
+                contacts_button,
+                connect_button,
+                settings_button,
+            ],
+        };
+
         // Footer
         let lock_button = SidebarButton::new("Lock", LOCK).view(ctx, Message::Lock);
         let version = Text::new(format!(
@@ -78,18 +100,8 @@ impl Sidebar {
                 .width(Length::Fill)
                 .center_x(),
             mode_selector,
-            sidebar_menu(vec![
-                home_button,
-                vaults_button,
-                history_button,
-                addresses_button,
-                signers_button,
-                key_agents_button,
-                contacts_button,
-                connect_button,
-                settings_button,
-            ]),
-            sidebar_menu(vec![
+            sidebar_menu(menu_buttons),
+            sidebar_menu([
                 lock_button,
                 Container::new(version).width(Length::Fill).center_x(),
             ]),
@@ -117,9 +129,12 @@ pub fn sidebar<'a, T: 'a>(
     .max_width(MAX_WIDTH)
 }
 
-pub fn sidebar_menu<'a, T: 'a>(items: Vec<Container<'a, T>>) -> Container<'a, T> {
+pub fn sidebar_menu<'a, T: 'a, I>(items: I) -> Container<'a, T>
+where
+    I: IntoIterator<Item = Container<'a, T>>,
+{
     let mut col = Column::new().padding(15).spacing(15);
-    for i in items {
+    for i in items.into_iter() {
         col = col.push(i)
     }
     Container::new(col)
