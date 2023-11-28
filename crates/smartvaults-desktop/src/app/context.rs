@@ -143,6 +143,16 @@ impl fmt::Display for Mode {
     }
 }
 
+impl Mode {
+    pub fn is_user(&self) -> bool {
+        matches!(self, Mode::User)
+    }
+
+    pub fn is_key_agent(&self) -> bool {
+        matches!(self, Mode::KeyAgent)
+    }
+}
+
 pub struct Context {
     pub stage: Stage,
     pub client: SmartVaults,
