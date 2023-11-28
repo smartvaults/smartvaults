@@ -22,6 +22,10 @@ pub enum Error {
     ParseInt(#[from] ParseIntError),
     #[error(transparent)]
     ParseFloat(#[from] ParseFloatError),
+    #[error("unknown temperature")]
+    UnknownTemperature,
+    #[error("unknown device type")]
+    UnknownDeviceType,
     #[error("invalid price")]
     InvalidPrice,
     #[error("invalid currency: must follow ISO 4217 format (3 uppercase chars)")]
@@ -107,12 +111,11 @@ impl FromStr for Percentage {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Temperature {
     Warm,
     Cold,
     AirGapped,
-    Other(String),
 }
 
 impl fmt::Display for Temperature {
@@ -121,22 +124,18 @@ impl fmt::Display for Temperature {
             Self::Warm => write!(f, "warm"),
             Self::Cold => write!(f, "cold"),
             Self::AirGapped => write!(f, "air-gapped"),
-            Self::Other(o) => write!(f, "{o}"),
         }
     }
 }
 
-impl<S> From<S> for Temperature
-where
-    S: Into<String>,
-{
-    fn from(value: S) -> Self {
-        let value: String = value.into();
-        match value.as_str() {
-            "warm" => Self::Warm,
-            "cold" => Self::Cold,
-            "air-gapped" => Self::AirGapped,
-            _ => Self::Other(value),
+impl FromStr for Temperature {
+    type Err = Error;
+    fn from_str(temp: &str) -> Result<Self, Self::Err> {
+        match temp {
+            "warm" => Ok(Self::Warm),
+            "cold" => Ok(Self::Cold),
+            "air-gapped" => Ok(Self::AirGapped),
+            _ => Err(Error::UnknownTemperature),
         }
     }
 }
@@ -156,12 +155,13 @@ impl<'de> Deserialize<'de> for Temperature {
         D: Deserializer<'de>,
     {
         let value = Value::deserialize(deserializer)?;
-        let alphaber: String = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-        Ok(Self::from(alphaber))
+        let temperature: String =
+            serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        Self::from_str(&temperature).map_err(serde::de::Error::custom)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DeviceType {
     Coldcard,
     BitBox02,
@@ -170,7 +170,6 @@ pub enum DeviceType {
     Desktop,
     CloudBased,
     Undisclosed,
-    Other(String),
 }
 
 impl fmt::Display for DeviceType {
@@ -183,26 +182,22 @@ impl fmt::Display for DeviceType {
             Self::Desktop => write!(f, "desktop"),
             Self::CloudBased => write!(f, "cloud-based"),
             Self::Undisclosed => write!(f, "undisclosed"),
-            Self::Other(o) => write!(f, "{o}"),
         }
     }
 }
 
-impl<S> From<S> for DeviceType
-where
-    S: Into<String>,
-{
-    fn from(value: S) -> Self {
-        let value: String = value.into();
-        match value.as_str() {
-            "coldcard" => Self::Coldcard,
-            "bitbox02" => Self::BitBox02,
-            "ledger" => Self::Ledger,
-            "mobile" => Self::Mobile,
-            "desktop" => Self::Desktop,
-            "cloud-based" => Self::CloudBased,
-            "undisclosed" => Self::Undisclosed,
-            _ => Self::Other(value),
+impl FromStr for DeviceType {
+    type Err = Error;
+    fn from_str(device_type: &str) -> Result<Self, Self::Err> {
+        match device_type {
+            "coldcard" => Ok(Self::Coldcard),
+            "bitbox02" => Ok(Self::BitBox02),
+            "ledger" => Ok(Self::Ledger),
+            "mobile" => Ok(Self::Mobile),
+            "desktop" => Ok(Self::Desktop),
+            "cloud-based" => Ok(Self::CloudBased),
+            "undisclosed" => Ok(Self::Undisclosed),
+            _ => Err(Error::UnknownDeviceType),
         }
     }
 }
@@ -222,8 +217,9 @@ impl<'de> Deserialize<'de> for DeviceType {
         D: Deserializer<'de>,
     {
         let value = Value::deserialize(deserializer)?;
-        let alphaber: String = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-        Ok(Self::from(alphaber))
+        let decive_type: String =
+            serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        Self::from_str(&decive_type).map_err(serde::de::Error::custom)
     }
 }
 
