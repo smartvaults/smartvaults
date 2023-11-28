@@ -7,12 +7,12 @@ use super::screen::{
     ActivityMessage, AddAirGapSignerMessage, AddColdcardSignerMessage, AddContactMessage,
     AddNostrConnectSessionMessage, AddRelayMessage, AddSignerMessage, AddVaultMessage,
     AddressesMessage, ChangePasswordMessage, CompletedProposalMessage, ConfigMessage,
-    ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage, HistoryMessage,
-    KeyAgentsMessage, NewProofMessage, PoliciesMessage, PolicyBuilderMessage, PolicyTreeMessage,
-    ProfileMessage, ProposalMessage, ReceiveMessage, RecoveryKeysMessage, RelayMessage,
-    RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage, SelfTransferMessage,
-    SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage, SpendMessage,
-    TransactionMessage, VaultMessage, WipeKeysMessage,
+    ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage,
+    EditSignerOfferingMessage, HistoryMessage, KeyAgentsMessage, NewProofMessage, PoliciesMessage,
+    PolicyBuilderMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage,
+    RecoveryKeysMessage, RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage,
+    SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
+    SpendMessage, TransactionMessage, VaultMessage, WipeKeysMessage,
 };
 use super::Stage;
 
@@ -44,6 +44,7 @@ pub enum Message {
     AddAirGapSigner(AddAirGapSignerMessage),
     AddColdcardSigner(AddColdcardSignerMessage),
     ShareSigner(ShareSignerMessage),
+    EditSignerOffering(EditSignerOfferingMessage),
     KeyAgents(KeyAgentsMessage),
     Contacts(ContactsMessage),
     AddContact(AddContactMessage),

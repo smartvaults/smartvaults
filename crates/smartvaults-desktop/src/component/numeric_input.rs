@@ -10,6 +10,8 @@ use iced::{Element, Renderer};
 pub trait Number: Add + ToString + FromStr {}
 
 impl Number for u8 {}
+impl Number for u16 {}
+impl Number for u32 {}
 impl Number for u64 {}
 impl Number for usize {}
 impl Number for f32 {}

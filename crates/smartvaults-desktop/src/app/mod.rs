@@ -20,11 +20,11 @@ use self::screen::{
     ActivityState, AddAirGapSignerState, AddColdcardSignerState, AddContactState,
     AddNostrConnectSessionState, AddRelayState, AddSignerState, AddVaultState, AddressesState,
     ChangePasswordState, CompletedProposalState, ConfigState, ConnectState, ContactsState,
-    DashboardState, EditProfileState, HistoryState, KeyAgentsState, NewProofState, PoliciesState,
-    PolicyBuilderState, PolicyTreeState, ProfileState, ProposalState, ReceiveState,
-    RecoveryKeysState, RelayState, RelaysState, RestoreVaultState, RevokeAllSignersState,
-    SelfTransferState, SettingsState, ShareSignerState, SignerState, SignersState, SpendState,
-    TransactionState, VaultState, WipeKeysState,
+    DashboardState, EditProfileState, EditSignerOfferingState, HistoryState, KeyAgentsState,
+    NewProofState, PoliciesState, PolicyBuilderState, PolicyTreeState, ProfileState, ProposalState,
+    ReceiveState, RecoveryKeysState, RelayState, RelaysState, RestoreVaultState,
+    RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState, SignerState,
+    SignersState, SpendState, TransactionState, VaultState, WipeKeysState,
 };
 use self::sync::SmartVaultsSync;
 
@@ -73,6 +73,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::AddColdcardSigner => AddColdcardSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
+        Stage::EditSignerOffering(_signer_offering_id) => EditSignerOfferingState::new(None).into(),
         Stage::KeyAgents => KeyAgentsState::new().into(),
         Stage::Contacts => ContactsState::new().into(),
         Stage::AddContact => AddContactState::new().into(),
