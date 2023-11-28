@@ -13,10 +13,10 @@ use smartvaults_core::proposal::Period;
 use smartvaults_core::{Amount, FeeRate, Proposal, Signer};
 use smartvaults_protocol::v1::constants::KEY_AGENT_SIGNER_OFFERING_KIND;
 use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder};
-use smartvaults_sdk_sqlite::model::GetProposal;
+use smartvaults_sdk_sqlite::model::{GetProposal, GetSigner};
 
 use super::{Error, SmartVaults};
-use crate::types::{KeyAgent, User};
+use crate::types::{GetSignerOffering, KeyAgent, User};
 
 impl SmartVaults {
     /// Announce as Key Agent
@@ -31,7 +31,7 @@ impl SmartVaults {
         Ok(self.client.send_event(event).await?)
     }
 
-    /// Create new signer offering
+    /// Create/Edit signer offering
     pub async fn signer_offering(
         &self,
         signer: &Signer,
@@ -48,8 +48,22 @@ impl SmartVaults {
     }
 
     /// Get my signer offerings
-    pub async fn my_signer_offerings(&self) -> Result<Vec<SignerOffering>, Error> {
+    pub async fn my_signer_offerings(&self) -> Result<Vec<GetSignerOffering>, Error> {
+        // Get keys
         let keys = self.client.keys().await;
+
+        // Get signers
+        let signers: HashMap<String, GetSigner> = self
+            .get_signers()
+            .await?
+            .into_iter()
+            .map(|signer| {
+                let identifier: String = signer.generate_identifier(self.network);
+                (identifier, signer)
+            })
+            .collect();
+
+        // Get signer offering events by author
         let filter = Filter::new()
             .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
             .author(keys.public_key());
@@ -60,9 +74,15 @@ impl SmartVaults {
             .await?
             .into_iter()
             .filter_map(|event| {
-                let offering = SignerOffering::from_json(event.content).ok()?;
+                let identifier: &str = event.identifier()?;
+                let signer: GetSigner = signers.get(identifier)?.clone();
+                let offering: SignerOffering = SignerOffering::from_json(event.content).ok()?;
                 if offering.network == self.network {
-                    Some(offering)
+                    Some(GetSignerOffering {
+                        id: event.id,
+                        signer,
+                        offering,
+                    })
                 } else {
                     None
                 }

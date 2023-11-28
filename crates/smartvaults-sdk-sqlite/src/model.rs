@@ -43,7 +43,7 @@ pub struct GetApprovalRaw {
     pub timestamp: Timestamp,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSigner {
     pub signer_id: EventId,
     pub signer: Signer,

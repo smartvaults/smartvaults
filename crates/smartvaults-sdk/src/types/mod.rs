@@ -165,3 +165,10 @@ impl Deref for KeyAgent {
         &self.user
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct GetSignerOffering {
+    pub id: EventId,
+    pub signer: GetSigner,
+    pub offering: SignerOffering,
+}
