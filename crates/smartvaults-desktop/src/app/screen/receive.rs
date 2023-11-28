@@ -125,7 +125,7 @@ impl State for ReceiveState {
                 ReceiveMessage::SaveLabel(label) => {
                     let client = ctx.client.clone();
                     if let Some(policy) = self.policy.as_ref() {
-                        self.loading = false;
+                        self.loading = true;
                         let policy_id = policy.policy_id;
                         return Command::perform(
                             async move { client.save_label(policy_id, label).await },

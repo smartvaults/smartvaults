@@ -3,17 +3,22 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::types::{GetSharedSigner, GetSigner};
+use smartvaults_sdk::types::{GetSharedSigner, GetSigner, GetSignerOffering};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
+use crate::app::context::Mode;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
-    LoadSigners((Vec<GetSigner>, Vec<GetSharedSigner>)),
+    Load {
+        signers: Vec<GetSigner>,
+        shared_signers: Vec<GetSharedSigner>,
+        signer_offerings: Vec<GetSignerOffering>,
+    },
     Reload,
 }
 
@@ -23,6 +28,7 @@ pub struct SignersState {
     loaded: bool,
     signers: Vec<GetSigner>,
     shared_signers: Vec<GetSharedSigner>,
+    signer_offerings: Vec<GetSignerOffering>,
 }
 
 impl SignersState {
@@ -39,13 +45,28 @@ impl State for SignersState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
+        let mode = ctx.mode;
         Command::perform(
             async move {
                 let signers = client.get_signers().await.unwrap();
-                let shared_signers = client.get_shared_signers().await.unwrap();
-                (signers, shared_signers)
+                let shared_signers = match mode {
+                    Mode::User => client.get_shared_signers().await.unwrap(),
+                    Mode::KeyAgent => Vec::new(),
+                };
+                let signer_offerings = match mode {
+                    Mode::User => Vec::new(),
+                    Mode::KeyAgent => client.my_signer_offerings().await.unwrap(),
+                };
+                (signers, shared_signers, signer_offerings)
             },
-            |signers| SignersMessage::LoadSigners(signers).into(),
+            |(signers, shared_signers, signer_offerings)| {
+                SignersMessage::Load {
+                    signers,
+                    shared_signers,
+                    signer_offerings,
+                }
+                .into()
+            },
         )
     }
 
@@ -56,9 +77,14 @@ impl State for SignersState {
 
         if let Message::Signers(msg) = message {
             match msg {
-                SignersMessage::LoadSigners((signers, shared_signers)) => {
+                SignersMessage::Load {
+                    signers,
+                    shared_signers,
+                    signer_offerings,
+                } => {
                     self.signers = signers;
                     self.shared_signers = shared_signers;
+                    self.signer_offerings = signer_offerings;
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
@@ -109,6 +135,7 @@ impl State for SignersState {
                     .icon(TRASH)
                     .width(Length::Fixed(40.0))
                     .on_press(Message::View(Stage::RevokeAllSigners))
+                    .loading(self.loading || ctx.mode.is_key_agent())
                     .view();
                 let reload_btn = Button::new()
                     .style(ButtonStyle::Bordered)
@@ -208,8 +235,7 @@ impl State for SignersState {
                 }
 
                 // Shared Signers
-
-                if !self.shared_signers.is_empty() {
+                if !self.shared_signers.is_empty() && !ctx.mode.is_key_agent() {
                     content = content
                         .push(Space::with_height(Length::Fixed(40.0)))
                         .push(Text::new("Contacts's Signers").big().bold().view())
@@ -267,6 +293,80 @@ impl State for SignersState {
                                     ))
                                     .width(Length::Fixed(40.0))
                                     .view(),
+                            )
+                            .spacing(10)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fill);
+                        content = content.push(row).push(rule::horizontal());
+                    }
+                }
+
+                // Signer offerings
+                if ctx.mode.is_key_agent() {
+                    content = content
+                        .push(Space::with_height(Length::Fixed(40.0)))
+                        .push(
+                            Row::new()
+                                .push(
+                                    Text::new("Signer offerings")
+                                        .bold()
+                                        .big()
+                                        .width(Length::Fill)
+                                        .view(),
+                                )
+                                .push(
+                                    Button::new()
+                                        .style(ButtonStyle::Bordered)
+                                        .icon(PLUS)
+                                        .width(Length::Fixed(40.0))
+                                        .on_press(Message::View(Stage::EditSignerOffering(None)))
+                                        .view(),
+                                )
+                                .spacing(10)
+                                .align_items(Alignment::Center)
+                                .width(Length::Fill),
+                        )
+                        .push(rule::horizontal_bold());
+
+                    for GetSignerOffering {
+                        id: _,
+                        signer,
+                        offering,
+                    } in self.signer_offerings.iter()
+                    {
+                        let row = Row::new()
+                            .push(
+                                Column::new()
+                                    .push(Text::new(format!("Name: {}", signer.name())).view())
+                                    .push(
+                                        Text::new(format!("Fingerprint: {}", signer.fingerprint()))
+                                            .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!("Type: {}", signer.signer_type())).view(),
+                                    )
+                                    .spacing(10)
+                                    .width(Length::Fill),
+                            )
+                            .push(
+                                Column::new()
+                                    .push(
+                                        Text::new(format!("Temperature: {}", offering.temperature))
+                                            .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!(
+                                            "Response time: {} min",
+                                            offering.response_time
+                                        ))
+                                        .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!("Device type: {}", offering.device_type))
+                                            .view(),
+                                    )
+                                    .spacing(10)
+                                    .width(Length::Fill),
                             )
                             .spacing(10)
                             .align_items(Alignment::Center)
