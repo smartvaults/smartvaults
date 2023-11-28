@@ -19,18 +19,18 @@ use crate::component::{rule, Button, ButtonStyle, Text};
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone, Eq)]
-pub struct PolicyPicLisk {
+pub struct PolicyPickList {
     pub policy_id: EventId,
     pub name: String,
 }
 
-impl PartialEq for PolicyPicLisk {
+impl PartialEq for PolicyPickList {
     fn eq(&self, other: &Self) -> bool {
         self.policy_id == other.policy_id
     }
 }
 
-impl fmt::Display for PolicyPicLisk {
+impl fmt::Display for PolicyPickList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} - #{}", self.name, util::cut_event_id(self.policy_id))
     }
@@ -38,17 +38,17 @@ impl fmt::Display for PolicyPicLisk {
 
 #[derive(Debug, Clone)]
 pub enum AddressesMessage {
-    LoadPolicies(Vec<PolicyPicLisk>),
+    LoadPolicies(Vec<PolicyPickList>),
     LoadAddresses(EventId),
-    PolicySelectd(PolicyPicLisk),
+    PolicySelectd(PolicyPickList),
     AddressesChanged(Vec<GetAddress>, HashMap<ScriptBuf, u64>),
     ErrorChanged(Option<String>),
 }
 
 #[derive(Debug)]
 pub struct AddressesState {
-    policy: Option<PolicyPicLisk>,
-    policies: Vec<PolicyPicLisk>,
+    policy: Option<PolicyPickList>,
+    policies: Vec<PolicyPickList>,
     addresses: Vec<GetAddress>,
     balances: HashMap<ScriptBuf, u64>,
     loading: bool,
@@ -59,7 +59,7 @@ pub struct AddressesState {
 impl AddressesState {
     pub fn new(policy: Option<(EventId, Policy)>) -> Self {
         Self {
-            policy: policy.map(|(policy_id, policy)| PolicyPicLisk {
+            policy: policy.map(|(policy_id, policy)| PolicyPickList {
                 policy_id,
                 name: policy.name,
             }),
@@ -91,7 +91,7 @@ impl State for AddressesState {
                     .map(
                         |GetPolicy {
                              policy_id, policy, ..
-                         }| PolicyPicLisk {
+                         }| PolicyPickList {
                             policy_id,
                             name: policy.name,
                         },

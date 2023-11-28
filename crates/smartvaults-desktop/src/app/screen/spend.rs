@@ -14,7 +14,7 @@ use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::{GetPolicy, GetProposal, GetUtxo};
 use smartvaults_sdk::util::format;
 
-use crate::app::component::{Dashboard, FeeSelector, PolicyPicLisk, PolicyTree, UtxoSelector};
+use crate::app::component::{Dashboard, FeeSelector, PolicyPickList, PolicyTree, UtxoSelector};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::{DARK_RED, RED};
@@ -41,8 +41,8 @@ impl Default for InternalStage {
 
 #[derive(Debug, Clone)]
 pub enum SpendMessage {
-    LoadPolicies(Vec<PolicyPicLisk>),
-    PolicySelectd(PolicyPicLisk),
+    LoadPolicies(Vec<PolicyPickList>),
+    PolicySelectd(PolicyPickList),
     LoadPolicy(EventId),
     AddressChanged(String),
     AmountChanged(Option<u64>),
@@ -64,8 +64,8 @@ pub enum SpendMessage {
 
 #[derive(Debug)]
 pub struct SpendState {
-    policy: Option<PolicyPicLisk>,
-    policies: Vec<PolicyPicLisk>,
+    policy: Option<PolicyPickList>,
+    policies: Vec<PolicyPickList>,
     to_address: String,
     amount: Option<u64>,
     send_all: bool,

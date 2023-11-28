@@ -8,16 +8,16 @@ use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::GetProposal;
 use smartvaults_sdk::util::format;
 
-use crate::app::component::{Dashboard, FeeSelector, PolicyPicLisk};
+use crate::app::component::{Dashboard, FeeSelector, PolicyPickList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
 pub enum SelfTransferMessage {
-    LoadPolicies(Vec<PolicyPicLisk>),
-    FromPolicySelectd(PolicyPicLisk),
-    ToPolicySelectd(PolicyPicLisk),
+    LoadPolicies(Vec<PolicyPickList>),
+    FromPolicySelectd(PolicyPickList),
+    ToPolicySelectd(PolicyPickList),
     AmountChanged(Option<u64>),
     SendAllBtnPressed,
     FeeRateChanged(FeeRate),
@@ -29,9 +29,9 @@ pub enum SelfTransferMessage {
 
 #[derive(Debug, Default)]
 pub struct SelfTransferState {
-    policies: Vec<PolicyPicLisk>,
-    from_policy: Option<PolicyPicLisk>,
-    to_policy: Option<PolicyPicLisk>,
+    policies: Vec<PolicyPickList>,
+    from_policy: Option<PolicyPickList>,
+    to_policy: Option<PolicyPickList>,
     amount: Option<u64>,
     send_all: bool,
     fee_rate: FeeRate,

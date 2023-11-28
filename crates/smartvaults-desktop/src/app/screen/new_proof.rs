@@ -5,15 +5,15 @@ use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::types::GetPolicy;
 
-use crate::app::component::{Dashboard, PolicyPicLisk};
+use crate::app::component::{Dashboard, PolicyPickList};
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{Button, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
 pub enum NewProofMessage {
-    LoadPolicies(Vec<PolicyPicLisk>),
-    PolicySelectd(PolicyPicLisk),
+    LoadPolicies(Vec<PolicyPickList>),
+    PolicySelectd(PolicyPickList),
     MessageChanged(String),
     ErrorChanged(Option<String>),
     SendProposal,
@@ -21,8 +21,8 @@ pub enum NewProofMessage {
 
 #[derive(Debug)]
 pub struct NewProofState {
-    policy: Option<PolicyPicLisk>,
-    policies: Vec<PolicyPicLisk>,
+    policy: Option<PolicyPickList>,
+    policies: Vec<PolicyPickList>,
     message: String,
     loading: bool,
     loaded: bool,

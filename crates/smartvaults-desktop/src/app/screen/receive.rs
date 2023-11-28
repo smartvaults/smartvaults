@@ -8,16 +8,16 @@ use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::protocol::v1::Label;
 use smartvaults_sdk::types::{GetAddress, GetPolicy};
 
-use crate::app::component::{Dashboard, PolicyPicLisk};
+use crate::app::component::{Dashboard, PolicyPickList};
 use crate::app::{Context, Message, State};
 use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
 pub enum ReceiveMessage {
-    LoadPolicies(Vec<PolicyPicLisk>),
+    LoadPolicies(Vec<PolicyPickList>),
     LoadAddress(EventId),
-    PolicySelectd(PolicyPicLisk),
+    PolicySelectd(PolicyPickList),
     AddressChanged(GetAddress),
     LabelChanged(String),
     SaveLabel(Label),
@@ -27,8 +27,8 @@ pub enum ReceiveMessage {
 
 #[derive(Debug)]
 pub struct ReceiveState {
-    policy: Option<PolicyPicLisk>,
-    policies: Vec<PolicyPicLisk>,
+    policy: Option<PolicyPickList>,
+    policies: Vec<PolicyPickList>,
     qr_code: Option<qr_code::State>,
     address: Option<GetAddress>,
     label: String,

@@ -23,17 +23,17 @@ pub use self::policy_tree::PolicyTree;
 pub use self::utxo_selector::UtxoSelector;
 
 #[derive(Debug, Clone, Eq)]
-pub struct PolicyPicLisk {
+pub struct PolicyPickList {
     inner: GetPolicy,
 }
 
-impl PartialEq for PolicyPicLisk {
+impl PartialEq for PolicyPickList {
     fn eq(&self, other: &Self) -> bool {
         self.inner.policy_id == other.inner.policy_id
     }
 }
 
-impl fmt::Display for PolicyPicLisk {
+impl fmt::Display for PolicyPickList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -44,14 +44,14 @@ impl fmt::Display for PolicyPicLisk {
     }
 }
 
-impl Deref for PolicyPicLisk {
+impl Deref for PolicyPickList {
     type Target = GetPolicy;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl From<GetPolicy> for PolicyPicLisk {
+impl From<GetPolicy> for PolicyPickList {
     fn from(inner: GetPolicy) -> Self {
         Self { inner }
     }
