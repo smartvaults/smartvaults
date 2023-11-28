@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::cmp::Ordering;
+use std::ops::Deref;
 
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
@@ -46,6 +47,13 @@ pub struct GetApprovalRaw {
 pub struct GetSigner {
     pub signer_id: EventId,
     pub signer: Signer,
+}
+
+impl Deref for GetSigner {
+    type Target = Signer;
+    fn deref(&self) -> &Self::Target {
+        &self.signer
+    }
 }
 
 #[derive(Debug, Clone)]
