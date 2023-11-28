@@ -140,6 +140,12 @@ impl FromStr for Temperature {
     }
 }
 
+impl Temperature {
+    pub fn list() -> Vec<Self> {
+        vec![Self::Warm, Self::Cold, Self::AirGapped]
+    }
+}
+
 impl Serialize for Temperature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -199,6 +205,20 @@ impl FromStr for DeviceType {
             "undisclosed" => Ok(Self::Undisclosed),
             _ => Err(Error::UnknownDeviceType),
         }
+    }
+}
+
+impl DeviceType {
+    pub fn list() -> Vec<Self> {
+        vec![
+            Self::Coldcard,
+            Self::BitBox02,
+            Self::Ledger,
+            Self::Mobile,
+            Self::Desktop,
+            Self::CloudBased,
+            Self::Undisclosed,
+        ]
     }
 }
 
