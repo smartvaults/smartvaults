@@ -14,8 +14,7 @@ use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::nostr::prelude::address::NetworkUnchecked;
 use smartvaults_sdk::nostr::prelude::NostrConnectURI;
 use smartvaults_sdk::nostr::{EventId, Url};
-use smartvaults_sdk::protocol::v1::key_agent::signer::Percentage;
-use smartvaults_sdk::protocol::v1::{DeviceType, LabelData, Price, Temperature};
+use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, LabelData, Price, Temperature};
 
 pub mod batch;
 pub mod io;
@@ -325,7 +324,7 @@ pub enum KeyAgentCommand {
         cost_per_signature: Option<Price>,
         /// Yearly cost basis point
         #[clap(long)]
-        yearly_cost_basis_points: Option<Percentage>,
+        yearly_cost_basis_points: Option<BasisPoints>,
         /// Yearly cost
         #[clap(long)]
         yearly_cost: Option<Price>,

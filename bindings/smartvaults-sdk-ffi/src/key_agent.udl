@@ -10,7 +10,7 @@ dictionary SignerOffering {
     u16 response_time;
     DeviceType device_type;
     Price? cost_per_signature;
-    f64? yearly_cost_basis_points;
+    u64? yearly_cost_basis_points;
     Price? yearly_cost;
     Network network;
 };
@@ -25,7 +25,6 @@ interface Temperature {
     Warm();
     Cold();
     AirGapped();
-    Other(string other);
 };
 
 [Enum]
@@ -37,5 +36,4 @@ interface DeviceType {
     Desktop();
     CloudBased();
     Undisclosed();
-    Other(string other);
 };

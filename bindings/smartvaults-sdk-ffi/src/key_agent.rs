@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use smartvaults_sdk::protocol::v1::key_agent::signer::Percentage;
 pub use smartvaults_sdk::protocol::v1::key_agent::{self, Price};
+use smartvaults_sdk::protocol::v1::BasisPoints;
 use smartvaults_sdk::types;
 
 use crate::{Network, User};
@@ -32,7 +32,7 @@ pub struct SignerOffering {
     pub response_time: u16,
     pub device_type: DeviceType,
     pub cost_per_signature: Option<Price>,
-    pub yearly_cost_basis_points: Option<f64>,
+    pub yearly_cost_basis_points: Option<u64>,
     pub yearly_cost: Option<Price>,
     pub network: Network,
 }
@@ -58,7 +58,7 @@ impl From<SignerOffering> for key_agent::SignerOffering {
             response_time: value.response_time,
             device_type: value.device_type.into(),
             cost_per_signature: value.cost_per_signature,
-            yearly_cost_basis_points: value.yearly_cost_basis_points.map(Percentage::new),
+            yearly_cost_basis_points: value.yearly_cost_basis_points.map(BasisPoints::from),
             yearly_cost: value.yearly_cost,
             network: value.network.into(),
         }
@@ -69,7 +69,6 @@ pub enum Temperature {
     Warm(),
     Cold(),
     AirGapped(),
-    Other { other: String },
 }
 
 impl From<key_agent::Temperature> for Temperature {
@@ -78,7 +77,6 @@ impl From<key_agent::Temperature> for Temperature {
             key_agent::Temperature::Warm => Self::Warm(),
             key_agent::Temperature::Cold => Self::Cold(),
             key_agent::Temperature::AirGapped => Self::AirGapped(),
-            key_agent::Temperature::Other(other) => Self::Other { other },
         }
     }
 }
@@ -89,7 +87,6 @@ impl From<Temperature> for key_agent::Temperature {
             Temperature::Warm() => Self::Warm,
             Temperature::Cold() => Self::Cold,
             Temperature::AirGapped() => Self::AirGapped,
-            Temperature::Other { other } => Self::Other(other),
         }
     }
 }
@@ -102,7 +99,6 @@ pub enum DeviceType {
     Desktop(),
     CloudBased(),
     Undisclosed(),
-    Other { other: String },
 }
 
 impl From<key_agent::DeviceType> for DeviceType {
@@ -115,7 +111,6 @@ impl From<key_agent::DeviceType> for DeviceType {
             key_agent::DeviceType::Desktop => Self::Desktop(),
             key_agent::DeviceType::CloudBased => Self::CloudBased(),
             key_agent::DeviceType::Undisclosed => Self::Undisclosed(),
-            key_agent::DeviceType::Other(other) => Self::Other { other },
         }
     }
 }
@@ -130,7 +125,6 @@ impl From<DeviceType> for key_agent::DeviceType {
             DeviceType::Desktop() => Self::Desktop,
             DeviceType::CloudBased() => Self::CloudBased,
             DeviceType::Undisclosed() => Self::Undisclosed,
-            DeviceType::Other { other } => Self::Other(other),
         }
     }
 }

@@ -6,5 +6,5 @@ pub mod signer;
 pub mod verified;
 
 pub use self::profile::KeyAgentMetadata;
-pub use self::signer::{DeviceType, Price, SignerOffering, Temperature};
+pub use self::signer::{BasisPoints, DeviceType, Price, SignerOffering, Temperature};
 pub use self::verified::{VerifiedKeyAgentData, VerifiedKeyAgents};

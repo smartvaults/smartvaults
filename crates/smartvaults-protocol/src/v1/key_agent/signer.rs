@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use core::cmp::Ordering;
 use core::fmt;
 use core::hash::Hash;
 use core::num::{ParseFloatError, ParseIntError};
@@ -44,10 +43,10 @@ pub struct SignerOffering {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub cost_per_signature: Option<Price>,
-    /// Percentage of the vault balance that should be charged
+    /// BasisPoints of the vault balance that should be charged
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub yearly_cost_basis_points: Option<Percentage>,
+    pub yearly_cost_basis_points: Option<BasisPoints>,
     /// Yearly cost
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
@@ -62,49 +61,42 @@ pub struct SignerOffering {
 
 impl Serde for SignerOffering {}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Percentage(f64);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct BasisPoints(u64);
 
-impl PartialEq for Percentage {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
-    }
-}
-
-impl Eq for Percentage {}
-
-impl PartialOrd for Percentage {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Percentage {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.total_cmp(&other.0)
-    }
-}
-
-impl Hash for Percentage {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.to_be_bytes().hash(state)
-    }
-}
-
-impl Deref for Percentage {
-    type Target = f64;
+impl Deref for BasisPoints {
+    type Target = u64;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl Percentage {
-    pub fn new(p: f64) -> Self {
-        Self(p)
+impl BasisPoints {
+    pub fn new(basis_points: u64) -> Self {
+        Self::from(basis_points)
+    }
+
+    /// Compose [`BasisPoints`] from percentage (%)
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use smartvaults_protocol::v1::BasisPoints;
+    ///
+    /// let percentage = 2.5; // 2.5%
+    /// let _basis_points = BasisPoints::from_percentage(percentage);
+    /// ```
+    pub fn from_percentage(percentage: f64) -> Self {
+        Self::new((percentage * 100.0).round() as u64)
     }
 }
 
-impl FromStr for Percentage {
+impl From<u64> for BasisPoints {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl FromStr for BasisPoints {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(s.parse()?))
