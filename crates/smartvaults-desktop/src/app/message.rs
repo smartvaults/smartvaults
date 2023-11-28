@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use super::context::Mode;
 //use super::screen::AddHWSignerMessage;
 use super::screen::{
     ActivityMessage, AddAirGapSignerMessage, AddColdcardSignerMessage, AddContactMessage,
@@ -60,6 +61,7 @@ pub enum Message {
     AddNostrConnectSession(AddNostrConnectSessionMessage),
     Clipboard(String),
     OpenInBrowser(String),
+    ChangeMode(Mode),
     ToggleHideBalances,
     Lock,
     Sync,

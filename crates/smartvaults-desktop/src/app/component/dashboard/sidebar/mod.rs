@@ -1,14 +1,15 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use iced::widget::{svg, Column, Container, Space};
+use iced::widget::{svg, Column, Container, PickList, Space};
 use iced::Length;
 
 mod button;
 
 use self::button::SidebarButton;
+use crate::app::context::{Mode, AVAILABLE_MODES};
 use crate::app::{Context, Message, Stage};
-use crate::component::Text;
+use crate::component::{rule, Text};
 use crate::constants::{APP_LOGO, APP_NAME};
 use crate::theme::icon::{CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, PEOPLE, SETTING, VAULT};
 
@@ -29,13 +30,20 @@ impl Sidebar {
             .width(Length::Fixed(100.0))
             .height(Length::Fixed(100.0));
 
+        // Dropdown
+        let mode_selector = PickList::new(
+            AVAILABLE_MODES.to_vec(),
+            Some(ctx.mode),
+            Message::ChangeMode,
+        )
+        .width(Length::Fill)
+        .padding(10);
+
         // Buttons
         let home_button =
             SidebarButton::new("Dashboard", HOME).view(ctx, Message::View(Stage::Dashboard));
         let vaults_button =
             SidebarButton::new("Vaults", VAULT).view(ctx, Message::View(Stage::Vaults));
-        /* let activities_button =
-        SidebarButton::new("Activity", LIST).view(ctx, Message::View(Stage::Activity)); */
         let history_button =
             SidebarButton::new("History", HISTORY).view(ctx, Message::View(Stage::History));
         let addresses_button =
@@ -69,6 +77,7 @@ impl Sidebar {
             Container::new(Column::new().push(logo).padding([30, 0]))
                 .width(Length::Fill)
                 .center_x(),
+            mode_selector,
             sidebar_menu(vec![
                 home_button,
                 vaults_button,
@@ -90,6 +99,7 @@ impl Sidebar {
 
 pub fn sidebar<'a, T: 'a>(
     logo: Container<'a, T>,
+    selector: PickList<'a, Mode, T>,
     menu: Container<'a, T>,
     footer: Container<'a, T>,
 ) -> Container<'a, T> {
@@ -98,6 +108,9 @@ pub fn sidebar<'a, T: 'a>(
             .padding(10)
             .push(logo)
             .push(Space::with_height(Length::Fixed(10.0)))
+            .push(rule::horizontal())
+            .push(Column::new().padding(15).push(selector))
+            .push(rule::horizontal())
             .push(menu.height(Length::Fill))
             .push(footer.height(Length::Shrink)),
     )

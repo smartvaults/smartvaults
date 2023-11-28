@@ -146,6 +146,10 @@ impl App {
                 }
                 Command::none()
             }
+            Message::ChangeMode(mode) => {
+                self.ctx.set_mode(mode);
+                Command::none()
+            }
             Message::ToggleHideBalances => {
                 self.ctx.toggle_hide_balances();
                 Command::none()

@@ -10,6 +10,8 @@ use smartvaults_sdk::nostr::{EventId, Url};
 use smartvaults_sdk::types::GetPolicy;
 use smartvaults_sdk::{util, SmartVaults};
 
+pub const AVAILABLE_MODES: [Mode; 2] = [Mode::User, Mode::KeyAgent];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stage {
     Dashboard,
@@ -125,18 +127,29 @@ impl Stage {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Mode {
+    #[default]
+    User,
+    KeyAgent,
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::User => write!(f, "User"),
+            Self::KeyAgent => write!(f, "Key Agent"),
+        }
+    }
+}
+
 pub struct Context {
     pub stage: Stage,
     pub client: SmartVaults,
     pub hide_balances: bool,
     pub breadcrumb: Vec<Stage>,
-    // pub mode: Mode, // TODO: add mode to support different layouts based on user "role"
+    pub mode: Mode,
 }
-
-/* pub enum Mode {
-    User, // Or Peer, or ?
-    KeyAgent,
-} */
 
 impl Context {
     pub fn new(stage: Stage, client: SmartVaults) -> Self {
@@ -145,6 +158,7 @@ impl Context {
             client,
             hide_balances: false,
             breadcrumb: vec![stage],
+            mode: Mode::default(),
         }
     }
 
@@ -156,6 +170,11 @@ impl Context {
         }
         self.breadcrumb.push(stage.clone());
         self.stage = stage;
+    }
+
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
+        self.reset_breadcrumb();
     }
 
     pub fn toggle_hide_balances(&mut self) {
