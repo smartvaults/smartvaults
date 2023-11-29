@@ -2800,7 +2800,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.25.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "aes",
  "base64 0.21.5",
@@ -2822,7 +2822,7 @@ dependencies = [
 [[package]]
 name = "nostr-database"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "async-trait",
  "flatbuffers",
@@ -2835,7 +2835,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2844,7 +2844,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.25.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2860,7 +2860,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2872,7 +2872,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.25.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -2888,7 +2888,7 @@ dependencies = [
 [[package]]
 name = "nostr-sqlite"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3#10cceb2929ddb05af7fe1ce7a8bde3df59b2e7f3"
+source = "git+https://github.com/rust-nostr/nostr?rev=ac0704fe0ff6ff76425b166851b5002c3d71b24e#ac0704fe0ff6ff76425b166851b5002c3d71b24e"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",
@@ -4968,9 +4968,9 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "uniffi"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ba05e3479d824a75256ab5fd7d9cd957f3f19a14e2517546a1ca072a3443bf8"
+checksum = "32e192430644d99babe02bede25316eee84fa154b1e5f8cfe99406c028b8c577"
 dependencies = [
  "anyhow",
  "camino",
@@ -4983,9 +4983,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_bindgen"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f0ab1d77f56b0a0f8e9649975a37cee762e97d20630935c3b47779b1d77efd7"
+checksum = "6c235355da41bc8347b2d5851e1060d4652dfbdc6d7d6ccddaabebe25e3c32a4"
 dependencies = [
  "anyhow",
  "askama",
@@ -5007,9 +5007,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_build"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "170621ba52f1917a6f2f78efb6a023b917ebc95c0194d533b3e1ee71a7e1f12f"
+checksum = "81049ed7015a8a66b085aca3fb0c0011fdae4dd9ab8c38f5751f7861d60eb0f4"
 dependencies = [
  "anyhow",
  "camino",
@@ -5018,9 +5018,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_checksum_derive"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a189b3bbfdae832dd294befc8c871629833fbe283d89796960768b3e8d5684c8"
+checksum = "ce082833f0fcaf6fc221fbab26720440daf99381f5a71e89b6e23375eb6ea770"
 dependencies = [
  "quote",
  "syn 2.0.39",
@@ -5028,9 +5028,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_core"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcd51aa85d355ce985c6e0c95b1340516b0fe565fb357845143aa29d02c8dda0"
+checksum = "389bbe4d8334b3370c7cc998788d7a9619e0b61b58f1cbcd4a6a8606ab0a6f7d"
 dependencies = [
  "anyhow",
  "bytes",
@@ -5044,9 +5044,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_macros"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4cb09cd1e2ede4a35186d1a6491a0376ab9d74f64194ebeb9b640cfd546377d"
+checksum = "34aa170f970d42d8fbe205f5794b83f72d6617835a73b91ed1869e1eba5dd06c"
 dependencies = [
  "bincode",
  "camino",
@@ -5063,9 +5063,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_meta"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afeeb9cc3b701cc84762e888a49366737e0487229abd298dd7f58ae58f7692e5"
+checksum = "22ef337c28a379ed6962eae0cb0824ab31202b21b8ae3bf6c2a706f5e7285f5f"
 dependencies = [
  "anyhow",
  "bytes",
@@ -5075,9 +5075,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_testing"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c60675fcc9ba5264a0c12ced2332e4b9203e5f1a8d1134cb72ffca6a048ea886"
+checksum = "8f2e218997229b4ed6e08c1abc9e277dde817f68a633babd3ebbfc77e32db302"
 dependencies = [
  "anyhow",
  "camino",
@@ -5088,9 +5088,9 @@ dependencies = [
 
 [[package]]
 name = "uniffi_udl"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e9c5950c95166692ca50ec77d5c9c026c9ccf83cfab563882f3df61502e211d"
+checksum = "fb29909e50256f32986ea3b3c32d2c49dece14ae4b3428c047913696ed200b2a"
 dependencies = [
  "anyhow",
  "uniffi_meta",
