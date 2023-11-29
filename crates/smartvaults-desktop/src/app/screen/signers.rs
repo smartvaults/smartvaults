@@ -3,6 +3,7 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
+use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::types::{GetSharedSigner, GetSigner, GetSignerOffering};
 use smartvaults_sdk::util;
 
@@ -10,7 +11,7 @@ use crate::app::component::Dashboard;
 use crate::app::context::Mode;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Button, ButtonStyle, Text};
-use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PLUS, RELOAD, SHARE, TRASH};
+use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PENCIL, PLUS, RELOAD, SHARE, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
@@ -19,6 +20,7 @@ pub enum SignersMessage {
         shared_signers: Vec<GetSharedSigner>,
         signer_offerings: Vec<GetSignerOffering>,
     },
+    DeleteSignerOffering(EventId),
     Reload,
 }
 
@@ -88,6 +90,20 @@ impl State for SignersState {
                     self.loading = false;
                     self.loaded = true;
                     Command::none()
+                }
+                SignersMessage::DeleteSignerOffering(id) => {
+                    let client = ctx.client.clone();
+                    self.loading = true;
+                    Command::perform(
+                        async move { client.delete_signer_offering(id).await },
+                        |res| match res {
+                            Ok(_) => SignersMessage::Reload.into(),
+                            Err(e) => {
+                                tracing::error!("Impossible to delete signer offering: {e}");
+                                SignersMessage::Reload.into()
+                            }
+                        },
+                    )
                 }
                 SignersMessage::Reload => self.load(ctx),
             }
@@ -329,7 +345,7 @@ impl State for SignersState {
                         .push(rule::horizontal_bold());
 
                     for GetSignerOffering {
-                        id: _,
+                        id,
                         signer,
                         offering,
                     } in self.signer_offerings.iter()
@@ -365,8 +381,54 @@ impl State for SignersState {
                                         Text::new(format!("Device type: {}", offering.device_type))
                                             .view(),
                                     )
+                                    .push(
+                                        Text::new(format!(
+                                            "Yearly cost (basis points): {}",
+                                            offering.yearly_cost_basis_points.unwrap_or_default()
+                                        ))
+                                        .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!(
+                                            "Yearly cost: {}",
+                                            offering
+                                                .yearly_cost
+                                                .as_ref()
+                                                .map(|p| p.to_string())
+                                                .unwrap_or_else(|| String::from("None"))
+                                        ))
+                                        .view(),
+                                    )
+                                    .push(
+                                        Text::new(format!(
+                                            "Cost per signature: {}",
+                                            offering
+                                                .cost_per_signature
+                                                .as_ref()
+                                                .map(|p| p.to_string())
+                                                .unwrap_or_else(|| String::from("None"))
+                                        ))
+                                        .view(),
+                                    )
                                     .spacing(10)
                                     .width(Length::Fill),
+                            )
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::Bordered)
+                                    .icon(PENCIL)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(Message::View(Stage::EditSignerOffering(None)))
+                                    .view(),
+                            )
+                            .push(
+                                Button::new()
+                                    .style(ButtonStyle::BorderedDanger)
+                                    .icon(TRASH)
+                                    .width(Length::Fixed(40.0))
+                                    .on_press(SignersMessage::DeleteSignerOffering(*id).into())
+                                    .loading(self.loading)
+                                    .view(),
                             )
                             .spacing(10)
                             .align_items(Alignment::Center)
