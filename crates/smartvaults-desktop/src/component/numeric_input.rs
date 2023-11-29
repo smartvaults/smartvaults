@@ -5,7 +5,7 @@ use std::ops::Add;
 use std::str::FromStr;
 
 use iced::widget::{component, text_input, Column, Component, Row, Text};
-use iced::{Element, Renderer};
+use iced::{Element, Length, Renderer};
 
 pub trait Number: Add + ToString + FromStr {}
 
@@ -23,6 +23,7 @@ where
     name: String,
     value: Option<T>,
     placeholder: String,
+    width: Option<Length>,
     on_input: Option<Box<dyn Fn(Option<T>) -> Message>>,
 }
 
@@ -43,6 +44,7 @@ where
             name: name.into(),
             value,
             placeholder: String::new(),
+            width: None,
             on_input: None,
         }
     }
@@ -60,6 +62,13 @@ where
     pub fn on_input(self, on_input: impl Fn(Option<T>) -> Message + 'static) -> Self {
         Self {
             on_input: Some(Box::new(on_input)),
+            ..self
+        }
+    }
+
+    pub fn width(self, length: Length) -> Self {
+        Self {
+            width: Some(length),
             ..self
         }
     }
@@ -107,6 +116,10 @@ where
 
         if !self.name.is_empty() {
             content = content.push(Text::new(&self.name));
+        }
+
+        if let Some(width) = self.width {
+            content = content.width(width);
         }
 
         content.push(Row::new().push(text_input)).spacing(5).into()

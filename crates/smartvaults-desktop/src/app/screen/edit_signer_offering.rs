@@ -8,12 +8,12 @@ use std::ops::Deref;
 use iced::widget::{Column, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, SignerOffering, Temperature};
+use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, Price, SignerOffering, Temperature};
 use smartvaults_sdk::types::GetSigner;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{Button, ButtonStyle, NumericInput, Text};
+use crate::component::{Button, ButtonStyle, NumericInput, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
@@ -63,6 +63,10 @@ pub enum EditSignerOfferingMessage {
     DeviceTypeChanged(DeviceType),
     ResponseTimeChanged(Option<u16>),
     YearlyCostBasisPointsChanged(Option<u64>),
+    YearlyCostChanged(Option<u64>),
+    YearlyCostCurrencyChanged(String),
+    CostPerSignatureChanged(Option<u64>),
+    CostPerSignatureCurrencyChanged(String),
     Save,
     ErrorChanged(Option<String>),
     Reload,
@@ -76,6 +80,10 @@ pub struct EditSignerOfferingState {
     response_time: Option<u16>,
     device_type: Option<DeviceType>,
     yearly_cost_basis_points: Option<u64>,
+    cost_per_signature: Option<u64>,
+    cost_per_signature_currency: String,
+    yearly_cost: Option<u64>,
+    yearly_cost_currency: String,
     loading: bool,
     loaded: bool,
     allow_reload: bool,
@@ -91,6 +99,10 @@ impl EditSignerOfferingState {
             response_time: None,
             device_type: None,
             yearly_cost_basis_points: None,
+            cost_per_signature: None,
+            cost_per_signature_currency: String::new(),
+            yearly_cost: None,
+            yearly_cost_currency: String::new(),
             loading: false,
             loaded: false,
             allow_reload: false,
@@ -155,11 +167,31 @@ impl State for EditSignerOfferingState {
                             self.temperature = Some(offering.temperature);
                             self.response_time = Some(offering.response_time);
                             self.device_type = Some(offering.device_type);
+                            self.yearly_cost_basis_points =
+                                offering.yearly_cost_basis_points.map(|p| *p);
+                            self.cost_per_signature =
+                                offering.cost_per_signature.as_ref().map(|p| p.amount);
+                            self.cost_per_signature_currency = offering
+                                .cost_per_signature
+                                .as_ref()
+                                .map(|p| p.currency.clone())
+                                .unwrap_or_default();
+                            self.yearly_cost = offering.yearly_cost.as_ref().map(|p| p.amount);
+                            self.yearly_cost_currency = offering
+                                .yearly_cost
+                                .as_ref()
+                                .map(|p| p.currency.clone())
+                                .unwrap_or_default();
                         }
                         None => {
                             self.temperature = None;
                             self.response_time = None;
                             self.device_type = None;
+                            self.yearly_cost_basis_points = None;
+                            self.cost_per_signature = None;
+                            self.cost_per_signature_currency.clear();
+                            self.yearly_cost = None;
+                            self.yearly_cost_currency.clear();
                         }
                     }
                     self.signer = Some(signer);
@@ -178,6 +210,20 @@ impl State for EditSignerOfferingState {
                 ) => {
                     self.yearly_cost_basis_points = yearly_cost_basis_points;
                 }
+                EditSignerOfferingMessage::YearlyCostChanged(yearly_cost) => {
+                    self.yearly_cost = yearly_cost;
+                }
+                EditSignerOfferingMessage::YearlyCostCurrencyChanged(yearly_cost_currency) => {
+                    self.yearly_cost_currency = yearly_cost_currency;
+                }
+                EditSignerOfferingMessage::CostPerSignatureChanged(cost_per_signature) => {
+                    self.cost_per_signature = cost_per_signature;
+                }
+                EditSignerOfferingMessage::CostPerSignatureCurrencyChanged(
+                    cost_per_signature_currency,
+                ) => {
+                    self.cost_per_signature_currency = cost_per_signature_currency;
+                }
                 EditSignerOfferingMessage::Save => {
                     let client = ctx.client.clone();
                     if let Some(signer) = self.signer.as_ref() {
@@ -189,8 +235,16 @@ impl State for EditSignerOfferingState {
                                     temperature: *temperature,
                                     response_time: self.response_time.unwrap_or(3600),
                                     device_type: *device_type,
-                                    cost_per_signature: None, // TODO
-                                    yearly_cost: None,        // TODO
+                                    cost_per_signature: self.cost_per_signature.map(|amount| {
+                                        Price {
+                                            amount,
+                                            currency: self.cost_per_signature_currency.clone(),
+                                        }
+                                    }),
+                                    yearly_cost: self.yearly_cost.map(|amount| Price {
+                                        amount,
+                                        currency: self.yearly_cost_currency.clone(),
+                                    }),
                                     yearly_cost_basis_points: self
                                         .yearly_cost_basis_points
                                         .map(BasisPoints::from),
@@ -294,12 +348,54 @@ impl State for EditSignerOfferingState {
                     .placeholder("Response time (min)")
                     .on_input(|r| EditSignerOfferingMessage::ResponseTimeChanged(r).into());
 
-                let yearly_cost_basis_points =
-                    NumericInput::new("Yearly cost (basis points)", self.yearly_cost_basis_points)
-                        .placeholder("Yearly cost (basis points)")
-                        .on_input(|r| {
-                            EditSignerOfferingMessage::YearlyCostBasisPointsChanged(r).into()
-                        });
+                let yearly_cost_basis_points = NumericInput::new(
+                    "Yearly cost (basis points - optional)",
+                    self.yearly_cost_basis_points,
+                )
+                .placeholder("Yearly cost (basis points - optional)")
+                .on_input(|r| EditSignerOfferingMessage::YearlyCostBasisPointsChanged(r).into());
+
+                let yearly_cost = Row::new()
+                    .spacing(5)
+                    .push(
+                        NumericInput::new("Yearly cost (optional)", self.yearly_cost)
+                            .placeholder("Yearly cost (optional)")
+                            .on_input(|r| EditSignerOfferingMessage::YearlyCostChanged(r).into())
+                            .width(Length::FillPortion(3)),
+                    )
+                    .push(
+                        TextInput::new(&self.yearly_cost_currency)
+                            .label("Currency")
+                            .placeholder("Currency")
+                            .on_input(|s| {
+                                EditSignerOfferingMessage::YearlyCostCurrencyChanged(s).into()
+                            })
+                            .view()
+                            .width(Length::Fill),
+                    )
+                    .width(Length::Fill);
+
+                let cost_per_signature = Row::new()
+                    .spacing(5)
+                    .push(
+                        NumericInput::new("Cost per signature (optional)", self.cost_per_signature)
+                            .placeholder("Cost per signature (optional)")
+                            .on_input(|r| {
+                                EditSignerOfferingMessage::CostPerSignatureChanged(r).into()
+                            })
+                            .width(Length::FillPortion(3)),
+                    )
+                    .push(
+                        TextInput::new(&self.cost_per_signature_currency)
+                            .label("Currency")
+                            .placeholder("Currency")
+                            .on_input(|s| {
+                                EditSignerOfferingMessage::CostPerSignatureCurrencyChanged(s).into()
+                            })
+                            .view()
+                            .width(Length::Fill),
+                    )
+                    .width(Length::Fill);
 
                 let save_btn = Button::new()
                     .style(ButtonStyle::Primary)
@@ -320,6 +416,8 @@ impl State for EditSignerOfferingState {
                     .push(device_type)
                     .push(response_time)
                     .push(yearly_cost_basis_points)
+                    .push(yearly_cost)
+                    .push(cost_per_signature)
                     .push(error)
                     .push(Space::with_height(Length::Fixed(15.0)))
                     .push(save_btn);
