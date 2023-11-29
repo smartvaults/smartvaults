@@ -61,8 +61,16 @@ pub struct SignerOffering {
 
 impl Serde for SignerOffering {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct BasisPoints(u64);
+
+impl fmt::Display for BasisPoints {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl Deref for BasisPoints {
     type Target = u64;
@@ -239,6 +247,12 @@ impl<'de> Deserialize<'de> for DeviceType {
 pub struct Price {
     pub amount: u64,
     pub currency: String,
+}
+
+impl fmt::Display for Price {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.amount, self.currency.to_uppercase())
+    }
 }
 
 impl FromStr for Price {
