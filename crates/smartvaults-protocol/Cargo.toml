@@ -12,7 +12,7 @@ keywords.workspace = true
 
 [dependencies]
 smartvaults-core = { path = "../smartvaults-core", default-features = false }
-nostr = { git = "https://github.com/rust-nostr/nostr", rev = "ac0704fe0ff6ff76425b166851b5002c3d71b24e", default-features = false, features = ["std", "nip04"] }
+nostr = { git = "https://github.com/rust-nostr/nostr", rev = "1eb33f4f1f43e8b9737362f2aae60ae877f170d4", default-features = false, features = ["std", "nip04"] }
 once_cell = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"

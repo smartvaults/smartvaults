@@ -541,8 +541,7 @@ impl SmartVaults {
         let relays = self.client.relays().await;
         let list = relays
             .into_keys()
-            .map(|url| (UncheckedUrl::from(url), None))
-            .collect();
+            .map(|url| (UncheckedUrl::from(url), None));
         let event = EventBuilder::relay_list(list).to_event(&keys)?;
         Ok(self.client.send_event(event).await?)
     }

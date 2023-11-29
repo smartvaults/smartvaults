@@ -47,6 +47,14 @@ impl SmartVaults {
         Ok(self.client.send_event(event).await?)
     }
 
+    /// Delete signer offering
+    pub async fn delete_signer_offering(&self, signer_offering_id: EventId) -> Result<(), Error> {
+        let keys: Keys = self.keys().await;
+        let event: Event = EventBuilder::delete(vec![signer_offering_id]).to_event(&keys)?;
+        self.client.send_event(event).await?;
+        Ok(())
+    }
+
     /// Get my signer offerings
     pub async fn my_signer_offerings(&self) -> Result<Vec<GetSignerOffering>, Error> {
         // Get keys
