@@ -2,14 +2,13 @@
 // Distributed under the MIT software license
 
 use iced::advanced::layout::{self, Layout};
-use iced::advanced::overlay;
-use iced::advanced::renderer;
 use iced::advanced::widget::{self, Widget};
 use iced::advanced::{self, Clipboard, Shell};
+use iced::advanced::{overlay, renderer};
 use iced::alignment::Alignment;
-use iced::event;
-use iced::mouse;
-use iced::{BorderRadius, Color, Element, Event, Length, Point, Rectangle, Size};
+use iced::{
+    event, mouse, BorderRadius, Color, Element, Event, Length, Point, Rectangle, Size, Vector,
+};
 
 /// A widget that centers a modal element over some base element
 pub struct Modal<'a, Message, Renderer> {
@@ -180,7 +179,13 @@ where
     Renderer: advanced::Renderer,
     Message: Clone,
 {
-    fn layout(&mut self, renderer: &Renderer, _bounds: Size, position: Point) -> layout::Node {
+    fn layout(
+        &mut self,
+        renderer: &Renderer,
+        _bounds: Size,
+        position: Point,
+        _translation: Vector,
+    ) -> layout::Node {
         let limits = layout::Limits::new(Size::ZERO, self.size)
             .width(Length::Fill)
             .height(Length::Fill);
