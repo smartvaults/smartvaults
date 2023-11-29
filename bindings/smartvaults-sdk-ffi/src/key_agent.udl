@@ -15,9 +15,11 @@ dictionary SignerOffering {
     Network network;
 };
 
-dictionary Price {
-    u64 amount;
-    string currency;
+interface Price {
+    [Throws=FFIError]
+    constructor(u64 amount, string currency);
+    u64 amount();
+    string currency();
 };
 
 [Enum]

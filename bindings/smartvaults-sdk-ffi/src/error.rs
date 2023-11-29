@@ -159,3 +159,9 @@ impl From<nostr_sdk_ffi::NostrError> for FFIError {
         Self::Generic { err: e.to_string() }
     }
 }
+
+impl From<smartvaults_sdk::protocol::v1::key_agent::signer::Error> for FFIError {
+    fn from(e: smartvaults_sdk::protocol::v1::key_agent::signer::Error) -> FFIError {
+        Self::Generic { err: e.to_string() }
+    }
+}

@@ -128,7 +128,7 @@ impl SmartVaults {
                     key_agents
                         .entry(event.pubkey)
                         .and_modify(|set| {
-                            set.insert(signer_offering.clone());
+                            set.insert(signer_offering);
                         })
                         .or_insert_with(|| {
                             let mut set = HashSet::new();

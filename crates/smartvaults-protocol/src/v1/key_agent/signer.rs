@@ -31,7 +31,7 @@ pub enum Error {
     InvalidCurrency,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SignerOffering {
     /// Temperature
     pub temperature: Temperature,
@@ -243,15 +243,71 @@ impl<'de> Deserialize<'de> for DeviceType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Currency(char, char, char);
+
+impl fmt::Display for Currency {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}{}{}",
+            self.0.to_uppercase(),
+            self.1.to_uppercase(),
+            self.2.to_uppercase()
+        )
+    }
+}
+
+impl FromStr for Currency {
+    type Err = Error;
+    fn from_str(currency: &str) -> Result<Self, Self::Err> {
+        if currency.len() == 3 {
+            let mut chars = currency.chars();
+            if let (Some(c1), Some(c2), Some(c3)) = (chars.next(), chars.next(), chars.next()) {
+                if c1.is_uppercase() && c2.is_uppercase() && c3.is_uppercase() {
+                    Ok(Self(c1, c2, c3))
+                } else {
+                    Err(Error::InvalidCurrency)
+                }
+            } else {
+                Err(Error::InvalidCurrency)
+            }
+        } else {
+            Err(Error::InvalidCurrency)
+        }
+    }
+}
+
+impl Serialize for Currency {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Currency {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+        let decive_type: String =
+            serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        Self::from_str(&decive_type).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Price {
     pub amount: u64,
-    pub currency: String,
+    pub currency: Currency,
 }
 
 impl fmt::Display for Price {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.amount, self.currency.to_uppercase())
+        write!(f, "{} {}", self.amount, self.currency)
     }
 }
 
@@ -260,14 +316,10 @@ impl FromStr for Price {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut split = s.split(' ');
         if let (Some(amount_str), Some(currency)) = (split.next(), split.next()) {
-            if currency.len() == 3 && currency.chars().all(|c| c.is_uppercase()) {
-                Ok(Self {
-                    amount: amount_str.parse()?,
-                    currency: currency.to_owned(),
-                })
-            } else {
-                Err(Error::InvalidCurrency)
-            }
+            Ok(Self {
+                amount: amount_str.parse()?,
+                currency: currency.parse()?,
+            })
         } else {
             Err(Error::InvalidPrice)
         }

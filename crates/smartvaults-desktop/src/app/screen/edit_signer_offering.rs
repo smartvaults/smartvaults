@@ -4,10 +4,12 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
+use std::str::FromStr;
 
 use iced::widget::{Column, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::protocol::v1::key_agent::signer::Currency;
 use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, Price, SignerOffering, Temperature};
 use smartvaults_sdk::types::GetSigner;
 
@@ -174,13 +176,13 @@ impl State for EditSignerOfferingState {
                             self.cost_per_signature_currency = offering
                                 .cost_per_signature
                                 .as_ref()
-                                .map(|p| p.currency.clone())
+                                .map(|p| p.currency.to_string())
                                 .unwrap_or_default();
                             self.yearly_cost = offering.yearly_cost.as_ref().map(|p| p.amount);
                             self.yearly_cost_currency = offering
                                 .yearly_cost
                                 .as_ref()
-                                .map(|p| p.currency.clone())
+                                .map(|p| p.currency.to_string())
                                 .unwrap_or_default();
                         }
                         None => {
@@ -229,22 +231,43 @@ impl State for EditSignerOfferingState {
                     if let Some(signer) = self.signer.as_ref() {
                         if let Some(temperature) = &self.temperature {
                             if let Some(device_type) = &self.device_type {
+                                // Cost per signature
+                                let cost_per_signature: Option<Price> =
+                                    match self.cost_per_signature {
+                                        Some(amount) => match Currency::from_str(
+                                            &self.cost_per_signature_currency,
+                                        ) {
+                                            Ok(currency) => Some(Price { amount, currency }),
+                                            Err(e) => {
+                                                self.error = Some(e.to_string());
+                                                return Command::none();
+                                            }
+                                        },
+                                        None => None,
+                                    };
+
+                                // Yearly cost
+                                let yearly_cost: Option<Price> = match self.yearly_cost {
+                                    Some(amount) => {
+                                        match Currency::from_str(&self.yearly_cost_currency) {
+                                            Ok(currency) => Some(Price { amount, currency }),
+                                            Err(e) => {
+                                                self.error = Some(e.to_string());
+                                                return Command::none();
+                                            }
+                                        }
+                                    }
+                                    None => None,
+                                };
+
                                 self.loading = true;
                                 let signer = signer.signer.deref().clone();
                                 let offering = SignerOffering {
                                     temperature: *temperature,
                                     response_time: self.response_time.unwrap_or(3600),
                                     device_type: *device_type,
-                                    cost_per_signature: self.cost_per_signature.map(|amount| {
-                                        Price {
-                                            amount,
-                                            currency: self.cost_per_signature_currency.clone(),
-                                        }
-                                    }),
-                                    yearly_cost: self.yearly_cost.map(|amount| Price {
-                                        amount,
-                                        currency: self.yearly_cost_currency.clone(),
-                                    }),
+                                    cost_per_signature,
+                                    yearly_cost,
                                     yearly_cost_basis_points: self
                                         .yearly_cost_basis_points
                                         .map(BasisPoints::from),
