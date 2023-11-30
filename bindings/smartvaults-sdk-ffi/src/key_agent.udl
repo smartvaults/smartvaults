@@ -22,20 +22,20 @@ interface Price {
     string currency();
 };
 
-[Enum]
-interface Temperature {
-    Warm();
-    Cold();
-    AirGapped();
+enum Temperature {
+    "Warm",
+    "Cold",
+    "AirGapped",
+    "Unknown",
 };
 
-[Enum]
-interface DeviceType {
-    Coldcard();
-    BitBox02();
-    Ledger();
-    Mobile();
-    Desktop();
-    CloudBased();
-    Undisclosed();
+enum DeviceType {
+    "Coldcard",
+    "BitBox02",
+    "Ledger",
+    "Mobile",
+    "Desktop",
+    "CloudBased",
+    "Undisclosed",
+    "Unknown",
 };
