@@ -14,6 +14,9 @@ release:
 dev-gui: fmt
 	cargo run -p smartvaults-desktop -- --testnet
 
+udev:
+	@cd contrib/udev && make install
+
 bench:
 	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-core
 
