@@ -93,9 +93,9 @@ pub struct EditSignerOfferingState {
 }
 
 impl EditSignerOfferingState {
-    pub fn new(signer: Option<GetSigner>) -> Self {
+    pub fn new(signer: Option<(GetSigner, Option<SignerOffering>)>) -> Self {
         Self {
-            signer: signer.map(|p| (p, None).into()),
+            signer: signer.map(|p| p.into()),
             signers: Vec::new(),
             temperature: None,
             response_time: None,

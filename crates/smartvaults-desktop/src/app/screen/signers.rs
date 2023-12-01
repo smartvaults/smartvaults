@@ -418,7 +418,10 @@ impl State for SignersState {
                                     .style(ButtonStyle::Bordered)
                                     .icon(PENCIL)
                                     .width(Length::Fixed(40.0))
-                                    .on_press(Message::View(Stage::EditSignerOffering(None)))
+                                    .on_press(Message::View(Stage::EditSignerOffering(Some((
+                                        signer.clone(),
+                                        Some(*offering),
+                                    )))))
                                     .view(),
                             )
                             .push(

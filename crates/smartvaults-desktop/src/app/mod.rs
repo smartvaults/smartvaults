@@ -73,7 +73,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::AddColdcardSigner => AddColdcardSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),
-        Stage::EditSignerOffering(_signer_offering_id) => EditSignerOfferingState::new(None).into(),
+        Stage::EditSignerOffering(signer) => EditSignerOfferingState::new(signer.clone()).into(),
         Stage::KeyAgents => KeyAgentsState::new().into(),
         Stage::Contacts => ContactsState::new().into(),
         Stage::AddContact => AddContactState::new().into(),

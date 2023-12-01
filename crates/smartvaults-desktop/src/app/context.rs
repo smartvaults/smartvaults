@@ -7,7 +7,8 @@ use smartvaults_sdk::core::bitcoin::Txid;
 use smartvaults_sdk::core::policy::Policy;
 use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::nostr::{EventId, Url};
-use smartvaults_sdk::types::GetPolicy;
+use smartvaults_sdk::protocol::v1::SignerOffering;
+use smartvaults_sdk::types::{GetPolicy, GetSigner};
 use smartvaults_sdk::{util, SmartVaults};
 
 pub const AVAILABLE_MODES: [Mode; 2] = [Mode::User, Mode::KeyAgent];
@@ -39,7 +40,7 @@ pub enum Stage {
     AddAirGapSigner,
     AddColdcardSigner,
     ShareSigner(EventId),
-    EditSignerOffering(Option<EventId>),
+    EditSignerOffering(Option<(GetSigner, Option<SignerOffering>)>),
     KeyAgents,
     Contacts,
     AddContact,
