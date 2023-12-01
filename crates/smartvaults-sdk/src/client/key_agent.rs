@@ -149,6 +149,7 @@ impl SmartVaults {
                 is_contact: contacts.contains(&public_key),
             })
         }
+        list.sort();
         Ok(list)
     }
 

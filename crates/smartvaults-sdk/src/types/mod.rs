@@ -41,7 +41,7 @@ impl PartialOrd for User {
 
 impl Ord for User {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name().cmp(&other.name())
+        self.name().to_lowercase().cmp(&other.name().to_lowercase())
     }
 }
 
@@ -151,12 +151,24 @@ pub struct GetAllSigners {
     pub contacts: Vec<GetSharedSigner>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyAgent {
     pub user: User,
     pub list: HashSet<SignerOffering>,
     pub verified: bool,
     pub is_contact: bool,
+}
+
+impl PartialOrd for KeyAgent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for KeyAgent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.user.cmp(&other.user)
+    }
 }
 
 impl Deref for KeyAgent {
