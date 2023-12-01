@@ -11,7 +11,7 @@ use smartvaults_core::bitcoin::{Address, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::proposal::Period;
 use smartvaults_core::{Amount, FeeRate, Proposal, Signer};
-use smartvaults_protocol::v1::constants::KEY_AGENT_SIGNER_OFFERING_KIND;
+use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
 use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder};
 use smartvaults_sdk_sqlite::model::{GetProposal, GetSigner};
 
@@ -31,6 +31,8 @@ impl SmartVaults {
         Ok(self.client.send_event(event).await?)
     }
 
+    // TODO: add deannounce_key_agent
+
     /// Create/Edit signer offering
     pub async fn signer_offering(
         &self,
@@ -39,6 +41,24 @@ impl SmartVaults {
     ) -> Result<EventId, Error> {
         // Get keys
         let keys: Keys = self.keys().await;
+
+        // Check if exists key agent signaling event
+        let filter = Filter::new()
+            .identifier(self.network.magic().to_string())
+            .kind(KEY_AGENT_SIGNALING)
+            .author(keys.public_key())
+            .limit(1);
+        let res = self
+            .client
+            .database()
+            .event_ids_by_filters(vec![filter])
+            .await?;
+
+        if res.is_empty() {
+            self.announce_key_agent().await?;
+        } else {
+            tracing::debug!("Key agent already announced");
+        }
 
         // Compose event
         let event: Event = EventBuilder::signer_offering(&keys, signer, &offering, self.network)?;
@@ -49,9 +69,44 @@ impl SmartVaults {
 
     /// Delete signer offering
     pub async fn delete_signer_offering(&self, signer_offering_id: EventId) -> Result<(), Error> {
+        // Get keys
         let keys: Keys = self.keys().await;
+
+        // Delete signer offering
         let event: Event = EventBuilder::delete(vec![signer_offering_id]).to_event(&keys)?;
         self.client.send_event(event).await?;
+
+        // Check if I have other signer offerings. If not, delete key agent signaling
+        let filter = Filter::new()
+            .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
+            .author(keys.public_key())
+            .limit(1);
+        let res = self
+            .client
+            .database()
+            .event_ids_by_filters(vec![filter])
+            .await?;
+
+        if res.is_empty() {
+            // Delete key agent signaling
+            // TODO: delete using `a` tag (needed support for `a` tag deletion in Nostr Database)
+            let filter = Filter::new()
+                .identifier(self.network.magic().to_string())
+                .kind(KEY_AGENT_SIGNALING)
+                .author(keys.public_key())
+                .limit(1);
+            let events = self.client.database().query(vec![filter]).await?;
+            if let Some(event) = events.first() {
+                let event: Event = EventBuilder::delete([event.id]).to_event(&keys)?;
+                self.client.send_event(event).await?;
+                tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
+            }
+        } else {
+            tracing::debug!(
+                "User have some active signer offering, skipping key agent de-signaling"
+            );
+        }
+
         Ok(())
     }
 
