@@ -821,6 +821,10 @@ impl SmartVaults {
         block_on(async move { Ok(Arc::new(self.inner.announce_key_agent().await?.into())) })
     }
 
+    pub fn deannounce_key_agent(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.deannounce_key_agent().await?) })
+    }
+
     pub fn signer_offering(
         &self,
         signer: Arc<Signer>,

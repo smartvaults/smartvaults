@@ -32,7 +32,16 @@ impl SmartVaults {
         Ok(self.client.send_event(event).await?)
     }
 
-    // TODO: add deannounce_key_agent
+    /// De-announce Key Agent (delete Key Agent signaling event)
+    pub async fn deannounce_key_agent(&self) -> Result<(), Error> {
+        let keys: Keys = self.keys().await;
+        let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNALING, keys.public_key())
+            .identifier(self.network.magic().to_string());
+        let event: Event = EventBuilder::delete([coordinate]).to_event(&keys)?;
+        self.client.send_event(event).await?;
+        tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
+        Ok(())
+    }
 
     /// Create/Edit signer offering
     pub async fn signer_offering(
@@ -93,12 +102,7 @@ impl SmartVaults {
             .await?;
 
         if res.is_empty() {
-            // Delete key agent signaling
-            let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNALING, keys.public_key())
-                .identifier(self.network.magic().to_string());
-            let event: Event = EventBuilder::delete([coordinate]).to_event(&keys)?;
-            self.client.send_event(event).await?;
-            tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
+            self.deannounce_key_agent().await?;
         } else {
             tracing::debug!(
                 "User have some active signer offering, skipping key agent de-signaling"

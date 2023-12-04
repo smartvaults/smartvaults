@@ -160,6 +160,8 @@ interface SmartVaults {
     [Throws=FFIError]
     EventId announce_key_agent();
     [Throws=FFIError]
+    void deannounce_key_agent();
+    [Throws=FFIError]
     EventId signer_offering(Signer signer, SignerOffering offering);
     [Throws=FFIError]
     sequence<KeyAgent> key_agents();
