@@ -3,7 +3,7 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::core::Signer;
 use smartvaults_sdk::types::{GetSharedSigner, GetSigner, GetSignerOffering};
 use smartvaults_sdk::util;
 
@@ -20,7 +20,7 @@ pub enum SignersMessage {
         shared_signers: Vec<GetSharedSigner>,
         signer_offerings: Vec<GetSignerOffering>,
     },
-    DeleteSignerOffering(EventId),
+    DeleteSignerOffering(Signer),
     Reload,
 }
 
@@ -91,11 +91,11 @@ impl State for SignersState {
                     self.loaded = true;
                     Command::none()
                 }
-                SignersMessage::DeleteSignerOffering(id) => {
+                SignersMessage::DeleteSignerOffering(signer) => {
                     let client = ctx.client.clone();
                     self.loading = true;
                     Command::perform(
-                        async move { client.delete_signer_offering(id).await },
+                        async move { client.delete_signer_offering(&signer).await },
                         |res| match res {
                             Ok(_) => SignersMessage::Reload.into(),
                             Err(e) => {
@@ -345,7 +345,7 @@ impl State for SignersState {
                         .push(rule::horizontal_bold());
 
                     for GetSignerOffering {
-                        id,
+                        id: _,
                         signer,
                         offering,
                     } in self.signer_offerings.iter()
@@ -429,7 +429,10 @@ impl State for SignersState {
                                     .style(ButtonStyle::BorderedDanger)
                                     .icon(TRASH)
                                     .width(Length::Fixed(40.0))
-                                    .on_press(SignersMessage::DeleteSignerOffering(*id).into())
+                                    .on_press(
+                                        SignersMessage::DeleteSignerOffering(signer.signer.clone())
+                                            .into(),
+                                    )
                                     .loading(self.loading)
                                     .view(),
                             )

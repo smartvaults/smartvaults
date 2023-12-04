@@ -4,6 +4,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use nostr_sdk::database::NostrDatabaseExt;
+use nostr_sdk::nips::nip01::Coordinate;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
@@ -67,16 +68,20 @@ impl SmartVaults {
         Ok(self.client.send_event(event).await?)
     }
 
-    /// Delete signer offering
-    pub async fn delete_signer_offering(&self, signer_offering_id: EventId) -> Result<(), Error> {
+    /// Delete signer offering for [`Signer`]
+    pub async fn delete_signer_offering(&self, signer: &Signer) -> Result<(), Error> {
         // Get keys
         let keys: Keys = self.keys().await;
 
         // Delete signer offering
-        let event: Event = EventBuilder::delete(vec![signer_offering_id]).to_event(&keys)?;
+        let coordinate: Coordinate =
+            Coordinate::new(KEY_AGENT_SIGNER_OFFERING_KIND, keys.public_key())
+                .identifier(signer.generate_identifier(self.network));
+        let event: Event = EventBuilder::delete([coordinate]).to_event(&keys)?;
         self.client.send_event(event).await?;
 
         // Check if I have other signer offerings. If not, delete key agent signaling
+        // TODO: replace with `count` method
         let filter = Filter::new()
             .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
             .author(keys.public_key())
@@ -89,18 +94,11 @@ impl SmartVaults {
 
         if res.is_empty() {
             // Delete key agent signaling
-            // TODO: delete using `a` tag (needed support for `a` tag deletion in Nostr Database)
-            let filter = Filter::new()
-                .identifier(self.network.magic().to_string())
-                .kind(KEY_AGENT_SIGNALING)
-                .author(keys.public_key())
-                .limit(1);
-            let events = self.client.database().query(vec![filter]).await?;
-            if let Some(event) = events.first() {
-                let event: Event = EventBuilder::delete([event.id]).to_event(&keys)?;
-                self.client.send_event(event).await?;
-                tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
-            }
+            let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNALING, keys.public_key())
+                .identifier(self.network.magic().to_string());
+            let event: Event = EventBuilder::delete([coordinate]).to_event(&keys)?;
+            self.client.send_event(event).await?;
+            tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
         } else {
             tracing::debug!(
                 "User have some active signer offering, skipping key agent de-signaling"

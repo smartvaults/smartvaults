@@ -180,7 +180,7 @@ impl Deref for KeyAgent {
 
 #[derive(Debug, Clone)]
 pub struct GetSignerOffering {
-    pub id: EventId,
+    pub id: EventId, // TODO: remove?
     pub signer: GetSigner,
     pub offering: SignerOffering,
 }
