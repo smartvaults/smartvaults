@@ -90,18 +90,13 @@ impl SmartVaults {
         self.client.send_event(event).await?;
 
         // Check if I have other signer offerings. If not, delete key agent signaling
-        // TODO: replace with `count` method
         let filter = Filter::new()
             .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
             .author(keys.public_key())
             .limit(1);
-        let res = self
-            .client
-            .database()
-            .event_ids_by_filters(vec![filter])
-            .await?;
+        let count: usize = self.client.database().count(vec![filter]).await?;
 
-        if res.is_empty() {
+        if count == 0 {
             self.deannounce_key_agent().await?;
         } else {
             tracing::debug!(
