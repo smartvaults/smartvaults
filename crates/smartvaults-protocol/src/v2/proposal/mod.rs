@@ -3,6 +3,8 @@
 
 //! Proposals
 
+use std::cmp::Ordering;
+
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
@@ -56,6 +58,20 @@ pub struct Proposal {
     pub status: ProposalStatus,
     /// Network
     pub network: Network,
+    /// Last update UNIX timestamp
+    pub timestamp: Timestamp,
+}
+
+impl PartialOrd for Proposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Proposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.timestamp.cmp(&other.timestamp)
+    }
 }
 
 impl Proposal {

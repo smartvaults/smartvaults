@@ -3,6 +3,7 @@
 
 use std::str::FromStr;
 
+use nostr::Timestamp;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{consensus, Address, Network};
 use smartvaults_core::miniscript::Descriptor;
@@ -140,6 +141,7 @@ impl From<&Proposal> for ProtoProposal {
                 proposal: Some((&proposal.status).into()),
             }),
             network: proposal.network.magic().to_bytes().to_vec(),
+            timestamp: proposal.timestamp.as_u64(),
         }
     }
 }
@@ -216,6 +218,10 @@ impl TryFrom<ProtoProposal> for Proposal {
             }
         };
 
-        Ok(Self { status, network })
+        Ok(Self {
+            status,
+            network,
+            timestamp: Timestamp::from(value.timestamp),
+        })
     }
 }

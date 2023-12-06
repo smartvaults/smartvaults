@@ -15,6 +15,7 @@ message Period {
 message Proposal {
   ProposalStatus status = 1;
   bytes network = 2;
+  fixed64 timestamp = 3;
 }
 
 message ProposalStatus {
