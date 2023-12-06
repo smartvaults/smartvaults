@@ -1,12 +1,14 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::time::Duration;
+
 use iced::widget::{column, row, svg, Column, PickList, Rule, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::SmartVaults;
 
 use super::view;
-use crate::component::{Button, ButtonStyle, Text, TextInput};
+use crate::component::{Button, ButtonStyle, SpinnerCircular, Text, TextInput};
 use crate::constants::{APP_DESCRIPTION, APP_LOGO};
 use crate::start::{Context, Message, Stage, State};
 use crate::theme::color::{DARK_RED, GREY};
@@ -27,6 +29,7 @@ pub struct OpenState {
     name: Option<String>,
     password: String,
     error: Option<String>,
+    loading: bool,
 }
 
 impl OpenState {
@@ -57,9 +60,11 @@ impl State for OpenState {
                 OpenMessage::PasswordChanged(psw) => self.password = psw,
                 OpenMessage::ErrorChanged(e) => {
                     self.error = e;
+                    self.loading = false;
                 }
                 OpenMessage::OpenButtonPressed => {
                     if let Some(name) = self.name.clone() {
+                        self.loading = true;
                         let network = ctx.network;
                         let password = self.password.clone();
                         return Command::perform(
@@ -116,12 +121,14 @@ impl State for OpenState {
             .text("Open")
             .width(Length::Fill)
             .on_press(Message::Open(OpenMessage::OpenButtonPressed))
+            .loading(self.loading)
             .view();
 
         let new_keychain_btn = Button::new()
             .text("Create keychain")
             .style(ButtonStyle::Bordered)
             .on_press(Message::View(Stage::New))
+            .loading(self.loading)
             .width(Length::Fill)
             .view();
 
@@ -129,6 +136,7 @@ impl State for OpenState {
             .text("Restore keychain")
             .style(ButtonStyle::Bordered)
             .on_press(Message::View(Stage::Restore))
+            .loading(self.loading)
             .width(Length::Fill)
             .view();
 
@@ -148,7 +156,13 @@ impl State for OpenState {
             } else {
                 row![]
             },
-            row![open_btn],
+            if self.loading {
+                row![SpinnerCircular::new()
+                    .size(40.0)
+                    .cycle_duration(Duration::from_secs(2))]
+            } else {
+                row![open_btn]
+            },
             row![Rule::horizontal(1)],
             row![new_keychain_btn],
             row![restore_keychain_btn],
