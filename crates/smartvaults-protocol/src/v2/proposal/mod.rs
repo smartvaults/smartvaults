@@ -15,7 +15,7 @@ mod proto;
 
 use super::constants::PROPOSAL_KIND_V2;
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
-use super::{Error, Vault};
+use super::{Approval, Error, Vault};
 use crate::v2::proto::proposal::ProtoProposal;
 
 /// Address recipient
@@ -111,6 +111,64 @@ impl Proposal {
                         network: self.network,
                     };
                     Ok(proof_of_reserve.approve(seed, Vec::new())?)
+                }
+            }
+        } else {
+            Err(Error::ProposalAlreadyFinalized)
+        }
+    }
+
+    /// Finalize the [`Proposal`] and update the status to `ProposalStatus::Completed`.
+    ///
+    /// If the proposal is already completed, will return `Error::ProposalAlreadyFinalized`.
+    pub fn finalize<I>(&mut self, approvals: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = Approval>,
+    {
+        if let ProposalStatus::Pending(pending) = &self.status {
+            let psbts = approvals.into_iter().map(|a| a.psbt());
+            match pending {
+                PendingProposal::Spending {
+                    descriptor, psbt, ..
+                } => {
+                    let spending = SpendingProposal {
+                        descriptor: descriptor.clone(),
+                        psbt: psbt.clone(),
+                        network: self.network,
+                    };
+                    let tx = spending.finalize(psbts)?;
+                    self.status = ProposalStatus::Completed(CompletedProposal::Spending { tx });
+                    Ok(())
+                }
+                PendingProposal::KeyAgentPayment {
+                    descriptor, psbt, ..
+                } => {
+                    let spending = SpendingProposal {
+                        descriptor: descriptor.clone(),
+                        psbt: psbt.clone(),
+                        network: self.network,
+                    };
+                    let tx = spending.finalize(psbts)?;
+                    self.status =
+                        ProposalStatus::Completed(CompletedProposal::KeyAgentPayment { tx });
+                    Ok(())
+                }
+                PendingProposal::ProofOfReserve {
+                    descriptor,
+                    message,
+                    psbt,
+                } => {
+                    let proof_of_reserve = ProofOfReserveProposal {
+                        descriptor: descriptor.clone(),
+                        message: message.to_owned(),
+                        psbt: psbt.clone(),
+                        network: self.network,
+                    };
+                    let proof = proof_of_reserve.finalize(psbts)?;
+                    self.status = ProposalStatus::Completed(CompletedProposal::ProofOfReserve {
+                        psbt: proof.psbt,
+                    });
+                    Ok(())
                 }
             }
         } else {
