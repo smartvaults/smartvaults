@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bindings/smartvaults-sdk-ffi",
+    "bindings/uniffi-bindgen",
     "crates/smartvaults-cli",
     "crates/smartvaults-core",
     "crates/smartvaults-desktop",

@@ -12,10 +12,6 @@ name = "smartvaults_sdk_ffi"
 crate-type = ["cdylib", "staticlib"]
 doctest = false
 
-[[bin]]
-name = "uniffi-bindgen"
-path = "uniffi-bindgen.rs"
-
 [dependencies]
 async-utility = "0.1"
 smartvaults-sdk = { path = "../../crates/smartvaults-sdk", features = ["blocking"] }
