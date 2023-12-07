@@ -1,13 +1,16 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::sync::Arc;
+
 pub use nostr_sdk_ffi::{
     Alphabet, Client, Event, EventBuilder, EventId, Filter, HandleNotification, Keys, Metadata,
-    NostrConnectURI, NostrError, NostrSdkError, Options, PublicKey, Relay, RelayConnectionStats,
-    RelayInformationDocument, RelayStatus, SecretKey, Tag, TagEnum, TagKind, TagKindKnown,
-    Timestamp, UnsignedEvent,
+    NostrConnectURI, NostrError, NostrLibrary, NostrSdkError, Options, PublicKey, Relay,
+    RelayConnectionStats, RelayInformationDocument, RelayStatus, SecretKey, Tag, TagEnum, TagKind,
+    TagKindKnown, Timestamp, UnsignedEvent,
 };
 use smartvaults_sdk::logger;
+use uniffi::Object;
 
 mod abortable;
 mod address;
@@ -30,10 +33,6 @@ mod user;
 
 use self::error::Result;
 
-// Error
-pub use self::error::FFIError;
-
-// SmartVaults
 pub use self::abortable::AbortHandle;
 pub use self::address::{AddressIndex, GetAddress};
 pub use self::amount::Amount;
@@ -41,6 +40,7 @@ pub use self::balance::Balance;
 pub use self::client::{SmartVaults, SyncHandler};
 pub use self::config::Config;
 pub use self::descriptor::Descriptor;
+pub use self::error::FFIError;
 pub use self::key_agent::{DeviceType, KeyAgent, Price, SignerOffering, Temperature};
 pub use self::message::{EventHandled, Message};
 pub use self::network::Network;
@@ -60,9 +60,19 @@ pub use self::transaction::{
 };
 pub use self::user::User;
 
+#[derive(Object)]
+pub struct SmartVaultsLibrary;
+
 #[uniffi::export]
-pub fn git_hash_version() -> String {
-    smartvaults_sdk::git_hash_version().to_string()
+impl SmartVaultsLibrary {
+    #[uniffi::constructor]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self)
+    }
+
+    pub fn git_hash_version(&self) -> String {
+        smartvaults_sdk::git_hash_version().to_string()
+    }
 }
 
 #[uniffi::export]
