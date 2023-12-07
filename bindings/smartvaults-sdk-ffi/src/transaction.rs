@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{EventId, Timestamp};
+use nostr_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::bdk;
 use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
 use smartvaults_sdk::core::bitcoin::{self, Address};

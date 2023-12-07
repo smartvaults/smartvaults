@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::EventId;
+use nostr_ffi::EventId;
 use smartvaults_sdk::{EventHandled as EventHandledSdk, Message as MessageSdk};
 use uniffi::Enum;
 

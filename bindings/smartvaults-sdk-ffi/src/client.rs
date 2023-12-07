@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_utility::thread;
-use nostr_sdk_ffi::{EventId, Keys, Metadata, PublicKey};
+use nostr_ffi::{EventId, Keys, Metadata, PublicKey};
 use smartvaults_sdk::client;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
 use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;

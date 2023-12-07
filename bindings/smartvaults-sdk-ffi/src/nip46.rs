@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{EventId, PublicKey};
+use nostr_ffi::{EventId, PublicKey};
 use smartvaults_sdk::nostr::JsonUtil;
 use smartvaults_sdk::types;
 use uniffi::{Object, Record};

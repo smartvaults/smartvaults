@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{EventId, Timestamp};
+use nostr_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
 use uniffi::{Enum, Object};

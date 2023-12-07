@@ -4,7 +4,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use nostr_sdk_ffi::EventId;
+use nostr_ffi::EventId;
 use smartvaults_sdk::core::signer;
 use smartvaults_sdk::types;
 use uniffi::{Enum, Object};

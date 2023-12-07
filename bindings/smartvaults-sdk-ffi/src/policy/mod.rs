@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{EventId, Timestamp};
+use nostr_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::{policy, SelectableCondition};
 use smartvaults_sdk::protocol::v1::util::SerdeSer;
 use smartvaults_sdk::types;

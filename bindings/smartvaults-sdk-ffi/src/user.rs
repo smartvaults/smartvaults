@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{Metadata, PublicKey};
+use nostr_ffi::{Metadata, PublicKey};
 use smartvaults_sdk::types;
 use uniffi::Object;
 

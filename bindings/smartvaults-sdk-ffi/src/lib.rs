@@ -3,11 +3,15 @@
 
 use std::sync::Arc;
 
+pub use nostr_ffi::{
+    Alphabet, ClientMessage, Contact, Event, EventBuilder, EventId, FileMetadata, Filter,
+    ImageDimensions, Keys, Metadata, NostrConnectURI, NostrError, NostrLibrary, Profile, PublicKey,
+    RelayInformationDocument, RelayMessage, SecretKey, Tag, TagEnum, TagKind, TagKindKnown,
+    Timestamp, UnsignedEvent,
+};
 pub use nostr_sdk_ffi::{
-    Alphabet, Client, Event, EventBuilder, EventId, Filter, HandleNotification, Keys, Metadata,
-    NostrConnectURI, NostrError, NostrLibrary, NostrSdkError, Options, PublicKey, Relay,
-    RelayConnectionStats, RelayInformationDocument, RelayStatus, SecretKey, Tag, TagEnum, TagKind,
-    TagKindKnown, Timestamp, UnsignedEvent,
+    ActiveSubscription, Client, ClientBuilder, HandleNotification, NostrSdkError, Options, Relay,
+    RelayConnectionStats, RelayStatus,
 };
 use smartvaults_sdk::logger;
 use uniffi::Object;

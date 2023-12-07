@@ -4195,6 +4195,7 @@ name = "smartvaults-sdk-ffi"
 version = "0.3.0"
 dependencies = [
  "async-utility",
+ "nostr-ffi",
  "nostr-sdk-ffi",
  "smartvaults-sdk",
  "tokio",
