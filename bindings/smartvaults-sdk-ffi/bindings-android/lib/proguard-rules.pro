@@ -23,6 +23,8 @@
 # for JNA
 -dontwarn java.awt.*
 -keep class com.sun.jna.* { *; }
+-keep class rust.nostr.* { *; }
 -keep class io.smartvaults.sdk.* { *; }
+-keepclassmembers class * extends rust.nostr.* { public *; }
 -keepclassmembers class * extends io.smartvaults.sdk.* { public *; }
 -keepclassmembers class * extends com.sun.jna.* { public *; }

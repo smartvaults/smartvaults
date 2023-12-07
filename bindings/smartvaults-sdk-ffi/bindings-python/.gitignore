@@ -8,6 +8,8 @@ libsmartvaults_ffi.dylib
 
 *.swp
 
+src/smartvaults-sdk/nostr.py
+src/smartvaults-sdk/nostr_sdk.py
 src/smartvaults-sdk/smartvaults_sdk.py
 src/smartvaults-sdk/*.so
 *.whl
