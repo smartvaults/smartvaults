@@ -4,10 +4,11 @@
 use std::fmt;
 
 use smartvaults_sdk::core::miniscript::descriptor::DescriptorKeyParseError;
+use uniffi::Error;
 
 pub type Result<T, E = FFIError> = std::result::Result<T, E>;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum FFIError {
     Generic { err: String },
 }

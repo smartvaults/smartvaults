@@ -1,10 +1,15 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use smartvaults_sdk::{EventHandled as EventHandledSdk, Message as MessageSdk};
+use std::sync::Arc;
 
+use nostr_sdk_ffi::EventId;
+use smartvaults_sdk::{EventHandled as EventHandledSdk, Message as MessageSdk};
+use uniffi::Enum;
+
+#[derive(Enum)]
 pub enum EventHandled {
-    EHSharedKey { event_id: String },
+    EHSharedKey { event_id: Arc<EventId> },
     EHPolicy { policy_id: String },
     EHProposal { proposal_id: String },
     EHApproval { proposal_id: String },
@@ -25,7 +30,7 @@ impl From<EventHandledSdk> for EventHandled {
     fn from(value: EventHandledSdk) -> Self {
         match value {
             EventHandledSdk::SharedKey(id) => Self::EHSharedKey {
-                event_id: id.to_hex(),
+                event_id: Arc::new(id.into()),
             },
             EventHandledSdk::Policy(id) => Self::EHPolicy {
                 policy_id: id.to_hex(),
@@ -63,6 +68,7 @@ impl From<EventHandledSdk> for EventHandled {
     }
 }
 
+#[derive(Enum)]
 pub enum Message {
     EvH { event: EventHandled },
     WalletSyncCompleted { policy_id: String },

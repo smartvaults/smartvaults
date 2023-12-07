@@ -3,7 +3,9 @@
 
 use smartvaults_sdk::core::bdk::wallet;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object};
 
+#[derive(Enum)]
 pub enum AddressIndex {
     New,
     LastUnused,
@@ -20,6 +22,7 @@ impl From<AddressIndex> for wallet::AddressIndex {
     }
 }
 
+#[derive(Object)]
 pub struct GetAddress {
     inner: types::GetAddress,
 }
@@ -30,6 +33,7 @@ impl From<types::GetAddress> for GetAddress {
     }
 }
 
+#[uniffi::export]
 impl GetAddress {
     pub fn address(&self) -> String {
         self.inner.address.clone().assume_checked().to_string()

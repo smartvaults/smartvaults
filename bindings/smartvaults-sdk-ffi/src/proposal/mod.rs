@@ -6,6 +6,7 @@ use std::sync::Arc;
 use nostr_sdk_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object, Record};
 
 mod approved;
 mod completed;
@@ -13,6 +14,7 @@ mod completed;
 pub use self::approved::{ApprovedProposal, GetApproval};
 pub use self::completed::{CompletedProposal, GetCompletedProposal};
 
+#[derive(Record)]
 pub struct Period {
     pub from: Arc<Timestamp>,
     pub to: Arc<Timestamp>,
@@ -27,6 +29,7 @@ impl From<Period> for proposal::Period {
     }
 }
 
+#[derive(Enum)]
 pub enum Proposal {
     Spending {
         descriptor: String,
@@ -79,8 +82,8 @@ impl From<proposal::Proposal> for Proposal {
                 amount,
                 description,
                 period: Period {
-                    from: Arc::new(Timestamp::from_secs(period.from)),
-                    to: Arc::new(Timestamp::from_secs(period.to)),
+                    from: Timestamp::from_secs(period.from),
+                    to: Timestamp::from_secs(period.to),
                 },
                 psbt: psbt.to_string(),
             },
@@ -97,7 +100,7 @@ impl From<proposal::Proposal> for Proposal {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Object)]
 pub struct GetProposal {
     inner: types::GetProposal,
 }
@@ -108,6 +111,7 @@ impl From<types::GetProposal> for GetProposal {
     }
 }
 
+#[uniffi::export]
 impl GetProposal {
     pub fn proposal_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.proposal_id.into())

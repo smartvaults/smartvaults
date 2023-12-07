@@ -2,7 +2,9 @@
 // Distributed under the MIT software license
 
 use smartvaults_sdk::core::bitcoin::Network as NetworkSdk;
+use uniffi::Enum;
 
+#[derive(Enum)]
 pub enum Network {
     Bitcoin,
     Testnet,

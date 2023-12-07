@@ -1,15 +1,16 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-#![allow(clippy::should_implement_trait)]
-
 use std::ops::Deref;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
+use uniffi::Object;
 
 use crate::error::Result;
 
+#[derive(Object)]
 pub struct Descriptor {
     inner: DescriptorPublicKey,
 }
@@ -27,11 +28,13 @@ impl From<DescriptorPublicKey> for Descriptor {
     }
 }
 
+#[uniffi::export]
 impl Descriptor {
-    pub fn from_str(str: String) -> Result<Self> {
-        Ok(Self {
-            inner: DescriptorPublicKey::from_str(&str)?,
-        })
+    #[uniffi::constructor]
+    pub fn parse(descriptor: String) -> Result<Arc<Self>> {
+        Ok(Arc::new(Self {
+            inner: DescriptorPublicKey::from_str(&descriptor)?,
+        }))
     }
 
     pub fn to_str(&self) -> String {

@@ -26,6 +26,7 @@ serde = "1.0"
 thiserror = "1.0"
 tracing = "0.1"
 tokio = { version = "1", default-features = false }
+uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "d380d164cfdba9e091c461baa6855f0a2294ac5b" }
 
 [patch.crates-io]
 electrum-client = { git = "https://github.com/yukibtc/rust-electrum-client", rev = "a331ae80591065fb331c1c1599ff85078b5154a4" }

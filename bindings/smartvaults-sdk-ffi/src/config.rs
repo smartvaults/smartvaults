@@ -1,13 +1,13 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use smartvaults_sdk::{
-    config,
-    nostr::{block_on, Url},
-};
+use smartvaults_sdk::config;
+use smartvaults_sdk::nostr::{block_on, Url};
+use uniffi::Object;
 
 use crate::error::Result;
 
+#[derive(Object)]
 pub struct Config {
     inner: config::Config,
 }
@@ -18,6 +18,7 @@ impl From<config::Config> for Config {
     }
 }
 
+#[uniffi::export]
 impl Config {
     pub fn save(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.save().await?) })

@@ -9,10 +9,12 @@ use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
 use smartvaults_sdk::core::bitcoin::{self, Address};
 use smartvaults_sdk::manager::wallet;
 use smartvaults_sdk::types::{self, GetUtxo};
+use uniffi::Object;
 
 use crate::error::Result;
 use crate::Network;
 
+#[derive(Object)]
 pub struct OutPoint {
     inner: bdk::bitcoin::OutPoint,
 }
@@ -29,6 +31,7 @@ impl From<&OutPoint> for bdk::bitcoin::OutPoint {
     }
 }
 
+#[uniffi::export]
 impl OutPoint {
     pub fn txid(&self) -> String {
         self.inner.txid.to_string()
@@ -39,6 +42,7 @@ impl OutPoint {
     }
 }
 
+#[derive(Object)]
 pub struct Utxo {
     inner: GetUtxo,
 }
@@ -49,6 +53,7 @@ impl From<GetUtxo> for Utxo {
     }
 }
 
+#[uniffi::export]
 impl Utxo {
     pub fn outpoint(&self) -> Arc<OutPoint> {
         Arc::new(self.inner.utxo.outpoint.into())
@@ -67,21 +72,24 @@ impl Utxo {
     }
 }
 
+#[derive(Object)]
 pub struct BlockTime {
     height: u32,
     timestamp: u64,
 }
 
+#[uniffi::export]
 impl BlockTime {
     pub fn height(&self) -> u32 {
         self.height
     }
 
     pub fn timestamp(&self) -> Arc<Timestamp> {
-        Arc::new(Timestamp::from_secs(self.timestamp))
+        Timestamp::from_secs(self.timestamp)
     }
 }
 
+#[derive(Object)]
 pub struct TxIn {
     inner: bitcoin::TxIn,
 }
@@ -92,12 +100,14 @@ impl From<bitcoin::TxIn> for TxIn {
     }
 }
 
+#[uniffi::export]
 impl TxIn {
     pub fn previous_output(&self) -> Arc<OutPoint> {
         Arc::new(self.inner.previous_output.into())
     }
 }
 
+#[derive(Object)]
 pub struct TxOut {
     inner: bitcoin::TxOut,
 }
@@ -108,6 +118,7 @@ impl From<bitcoin::TxOut> for TxOut {
     }
 }
 
+#[uniffi::export]
 impl TxOut {
     pub fn value(&self) -> u64 {
         self.inner.value
@@ -118,6 +129,7 @@ impl TxOut {
     }
 }
 
+#[derive(Object)]
 pub struct Transaction {
     inner: bitcoin::Transaction,
 }
@@ -128,6 +140,7 @@ impl From<bitcoin::Transaction> for Transaction {
     }
 }
 
+#[uniffi::export]
 impl Transaction {
     pub fn txid(&self) -> String {
         self.inner.txid().to_string()
@@ -180,6 +193,7 @@ impl Transaction {
     }
 }
 
+#[derive(Object)]
 pub struct TransactionDetails {
     inner: wallet::TransactionDetails,
 }
@@ -190,6 +204,7 @@ impl From<wallet::TransactionDetails> for TransactionDetails {
     }
 }
 
+#[uniffi::export]
 impl TransactionDetails {
     pub fn txid(&self) -> String {
         self.inner.txid().to_string()
@@ -228,6 +243,7 @@ impl TransactionDetails {
     }
 }
 
+#[derive(Object)]
 pub struct GetTransaction {
     inner: types::GetTransaction,
 }
@@ -238,6 +254,7 @@ impl From<types::GetTransaction> for GetTransaction {
     }
 }
 
+#[uniffi::export]
 impl GetTransaction {
     pub fn policy_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.policy_id.into())

@@ -1,6 +1,0 @@
-enum Network {
-    "Bitcoin",
-    "Testnet",
-    "Signet",
-    "Regtest",
-};

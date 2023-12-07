@@ -6,19 +6,21 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use nostr_sdk_ffi::{EventId, Timestamp};
-use smartvaults_sdk::core::{policy, PolicyTemplateType, SelectableCondition};
+use smartvaults_sdk::core::{policy, SelectableCondition};
 use smartvaults_sdk::protocol::v1::util::SerdeSer;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object, Record};
 
 mod template;
 
 pub use self::template::{
-    AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, RecoveryTemplate, RelativeLockTime,
+    AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate,
+    RelativeLockTime,
 };
 use crate::error::Result;
 use crate::{Balance, Network, Signer};
 
-#[derive(Clone)]
+#[derive(Clone, Object)]
 pub struct Policy {
     inner: policy::Policy,
 }
@@ -36,6 +38,7 @@ impl From<policy::Policy> for Policy {
     }
 }
 
+#[uniffi::export]
 impl Policy {
     pub fn name(&self) -> String {
         self.inner.name.clone()
@@ -110,11 +113,11 @@ impl Policy {
     }
 
     pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
-        Ok(self.inner.template_match(network.into())?)
+        Ok(self.inner.template_match(network.into())?.map(|t| t.into()))
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Object)]
 pub struct GetPolicy {
     inner: types::GetPolicy,
 }
@@ -125,6 +128,7 @@ impl From<types::GetPolicy> for GetPolicy {
     }
 }
 
+#[uniffi::export]
 impl GetPolicy {
     pub fn policy_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.policy_id.into())
@@ -143,6 +147,7 @@ impl GetPolicy {
     }
 }
 
+#[derive(Enum)]
 pub enum PolicyPath {
     Single { pp: PolicyPathSelector },
     Multiple { list: Vec<PolicyPathSigner> },
@@ -167,11 +172,13 @@ impl From<policy::PolicyPath> for PolicyPath {
     }
 }
 
+#[derive(Record)]
 pub struct PolicyPathSigner {
     pub signer: Arc<Signer>,
     pub policy_path: Option<PolicyPathSelector>,
 }
 
+#[derive(Enum)]
 pub enum PolicyPathSelector {
     Complete {
         path: HashMap<String, Vec<u64>>,

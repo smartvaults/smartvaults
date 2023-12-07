@@ -2,14 +2,12 @@
 // Distributed under the MIT software license
 
 pub use nostr_sdk_ffi::{
-    EventId, Keys, Metadata, NostrConnectURI, NostrSdkError, PublicKey, Relay,
-    RelayConnectionStats, RelayInformationDocument, SecretKey, Timestamp,
+    Alphabet, Client, Event, EventBuilder, EventId, Filter, HandleNotification, Keys, Metadata,
+    NostrConnectURI, NostrError, NostrSdkError, Options, PublicKey, Relay, RelayConnectionStats,
+    RelayInformationDocument, RelayStatus, SecretKey, Tag, TagEnum, TagKind, TagKindKnown,
+    Timestamp, UnsignedEvent,
 };
-pub use smartvaults_sdk::core::policy::PolicyTemplateType;
-pub use smartvaults_sdk::core::signer::SignerType;
-pub use smartvaults_sdk::core::types::WordCount;
 use smartvaults_sdk::logger;
-pub use smartvaults_sdk::nostr::RelayStatus;
 
 mod abortable;
 mod address;
@@ -49,31 +47,35 @@ pub use self::network::Network;
 pub use self::nip46::{NostrConnectRequest, NostrConnectSession};
 pub use self::policy::{
     AbsoluteLockTime, DecayingTime, GetPolicy, Locktime, Policy, PolicyPath, PolicyPathSelector,
-    PolicyPathSigner, PolicyTemplate, RecoveryTemplate, RelativeLockTime,
+    PolicyPathSigner, PolicyTemplate, PolicyTemplateType, RecoveryTemplate, RelativeLockTime,
 };
 pub use self::proposal::{
     ApprovedProposal, CompletedProposal, GetApproval, GetCompletedProposal, GetProposal, Period,
     Proposal,
 };
-pub use self::seed::Seed as KeychainSeed;
-pub use self::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer};
+pub use self::seed::{Seed, WordCount};
+pub use self::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer, SignerType};
 pub use self::transaction::{
     BlockTime, GetTransaction, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
 };
 pub use self::user::User;
 
+#[uniffi::export]
 pub fn git_hash_version() -> String {
     smartvaults_sdk::git_hash_version().to_string()
 }
 
+#[uniffi::export]
 pub fn init_desktop_logger(base_path: String, network: Network) -> Result<()> {
     Ok(logger::init(base_path, network.into(), true)?)
 }
 
+#[uniffi::export]
 pub fn init_mobile_logger() {
     logger::init_mobile()
 }
 
+#[uniffi::export]
 pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<String>> {
     Ok(smartvaults_sdk::SmartVaults::list_keychains(
         base_path,
@@ -81,5 +83,4 @@ pub fn get_keychains_list(base_path: String, network: Network) -> Result<Vec<Str
     )?)
 }
 
-// UDL
-uniffi::include_scaffolding!("common");
+uniffi::setup_scaffolding!("smartvaults_sdk");
