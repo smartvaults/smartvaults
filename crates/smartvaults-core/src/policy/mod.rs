@@ -16,11 +16,10 @@ use bdk::wallet::tx_builder::AddUtxoError;
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
-use keechain_core::bitcoin::address::NetworkChecked;
 use keechain_core::bitcoin::bip32::Fingerprint;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
-use keechain_core::bitcoin::{Address, Network, OutPoint};
+use keechain_core::bitcoin::{Network, OutPoint};
 use keechain_core::miniscript::descriptor::DescriptorType;
 use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::Descriptor;
@@ -43,7 +42,7 @@ use crate::proposal::SpendingProposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
 use crate::util::Unspendable;
-use crate::{Amount, CoreSigner, SECP256K1};
+use crate::{CoreSigner, Destination, Recipient, SECP256K1};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -654,8 +653,7 @@ impl Policy {
     pub fn estimate_tx_vsize<D>(
         &self,
         wallet: &mut Wallet<D>,
-        address: Address<NetworkChecked>,
-        amount: Amount,
+        destination: Destination,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
@@ -666,8 +664,7 @@ impl Policy {
         let proposal = self
             .spend(
                 wallet,
-                address,
-                amount,
+                destination,
                 FeeRate::default_min_relay_fee(),
                 utxos,
                 frozen_utxos,
@@ -682,8 +679,7 @@ impl Policy {
     pub fn spend<D>(
         &self,
         wallet: &mut Wallet<D>,
-        address: Address<NetworkChecked>, /* TODO: allow batch send. Use enum to allow to drain to single address? */
-        amount: Amount,
+        destination: Destination,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
@@ -749,12 +745,19 @@ impl Policy {
                 .fee_rate(fee_rate)
                 .enable_rbf()
                 .current_height(current_height);
-            match amount {
-                Amount::Max => builder
-                    .drain_wallet()
-                    .drain_to(address.payload.script_pubkey()),
-                Amount::Custom(amount) => {
-                    builder.add_recipient(address.payload.script_pubkey(), amount)
+            match destination {
+                Destination::Drain(address) => {
+                    builder
+                        .drain_wallet()
+                        .drain_to(address.payload.script_pubkey());
+                }
+                Destination::Single(Recipient { address, amount }) => {
+                    builder.add_recipient(address.payload.script_pubkey(), amount.to_sat());
+                }
+                Destination::Multiple(recipients) => {
+                    for Recipient { address, amount } in recipients.into_iter() {
+                        builder.add_recipient(address.payload.script_pubkey(), amount.to_sat());
+                    }
                 }
             };
             builder
