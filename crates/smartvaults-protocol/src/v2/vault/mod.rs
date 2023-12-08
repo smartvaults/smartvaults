@@ -13,6 +13,7 @@ use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::crypto::hash;
 use smartvaults_core::hashes::sha256::Hash as Sha256Hash;
+use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::policy::Policy;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -30,9 +31,23 @@ use super::{Error, NetworkMagic, Wrapper};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VaultIdentifier(Sha256Hash);
 
+impl Deref for VaultIdentifier {
+    type Target = Sha256Hash;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl fmt::Display for VaultIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl VaultIdentifier {
+    /// Compose vault identifier from bytes
+    pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
+        Ok(Self(Sha256Hash::from_slice(slice)?))
     }
 }
 

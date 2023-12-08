@@ -6,6 +6,7 @@ use std::str::FromStr;
 use nostr::Timestamp;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{consensus, Address, Amount, Network};
+use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::{Destination, Recipient};
 
@@ -17,7 +18,8 @@ use crate::v2::proto::proposal::{
     ProtoPendingProposal, ProtoPendingProposalEnum, ProtoPendingSpending, ProtoPeriod,
     ProtoProposal, ProtoProposalStatus, ProtoProposalStatusEnum, ProtoRecipient,
 };
-use crate::v2::{Error, NetworkMagic};
+use crate::v2::proto::vault::ProtoVaultIdentifier;
+use crate::v2::{Error, NetworkMagic, VaultIdentifier};
 
 impl From<&Recipient> for ProtoRecipient {
     fn from(recipient: &Recipient) -> Self {
@@ -154,6 +156,9 @@ impl From<&ProposalStatus> for ProtoProposalStatusEnum {
 impl From<&Proposal> for ProtoProposal {
     fn from(proposal: &Proposal) -> Self {
         ProtoProposal {
+            vault_id: Some(ProtoVaultIdentifier {
+                id: proposal.vault_id.as_byte_array().to_vec(),
+            }),
             status: Some(ProtoProposalStatus {
                 proposal: Some((&proposal.status).into()),
             }),
@@ -167,6 +172,10 @@ impl TryFrom<ProtoProposal> for Proposal {
     type Error = Error;
 
     fn try_from(value: ProtoProposal) -> Result<Self, Self::Error> {
+        let vault_id: ProtoVaultIdentifier = value
+            .vault_id
+            .ok_or(Error::NotFound(String::from("vault identifier")))?;
+        let vault_id: VaultIdentifier = VaultIdentifier::from_slice(&vault_id.id)?;
         let network: Network = NetworkMagic::from_slice(&value.network)?.into();
         let status = value
             .status
@@ -256,6 +265,7 @@ impl TryFrom<ProtoProposal> for Proposal {
         };
 
         Ok(Self {
+            vault_id,
             status,
             network,
             timestamp: Timestamp::from(value.timestamp),

@@ -11,28 +11,26 @@ pub mod approval {
 }
 
 pub mod proposal {
-    mod inner {
-        include!(concat!(env!("OUT_DIR"), "/proposal.rs"));
-    }
+    include!(concat!(env!("OUT_DIR"), "/proposal.rs"));
 
-    pub use self::inner::destination::{
+    pub use self::destination::{
         Destination as ProtoDestinationEnum, MultipleRecipients as ProtoMultipleRecipients,
     };
-    pub use self::inner::proposal_status::completed_proposal::{
+    pub use self::proposal_status::completed_proposal::{
         KeyAgentPayment as ProtoCompletedKeyAgentPayment,
         ProofOfReserve as ProtoCompletedProofOfReserve, Proposal as ProtoCompletedProposalEnum,
         Spending as ProtoCompletedSpending,
     };
-    pub use self::inner::proposal_status::pending_proposal::{
+    pub use self::proposal_status::pending_proposal::{
         KeyAgentPayment as ProtoPendingKeyAgentPayment,
         ProofOfReserve as ProtoPendingProofOfReserve, Proposal as ProtoPendingProposalEnum,
         Spending as ProtoPendingSpending,
     };
-    pub use self::inner::proposal_status::{
+    pub use self::proposal_status::{
         CompletedProposal as ProtoCompletedProposal, PendingProposal as ProtoPendingProposal,
         Proposal as ProtoProposalStatusEnum,
     };
-    pub use self::inner::{
+    pub use self::{
         Destination as ProtoDestination, Period as ProtoPeriod, Proposal as ProtoProposal,
         ProposalStatus as ProtoProposalStatus, Recipient as ProtoRecipient,
     };
@@ -53,7 +51,9 @@ pub mod vault {
     include!(concat!(env!("OUT_DIR"), "/vault.rs"));
 
     pub use self::vault::Object as ProtoVaultObject;
-    pub use self::{Vault as ProtoVault, VaultV1 as ProtoVaultV1};
+    pub use self::{
+        Vault as ProtoVault, VaultIdentifier as ProtoVaultIdentifier, VaultV1 as ProtoVaultV1,
+    };
 }
 
 pub mod wrapper {

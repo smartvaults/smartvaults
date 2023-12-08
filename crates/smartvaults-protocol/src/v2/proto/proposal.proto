@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package proposal;
 
+import "vault.proto";
+
 message Recipient {
   string address = 1;
   fixed64 amount = 2; // Amount in SAT
@@ -25,9 +27,10 @@ message Period {
 }
 
 message Proposal {
-  ProposalStatus status = 1;
-  bytes network = 2;
-  fixed64 timestamp = 3;
+  vault.VaultIdentifier vault_id = 1;
+  ProposalStatus status = 2;
+  bytes network = 3;
+  fixed64 timestamp = 4;
 }
 
 message ProposalStatus {

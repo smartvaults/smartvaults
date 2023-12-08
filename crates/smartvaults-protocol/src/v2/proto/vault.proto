@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package vault;
 
+message VaultIdentifier {
+  bytes id = 1;
+}
+
 message Vault {
   oneof object {
     VaultV1 v1 = 1;

@@ -3,7 +3,7 @@
 
 //! Error
 
-use smartvaults_core::bitcoin::hashes::hex;
+use smartvaults_core::bitcoin::hashes::{self, hex};
 use smartvaults_core::bitcoin::psbt::PsbtParseError;
 use smartvaults_core::bitcoin::{address, consensus};
 use smartvaults_core::miniscript::descriptor::DescriptorKeyParseError;
@@ -22,6 +22,8 @@ pub enum Error {
     BitcoinConsensus(#[from] consensus::encode::Error),
     #[error(transparent)]
     Secp256k1(#[from] secp256k1::Error),
+    #[error(transparent)]
+    Hash(#[from] hashes::Error),
     #[error(transparent)]
     Hex(#[from] hex::Error),
     #[error(transparent)]

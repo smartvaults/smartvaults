@@ -19,7 +19,7 @@ mod proto;
 
 use super::constants::PROPOSAL_KIND_V2;
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
-use super::{Approval, Error, Vault};
+use super::{Approval, Error, Vault, VaultIdentifier};
 use crate::v2::proto::proposal::ProtoProposal;
 
 /// Period
@@ -47,6 +47,8 @@ pub enum ProposalType {
 /// Proposal
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Proposal {
+    /// Vault Identifier
+    pub vault_id: VaultIdentifier,
     /// Status
     pub status: ProposalStatus,
     /// Network
