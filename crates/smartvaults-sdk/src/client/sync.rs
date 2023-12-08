@@ -23,9 +23,9 @@ use smartvaults_core::{
     ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNER_OFFERING_KIND,
-    KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
-    SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
+    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNALING,
+    KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
+    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Encryption, Label, Serde, VerifiedKeyAgents};
@@ -228,7 +228,7 @@ impl SmartVaults {
             .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
         let key_agents: Filter = Filter::new()
-            .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
+            .kinds([KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND])
             .since(since);
         let smartvaults: Filter = Filter::new()
             .author(match self.network {

@@ -164,29 +164,32 @@ impl SmartVaults {
         let verified_key_agents = self.verified_key_agents.read().await;
 
         // Get key agents and signer offerings
-        let filter = Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND);
+        let filters: Vec<Filter> = vec![
+            Filter::new()
+                .kind(KEY_AGENT_SIGNALING)
+                .identifier(self.network.magic().to_string()),
+            Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND),
+        ];
         let mut key_agents: HashMap<XOnlyPublicKey, HashSet<SignerOffering>> = HashMap::new();
 
-        for event in self
-            .client
-            .database()
-            .query(vec![filter])
-            .await?
-            .into_iter()
-        {
-            if let Ok(signer_offering) = SignerOffering::from_json(event.content) {
-                // Check network
-                if signer_offering.network == self.network {
-                    key_agents
-                        .entry(event.pubkey)
-                        .and_modify(|set| {
-                            set.insert(signer_offering);
-                        })
-                        .or_insert_with(|| {
-                            let mut set = HashSet::new();
-                            set.insert(signer_offering);
-                            set
-                        });
+        for event in self.client.database().query(filters).await?.into_iter() {
+            if event.kind == KEY_AGENT_SIGNALING {
+                key_agents.entry(event.pubkey).or_default();
+            } else if event.kind == KEY_AGENT_SIGNER_OFFERING_KIND {
+                if let Ok(signer_offering) = SignerOffering::from_json(event.content) {
+                    // Check network
+                    if signer_offering.network == self.network {
+                        key_agents
+                            .entry(event.pubkey)
+                            .and_modify(|set| {
+                                set.insert(signer_offering);
+                            })
+                            .or_insert_with(|| {
+                                let mut set = HashSet::new();
+                                set.insert(signer_offering);
+                                set
+                            });
+                    }
                 }
             }
         }
