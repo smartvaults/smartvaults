@@ -4,13 +4,32 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use nostr_sdk_ffi::EventId;
-use smartvaults_sdk::core::signer::{self, SignerType};
+use nostr_ffi::EventId;
+use smartvaults_sdk::core::signer;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object};
 
 use crate::error::Result;
 use crate::{Descriptor, User};
 
+#[derive(Enum)]
+pub enum SignerType {
+    Seed,
+    Hardware,
+    AirGap,
+}
+
+impl From<signer::SignerType> for SignerType {
+    fn from(value: signer::SignerType) -> Self {
+        match value {
+            signer::SignerType::Seed => Self::Seed,
+            signer::SignerType::Hardware => Self::Hardware,
+            signer::SignerType::AirGap => Self::AirGap,
+        }
+    }
+}
+
+#[derive(Object)]
 pub struct GetSigner {
     inner: types::GetSigner,
 }
@@ -21,6 +40,7 @@ impl From<types::GetSigner> for GetSigner {
     }
 }
 
+#[uniffi::export]
 impl GetSigner {
     pub fn signer_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.signer_id.into())
@@ -31,6 +51,7 @@ impl GetSigner {
     }
 }
 
+#[derive(Object)]
 pub struct Signer {
     inner: signer::Signer,
 }
@@ -48,6 +69,7 @@ impl From<signer::Signer> for Signer {
     }
 }
 
+#[uniffi::export]
 impl Signer {
     pub fn name(&self) -> String {
         self.inner.name()
@@ -62,7 +84,7 @@ impl Signer {
     }
 
     pub fn signer_type(&self) -> SignerType {
-        self.inner.signer_type()
+        self.inner.signer_type().into()
     }
 
     pub fn display(&self) -> String {
@@ -70,6 +92,7 @@ impl Signer {
     }
 }
 
+#[derive(Object)]
 pub struct GetSharedSigner {
     inner: types::GetSharedSigner,
 }
@@ -80,6 +103,7 @@ impl From<types::GetSharedSigner> for GetSharedSigner {
     }
 }
 
+#[uniffi::export]
 impl GetSharedSigner {
     pub fn shared_signer_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.shared_signer_id.into())
@@ -94,6 +118,7 @@ impl GetSharedSigner {
     }
 }
 
+#[derive(Object)]
 pub struct SharedSigner {
     inner: signer::SharedSigner,
 }
@@ -104,6 +129,7 @@ impl From<signer::SharedSigner> for SharedSigner {
     }
 }
 
+#[uniffi::export]
 impl SharedSigner {
     pub fn fingerprint(&self) -> String {
         self.inner.fingerprint().to_string()

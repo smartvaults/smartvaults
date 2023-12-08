@@ -10,24 +10,26 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_utility::thread;
-use nostr_sdk_ffi::{EventId, Keys, Metadata, PublicKey};
+use nostr_ffi::{EventId, Keys, Metadata, PublicKey};
 use smartvaults_sdk::client;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
 use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_sdk::core::bitcoin::{Address, Txid};
 use smartvaults_sdk::core::miniscript::Descriptor;
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::core::types::{FeeRate, Priority, WordCount};
+use smartvaults_sdk::core::types::{FeeRate, Priority};
 use smartvaults_sdk::nostr::block_on;
+use uniffi::Object;
 
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
-    KeyAgent, KeychainSeed, Message, Network, NostrConnectRequest, NostrConnectSession,
-    NostrConnectURI, OutPoint, Period, PolicyTemplate, Relay, Signer, SignerOffering, User, Utxo,
+    KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
+    OutPoint, Period, PolicyTemplate, Relay, Seed, Signer, SignerOffering, User, Utxo, WordCount,
 };
 
+#[derive(Object)]
 pub struct SmartVaults {
     inner: client::SmartVaults,
     dropped: AtomicBool,
@@ -53,23 +55,26 @@ impl Drop for SmartVaults {
     }
 }
 
+#[uniffi::export]
 impl SmartVaults {
     /// Open keychain
+    #[uniffi::constructor]
     pub fn open(
         base_path: String,
         name: String,
         password: String,
         network: Network,
-    ) -> Result<Self> {
+    ) -> Result<Arc<Self>> {
         block_on(async move {
-            Ok(Self {
+            Ok(Arc::new(Self {
                 inner: client::SmartVaults::open(base_path, name, password, network.into()).await?,
                 dropped: AtomicBool::new(false),
-            })
+            }))
         })
     }
 
     /// Generate keychain
+    #[uniffi::constructor]
     pub fn generate(
         base_path: String,
         name: String,
@@ -78,25 +83,26 @@ impl SmartVaults {
         word_count: WordCount,
         passphrase: Option<String>,
         network: Network,
-    ) -> Result<Self> {
+    ) -> Result<Arc<Self>> {
         block_on(async move {
-            Ok(Self {
+            Ok(Arc::new(Self {
                 inner: client::SmartVaults::generate(
                     base_path,
                     name,
                     || Ok(password),
                     || Ok(confirm_password),
-                    word_count,
+                    word_count.into(),
                     || Ok(passphrase),
                     network.into(),
                 )
                 .await?,
                 dropped: AtomicBool::new(false),
-            })
+            }))
         })
     }
 
     /// Restore keychain
+    #[uniffi::constructor]
     pub fn restore(
         base_path: String,
         name: String,
@@ -105,10 +111,10 @@ impl SmartVaults {
         mnemonic: String,
         passphrase: Option<String>,
         network: Network,
-    ) -> Result<Self> {
+    ) -> Result<Arc<Self>> {
         block_on(async move {
             let mnemonic = Mnemonic::from_str(&mnemonic)?;
-            Ok(Self {
+            Ok(Arc::new(Self {
                 inner: client::SmartVaults::restore(
                     base_path,
                     name,
@@ -120,7 +126,7 @@ impl SmartVaults {
                 )
                 .await?,
                 dropped: AtomicBool::new(false),
-            })
+            }))
         })
     }
 
@@ -169,7 +175,7 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.clear_cache().await?) })
     }
 
-    pub fn seed(&self, password: String) -> Result<Arc<KeychainSeed>> {
+    pub fn seed(&self, password: String) -> Result<Arc<Seed>> {
         Ok(Arc::new(self.inner.keychain(password)?.seed().into()))
     }
 
@@ -446,7 +452,7 @@ impl SmartVaults {
                 .spend(
                     **policy_id,
                     to_address,
-                    amount.inner(),
+                    **amount,
                     description,
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
@@ -478,7 +484,7 @@ impl SmartVaults {
                 .self_transfer(
                     **from_policy_id,
                     **to_policy_id,
-                    amount.inner(),
+                    **amount,
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     utxos.map(|utxos| utxos.into_iter().map(|u| u.as_ref().into()).collect()),
                     policy_path.map(|pp| {
@@ -876,7 +882,7 @@ impl SmartVaults {
                 .key_agent_payment(
                     **policy_id,
                     to_address,
-                    amount.inner(),
+                    **amount,
                     description,
                     Descriptor::from_str(&signer_descriptor)?,
                     period.into(),
@@ -912,6 +918,7 @@ impl SmartVaults {
     }
 }
 
+#[uniffi::export(callback_interface)]
 pub trait SyncHandler: Send + Sync + Debug {
     fn handle(&self, msg: Message);
 }

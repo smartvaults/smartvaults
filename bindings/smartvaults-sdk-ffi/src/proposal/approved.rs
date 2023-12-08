@@ -3,13 +3,14 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{EventId, Timestamp};
+use nostr_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object};
 
 use crate::User;
 
-#[derive(Clone)]
+#[derive(Clone, Enum)]
 pub enum ApprovedProposal {
     Spending { psbt: String },
     KeyAgentPayment { psbt: String },
@@ -32,6 +33,7 @@ impl From<proposal::ApprovedProposal> for ApprovedProposal {
     }
 }
 
+#[derive(Object)]
 pub struct GetApproval {
     inner: types::GetApproval,
 }
@@ -42,6 +44,7 @@ impl From<types::GetApproval> for GetApproval {
     }
 }
 
+#[uniffi::export]
 impl GetApproval {
     pub fn approval_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.approval_id.into())

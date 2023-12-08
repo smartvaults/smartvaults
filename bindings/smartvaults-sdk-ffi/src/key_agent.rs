@@ -5,13 +5,15 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
-pub use smartvaults_sdk::protocol::v1::key_agent::{self, Currency, DeviceType, Temperature};
+pub use smartvaults_sdk::protocol::v1::key_agent::{self, Currency};
 use smartvaults_sdk::protocol::v1::BasisPoints;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object, Record};
 
 use crate::error::Result;
 use crate::{Network, User};
 
+#[derive(Record)]
 pub struct KeyAgent {
     pub user: Arc<User>,
     pub signer_offerings: Vec<SignerOffering>,
@@ -30,6 +32,7 @@ impl From<types::KeyAgent> for KeyAgent {
     }
 }
 
+#[derive(Record)]
 pub struct SignerOffering {
     pub temperature: Temperature,
     pub response_time: u16,
@@ -43,9 +46,9 @@ pub struct SignerOffering {
 impl From<key_agent::SignerOffering> for SignerOffering {
     fn from(value: key_agent::SignerOffering) -> Self {
         Self {
-            temperature: value.temperature,
+            temperature: value.temperature.into(),
             response_time: value.response_time,
-            device_type: value.device_type,
+            device_type: value.device_type.into(),
             cost_per_signature: value.cost_per_signature.map(|c| Arc::new(c.into())),
             yearly_cost_basis_points: value.yearly_cost_basis_points.map(|p| *p),
             yearly_cost: value.yearly_cost.map(|c| Arc::new(c.into())),
@@ -57,9 +60,9 @@ impl From<key_agent::SignerOffering> for SignerOffering {
 impl From<SignerOffering> for key_agent::SignerOffering {
     fn from(value: SignerOffering) -> Self {
         Self {
-            temperature: value.temperature,
+            temperature: value.temperature.into(),
             response_time: value.response_time,
-            device_type: value.device_type,
+            device_type: value.device_type.into(),
             cost_per_signature: value.cost_per_signature.map(|c| **c),
             yearly_cost_basis_points: value.yearly_cost_basis_points.map(BasisPoints::from),
             yearly_cost: value.yearly_cost.map(|c| **c),
@@ -68,6 +71,79 @@ impl From<SignerOffering> for key_agent::SignerOffering {
     }
 }
 
+#[derive(Enum)]
+pub enum Temperature {
+    Warm,
+    Cold,
+    AirGapped,
+    Unknown,
+}
+
+impl From<Temperature> for key_agent::Temperature {
+    fn from(value: Temperature) -> Self {
+        match value {
+            Temperature::Warm => Self::Warm,
+            Temperature::Cold => Self::Cold,
+            Temperature::AirGapped => Self::AirGapped,
+            Temperature::Unknown => Self::Unknown,
+        }
+    }
+}
+
+impl From<key_agent::Temperature> for Temperature {
+    fn from(value: key_agent::Temperature) -> Self {
+        match value {
+            key_agent::Temperature::Warm => Self::Warm,
+            key_agent::Temperature::Cold => Self::Cold,
+            key_agent::Temperature::AirGapped => Self::AirGapped,
+            key_agent::Temperature::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Enum)]
+pub enum DeviceType {
+    Coldcard,
+    BitBox02,
+    Ledger,
+    Mobile,
+    Desktop,
+    CloudBased,
+    Undisclosed,
+    Unknown,
+}
+
+impl From<DeviceType> for key_agent::DeviceType {
+    fn from(value: DeviceType) -> Self {
+        match value {
+            DeviceType::Coldcard => Self::Coldcard,
+            DeviceType::BitBox02 => Self::BitBox02,
+            DeviceType::Ledger => Self::Ledger,
+            DeviceType::Mobile => Self::Mobile,
+            DeviceType::Desktop => Self::Desktop,
+            DeviceType::CloudBased => Self::CloudBased,
+            DeviceType::Undisclosed => Self::Undisclosed,
+            DeviceType::Unknown => Self::Unknown,
+        }
+    }
+}
+
+impl From<key_agent::DeviceType> for DeviceType {
+    fn from(value: key_agent::DeviceType) -> Self {
+        match value {
+            key_agent::DeviceType::Coldcard => Self::Coldcard,
+            key_agent::DeviceType::BitBox02 => Self::BitBox02,
+            key_agent::DeviceType::Ledger => Self::Ledger,
+            key_agent::DeviceType::Mobile => Self::Mobile,
+            key_agent::DeviceType::Desktop => Self::Desktop,
+            key_agent::DeviceType::CloudBased => Self::CloudBased,
+            key_agent::DeviceType::Undisclosed => Self::Undisclosed,
+            key_agent::DeviceType::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Object)]
 pub struct Price {
     inner: key_agent::Price,
 }
@@ -85,14 +161,16 @@ impl From<key_agent::Price> for Price {
     }
 }
 
+#[uniffi::export]
 impl Price {
-    pub fn new(amount: u64, currency: String) -> Result<Self> {
-        Ok(Self {
+    #[uniffi::constructor]
+    pub fn new(amount: u64, currency: String) -> Result<Arc<Self>> {
+        Ok(Arc::new(Self {
             inner: key_agent::Price {
                 amount,
                 currency: Currency::from_str(&currency)?,
             },
-        })
+        }))
     }
 
     pub fn amount(&self) -> u64 {

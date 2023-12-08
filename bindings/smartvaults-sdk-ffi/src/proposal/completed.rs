@@ -3,12 +3,14 @@
 
 use std::sync::Arc;
 
-use nostr_sdk_ffi::{EventId, Timestamp};
+use nostr_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
+use uniffi::{Enum, Object};
 
 use super::Period;
 
+#[derive(Enum)]
 pub enum CompletedProposal {
     Spending {
         txid: String,
@@ -44,8 +46,8 @@ impl From<proposal::CompletedProposal> for CompletedProposal {
                 signer_descriptor: signer_descriptor.to_string(),
                 description,
                 period: Period {
-                    from: Arc::new(Timestamp::from_secs(period.from)),
-                    to: Arc::new(Timestamp::from_secs(period.to)),
+                    from: Timestamp::from_secs(period.from),
+                    to: Timestamp::from_secs(period.to),
                 },
             },
             proposal::CompletedProposal::ProofOfReserve {
@@ -61,7 +63,7 @@ impl From<proposal::CompletedProposal> for CompletedProposal {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Object)]
 pub struct GetCompletedProposal {
     inner: types::GetCompletedProposal,
 }
@@ -72,6 +74,7 @@ impl From<types::GetCompletedProposal> for GetCompletedProposal {
     }
 }
 
+#[uniffi::export]
 impl GetCompletedProposal {
     pub fn completed_proposal_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.completed_proposal_id.into())

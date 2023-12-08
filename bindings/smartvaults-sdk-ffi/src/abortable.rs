@@ -2,7 +2,9 @@
 // Distributed under the MIT software license
 
 use async_utility::futures_util::stream;
+use uniffi::Object;
 
+#[derive(Object)]
 pub struct AbortHandle {
     inner: stream::AbortHandle,
 }
@@ -13,6 +15,7 @@ impl From<stream::AbortHandle> for AbortHandle {
     }
 }
 
+#[uniffi::export]
 impl AbortHandle {
     pub fn abort(&self) {
         if self.is_aborted() {
