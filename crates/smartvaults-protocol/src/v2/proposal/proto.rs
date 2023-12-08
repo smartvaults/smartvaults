@@ -5,16 +5,17 @@ use std::str::FromStr;
 
 use nostr::Timestamp;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{consensus, Address, Network};
+use smartvaults_core::bitcoin::{consensus, Address, Amount, Network};
 use smartvaults_core::miniscript::Descriptor;
+use smartvaults_core::{Destination, Recipient};
 
-use super::{CompletedProposal, PendingProposal, Period, Proposal, ProposalStatus, Recipient};
+use super::{CompletedProposal, PendingProposal, Period, Proposal, ProposalStatus};
 use crate::v2::proto::proposal::{
     ProtoCompletedKeyAgentPayment, ProtoCompletedProofOfReserve, ProtoCompletedProposal,
-    ProtoCompletedProposalEnum, ProtoCompletedSpending, ProtoPendingKeyAgentPayment,
-    ProtoPendingProofOfReserve, ProtoPendingProposal, ProtoPendingProposalEnum,
-    ProtoPendingSpending, ProtoPeriod, ProtoProposal, ProtoProposalStatus, ProtoProposalStatusEnum,
-    ProtoRecipient,
+    ProtoCompletedProposalEnum, ProtoCompletedSpending, ProtoDestination, ProtoDestinationEnum,
+    ProtoMultipleRecipients, ProtoPendingKeyAgentPayment, ProtoPendingProofOfReserve,
+    ProtoPendingProposal, ProtoPendingProposalEnum, ProtoPendingSpending, ProtoPeriod,
+    ProtoProposal, ProtoProposalStatus, ProtoProposalStatusEnum, ProtoRecipient,
 };
 use crate::v2::{Error, NetworkMagic};
 
@@ -22,7 +23,23 @@ impl From<&Recipient> for ProtoRecipient {
     fn from(recipient: &Recipient) -> Self {
         ProtoRecipient {
             address: recipient.address.to_string(),
-            amount: recipient.amount,
+            amount: recipient.amount.to_sat(),
+        }
+    }
+}
+
+impl From<&Destination> for ProtoDestination {
+    fn from(value: &Destination) -> Self {
+        ProtoDestination {
+            destination: Some(match value {
+                Destination::Drain(address) => ProtoDestinationEnum::Drain(address.to_string()),
+                Destination::Single(recipient) => ProtoDestinationEnum::Single(recipient.into()),
+                Destination::Multiple(recipients) => {
+                    ProtoDestinationEnum::Multiple(ProtoMultipleRecipients {
+                        recipients: recipients.iter().map(|r| r.into()).collect(),
+                    })
+                }
+            }),
         }
     }
 }
@@ -42,12 +59,12 @@ impl From<&PendingProposal> for ProtoPendingProposal {
             proposal: Some(match value {
                 PendingProposal::Spending {
                     descriptor,
-                    addresses,
+                    destination,
                     description,
                     psbt,
                 } => ProtoPendingProposalEnum::Spending(ProtoPendingSpending {
                     descriptor: descriptor.to_string(),
-                    addresses: addresses.iter().map(|r| r.into()).collect(),
+                    destination: Some(destination.into()),
                     description: description.to_owned(),
                     psbt: psbt.to_string(),
                 }),
@@ -165,19 +182,39 @@ impl TryFrom<ProtoProposal> for Proposal {
                 {
                     ProtoPendingProposalEnum::Spending(inner) => PendingProposal::Spending {
                         descriptor: Descriptor::from_str(&inner.descriptor)?,
-                        addresses: inner
-                            .addresses
-                            .into_iter()
-                            .filter_map(|r| {
-                                Some(Recipient {
-                                    address: Address::from_str(&r.address)
-                                        .ok()?
-                                        .require_network(network)
-                                        .ok()?,
-                                    amount: r.amount,
+                        destination: match inner
+                            .destination
+                            .ok_or(Error::NotFound(String::from("destination")))?
+                            .destination
+                            .ok_or(Error::NotFound(String::from("destination")))?
+                        {
+                            ProtoDestinationEnum::Drain(address) => Destination::Drain(
+                                Address::from_str(&address)?.require_network(network)?,
+                            ),
+                            ProtoDestinationEnum::Single(recipient) => {
+                                Destination::Single(Recipient {
+                                    address: Address::from_str(&recipient.address)?
+                                        .require_network(network)?,
+                                    amount: Amount::from_sat(recipient.amount),
                                 })
-                            })
-                            .collect(),
+                            }
+                            ProtoDestinationEnum::Multiple(ProtoMultipleRecipients {
+                                recipients,
+                            }) => Destination::Multiple(
+                                recipients
+                                    .into_iter()
+                                    .filter_map(|r| {
+                                        Some(Recipient {
+                                            address: Address::from_str(&r.address)
+                                                .ok()?
+                                                .require_network(network)
+                                                .ok()?,
+                                            amount: Amount::from_sat(r.amount),
+                                        })
+                                    })
+                                    .collect(),
+                            ),
+                        },
                         description: inner.description,
                         psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
                     },
@@ -201,7 +238,7 @@ impl TryFrom<ProtoProposal> for Proposal {
                             recipient: Recipient {
                                 address: Address::from_str(&recipient.address)?
                                     .require_network(network)?,
-                                amount: recipient.amount,
+                                amount: Amount::from_sat(recipient.amount),
                             },
                             period: Period {
                                 from: period.from.into(),

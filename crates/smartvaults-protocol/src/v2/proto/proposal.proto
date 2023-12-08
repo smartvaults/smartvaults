@@ -4,7 +4,19 @@ package proposal;
 
 message Recipient {
   string address = 1;
-  fixed64 amount = 2;
+  fixed64 amount = 2; // Amount in SAT
+}
+
+message Destination {
+  message MultipleRecipients {
+    repeated Recipient recipients = 3;
+  }
+
+  oneof destination {
+    string drain = 1;
+    Recipient single = 2;
+    MultipleRecipients multiple = 3;
+  }
 }
 
 message Period {
@@ -22,7 +34,7 @@ message ProposalStatus {
   message PendingProposal {
     message Spending {
       string descriptor = 1;
-      repeated Recipient addresses = 2;
+      Destination destination = 2;
       string description = 3;
       string psbt = 4;
     }

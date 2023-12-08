@@ -15,6 +15,9 @@ pub mod proposal {
         include!(concat!(env!("OUT_DIR"), "/proposal.rs"));
     }
 
+    pub use self::inner::destination::{
+        Destination as ProtoDestinationEnum, MultipleRecipients as ProtoMultipleRecipients,
+    };
     pub use self::inner::proposal_status::completed_proposal::{
         KeyAgentPayment as ProtoCompletedKeyAgentPayment,
         ProofOfReserve as ProtoCompletedProofOfReserve, Proposal as ProtoCompletedProposalEnum,
@@ -30,8 +33,8 @@ pub mod proposal {
         Proposal as ProtoProposalStatusEnum,
     };
     pub use self::inner::{
-        Period as ProtoPeriod, Proposal as ProtoProposal, ProposalStatus as ProtoProposalStatus,
-        Recipient as ProtoRecipient,
+        Destination as ProtoDestination, Period as ProtoPeriod, Proposal as ProtoProposal,
+        ProposalStatus as ProtoProposalStatus, Recipient as ProtoRecipient,
     };
 }
 

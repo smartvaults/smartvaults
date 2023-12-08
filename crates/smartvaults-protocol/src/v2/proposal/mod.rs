@@ -8,10 +8,12 @@ use std::cmp::Ordering;
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{Address, Network, Transaction};
+use smartvaults_core::bitcoin::{Network, Transaction};
 use smartvaults_core::crypto::hash;
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::{ProofOfReserveProposal, ProposalSigning, Seed, SpendingProposal};
+use smartvaults_core::{
+    Destination, ProofOfReserveProposal, ProposalSigning, Recipient, Seed, SpendingProposal,
+};
 
 mod proto;
 
@@ -19,15 +21,6 @@ use super::constants::PROPOSAL_KIND_V2;
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::{Approval, Error, Vault};
 use crate::v2::proto::proposal::ProtoProposal;
-
-/// Address recipient
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Recipient {
-    /// Address
-    pub address: Address,
-    /// Amount in SAT
-    pub amount: u64,
-}
 
 /// Period
 ///
@@ -234,7 +227,7 @@ pub enum PendingProposal {
         /// Descriptor
         descriptor: Descriptor<String>,
         /// Recipients
-        addresses: Vec<Recipient>,
+        destination: Destination,
         /// Description/note
         description: String,
         /// PSBT
