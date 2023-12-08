@@ -4,12 +4,15 @@
 //! Vault v2
 
 use core::cmp::Ordering;
+use core::fmt;
 use core::ops::Deref;
 use core::str::FromStr;
 
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
+use smartvaults_core::crypto::hash;
+use smartvaults_core::hashes::sha256::Hash as Sha256Hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::policy::Policy;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -22,6 +25,16 @@ use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
 use super::{Error, NetworkMagic, Wrapper};
+
+/// Vault Identifier
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VaultIdentifier(Sha256Hash);
+
+impl fmt::Display for VaultIdentifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Vault version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -83,6 +96,12 @@ impl Vault {
             policy: Policy::from_template(template, network)?,
             shared_key,
         })
+    }
+
+    /// Deterministic identifier
+    pub fn id(&self) -> VaultIdentifier {
+        let hash = hash::sha256(self.policy.as_descriptor().to_string());
+        VaultIdentifier(hash)
     }
 
     /// Get [`Version`]

@@ -18,7 +18,9 @@ pub use self::approval::{Approval, ApprovalType};
 pub use self::core::{ProtocolEncoding, ProtocolEncryption};
 pub use self::error::Error;
 pub use self::network::NetworkMagic;
-pub use self::proposal::Proposal;
+pub use self::proposal::{
+    CompletedProposal, PendingProposal, Proposal, ProposalStatus, ProposalType,
+};
 pub use self::signer::{Signer, SignerType};
-pub use self::vault::Vault;
+pub use self::vault::{Vault, VaultIdentifier};
 use self::wrapper::Wrapper;
