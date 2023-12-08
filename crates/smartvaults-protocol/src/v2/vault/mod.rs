@@ -3,6 +3,7 @@
 
 //! Vault v2
 
+use core::cmp::Ordering;
 use core::ops::Deref;
 use core::str::FromStr;
 
@@ -36,6 +37,18 @@ pub struct Vault {
     version: Version,
     policy: Policy,
     shared_key: SecretKey,
+}
+
+impl PartialOrd for Vault {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Vault {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.policy.cmp(&self.policy)
+    }
 }
 
 impl Deref for Vault {
