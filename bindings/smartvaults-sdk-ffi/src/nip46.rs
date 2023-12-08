@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use nostr_ffi::{EventId, PublicKey};
+use nostr_ffi::{EventId, PublicKey, Timestamp};
 use smartvaults_sdk::nostr::JsonUtil;
 use smartvaults_sdk::types;
 use uniffi::{Object, Record};
@@ -41,8 +41,8 @@ impl NostrConnectRequest {
         self.inner.message.as_json()
     }
 
-    pub fn timestamp(&self) -> u64 {
-        self.inner.timestamp.as_u64()
+    pub fn timestamp(&self) -> Arc<Timestamp> {
+        Arc::new(self.inner.timestamp.into())
     }
 
     pub fn approved(&self) -> bool {
