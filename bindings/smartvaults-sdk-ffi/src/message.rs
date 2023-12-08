@@ -3,88 +3,88 @@
 
 use std::sync::Arc;
 
-use nostr_ffi::EventId;
+use nostr_ffi::{EventId, PublicKey};
 use smartvaults_sdk::{EventHandled as EventHandledSdk, Message as MessageSdk};
 use uniffi::Enum;
 
 #[derive(Enum)]
 pub enum EventHandled {
-    EHSharedKey { event_id: Arc<EventId> },
-    EHPolicy { policy_id: String },
-    EHProposal { proposal_id: String },
-    EHApproval { proposal_id: String },
-    EHCompletedProposal { completed_proposal_id: String },
-    EHSigner { signer_id: String },
-    EHMySharedSigner { my_shared_signer_id: String },
-    EHSharedSigner { shared_signer_id: String },
-    EHContacts(),
-    EHMetadata { public_key: String },
-    EHNostrConnectRequest { request_id: String },
-    EHLabel(),
-    EHEventDeletion(),
-    EHRelayList(),
-    EHKeyAgentSignerOffering(),
+    SharedKey { event_id: Arc<EventId> },
+    Policy { policy_id: Arc<EventId> },
+    Proposal { proposal_id: Arc<EventId> },
+    Approval { proposal_id: Arc<EventId> },
+    CompletedProposal { completed_proposal_id: Arc<EventId> },
+    Signer { signer_id: Arc<EventId> },
+    MySharedSigner { my_shared_signer_id: Arc<EventId> },
+    SharedSigner { shared_signer_id: Arc<EventId> },
+    Contacts,
+    Metadata { public_key: Arc<PublicKey> },
+    NostrConnectRequest { request_id: Arc<EventId> },
+    Label,
+    EventDeletion,
+    RelayList,
+    KeyAgentSignerOffering,
 }
 
 impl From<EventHandledSdk> for EventHandled {
     fn from(value: EventHandledSdk) -> Self {
         match value {
-            EventHandledSdk::SharedKey(id) => Self::EHSharedKey {
+            EventHandledSdk::SharedKey(id) => Self::SharedKey {
                 event_id: Arc::new(id.into()),
             },
-            EventHandledSdk::Policy(id) => Self::EHPolicy {
-                policy_id: id.to_hex(),
+            EventHandledSdk::Policy(id) => Self::Policy {
+                policy_id: Arc::new(id.into()),
             },
-            EventHandledSdk::Proposal(id) => Self::EHProposal {
-                proposal_id: id.to_hex(),
+            EventHandledSdk::Proposal(id) => Self::Proposal {
+                proposal_id: Arc::new(id.into()),
             },
-            EventHandledSdk::Approval { proposal_id } => Self::EHApproval {
-                proposal_id: proposal_id.to_hex(),
+            EventHandledSdk::Approval { proposal_id } => Self::Approval {
+                proposal_id: Arc::new(proposal_id.into()),
             },
-            EventHandledSdk::CompletedProposal(id) => Self::EHCompletedProposal {
-                completed_proposal_id: id.to_hex(),
+            EventHandledSdk::CompletedProposal(id) => Self::CompletedProposal {
+                completed_proposal_id: Arc::new(id.into()),
             },
-            EventHandledSdk::Signer(id) => Self::EHSigner {
-                signer_id: id.to_hex(),
+            EventHandledSdk::Signer(id) => Self::Signer {
+                signer_id: Arc::new(id.into()),
             },
-            EventHandledSdk::MySharedSigner(id) => Self::EHMySharedSigner {
-                my_shared_signer_id: id.to_hex(),
+            EventHandledSdk::MySharedSigner(id) => Self::MySharedSigner {
+                my_shared_signer_id: Arc::new(id.into()),
             },
-            EventHandledSdk::SharedSigner(id) => Self::EHSharedSigner {
-                shared_signer_id: id.to_hex(),
+            EventHandledSdk::SharedSigner(id) => Self::SharedSigner {
+                shared_signer_id: Arc::new(id.into()),
             },
-            EventHandledSdk::Contacts => Self::EHContacts(),
-            EventHandledSdk::Metadata(pk) => Self::EHMetadata {
-                public_key: pk.to_string(),
+            EventHandledSdk::Contacts => Self::Contacts,
+            EventHandledSdk::Metadata(pk) => Self::Metadata {
+                public_key: Arc::new(pk.into()),
             },
-            EventHandledSdk::NostrConnectRequest(id) => Self::EHNostrConnectRequest {
-                request_id: id.to_hex(),
+            EventHandledSdk::NostrConnectRequest(id) => Self::NostrConnectRequest {
+                request_id: Arc::new(id.into()),
             },
-            EventHandledSdk::Label => Self::EHLabel(),
-            EventHandledSdk::EventDeletion => Self::EHEventDeletion(),
-            EventHandledSdk::RelayList => Self::EHRelayList(),
-            EventHandledSdk::KeyAgentSignerOffering => Self::EHKeyAgentSignerOffering(),
+            EventHandledSdk::Label => Self::Label,
+            EventHandledSdk::EventDeletion => Self::EventDeletion,
+            EventHandledSdk::RelayList => Self::RelayList,
+            EventHandledSdk::KeyAgentSignerOffering => Self::KeyAgentSignerOffering,
         }
     }
 }
 
 #[derive(Enum)]
 pub enum Message {
-    EvH { event: EventHandled },
-    WalletSyncCompleted { policy_id: String },
-    BlockHeightUpdated(),
+    EventHandled { event: EventHandled },
+    WalletSyncCompleted { policy_id: Arc<EventId> },
+    BlockHeightUpdated,
 }
 
 impl From<MessageSdk> for Message {
     fn from(value: MessageSdk) -> Self {
         match value {
-            MessageSdk::EventHandled(event) => Self::EvH {
+            MessageSdk::EventHandled(event) => Self::EventHandled {
                 event: event.into(),
             },
             MessageSdk::WalletSyncCompleted(policy_id) => Self::WalletSyncCompleted {
-                policy_id: policy_id.to_hex(),
+                policy_id: Arc::new(policy_id.into()),
             },
-            MessageSdk::BlockHeightUpdated => Self::BlockHeightUpdated(),
+            MessageSdk::BlockHeightUpdated => Self::BlockHeightUpdated,
         }
     }
 }
