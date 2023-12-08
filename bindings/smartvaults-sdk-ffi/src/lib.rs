@@ -44,7 +44,7 @@ pub use self::balance::Balance;
 pub use self::client::{SmartVaults, SyncHandler};
 pub use self::config::Config;
 pub use self::descriptor::Descriptor;
-pub use self::error::FFIError;
+pub use self::error::SmartVaultsError;
 pub use self::key_agent::{DeviceType, KeyAgent, Price, SignerOffering, Temperature};
 pub use self::message::{EventHandled, Message};
 pub use self::network::Network;
