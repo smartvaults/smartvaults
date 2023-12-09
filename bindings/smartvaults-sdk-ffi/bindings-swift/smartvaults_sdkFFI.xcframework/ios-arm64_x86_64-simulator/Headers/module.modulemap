@@ -1,0 +1,14 @@
+module nostrFFI {
+  header "nostrFFI.h"
+  export *
+}
+
+module nostr_sdkFFI {
+  header "nostr_sdkFFI.h"
+  export *
+}
+
+module smartvaults_sdkFFI {
+  header "smartvaults_sdkFFI.h"
+  export *
+}

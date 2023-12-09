@@ -75,13 +75,15 @@ swift-ios: ios-universal
 bindings-swift: ios-universal
 	mkdir -p bindings-swift/Sources/SmartVaultsSDK
 	cargo run -p uniffi-bindgen generate --library ../../target/aarch64-apple-ios/release/libsmartvaults_sdk_ffi.a --no-format --language swift --out-dir bindings-swift/Sources/SmartVaultsSDK
+	mv bindings-swift/Sources/SmartVaultsSDK/nostr.swift bindings-swift/Sources/SmartVaultsSDK/Nostr.swift
+	mv bindings-swift/Sources/SmartVaultsSDK/nostr_sdk.swift bindings-swift/Sources/SmartVaultsSDK/NostrSDK.swift
 	mv bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdk.swift bindings-swift/Sources/SmartVaultsSDK/SmartVaultsSDK.swift
-	cp bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdkFFI.h bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64/smartvaults_sdkFFI.framework/Headers
-	cp bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdkFFI.h bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64_x86_64-simulator/smartvaults_sdkFFI.framework/Headers
-	cp ../../target/aarch64-apple-ios/release/libsmartvaults_sdk_ffi.a bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64/smartvaults_sdkFFI.framework/smartvaults_sdkFFI
-	cp ../../target/ios-universal-sim/release/libsmartvaults_sdk_ffi.a bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64_x86_64-simulator/smartvaults_sdkFFI.framework/smartvaults_sdkFFI
-	rm bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdkFFI.h
-	rm bindings-swift/Sources/SmartVaultsSDK/smartvaults_sdkFFI.modulemap
+	cp bindings-swift/Sources/SmartVaultsSDK/*.h bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64/Headers
+	cp bindings-swift/Sources/SmartVaultsSDK/*.h bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64_x86_64-simulator/Headers
+	cp ../../target/aarch64-apple-ios/release/libsmartvaults_sdk_ffi.a bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64/smartvaults_sdkFFI.a
+	cp ../../target/ios-universal-sim/release/libsmartvaults_sdk_ffi.a bindings-swift/smartvaults_sdkFFI.xcframework/ios-arm64_x86_64-simulator/smartvaults_sdkFFI.a
+	rm bindings-swift/Sources/SmartVaultsSDK/*.h
+	rm bindings-swift/Sources/SmartVaultsSDK/*.modulemap
 
 python:
 	rm -rf bindings-python/dist

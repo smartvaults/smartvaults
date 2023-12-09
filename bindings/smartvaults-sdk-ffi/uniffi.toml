@@ -1,5 +1,2 @@
 [bindings.kotlin]
 package_name = "io.smartvaults.sdk"
-
-[bindings.swift]
-ffi_module_filename = "smartvaults_sdkFFI"

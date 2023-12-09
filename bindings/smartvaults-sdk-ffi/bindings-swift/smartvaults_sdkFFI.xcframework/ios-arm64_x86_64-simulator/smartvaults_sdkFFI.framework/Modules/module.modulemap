@@ -1,6 +1,0 @@
-framework module smartvaults_sdkFFI {
-  umbrella header "smartvaults_sdkFFI-umbrella.h"
-
-  export *
-  module * { export * }
-}
