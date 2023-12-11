@@ -1,19 +1,10 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+nostr_sdk_ffi::uniffi_reexport_scaffolding!();
+
 use std::sync::Arc;
 
-pub use nostr_ffi::{
-    Alphabet, ClientMessage, Contact, Event, EventBuilder, EventId, FileMetadata, Filter,
-    ImageDimensions, Keys, Metadata, NostrConnectURI, NostrError, NostrLibrary, Profile, PublicKey,
-    RelayInformationDocument, RelayMessage, SecretKey, Tag, TagEnum, TagKind, TagKindKnown,
-    Timestamp, UnsignedEvent,
-};
-pub use nostr_sdk_ffi::{
-    ActiveSubscription, Client, ClientBuilder, HandleNotification, NostrSdkError, Options, Relay,
-    RelayConnectionStats, RelayStatus,
-};
-use smartvaults_sdk::logger;
 use uniffi::Object;
 
 mod abortable;
@@ -81,12 +72,12 @@ impl SmartVaultsLibrary {
 
 #[uniffi::export]
 pub fn init_desktop_logger(base_path: String, network: Network) -> Result<()> {
-    Ok(logger::init(base_path, network.into(), true)?)
+    Ok(smartvaults_sdk::logger::init(base_path, network.into(), true)?)
 }
 
 #[uniffi::export]
 pub fn init_mobile_logger() {
-    logger::init_mobile()
+    smartvaults_sdk::logger::init_mobile()
 }
 
 #[uniffi::export]

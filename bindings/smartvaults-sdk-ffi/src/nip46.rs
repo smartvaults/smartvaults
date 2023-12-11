@@ -3,12 +3,10 @@
 
 use std::sync::Arc;
 
-use nostr_ffi::{EventId, PublicKey, Timestamp};
+use nostr_ffi::{EventId, PublicKey, Timestamp, NostrConnectURI};
 use smartvaults_sdk::nostr::JsonUtil;
 use smartvaults_sdk::types;
 use uniffi::{Object, Record};
-
-use crate::NostrConnectURI;
 
 #[derive(Record)]
 pub struct NostrConnectSession {

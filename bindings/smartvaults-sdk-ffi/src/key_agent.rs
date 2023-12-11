@@ -163,6 +163,9 @@ impl From<key_agent::Price> for Price {
 
 #[uniffi::export]
 impl Price {
+    /// Compose new price
+    ///
+    /// Currency must follow ISO 4217 format (3 uppercase chars)
     #[uniffi::constructor]
     pub fn new(amount: u64, currency: String) -> Result<Arc<Self>> {
         Ok(Arc::new(Self {

@@ -17,6 +17,7 @@ impl From<stream::AbortHandle> for AbortHandle {
 
 #[uniffi::export]
 impl AbortHandle {
+    /// Abort thread
     pub fn abort(&self) {
         if self.is_aborted() {
             tracing::warn!("Thread already aborted");
@@ -26,6 +27,7 @@ impl AbortHandle {
         }
     }
 
+    /// Check if thread is aborted
     pub fn is_aborted(&self) -> bool {
         self.inner.is_aborted()
     }

@@ -10,7 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_utility::thread;
-use nostr_ffi::{EventId, Keys, Metadata, PublicKey};
+use nostr_ffi::{EventId, Keys, Metadata, PublicKey, NostrConnectURI};
+use nostr_sdk_ffi::Relay;
 use smartvaults_sdk::client;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
 use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
@@ -25,8 +26,8 @@ use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
-    KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession, NostrConnectURI,
-    OutPoint, Period, PolicyTemplate, Relay, Seed, Signer, SignerOffering, User, Utxo, WordCount,
+    KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession,
+    OutPoint, Period, PolicyTemplate, Seed, Signer, SignerOffering, User, Utxo, WordCount,
 };
 
 #[derive(Object)]
@@ -140,6 +141,7 @@ impl SmartVaults {
         self.inner.check_password(password)
     }
 
+    /// Rename keychain
     pub fn rename(&self, new_name: String) -> Result<()> {
         Ok(self.inner.rename(new_name)?)
     }
@@ -163,26 +165,34 @@ impl SmartVaults {
         Ok(self.inner.wipe(password)?)
     }
 
+    /// Restart a previously stopped client
     pub fn start(&self) {
         block_on(async move { self.inner.start().await })
     }
 
+    /// Stop client
+    ///
+    /// Stop all threads and connections
     pub fn stop(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.stop().await?) })
     }
 
+    /// Delete all data from cache/database
     pub fn clear_cache(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.clear_cache().await?) })
     }
 
+    /// Get seed
     pub fn seed(&self, password: String) -> Result<Arc<Seed>> {
         Ok(Arc::new(self.inner.keychain(password)?.seed().into()))
     }
 
+    /// Get client keys
     pub fn keys(&self) -> Arc<Keys> {
         block_on(async move { Arc::new(self.inner.keys().await.into()) })
     }
 
+    /// Get network
     pub fn network(&self) -> Network {
         self.inner.network().into()
     }
@@ -192,14 +202,17 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.add_relay(url, None).await?) })
     }
 
+    /// Get list of default relays
     pub fn default_relays(&self) -> Vec<String> {
         self.inner.default_relays()
     }
 
+    /// Remove relay
     pub fn remove_relay(&self, url: String) -> Result<()> {
         block_on(async move { Ok(self.inner.remove_relay(url).await?) })
     }
 
+    /// Get list of current added relays
     pub fn relays(&self) -> Vec<Arc<Relay>> {
         block_on(async move {
             self.inner
@@ -216,21 +229,18 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.clone().shutdown().await?) })
     }
 
+    /// Get config
     pub fn config(&self) -> Arc<Config> {
         Arc::new(self.inner.config().into())
     }
 
+    /// Get current block height
     pub fn block_height(&self) -> u32 {
         self.inner.block_height()
     }
 
     pub fn set_metadata(&self, metadata: Arc<Metadata>) -> Result<()> {
-        block_on(async move {
-            Ok(self
-                .inner
-                .set_metadata(metadata.as_ref().deref().clone())
-                .await?)
-        })
+        block_on(async move { Ok(self.inner.set_metadata(metadata.as_ref().deref()).await?) })
     }
 
     pub fn get_profile(&self) -> Result<Arc<User>> {
@@ -846,6 +856,7 @@ impl SmartVaults {
         })
     }
 
+    /// Get list of key agents
     pub fn key_agents(&self) -> Result<Vec<KeyAgent>> {
         block_on(async move {
             Ok(self

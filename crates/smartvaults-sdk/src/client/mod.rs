@@ -670,9 +670,9 @@ impl SmartVaults {
         self.manager.block_height()
     }
 
-    pub async fn set_metadata(&self, metadata: Metadata) -> Result<(), Error> {
+    pub async fn set_metadata(&self, metadata: &Metadata) -> Result<(), Error> {
         let keys: Keys = self.keys().await;
-        let event = EventBuilder::set_metadata(metadata.clone()).to_event(&keys)?;
+        let event = EventBuilder::set_metadata(metadata).to_event(&keys)?;
         self.client.send_event(event).await?;
         Ok(())
     }

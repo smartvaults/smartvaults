@@ -132,7 +132,7 @@ impl State for EditProfileState {
 
                     if metadata != self.current_metadata {
                         return Command::perform(
-                            async move { client.set_metadata(metadata).await },
+                            async move { client.set_metadata(&metadata).await },
                             |res| match res {
                                 Ok(_) => Message::View(Stage::Profile),
                                 Err(e) => {

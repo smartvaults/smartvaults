@@ -572,7 +572,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 metadata.nip05 = nip05;
 
                 if metadata != Metadata::default() || empty {
-                    client.set_metadata(metadata).await?;
+                    client.set_metadata(&metadata).await?;
                 } else {
                     println!("No metadata passed with args! If you want to set empty metadata, use --empty flag");
                 }

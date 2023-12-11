@@ -155,8 +155,8 @@ impl From<smartvaults_sdk::core::miniscript::Error> for SmartVaultsError {
     }
 }
 
-impl From<nostr_sdk_ffi::NostrError> for SmartVaultsError {
-    fn from(e: nostr_sdk_ffi::NostrError) -> SmartVaultsError {
+impl From<nostr_ffi::NostrError> for SmartVaultsError {
+    fn from(e: nostr_ffi::NostrError) -> SmartVaultsError {
         Self::Generic { err: e.to_string() }
     }
 }
