@@ -19,6 +19,7 @@ smartvaults-sdk = { path = "../smartvaults-sdk" }
 dirs = "5.0"
 iced = { git = "https://github.com/yukibtc/iced", rev = "c7a9f1024a8858d8581dfba144ca3a52a34de032", default-features = false, features = ["advanced", "lazy", "qr_code", "svg", "tokio", "wgpu"] }
 iced_futures = { git = "https://github.com/yukibtc/iced", rev = "c7a9f1024a8858d8581dfba144ca3a52a34de032" }
+iced_runtime = { git = "https://github.com/yukibtc/iced", rev = "c7a9f1024a8858d8581dfba144ca3a52a34de032" }
 lyon_algorithms = "1.0"
 once_cell = { workspace = true }
 rfd = "0.12"

@@ -8,11 +8,12 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use constants::DEFAULT_FONT_SIZE;
-use iced::window::Event as WindowEvent;
+use iced::window::{Action as WindowAction, Event as WindowEvent};
 use iced::{
     event, executor, font, Application, Command, Element, Event, Pixels, Settings, Subscription,
     Theme,
 };
+use iced_runtime::command::Action;
 use once_cell::sync::Lazy;
 use smartvaults_sdk::core::bitcoin::Network;
 use smartvaults_sdk::core::Result;
@@ -101,6 +102,7 @@ impl Application for SmartVaultsApp {
                 font::load(ROBOTO_MONO_LIGHT_BYTES).map(Message::FontLoaded),
                 font::load(ROBOTO_MONO_BOLD_BYTES).map(Message::FontLoaded),
                 font::load(BOOTSTRAP_ICONS_BYTES).map(Message::FontLoaded),
+                Command::single(Action::Window(WindowAction::Maximize(true))),
                 stage.1.map(|m| m.into()),
             ]),
         )
