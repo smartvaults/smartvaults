@@ -87,10 +87,10 @@ bindings-swift: ios-universal
 
 python:
 	rm -rf bindings-python/dist
-	pip install -r bindings-python/requirements.txt
+	pip install -r bindings-python/requirements.txt --break-system-packages
 	cargo build --release
 	cargo run -p uniffi-bindgen generate --library ../../target/release/libsmartvaults_sdk_ffi.so --language python --no-format -o bindings-python/src/smartvaults-sdk/
 	cp ../../target/release/libsmartvaults_sdk_ffi.so bindings-python/src/smartvaults-sdk/ | true
 	cp ../../target/release/libsmartvaults_sdk_ffi.dylib bindings-python/src/smartvaults-sdk/ | true
 	cd bindings-python && python setup.py --verbose bdist_wheel
-	pip install ./bindings-python/dist/smartvaults_sdk-*.whl --force-reinstall
+	pip install ./bindings-python/dist/smartvaults_sdk-*.whl --force-reinstall --break-system-packages
