@@ -29,23 +29,23 @@ pub enum Error {
 }
 
 fn targets_filter() -> Targets {
+    let trace: bool = env::var("SMARTVAULTS_TRACE") == Ok(String::from("true"));
     Targets::new()
         .with_default(Level::WARN)
         .with_target("bdk", Level::INFO)
         .with_target("bdk::database::sqlite", Level::WARN)
         .with_target("keechain_core", Level::INFO)
         .with_target("nostr", Level::DEBUG)
-        .with_target("nostr_database", Level::INFO)
+        .with_target(
+            "nostr_database",
+            if trace { Level::TRACE } else { Level::DEBUG },
+        )
         .with_target("nostr_sqlite", Level::INFO)
         .with_target("nostr_sdk", Level::DEBUG)
         .with_target("smartvaults_core", Level::DEBUG)
         .with_target(
             "smartvaults_sdk",
-            if env::var("SMARTVAULTS_TRACE") == Ok(String::from("true")) {
-                Level::TRACE
-            } else {
-                Level::DEBUG
-            },
+            if trace { Level::TRACE } else { Level::DEBUG },
         )
         .with_target("smartvaults_desktop", Level::DEBUG)
         .with_target("smartvaults_sdk_ffi", Level::INFO)
