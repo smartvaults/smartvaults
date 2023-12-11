@@ -1,40 +1,12 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use nostr_sdk::{Event, EventId, Tag, TagKind};
+use nostr_sdk::EventId;
 use smartvaults_core::bitcoin::Txid;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 pub(crate) mod dir;
 pub mod format;
-
-pub fn extract_first_event_id(event: &Event) -> Option<EventId> {
-    for tag in event.tags.iter() {
-        if let Tag::Event(event_id, ..) = tag {
-            return Some(*event_id);
-        }
-    }
-    None
-}
-
-pub fn extract_first_public_key(event: &Event) -> Option<XOnlyPublicKey> {
-    for tag in event.tags.iter() {
-        if let Tag::PubKey(public_key, ..) = tag {
-            return Some(*public_key);
-        }
-    }
-    None
-}
-
-pub fn extract_tags_by_kind(event: &Event, kind: TagKind) -> Vec<&Tag> {
-    let mut tags = Vec::new();
-    for tag in event.tags.iter() {
-        if kind == tag.kind() {
-            tags.push(tag);
-        }
-    }
-    tags
-}
 
 /// Get the first 8 chars of an [`EventId`]
 pub fn cut_event_id(event_id: EventId) -> String {

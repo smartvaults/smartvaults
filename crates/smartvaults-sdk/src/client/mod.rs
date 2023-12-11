@@ -20,7 +20,7 @@ use nostr_sdk::util::TryIntoUrl;
 use nostr_sdk::{
     nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
     JsonUtil, Keys, Kind, Metadata, Options, Relay, RelayPoolNotification, Result, SQLiteDatabase,
-    SQLiteError, Tag, TagKind, Timestamp, UncheckedUrl, Url,
+    SQLiteError, Tag, Timestamp, UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -841,17 +841,19 @@ impl SmartVaults {
             return Err(Error::ProposalNotFound);
         }
 
-        let policy_id =
-            util::extract_first_event_id(&proposal_event).ok_or(Error::PolicyNotFound)?;
+        let policy_id = proposal_event
+            .event_ids()
+            .next()
+            .ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
-        let shared_keys = self.db.get_shared_key(policy_id).await?;
+        let shared_keys = self.db.get_shared_key(*policy_id).await?;
 
         if proposal_event.pubkey == shared_keys.public_key() {
             // Extract `p` tags from proposal event to notify users about proposal deletion
-            let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
-                .into_iter()
-                .cloned()
+            let mut tags: Vec<Tag> = proposal_event
+                .public_keys()
+                .map(|p| Tag::PubKey(*p, None))
                 .collect();
 
             // Get all events linked to the proposal
@@ -892,16 +894,9 @@ impl SmartVaults {
             return Err(Error::ProposalNotFound);
         }
 
-        let policy_id = util::extract_tags_by_kind(&proposal_event, TagKind::E)
-            .get(1)
-            .map(|t| {
-                if let Tag::Event(event_id, ..) = t {
-                    Some(event_id)
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::PolicyNotFound)?
+        let policy_id: &EventId = proposal_event
+            .event_ids()
+            .nth(1)
             .ok_or(Error::PolicyNotFound)?;
 
         // Get shared key
@@ -909,9 +904,9 @@ impl SmartVaults {
 
         if proposal_event.pubkey == shared_keys.public_key() {
             // Extract `p` tags from proposal event to notify users about proposal deletion
-            let mut tags: Vec<Tag> = util::extract_tags_by_kind(&proposal_event, TagKind::P)
-                .into_iter()
-                .cloned()
+            let mut tags: Vec<Tag> = proposal_event
+                .public_keys()
+                .map(|p| Tag::PubKey(*p, None))
                 .collect();
 
             tags.push(Tag::Event(completed_proposal_id, None, None));

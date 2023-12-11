@@ -14,7 +14,7 @@ use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyOptions,
-    RelayMessage, RelayPoolNotification, Result, Tag, TagKind, Timestamp, Url,
+    RelayMessage, RelayPoolNotification, Result, Tag, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -37,7 +37,6 @@ use super::{Error, SmartVaults};
 use crate::constants::WALLET_SYNC_INTERVAL;
 
 use crate::manager::{Error as ManagerError, WalletError};
-use crate::util;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -348,7 +347,11 @@ impl SmartVaults {
 
     async fn handle_event(&self, event: Event) -> Result<()> {
         if event.kind == SHARED_KEY_KIND {
-            let policy_id = util::extract_first_event_id(&event).ok_or(Error::PolicyNotFound)?;
+            let policy_id = event
+                .event_ids()
+                .next()
+                .copied()
+                .ok_or(Error::PolicyNotFound)?;
             if !self.db.exists(Type::SharedKey { policy_id }).await? {
                 let keys: Keys = self.keys().await;
                 let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
@@ -395,7 +398,7 @@ impl SmartVaults {
                 })
                 .await?
         {
-            if let Some(policy_id) = util::extract_first_event_id(&event) {
+            if let Some(policy_id) = event.event_ids().next().copied() {
                 if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
                     self.db.save_proposal(event.id, policy_id, proposal).await?;
@@ -415,10 +418,9 @@ impl SmartVaults {
                 })
                 .await?
         {
-            if let Some(proposal_id) = util::extract_first_event_id(&event) {
-                if let Some(Tag::Event(policy_id, ..)) =
-                    util::extract_tags_by_kind(&event, TagKind::E).get(1)
-                {
+            let mut ids = event.event_ids();
+            if let Some(proposal_id) = ids.next().copied() {
+                if let Some(policy_id) = ids.next() {
                     if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
                         let approved_proposal =
                             ApprovedProposal::decrypt_with_keys(&shared_key, &event.content)?;
@@ -455,11 +457,10 @@ impl SmartVaults {
                 })
                 .await?
         {
-            if let Some(proposal_id) = util::extract_first_event_id(&event) {
+            let mut ids = event.event_ids();
+            if let Some(proposal_id) = ids.next().copied() {
                 self.db.delete_proposal(proposal_id).await?;
-                if let Some(Tag::Event(policy_id, ..)) =
-                    util::extract_tags_by_kind(&event, TagKind::E).get(1)
-                {
+                if let Some(policy_id) = ids.next() {
                     if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
                         let completed_proposal =
                             CompletedProposal::decrypt_with_keys(&shared_key, &event.content)?;
@@ -522,14 +523,12 @@ impl SmartVaults {
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Signer(event.id)))?;
         } else if event.kind == SHARED_SIGNERS_KIND {
-            let public_key =
-                util::extract_first_public_key(&event).ok_or(Error::PublicKeyNotFound)?;
+            let public_key = event.public_keys().next().ok_or(Error::PublicKeyNotFound)?;
             let keys: Keys = self.keys().await;
             if event.pubkey == keys.public_key() {
-                let signer_id =
-                    util::extract_first_event_id(&event).ok_or(Error::SignerIdNotFound)?;
+                let signer_id = event.event_ids().next().ok_or(Error::SignerIdNotFound)?;
                 self.db
-                    .save_my_shared_signer(signer_id, event.id, public_key)
+                    .save_my_shared_signer(*signer_id, event.id, *public_key)
                     .await?;
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::MySharedSigner(
@@ -546,7 +545,7 @@ impl SmartVaults {
                     .send(Message::EventHandled(EventHandled::SharedSigner(event.id)))?;
             }
         } else if event.kind == LABELS_KIND {
-            if let Some(policy_id) = util::extract_first_event_id(&event) {
+            if let Some(policy_id) = event.event_ids().next().copied() {
                 if let Some(identifier) = event.identifier() {
                     if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
                         let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
