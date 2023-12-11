@@ -1,1 +1,0 @@
-# SmartVaults Protocol v2
