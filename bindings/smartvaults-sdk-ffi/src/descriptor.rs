@@ -3,7 +3,6 @@
 
 use std::ops::Deref;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
 use uniffi::Object;
@@ -31,10 +30,10 @@ impl From<DescriptorPublicKey> for Descriptor {
 #[uniffi::export]
 impl Descriptor {
     #[uniffi::constructor]
-    pub fn parse(descriptor: String) -> Result<Arc<Self>> {
-        Ok(Arc::new(Self {
+    pub fn parse(descriptor: String) -> Result<Self> {
+        Ok(Self {
             inner: DescriptorPublicKey::from_str(&descriptor)?,
-        }))
+        })
     }
 
     pub fn to_str(&self) -> String {

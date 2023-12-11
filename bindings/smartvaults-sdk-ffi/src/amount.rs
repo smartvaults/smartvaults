@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use std::ops::Deref;
-use std::sync::Arc;
 
 use smartvaults_sdk::core;
 use uniffi::Object;
@@ -22,16 +21,16 @@ impl Deref for Amount {
 #[uniffi::export]
 impl Amount {
     #[uniffi::constructor]
-    pub fn custom(amount: u64) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn custom(amount: u64) -> Self {
+        Self {
             inner: core::Amount::Custom(amount),
-        })
+        }
     }
 
     #[uniffi::constructor]
-    pub fn max() -> Arc<Self> {
-        Arc::new(Self {
+    pub fn max() -> Self {
+        Self {
             inner: core::Amount::Max,
-        })
+        }
     }
 }

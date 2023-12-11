@@ -167,13 +167,13 @@ impl Price {
     ///
     /// Currency must follow ISO 4217 format (3 uppercase chars)
     #[uniffi::constructor]
-    pub fn new(amount: u64, currency: String) -> Result<Arc<Self>> {
-        Ok(Arc::new(Self {
+    pub fn new(amount: u64, currency: String) -> Result<Self> {
+        Ok(Self {
             inner: key_agent::Price {
                 amount,
                 currency: Currency::from_str(&currency)?,
             },
-        }))
+        })
     }
 
     pub fn amount(&self) -> u64 {

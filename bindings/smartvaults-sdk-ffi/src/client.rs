@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_utility::thread;
-use nostr_ffi::{EventId, Keys, Metadata, PublicKey, NostrConnectURI};
+use nostr_ffi::{EventId, Keys, Metadata, NostrConnectURI, PublicKey};
 use nostr_sdk_ffi::Relay;
 use smartvaults_sdk::client;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
@@ -26,8 +26,8 @@ use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
-    KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession,
-    OutPoint, Period, PolicyTemplate, Seed, Signer, SignerOffering, User, Utxo, WordCount,
+    KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession, OutPoint, Period,
+    PolicyTemplate, Seed, Signer, SignerOffering, User, Utxo, WordCount,
 };
 
 #[derive(Object)]
@@ -65,12 +65,12 @@ impl SmartVaults {
         name: String,
         password: String,
         network: Network,
-    ) -> Result<Arc<Self>> {
+    ) -> Result<Self> {
         block_on(async move {
-            Ok(Arc::new(Self {
+            Ok(Self {
                 inner: client::SmartVaults::open(base_path, name, password, network.into()).await?,
                 dropped: AtomicBool::new(false),
-            }))
+            })
         })
     }
 
@@ -84,9 +84,9 @@ impl SmartVaults {
         word_count: WordCount,
         passphrase: Option<String>,
         network: Network,
-    ) -> Result<Arc<Self>> {
+    ) -> Result<Self> {
         block_on(async move {
-            Ok(Arc::new(Self {
+            Ok(Self {
                 inner: client::SmartVaults::generate(
                     base_path,
                     name,
@@ -98,7 +98,7 @@ impl SmartVaults {
                 )
                 .await?,
                 dropped: AtomicBool::new(false),
-            }))
+            })
         })
     }
 
@@ -112,10 +112,10 @@ impl SmartVaults {
         mnemonic: String,
         passphrase: Option<String>,
         network: Network,
-    ) -> Result<Arc<Self>> {
+    ) -> Result<Self> {
         block_on(async move {
             let mnemonic = Mnemonic::from_str(&mnemonic)?;
-            Ok(Arc::new(Self {
+            Ok(Self {
                 inner: client::SmartVaults::restore(
                     base_path,
                     name,
@@ -127,7 +127,7 @@ impl SmartVaults {
                 )
                 .await?,
                 dropped: AtomicBool::new(false),
-            }))
+            })
         })
     }
 

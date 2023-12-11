@@ -47,10 +47,10 @@ impl Deref for RelativeLockTime {
 #[uniffi::export]
 impl RelativeLockTime {
     #[uniffi::constructor]
-    pub fn from_blocks(blocks: u16) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn from_blocks(blocks: u16) -> Self {
+        Self {
             inner: bitcoin::Sequence::from_height(blocks),
-        })
+        }
     }
 }
 
@@ -69,17 +69,17 @@ impl Deref for AbsoluteLockTime {
 #[uniffi::export]
 impl AbsoluteLockTime {
     #[uniffi::constructor]
-    pub fn from_height(height: u32) -> Result<Arc<Self>> {
-        Ok(Arc::new(Self {
+    pub fn from_height(height: u32) -> Result<Self> {
+        Ok(Self {
             inner: absolute::LockTime::from_height(height)?,
-        }))
+        })
     }
 
     #[uniffi::constructor]
-    pub fn from_timestamp(timestamp: u32) -> Result<Arc<Self>> {
-        Ok(Arc::new(Self {
+    pub fn from_timestamp(timestamp: u32) -> Result<Self> {
+        Ok(Self {
             inner: absolute::LockTime::from_time(timestamp)?,
-        }))
+        })
     }
 }
 
@@ -98,17 +98,17 @@ impl Deref for Locktime {
 #[uniffi::export]
 impl Locktime {
     #[uniffi::constructor]
-    pub fn absolute(absolute: Arc<AbsoluteLockTime>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn absolute(absolute: Arc<AbsoluteLockTime>) -> Self {
+        Self {
             inner: core::Locktime::After(**absolute),
-        })
+        }
     }
 
     #[uniffi::constructor]
-    pub fn relative(relative: Arc<RelativeLockTime>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn relative(relative: Arc<RelativeLockTime>) -> Self {
+        Self {
             inner: core::Locktime::Older(**relative),
-        })
+        }
     }
 }
 
@@ -127,17 +127,17 @@ impl Deref for DecayingTime {
 #[uniffi::export]
 impl DecayingTime {
     #[uniffi::constructor]
-    pub fn single(locktime: Arc<Locktime>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn single(locktime: Arc<Locktime>) -> Self {
+        Self {
             inner: core::DecayingTime::Single(**locktime),
-        })
+        }
     }
 
     #[uniffi::constructor]
-    pub fn multiple(locktimes: Vec<Arc<Locktime>>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn multiple(locktimes: Vec<Arc<Locktime>>) -> Self {
+        Self {
             inner: core::DecayingTime::Multiple(locktimes.into_iter().map(|l| **l).collect()),
-        })
+        }
     }
 }
 
@@ -156,14 +156,14 @@ impl Deref for RecoveryTemplate {
 #[uniffi::export]
 impl RecoveryTemplate {
     #[uniffi::constructor]
-    pub fn new(threshold: u64, keys: Vec<Arc<Descriptor>>, locktime: Arc<Locktime>) -> Arc<Self> {
+    pub fn new(threshold: u64, keys: Vec<Arc<Descriptor>>, locktime: Arc<Locktime>) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
-        Arc::new(Self {
+        Self {
             inner: core::RecoveryTemplate::new(threshold as usize, keys, **locktime),
-        })
+        }
     }
 }
 
@@ -188,31 +188,31 @@ impl From<core::PolicyTemplate> for PolicyTemplate {
 #[uniffi::export]
 impl PolicyTemplate {
     #[uniffi::constructor]
-    pub fn multisig(threshold: u64, keys: Vec<Arc<Descriptor>>) -> Arc<Self> {
+    pub fn multisig(threshold: u64, keys: Vec<Arc<Descriptor>>) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
-        Arc::new(Self {
+        Self {
             inner: core::PolicyTemplate::multisig(threshold as usize, keys),
-        })
+        }
     }
 
     #[uniffi::constructor]
-    pub fn recovery(my_key: Arc<Descriptor>, recovery: Arc<RecoveryTemplate>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn recovery(my_key: Arc<Descriptor>, recovery: Arc<RecoveryTemplate>) -> Self {
+        Self {
             inner: core::PolicyTemplate::recovery(
                 my_key.as_ref().deref().clone(),
                 recovery.as_ref().deref().clone(),
             ),
-        })
+        }
     }
 
     #[uniffi::constructor]
-    pub fn hold(my_key: Arc<Descriptor>, locktime: Arc<Locktime>) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn hold(my_key: Arc<Descriptor>, locktime: Arc<Locktime>) -> Self {
+        Self {
             inner: core::PolicyTemplate::hold(my_key.as_ref().deref().clone(), **locktime),
-        })
+        }
     }
 
     #[uniffi::constructor]
@@ -220,17 +220,17 @@ impl PolicyTemplate {
         start_threshold: u64,
         keys: Vec<Arc<Descriptor>>,
         time: Arc<DecayingTime>,
-    ) -> Arc<Self> {
+    ) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys
             .into_iter()
             .map(|k| k.as_ref().deref().clone())
             .collect();
-        Arc::new(Self {
+        Self {
             inner: core::PolicyTemplate::decaying(
                 start_threshold as usize,
                 keys,
                 time.as_ref().deref().clone(),
             ),
-        })
+        }
     }
 }

@@ -1,9 +1,9 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-nostr_sdk_ffi::uniffi_reexport_scaffolding!();
+#![allow(clippy::new_without_default)]
 
-use std::sync::Arc;
+nostr_sdk_ffi::uniffi_reexport_scaffolding!();
 
 use uniffi::Object;
 
@@ -61,8 +61,8 @@ pub struct SmartVaultsLibrary;
 #[uniffi::export]
 impl SmartVaultsLibrary {
     #[uniffi::constructor]
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self)
+    pub fn new() -> Self {
+        Self
     }
 
     pub fn git_hash_version(&self) -> String {
@@ -72,7 +72,11 @@ impl SmartVaultsLibrary {
 
 #[uniffi::export]
 pub fn init_desktop_logger(base_path: String, network: Network) -> Result<()> {
-    Ok(smartvaults_sdk::logger::init(base_path, network.into(), true)?)
+    Ok(smartvaults_sdk::logger::init(
+        base_path,
+        network.into(),
+        true,
+    )?)
 }
 
 #[uniffi::export]
