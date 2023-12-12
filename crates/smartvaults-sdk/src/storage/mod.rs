@@ -10,7 +10,7 @@ use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Client, Event, EventId, Filter, Keys, Tag, Timestamp};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
-use smartvaults_core::{Policy, Proposal};
+use smartvaults_core::{ApprovedProposal, Policy, Proposal};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SIGNERS_KIND,
@@ -20,7 +20,8 @@ use tokio::sync::RwLock;
 
 mod model;
 
-pub(crate) use self::model::{InternalPolicy, InternalProposal};
+pub(crate) use self::model::{InternalApproval, InternalPolicy, InternalProposal};
+use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
 
 /// Smart Vaults In-Memory Storage
@@ -30,6 +31,7 @@ pub(crate) struct SmartVaultsStorage {
     shared_keys: Arc<RwLock<HashMap<EventId, Keys>>>,
     vaults: Arc<RwLock<HashMap<EventId, InternalPolicy>>>,
     proposals: Arc<RwLock<HashMap<EventId, InternalProposal>>>,
+    approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     pending: Arc<RwLock<VecDeque<Event>>>,
 }
 
@@ -45,6 +47,7 @@ impl SmartVaultsStorage {
             shared_keys: Arc::new(RwLock::new(HashMap::new())),
             vaults: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
+            approvals: Arc::new(RwLock::new(HashMap::new())),
             pending: Arc::new(RwLock::new(VecDeque::new())),
         };
 
@@ -71,7 +74,9 @@ impl SmartVaultsStorage {
             }
         }
 
-        while let Some(event) = this.pending.write().await.pop_front() {
+        // Clone to avoid lock in handle event
+        let pending = this.pending.read().await.clone();
+        for event in pending.into_iter() {
             if let Err(e) = this.handle_event(&event).await {
                 tracing::error!("Impossible to handle event: {e}");
             }
@@ -94,7 +99,6 @@ impl SmartVaultsStorage {
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
                 e.insert(shared_key);
-                tracing::debug!("Shared Key for policy {} indexed", policy_id);
                 return Ok(Some(EventHandled::SharedKey(event.id)));
             }
         } else if event.kind == POLICY_KIND {
@@ -117,11 +121,9 @@ impl SmartVaultsStorage {
                             public_keys: nostr_pubkeys,
                             last_sync: None,
                         });
-                        tracing::debug!("Policy {} indexed", event.id);
                         return Ok(Some(EventHandled::Policy(event.id)));
                     }
                 } else {
-                    tracing::warn!("Shared key not found: save policy in pending events");
                     let mut pending = self.pending.write().await;
                     pending.push_back(event.clone());
                 }
@@ -140,7 +142,6 @@ impl SmartVaultsStorage {
                         });
                         return Ok(Some(EventHandled::Proposal(event.id)));
                     } else {
-                        tracing::warn!("Shared key not found: save proposal in pending events");
                         let mut pending = self.pending.write().await;
                         pending.push_back(event.clone());
                     }
@@ -148,46 +149,39 @@ impl SmartVaultsStorage {
                     tracing::error!("Impossible to find policy id in proposal {}", event.id);
                 }
             }
-        } /* else if event.kind == APPROVED_PROPOSAL_KIND
-              && !self
-                  .db
-                  .exists(Type::ApprovedProposal {
-                      approval_id: event.id,
-                  })
-                  .await?
-          {
-              let mut ids = event.event_ids();
-              if let Some(proposal_id) = ids.next().copied() {
-                  if let Some(policy_id) = ids.next() {
-                      if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
-                          let approved_proposal =
-                              ApprovedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-                          self.db
-                              .save_approved_proposal(
-                                  proposal_id,
-                                  event.pubkey,
-                                  event.id,
-                                  approved_proposal,
-                                  event.created_at,
-                              )
-                              .await?;
-                          self.sync_channel
-                              .send(Message::EventHandled(EventHandled::Approval {
-                                  proposal_id,
-                              }))?;
-                      } else {
-                          self.db.save_pending_event(event.clone()).await?;
-                      }
-                  } else {
-                      tracing::error!("Impossible to find policy id in proposal {}", event.id);
-                  }
-              } else {
-                  tracing::error!(
-                      "Impossible to find proposal id in approved proposal {}",
-                      event.id
-                  );
-              }
-          } else if event.kind == COMPLETED_PROPOSAL_KIND
+        } else if event.kind == APPROVED_PROPOSAL_KIND {
+            let shared_keys = self.shared_keys.read().await;
+            let mut approvals = self.approvals.write().await;
+            if let HashMapEntry::Vacant(e) = approvals.entry(event.id) {
+                let mut ids = event.event_ids();
+                if let Some(proposal_id) = ids.next().copied() {
+                    if let Some(policy_id) = ids.next() {
+                        if let Some(shared_key) = shared_keys.get(policy_id) {
+                            let approved_proposal =
+                                ApprovedProposal::decrypt_with_keys(shared_key, &event.content)?;
+                            e.insert(InternalApproval {
+                                proposal_id,
+                                policy_id: *policy_id,
+                                public_key: event.pubkey,
+                                approval: approved_proposal,
+                                timestamp: event.created_at,
+                            });
+                            return Ok(Some(EventHandled::Approval { proposal_id }));
+                        } else {
+                            let mut pending = self.pending.write().await;
+                            pending.push_back(event.clone());
+                        }
+                    } else {
+                        tracing::error!("Impossible to find policy id in proposal {}", event.id);
+                    }
+                } else {
+                    tracing::error!(
+                        "Impossible to find proposal id in approved proposal {}",
+                        event.id
+                    );
+                }
+            }
+        } /* else if event.kind == COMPLETED_PROPOSAL_KIND
               && !self
                   .db
                   .exists(Type::CompletedProposal {
@@ -519,5 +513,54 @@ impl SmartVaultsStorage {
     pub async fn proposal(&self, proposal_id: &EventId) -> Result<InternalProposal, Error> {
         let proposals = self.proposals.read().await;
         proposals.get(proposal_id).cloned().ok_or(Error::NotFound)
+    }
+
+    pub async fn save_approval(&self, approval_id: EventId, internal: InternalApproval) {
+        let mut approvals = self.approvals.write().await;
+        approvals.insert(approval_id, internal);
+    }
+
+    pub async fn delete_approval(&self, approval_id: &EventId) {
+        let mut approvals = self.approvals.write().await;
+        approvals.remove(approval_id);
+    }
+
+    /// Get approvals
+    pub async fn approvals(&self) -> HashMap<EventId, InternalApproval> {
+        self.approvals
+            .read()
+            .await
+            .iter()
+            .map(|(id, internal)| (*id, internal.clone()))
+            .collect()
+    }
+
+    pub async fn approval(&self, approval_id: &EventId) -> Result<InternalApproval, Error> {
+        let approvals = self.approvals.read().await;
+        approvals.get(approval_id).cloned().ok_or(Error::NotFound)
+    }
+
+    /// Approvals by proposal ID
+    pub async fn approvals_by_proposal_id(
+        &self,
+        proposal_id: &EventId,
+    ) -> Result<GetApprovedProposals, Error> {
+        let InternalProposal {
+            policy_id,
+            proposal,
+            ..
+        } = self.proposal(proposal_id).await?;
+        Ok(GetApprovedProposals {
+            policy_id,
+            proposal,
+            approved_proposals: self
+                .approvals
+                .read()
+                .await
+                .values()
+                .filter(|internal| internal.proposal_id == *proposal_id)
+                .map(|internal| internal.approval.clone())
+                .collect(),
+        })
     }
 }

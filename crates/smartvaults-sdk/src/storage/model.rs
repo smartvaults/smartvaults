@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use nostr_sdk::{EventId, Timestamp};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_core::{Policy, Proposal};
+use smartvaults_core::{ApprovedProposal, Policy, Proposal};
 
 #[derive(Debug, Clone)]
 pub(crate) struct InternalPolicy {
@@ -33,6 +33,31 @@ impl Ord for InternalProposal {
             self.timestamp.cmp(&other.timestamp)
         } else {
             self.proposal.cmp(&other.proposal)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InternalApproval {
+    pub proposal_id: EventId,
+    pub policy_id: EventId,
+    pub public_key: XOnlyPublicKey,
+    pub approval: ApprovedProposal,
+    pub timestamp: Timestamp,
+}
+
+impl PartialOrd for InternalApproval {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for InternalApproval {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp)
+        } else {
+            self.public_key.cmp(&other.public_key)
         }
     }
 }

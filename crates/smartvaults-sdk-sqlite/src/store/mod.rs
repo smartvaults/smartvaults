@@ -9,17 +9,14 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::Path;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use chacha20poly1305::aead::KeyInit;
 use chacha20poly1305::XChaCha20Poly1305;
 use deadpool_sqlite::{Config, Object, Pool, Runtime};
 use rusqlite::config::DbConfig;
-use rusqlite::Connection;
 use smartvaults_core::bitcoin::Txid;
 use smartvaults_core::proposal::CompletedProposal;
-use smartvaults_core::ApprovedProposal;
 use smartvaults_protocol::nostr::event::id::EventId;
 use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
 use smartvaults_protocol::nostr::{Event, JsonUtil, Keys, Timestamp};
@@ -34,12 +31,11 @@ mod utxos;
 
 use super::encryption::StoreEncryption;
 use super::migration::{self, STARTUP_SQL};
-use super::model::{GetApprovalRaw, GetCompletedProposal};
+use super::model::GetCompletedProposal;
 use super::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
-    ApprovedProposal { approval_id: EventId },
     CompletedProposal { completed_proposal_id: EventId },
     Signer { signer_id: EventId },
     MySharedSigner { my_shared_signer_id: EventId },
@@ -116,9 +112,6 @@ impl Store {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             let (sql, params) = match t {
-                Type::ApprovedProposal { approval_id } => {
-                    ("SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);", [approval_id.to_hex()])
-                },
                 Type::CompletedProposal { completed_proposal_id } => {
                     ("SELECT EXISTS(SELECT 1 FROM completed_proposals WHERE completed_proposal_id = ? LIMIT 1);", [completed_proposal_id.to_hex()])
                 },
@@ -142,83 +135,6 @@ impl Store {
                 None => 0,
             };
             Ok(exists == 1)
-        })
-        .await?
-    }
-
-    pub async fn get_approvals_by_proposal_id(
-        &self,
-        proposal_id: EventId,
-    ) -> Result<Vec<GetApprovalRaw>, Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached("SELECT approval_id, public_key, approved_proposal, timestamp FROM approved_proposals WHERE proposal_id = ?;")?;
-            let mut rows = stmt.query([proposal_id.to_hex()])?;
-            let mut approvals = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let approval_id: String = row.get(0)?;
-                let public_key: String = row.get(1)?;
-                let approved_proposal: Vec<u8> = row.get(2)?;
-                let timestamp: u64 = row.get(3)?;
-                approvals.push(GetApprovalRaw {
-                    approval_id: EventId::from_hex(approval_id)?,
-                    public_key: XOnlyPublicKey::from_str(&public_key)?,
-                    approved_proposal: ApprovedProposal::decrypt(&cipher, approved_proposal)?,
-                    timestamp: Timestamp::from(timestamp),
-                });
-            }
-            Ok(approvals)
-        }).await?
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    fn get_approved_proposals_by_proposal_id(
-        &self,
-        proposal_id: EventId,
-        conn: &Connection,
-    ) -> Result<Vec<ApprovedProposal>, Error> {
-        let mut stmt = conn.prepare_cached(
-            "SELECT approved_proposal FROM approved_proposals WHERE proposal_id = ?;",
-        )?;
-        let mut rows = stmt.query([proposal_id.to_hex()])?;
-        let mut approvals = Vec::new();
-        while let Ok(Some(row)) = rows.next() {
-            let approval: Vec<u8> = row.get(0)?;
-            approvals.push(ApprovedProposal::decrypt(&self.cipher, approval)?);
-        }
-        Ok(approvals)
-    }
-
-    pub async fn save_approved_proposal(
-        &self,
-        proposal_id: EventId,
-        author: XOnlyPublicKey,
-        approval_id: EventId,
-        approved_proposal: ApprovedProposal,
-        timestamp: Timestamp,
-    ) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            conn.execute(
-                "INSERT OR IGNORE INTO approved_proposals (approval_id, proposal_id, public_key, approved_proposal, timestamp) VALUES (?, ?, ?, ?, ?);",
-                (approval_id.to_hex(), proposal_id.to_hex(), author.to_string(), approved_proposal.encrypt(&cipher)?, timestamp.as_u64()),
-            )?;
-            Ok(())
-        }).await?
-    }
-
-    pub async fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        // Delete policy
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            conn.execute(
-                "DELETE FROM approved_proposals WHERE approval_id = ?;",
-                [approval_id.to_hex()],
-            )?;
-            tracing::info!("Deleted approval {approval_id}");
-            Ok(())
         })
         .await?
     }
@@ -374,13 +290,6 @@ impl Store {
 
     pub async fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
         if self
-            .exists(Type::ApprovedProposal {
-                approval_id: event_id,
-            })
-            .await?
-        {
-            self.delete_approval(event_id).await?;
-        } else if self
             .exists(Type::CompletedProposal {
                 completed_proposal_id: event_id,
             })

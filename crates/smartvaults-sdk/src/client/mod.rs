@@ -48,7 +48,6 @@ use smartvaults_protocol::v1::constants::{
 use smartvaults_protocol::v1::{
     Encryption, Label, LabelData, SmartVaultsEventBuilder, VerifiedKeyAgents,
 };
-use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::sync::RwLock;
@@ -63,10 +62,10 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::Manager;
-use crate::storage::{InternalPolicy, InternalProposal, SmartVaultsStorage};
+use crate::storage::{InternalApproval, InternalPolicy, InternalProposal, SmartVaultsStorage};
 use crate::types::{
-    GetAddress, GetApproval, GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, GetUtxo,
-    PolicyBackup,
+    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
+    GetTransaction, GetUtxo, PolicyBackup,
 };
 use crate::{util, Error};
 
@@ -680,11 +679,18 @@ impl SmartVaults {
             proposal,
             timestamp,
         } = self.storage.proposal(&proposal_id).await?;
+        let approvals = self
+            .storage
+            .approvals()
+            .await
+            .into_iter()
+            .filter(|(_, a)| a.proposal_id == proposal_id)
+            .map(|(_, a)| a.approval);
         Ok(GetProposal {
             proposal_id,
             policy_id,
+            signed: proposal.finalize(approvals, self.network).is_ok(),
             proposal,
-            signed: false,
             timestamp,
         })
     }
@@ -866,21 +872,26 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        let mut proposals: Vec<GetProposal> = self
-            .storage
-            .proposals()
-            .await
-            .into_iter()
-            .map(|(id, p)| GetProposal {
-                proposal_id: id,
+        let proposals = self.storage.proposals().await;
+        let mut list = Vec::with_capacity(proposals.len());
+        for (proposal_id, p) in proposals.into_iter() {
+            let approvals = self
+                .storage
+                .approvals()
+                .await
+                .into_iter()
+                .filter(|(_, a)| a.proposal_id == proposal_id)
+                .map(|(_, a)| a.approval);
+            list.push(GetProposal {
+                proposal_id,
                 policy_id: p.policy_id,
+                signed: p.proposal.finalize(approvals, self.network).is_ok(),
                 proposal: p.proposal,
-                signed: false,
                 timestamp: p.timestamp,
-            })
-            .collect();
-        proposals.sort();
-        Ok(proposals)
+            });
+        }
+        list.sort();
+        Ok(list)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -888,22 +899,29 @@ impl SmartVaults {
         &self,
         policy_id: EventId,
     ) -> Result<Vec<GetProposal>, Error> {
-        let mut proposals: Vec<GetProposal> = self
-            .storage
-            .proposals()
-            .await
+        let proposals = self.storage.proposals().await;
+        let mut list = Vec::with_capacity(proposals.len());
+        for (proposal_id, p) in proposals
             .into_iter()
             .filter(|(_, p)| p.policy_id == policy_id)
-            .map(|(id, p)| GetProposal {
-                proposal_id: id,
+        {
+            let approvals = self
+                .storage
+                .approvals()
+                .await
+                .into_iter()
+                .filter(|(_, a)| a.proposal_id == proposal_id)
+                .map(|(_, a)| a.approval);
+            list.push(GetProposal {
+                proposal_id,
                 policy_id: p.policy_id,
+                signed: p.proposal.finalize(approvals, self.network).is_ok(),
                 proposal: p.proposal,
-                signed: false,
                 timestamp: p.timestamp,
-            })
-            .collect();
-        proposals.sort();
-        Ok(proposals)
+            });
+        }
+        list.sort();
+        Ok(list)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -912,21 +930,27 @@ impl SmartVaults {
         proposal_id: EventId,
     ) -> Result<Vec<GetApproval>, Error> {
         let mut list = Vec::new();
-        let approvals = self.db.get_approvals_by_proposal_id(proposal_id).await?;
-        for GetApprovalRaw {
+        let approvals = self.storage.approvals().await;
+        for (
             approval_id,
-            public_key,
-            approved_proposal,
-            timestamp,
-        } in approvals.into_iter()
+            InternalApproval {
+                public_key,
+                approval,
+                timestamp,
+                ..
+            },
+        ) in approvals
+            .into_iter()
+            .filter(|(_, a)| a.proposal_id == proposal_id)
         {
             list.push(GetApproval {
                 approval_id,
                 user: self.client.database().profile(public_key).await?,
-                approved_proposal,
+                approved_proposal: approval,
                 timestamp,
             });
         }
+        list.sort();
         Ok(list)
     }
 
@@ -1249,16 +1273,19 @@ impl SmartVaults {
         // Publish the event
         let event_id = self.client.send_event(event).await?;
 
-        // Cache approved proposal
-        self.db
-            .save_approved_proposal(
-                proposal_id,
-                keys.public_key(),
+        // Index approved proposal
+        self.storage
+            .save_approval(
                 event_id,
-                approved_proposal.clone(),
-                timestamp,
+                InternalApproval {
+                    proposal_id,
+                    policy_id,
+                    public_key: keys.public_key(),
+                    approval: approved_proposal.clone(),
+                    timestamp,
+                },
             )
-            .await?;
+            .await;
 
         Ok((event_id, approved_proposal))
     }
@@ -1305,16 +1332,19 @@ impl SmartVaults {
         // Publish the event
         let event_id = self.client.send_event(event).await?;
 
-        // Cache approved proposal
-        self.db
-            .save_approved_proposal(
-                proposal_id,
-                keys.public_key(),
+        // Index approved proposal
+        self.storage
+            .save_approval(
                 event_id,
-                approved_proposal.clone(),
-                timestamp,
+                InternalApproval {
+                    proposal_id,
+                    policy_id,
+                    public_key: keys.public_key(),
+                    approval: approved_proposal.clone(),
+                    timestamp,
+                },
             )
-            .await?;
+            .await;
 
         Ok((event_id, approved_proposal))
     }
@@ -1373,8 +1403,7 @@ impl SmartVaults {
         let Event { pubkey, .. } = self.client.database().event_by_id(approval_id).await?;
         let keys: Keys = self.keys().await;
         if pubkey == keys.public_key() {
-            todo!();
-            /* let policy_id = self.db.get_policy_id_by_approval_id(approval_id).await?;
+            let InternalApproval { policy_id, .. } = self.storage.approval(&approval_id).await?;
 
             // Get nostr pubkeys linked to policyit?;
             let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
@@ -1392,23 +1421,22 @@ impl SmartVaults {
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
             self.client.send_event(event).await?;
 
-            self.db.delete_approval(approval_id).await?; */
+            self.storage.delete_approval(&approval_id).await;
 
-            //Ok(())
+            Ok(())
         } else {
             Err(Error::TryingToDeleteNotOwnedEvent)
         }
     }
 
     /// Finalize [`Proposal`]
-    pub async fn finalize(&self, _proposal_id: EventId) -> Result<CompletedProposal, Error> {
-        todo!();
-        /* // Get PSBTs
+    pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {
+        // Get PSBTs
         let GetApprovedProposals {
             policy_id,
             proposal,
             approved_proposals,
-        } = self.db.get_approved_proposals_by_id(proposal_id).await?;
+        } = self.storage.approvals_by_proposal_id(&proposal_id).await?;
 
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
         let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
@@ -1472,7 +1500,7 @@ impl SmartVaults {
             .save_completed_proposal(event_id, policy_id, completed_proposal.clone())
             .await?;
 
-        Ok(completed_proposal) */
+        Ok(completed_proposal)
     }
 
     pub async fn new_proof_proposal<S>(

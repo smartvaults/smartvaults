@@ -67,12 +67,30 @@ impl Ord for GetProposal {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetApproval {
     pub approval_id: EventId,
     pub user: Profile,
     pub approved_proposal: ApprovedProposal,
     pub timestamp: Timestamp,
+}
+
+impl PartialOrd for GetApproval {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetApproval {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.timestamp.cmp(&other.timestamp).reverse()
+    }
+}
+
+pub struct GetApprovedProposals {
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+    pub approved_proposals: Vec<ApprovedProposal>,
 }
 
 #[derive(Debug, Clone)]

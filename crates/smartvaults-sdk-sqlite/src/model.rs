@@ -5,23 +5,9 @@ use std::ops::Deref;
 
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Proposal};
+use smartvaults_core::CompletedProposal;
 use smartvaults_protocol::nostr::nips::nip46::Message;
 use smartvaults_protocol::nostr::{EventId, Timestamp};
-
-pub struct GetApprovedProposals {
-    pub policy_id: EventId,
-    pub proposal: Proposal,
-    pub approved_proposals: Vec<ApprovedProposal>,
-}
-
-#[derive(Debug, Clone)]
-pub struct GetApprovalRaw {
-    pub approval_id: EventId,
-    pub public_key: XOnlyPublicKey,
-    pub approved_proposal: ApprovedProposal,
-    pub timestamp: Timestamp,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSigner {

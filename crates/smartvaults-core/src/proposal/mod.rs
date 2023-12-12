@@ -280,11 +280,14 @@ impl Proposal {
         }
     } */
 
-    pub fn finalize(
+    pub fn finalize<I>(
         &self,
-        approved_proposals: Vec<ApprovedProposal>,
+        approved_proposals: I,
         network: Network,
-    ) -> Result<CompletedProposal, Error> {
+    ) -> Result<CompletedProposal, Error>
+    where
+        I: IntoIterator<Item = ApprovedProposal>,
+    {
         let mut base_psbt: PartiallySignedTransaction = self.psbt();
 
         // Combine PSBTs

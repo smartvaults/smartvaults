@@ -36,7 +36,7 @@ use super::{Error, SmartVaults};
 use crate::constants::WALLET_SYNC_INTERVAL;
 
 use crate::manager::{Error as ManagerError, WalletError};
-use crate::storage::{InternalPolicy, InternalProposal};
+use crate::storage::{InternalApproval, InternalPolicy, InternalProposal};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -397,29 +397,25 @@ impl SmartVaults {
             } else {
                 tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
-        } else if event.kind == APPROVED_PROPOSAL_KIND
-            && !self
-                .db
-                .exists(Type::ApprovedProposal {
-                    approval_id: event.id,
-                })
-                .await?
-        {
+        } else if event.kind == APPROVED_PROPOSAL_KIND {
             let mut ids = event.event_ids();
             if let Some(proposal_id) = ids.next().copied() {
                 if let Some(policy_id) = ids.next() {
                     if let Ok(shared_key) = self.storage.shared_key(policy_id).await {
                         let approved_proposal =
                             ApprovedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db
-                            .save_approved_proposal(
-                                proposal_id,
-                                event.pubkey,
+                        self.storage
+                            .save_approval(
                                 event.id,
-                                approved_proposal,
-                                event.created_at,
+                                InternalApproval {
+                                    proposal_id,
+                                    policy_id: *policy_id,
+                                    public_key: event.pubkey,
+                                    approval: approved_proposal,
+                                    timestamp: event.created_at,
+                                },
                             )
-                            .await?;
+                            .await;
                         self.sync_channel
                             .send(Message::EventHandled(EventHandled::Approval {
                                 proposal_id,
