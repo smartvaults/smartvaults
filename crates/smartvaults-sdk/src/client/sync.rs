@@ -36,7 +36,7 @@ use super::{Error, SmartVaults};
 use crate::constants::WALLET_SYNC_INTERVAL;
 
 use crate::manager::{Error as ManagerError, WalletError};
-use crate::storage::InternalPolicy;
+use crate::storage::{InternalPolicy, InternalProposal};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -339,23 +339,14 @@ impl SmartVaults {
                 .next()
                 .copied()
                 .ok_or(Error::PolicyNotFound)?;
-            if !self.db.exists(Type::SharedKey { policy_id }).await? {
-                let keys: Keys = self.keys().await;
-                let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
-                let sk = SecretKey::from_str(&content)?;
-                let shared_key = Keys::new(sk);
-                self.storage.save_shared_key(policy_id, shared_key).await;
-                self.sync_channel
-                    .send(Message::EventHandled(EventHandled::SharedKey(event.id)))?;
-            }
-        } else if event.kind == POLICY_KIND
-            && !self
-                .db
-                .exists(Type::Policy {
-                    policy_id: event.id,
-                })
-                .await?
-        {
+            let keys: Keys = self.keys().await;
+            let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
+            let sk = SecretKey::from_str(&content)?;
+            let shared_key = Keys::new(sk);
+            self.storage.save_shared_key(policy_id, shared_key).await;
+            self.sync_channel
+                .send(Message::EventHandled(EventHandled::SharedKey(event.id)))?;
+        } else if event.kind == POLICY_KIND {
             if let Ok(shared_key) = self.storage.shared_key(&event.id).await {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
@@ -384,18 +375,20 @@ impl SmartVaults {
             } else {
                 self.db.save_pending_event(event.clone()).await?;
             }
-        } else if event.kind == PROPOSAL_KIND
-            && !self
-                .db
-                .exists(Type::Proposal {
-                    proposal_id: event.id,
-                })
-                .await?
-        {
+        } else if event.kind == PROPOSAL_KIND {
             if let Some(policy_id) = event.event_ids().next().copied() {
                 if let Ok(shared_key) = self.storage.shared_key(&policy_id).await {
                     let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
-                    self.db.save_proposal(event.id, policy_id, proposal).await?;
+                    self.storage
+                        .save_proposal(
+                            event.id,
+                            InternalProposal {
+                                policy_id,
+                                proposal,
+                                timestamp: event.created_at,
+                            },
+                        )
+                        .await;
                     self.sync_channel
                         .send(Message::EventHandled(EventHandled::Proposal(event.id)))?;
                 } else {
@@ -452,8 +445,8 @@ impl SmartVaults {
                 .await?
         {
             let mut ids = event.event_ids();
-            if let Some(proposal_id) = ids.next().copied() {
-                self.db.delete_proposal(proposal_id).await?;
+            if let Some(proposal_id) = ids.next() {
+                self.storage.delete_proposal(proposal_id).await;
                 if let Some(policy_id) = ids.next() {
                     if let Ok(shared_key) = self.storage.shared_key(policy_id).await {
                         let completed_proposal =

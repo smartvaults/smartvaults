@@ -14,10 +14,10 @@ use smartvaults_core::proposal::Period;
 use smartvaults_core::{Amount, FeeRate, Proposal, Signer};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
 use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder};
-use smartvaults_sdk_sqlite::model::{GetProposal, GetSigner};
+use smartvaults_sdk_sqlite::model::GetSigner;
 
 use super::{Error, SmartVaults};
-use crate::types::{GetSignerOffering, KeyAgent};
+use crate::types::{GetProposal, GetSignerOffering, KeyAgent};
 
 impl SmartVaults {
     /// Announce as Key Agent

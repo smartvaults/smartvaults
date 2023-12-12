@@ -337,6 +337,7 @@ pub fn print_proposal(proposal: GetProposal) {
         policy_id,
         proposal,
         signed,
+        ..
     } = proposal;
     println!();
     println!("- Proposal id: {proposal_id}");
@@ -395,6 +396,7 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
             policy_id,
             proposal,
             signed,
+            ..
         },
     ) in proposals.into_iter().enumerate()
     {

@@ -88,6 +88,7 @@ impl Activity {
                 policy_id,
                 proposal,
                 signed,
+                timestamp,
             } in self.proposals.into_iter()
             {
                 let row = match proposal {
@@ -110,7 +111,15 @@ impl Activity {
                                 .on_press(Message::View(Stage::Vault(policy_id)))
                                 .view()
                         })
-                        .push(Text::new("-").width(Length::Fixed(225.0)).view())
+                        .push(
+                            Text::new(if ctx.hide_balances {
+                                String::from("*****")
+                            } else {
+                                timestamp.to_human_datetime()
+                            })
+                            .width(Length::Fixed(225.0))
+                            .view(),
+                        )
                         .push(
                             Row::new()
                                 .push(

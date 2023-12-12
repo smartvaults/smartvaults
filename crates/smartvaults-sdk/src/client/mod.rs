@@ -63,10 +63,10 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::Manager;
-use crate::storage::{InternalPolicy, SmartVaultsStorage};
+use crate::storage::{InternalPolicy, InternalProposal, SmartVaultsStorage};
 use crate::types::{
-    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
-    GetTransaction, GetUtxo, PolicyBackup,
+    GetAddress, GetApproval, GetCompletedProposal, GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    PolicyBackup,
 };
 use crate::{util, Error};
 
@@ -106,7 +106,6 @@ impl SmartVaults {
         let db = Store::open(
             util::dir::user_db(base_path, network, keys.public_key())?,
             &keys,
-            network,
         )
         .await?;
 
@@ -666,11 +665,6 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all)]
     pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
-        /* let InternalGetPolicy {
-            policy_id,
-            policy,
-            last_sync,
-        } = self.db.get_policy(policy_id).await?; */
         Ok(GetPolicy {
             policy_id,
             policy: self.storage.vault(&policy_id).await?.policy,
@@ -681,7 +675,18 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
-        Ok(self.db.get_proposal(proposal_id).await?)
+        let InternalProposal {
+            policy_id,
+            proposal,
+            timestamp,
+        } = self.storage.proposal(&proposal_id).await?;
+        Ok(GetProposal {
+            proposal_id,
+            policy_id,
+            proposal,
+            signed: false,
+            timestamp,
+        })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -781,7 +786,7 @@ impl SmartVaults {
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
             self.client.send_event(event).await?;
 
-            self.db.delete_proposal(proposal_id).await?;
+            self.storage.delete_proposal(&proposal_id).await;
 
             Ok(())
         } else {
@@ -840,9 +845,10 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
-        let mut policies = Vec::new();
+        let items = self.storage.vaults().await;
+        let mut policies: Vec<GetPolicy> = Vec::with_capacity(items.len());
 
-        for (id, internal) in self.storage.vaults().await.into_iter() {
+        for (id, internal) in items.into_iter() {
             policies.push(GetPolicy {
                 policy_id: id,
                 policy: internal.policy,
@@ -851,12 +857,28 @@ impl SmartVaults {
             });
         }
 
+        policies.sort();
+
         Ok(policies)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        Ok(self.db.get_proposals().await?)
+        let mut proposals: Vec<GetProposal> = self
+            .storage
+            .proposals()
+            .await
+            .into_iter()
+            .map(|(id, p)| GetProposal {
+                proposal_id: id,
+                policy_id: p.policy_id,
+                proposal: p.proposal,
+                signed: false,
+                timestamp: p.timestamp,
+            })
+            .collect();
+        proposals.sort();
+        Ok(proposals)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -864,7 +886,22 @@ impl SmartVaults {
         &self,
         policy_id: EventId,
     ) -> Result<Vec<GetProposal>, Error> {
-        Ok(self.db.get_proposals_by_policy_id(policy_id).await?)
+        let mut proposals: Vec<GetProposal> = self
+            .storage
+            .proposals()
+            .await
+            .into_iter()
+            .filter(|(_, p)| p.policy_id == policy_id)
+            .map(|(id, p)| GetProposal {
+                proposal_id: id,
+                policy_id: p.policy_id,
+                proposal: p.proposal,
+                signed: false,
+                timestamp: p.timestamp,
+            })
+            .collect();
+        proposals.sort();
+        Ok(proposals)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -988,6 +1025,14 @@ impl SmartVaults {
         .await
     }
 
+    /* async fn save_proposal(&self) {
+        /* // Freeze UTXOs
+        for txin in psbt.unsigned_tx.input.into_iter() {
+            self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))
+                .await?;
+        } */
+    } */
+
     /// Make a spending proposal
     pub async fn spend<S>(
         &self,
@@ -1061,6 +1106,7 @@ impl SmartVaults {
             let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
             let event: Event =
                 EventBuilder::proposal(&shared_key, policy_id, &proposal, &public_keys)?;
+            let timestamp = event.created_at;
             let proposal_id = self.client.send_event(event).await?;
 
             // Send DM msg
@@ -1078,16 +1124,24 @@ impl SmartVaults {
                 }
             } */
 
-            // Cache proposal
-            self.db
-                .save_proposal(proposal_id, policy_id, proposal.clone())
-                .await?;
+            // Index proposal
+            self.storage
+                .save_proposal(
+                    proposal_id,
+                    InternalProposal {
+                        policy_id,
+                        proposal: proposal.clone(),
+                        timestamp,
+                    },
+                )
+                .await;
 
             Ok(GetProposal {
                 proposal_id,
                 policy_id,
                 proposal,
                 signed: false,
+                timestamp,
             })
         } else {
             Err(Error::UnexpectedProposal)
@@ -1317,7 +1371,8 @@ impl SmartVaults {
         let Event { pubkey, .. } = self.client.database().event_by_id(approval_id).await?;
         let keys: Keys = self.keys().await;
         if pubkey == keys.public_key() {
-            let policy_id = self.db.get_policy_id_by_approval_id(approval_id).await?;
+            todo!();
+            /* let policy_id = self.db.get_policy_id_by_approval_id(approval_id).await?;
 
             // Get nostr pubkeys linked to policyit?;
             let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
@@ -1335,17 +1390,18 @@ impl SmartVaults {
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
             self.client.send_event(event).await?;
 
-            self.db.delete_approval(approval_id).await?;
+            self.db.delete_approval(approval_id).await?; */
 
-            Ok(())
+            //Ok(())
         } else {
             Err(Error::TryingToDeleteNotOwnedEvent)
         }
     }
 
     /// Finalize [`Proposal`]
-    pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {
-        // Get PSBTs
+    pub async fn finalize(&self, _proposal_id: EventId) -> Result<CompletedProposal, Error> {
+        todo!();
+        /* // Get PSBTs
         let GetApprovedProposals {
             policy_id,
             proposal,
@@ -1410,12 +1466,11 @@ impl SmartVaults {
         }
 
         // Cache
-        self.db.delete_proposal(proposal_id).await?;
         self.db
             .save_completed_proposal(event_id, policy_id, completed_proposal.clone())
             .await?;
 
-        Ok(completed_proposal)
+        Ok(completed_proposal) */
     }
 
     pub async fn new_proof_proposal<S>(
@@ -1441,6 +1496,7 @@ impl SmartVaults {
         let content = proposal.encrypt_with_keys(&shared_key)?;
         // Publish proposal with `shared_key` so every owner can delete it
         let event = EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
+        let timestamp = event.created_at;
         let proposal_id = self.client.send_event(event).await?;
 
         // Send DM msg
@@ -1454,10 +1510,17 @@ impl SmartVaults {
             }
         } */
 
-        // Cache proposal
-        self.db
-            .save_proposal(proposal_id, policy_id, proposal.clone())
-            .await?;
+        // Index proposal
+        self.storage
+            .save_proposal(
+                proposal_id,
+                InternalProposal {
+                    policy_id,
+                    proposal: proposal.clone(),
+                    timestamp,
+                },
+            )
+            .await;
 
         Ok((proposal_id, proposal, policy_id))
     }

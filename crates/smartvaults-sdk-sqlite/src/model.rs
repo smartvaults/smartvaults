@@ -1,7 +1,6 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::cmp::Ordering;
 use std::ops::Deref;
 
 use smartvaults_core::secp256k1::XOnlyPublicKey;
@@ -51,26 +50,6 @@ pub struct NostrConnectRequest {
     pub message: Message,
     pub timestamp: Timestamp,
     pub approved: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetProposal {
-    pub proposal_id: EventId,
-    pub policy_id: EventId,
-    pub proposal: Proposal,
-    pub signed: bool,
-}
-
-impl PartialOrd for GetProposal {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for GetProposal {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.proposal.cmp(&other.proposal)
-    }
 }
 
 #[derive(Debug, Clone)]

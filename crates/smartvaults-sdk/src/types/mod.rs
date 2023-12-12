@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::Deref;
 
@@ -9,7 +10,7 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalUtxo;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::{ApprovedProposal, Policy, SharedSigner};
+use smartvaults_core::{ApprovedProposal, Policy, Proposal, SharedSigner};
 use smartvaults_protocol::v1::SignerOffering;
 pub use smartvaults_sdk_sqlite::model::*;
 
@@ -26,10 +27,43 @@ pub struct GetPolicy {
     pub last_sync: Option<Timestamp>,
 }
 
+impl PartialOrd for GetPolicy {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetPolicy {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.policy.cmp(&other.policy)
+    }
+}
+
 impl Deref for GetPolicy {
     type Target = Policy;
     fn deref(&self) -> &Self::Target {
         &self.policy
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetProposal {
+    pub proposal_id: EventId,
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+    pub signed: bool,
+    pub timestamp: Timestamp,
+}
+
+impl PartialOrd for GetProposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetProposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.timestamp.cmp(&other.timestamp).reverse()
     }
 }
 

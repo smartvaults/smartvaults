@@ -17,8 +17,8 @@ use chacha20poly1305::XChaCha20Poly1305;
 use deadpool_sqlite::{Config, Object, Pool, Runtime};
 use rusqlite::config::DbConfig;
 use rusqlite::Connection;
-use smartvaults_core::bitcoin::{Network, Txid};
-use smartvaults_core::proposal::{CompletedProposal, Proposal};
+use smartvaults_core::bitcoin::Txid;
+use smartvaults_core::proposal::CompletedProposal;
 use smartvaults_core::ApprovedProposal;
 use smartvaults_protocol::nostr::event::id::EventId;
 use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
@@ -34,14 +34,11 @@ mod utxos;
 
 use super::encryption::StoreEncryption;
 use super::migration::{self, STARTUP_SQL};
-use super::model::{GetApprovalRaw, GetApprovedProposals, GetCompletedProposal, GetProposal};
+use super::model::{GetApprovalRaw, GetCompletedProposal};
 use super::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
-    SharedKey { policy_id: EventId },
-    Policy { policy_id: EventId },
-    Proposal { proposal_id: EventId },
     ApprovedProposal { approval_id: EventId },
     CompletedProposal { completed_proposal_id: EventId },
     Signer { signer_id: EventId },
@@ -54,7 +51,6 @@ pub enum Type {
 pub struct Store {
     pool: Pool,
     cipher: XChaCha20Poly1305,
-    network: Network,
     nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
 }
 
@@ -70,7 +66,7 @@ impl Drop for Store {
 
 impl Store {
     /// Open new database
-    pub async fn open<P>(user_db_path: P, keys: &Keys, network: Network) -> Result<Self, Error>
+    pub async fn open<P>(user_db_path: P, keys: &Keys) -> Result<Self, Error>
     where
         P: AsRef<Path>,
     {
@@ -82,7 +78,6 @@ impl Store {
         Ok(Self {
             pool,
             cipher: XChaCha20Poly1305::new(&key.into()),
-            network,
             nostr_connect_auto_approve: Arc::new(RwLock::new(HashMap::new())),
         })
     }
@@ -121,15 +116,6 @@ impl Store {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             let (sql, params) = match t {
-                Type::SharedKey { policy_id } => {
-                    ("SELECT EXISTS(SELECT 1 FROM shared_keys WHERE policy_id = ? LIMIT 1);", [policy_id.to_hex()])
-                }
-                Type::Policy { policy_id } => {
-                    ("SELECT EXISTS(SELECT 1 FROM policies WHERE policy_id = ? LIMIT 1);", [policy_id.to_hex()])
-                }
-                Type::Proposal { proposal_id } => {
-                    ("SELECT EXISTS(SELECT 1 FROM proposals WHERE proposal_id = ? LIMIT 1);", [proposal_id.to_hex()])
-                }
                 Type::ApprovedProposal { approval_id } => {
                     ("SELECT EXISTS(SELECT 1 FROM approved_proposals WHERE approval_id = ? LIMIT 1);", [approval_id.to_hex()])
                 },
@@ -156,163 +142,6 @@ impl Store {
                 None => 0,
             };
             Ok(exists == 1)
-        })
-        .await?
-    }
-
-    pub async fn save_proposal(
-        &self,
-        proposal_id: EventId,
-        policy_id: EventId,
-        proposal: Proposal,
-    ) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        let psbt = proposal.psbt();
-        conn.interact(move |conn| {
-            conn.execute(
-            "INSERT OR IGNORE INTO proposals (proposal_id, policy_id, proposal) VALUES (?, ?, ?);",
-            (
-                proposal_id.to_hex(),
-                policy_id.to_hex(),
-                proposal.encrypt(&cipher)?,
-            ),
-        )?;
-            Ok::<(), Error>(())
-        })
-        .await??;
-
-        // Freeze UTXOs
-        for txin in psbt.unsigned_tx.input.into_iter() {
-            self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))
-                .await?;
-        }
-
-        tracing::info!("Spending proposal {proposal_id} saved");
-        Ok(())
-    }
-
-    pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        let conn = self.acquire().await?;
-        let this = self.clone();
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT proposal_id, policy_id, proposal FROM proposals;")?;
-            let mut rows = stmt.query([])?;
-            let mut proposals = Vec::new();
-
-            while let Ok(Some(row)) = rows.next() {
-                let proposal_id: String = row.get(0)?;
-                let policy_id: String = row.get(1)?;
-                let proposal: Vec<u8> = row.get(2)?;
-
-                let proposal_id = EventId::from_hex(proposal_id)?;
-                let policy_id = EventId::from_hex(policy_id)?;
-                let proposal = Proposal::decrypt(&this.cipher, proposal)?;
-                let approved_proposals =
-                    this.get_approved_proposals_by_proposal_id(proposal_id, conn)?;
-
-                proposals.push(GetProposal {
-                    proposal_id,
-                    policy_id,
-                    signed: proposal.finalize(approved_proposals, this.network).is_ok(),
-                    proposal,
-                });
-            }
-
-            proposals.sort();
-
-            Ok(proposals)
-        })
-        .await?
-    }
-
-    pub async fn get_proposals_by_policy_id(
-        &self,
-        policy_id: EventId,
-    ) -> Result<Vec<GetProposal>, Error> {
-        let conn = self.acquire().await?;
-        let this = self.clone();
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT proposal_id, proposal FROM proposals WHERE policy_id = ?;",
-            )?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
-            let mut proposals = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let proposal_id: String = row.get(0)?;
-                let proposal: Vec<u8> = row.get(1)?;
-
-                let proposal_id = EventId::from_hex(proposal_id)?;
-                let proposal = Proposal::decrypt(&this.cipher, proposal)?;
-                let approved_proposals =
-                    this.get_approved_proposals_by_proposal_id(proposal_id, conn)?;
-
-                proposals.push(GetProposal {
-                    proposal_id,
-                    policy_id,
-                    signed: proposal.finalize(approved_proposals, this.network).is_ok(),
-                    proposal,
-                });
-            }
-
-            proposals.sort();
-
-            Ok(proposals)
-        })
-        .await?
-    }
-
-    pub async fn get_proposal(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
-        let conn = self.acquire().await?;
-        let this = self.clone();
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT policy_id, proposal FROM proposals WHERE proposal_id = ? LIMIT 1;",
-            )?;
-            let mut rows = stmt.query([proposal_id.to_hex()])?;
-            let row = rows.next()?.ok_or(Error::NotFound("proposal".into()))?;
-            let policy_id: String = row.get(0)?;
-            let proposal: Vec<u8> = row.get(1)?;
-
-            let policy_id = EventId::from_hex(policy_id)?;
-            let proposal = Proposal::decrypt(&this.cipher, proposal)?;
-            let approved_proposals =
-                this.get_approved_proposals_by_proposal_id(proposal_id, conn)?;
-
-            Ok(GetProposal {
-                proposal_id,
-                policy_id,
-                signed: proposal.finalize(approved_proposals, this.network).is_ok(),
-                proposal,
-            })
-        })
-        .await?
-    }
-
-    pub async fn delete_proposal(&self, proposal_id: EventId) -> Result<(), Error> {
-        // Delete proposal
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            conn.execute(
-                "DELETE FROM proposals WHERE proposal_id = ?;",
-                [proposal_id.to_hex()],
-            )?;
-
-            // Delete approvals
-            conn.execute(
-                "DELETE FROM approved_proposals WHERE proposal_id = ?;",
-                [proposal_id.to_hex()],
-            )?;
-
-            // Delete frozen UTXOs
-            conn.execute(
-                "DELETE FROM frozen_utxos WHERE proposal_id = ?;",
-                [proposal_id.to_hex()],
-            )?;
-
-            tracing::info!("Deleted proposal {proposal_id}");
-            Ok(())
         })
         .await?
     }
@@ -361,30 +190,6 @@ impl Store {
         Ok(approvals)
     }
 
-    pub async fn get_approved_proposals_by_id(
-        &self,
-        proposal_id: EventId,
-    ) -> Result<GetApprovedProposals, Error> {
-        let GetProposal {
-            policy_id,
-            proposal,
-            ..
-        } = self.get_proposal(proposal_id).await?;
-        let approved_proposals = self.get_approvals_by_proposal_id(proposal_id).await?;
-        Ok(GetApprovedProposals {
-            policy_id,
-            proposal,
-            approved_proposals: approved_proposals
-                .iter()
-                .map(
-                    |GetApprovalRaw {
-                         approved_proposal, ..
-                     }| approved_proposal.clone(),
-                )
-                .collect(),
-        })
-    }
-
     pub async fn save_approved_proposal(
         &self,
         proposal_id: EventId,
@@ -402,27 +207,6 @@ impl Store {
             )?;
             Ok(())
         }).await?
-    }
-
-    pub async fn get_policy_id_by_approval_id(
-        &self,
-        approval_id: EventId,
-    ) -> Result<EventId, Error> {
-        let conn = self.acquire().await?;
-        let proposal_id = conn
-            .interact(move |conn| {
-                let mut stmt = conn.prepare_cached(
-                    "SELECT proposal_id FROM approved_proposals WHERE approval_id = ? LIMIT 1;",
-                )?;
-                let mut rows = stmt.query([approval_id.to_hex()])?;
-                let row = rows.next()?.ok_or(Error::NotFound("approval".into()))?;
-                let proposal_id: String = row.get(0)?;
-                let proposal_id = EventId::from_hex(proposal_id)?;
-                Ok::<EventId, Error>(proposal_id)
-            })
-            .await??;
-        let GetProposal { policy_id, .. } = self.get_proposal(proposal_id).await?;
-        Ok(policy_id)
     }
 
     pub async fn delete_approval(&self, approval_id: EventId) -> Result<(), Error> {
@@ -590,13 +374,6 @@ impl Store {
 
     pub async fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
         if self
-            .exists(Type::Proposal {
-                proposal_id: event_id,
-            })
-            .await?
-        {
-            self.delete_proposal(event_id).await?;
-        } else if self
             .exists(Type::ApprovedProposal {
                 approval_id: event_id,
             })
