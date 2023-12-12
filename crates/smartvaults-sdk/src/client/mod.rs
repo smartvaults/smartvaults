@@ -13,14 +13,14 @@ use async_utility::thread;
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
-use nostr_sdk::database::{DatabaseError, NostrDatabaseExt};
+use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::relay::pool;
 use nostr_sdk::util::TryIntoUrl;
 use nostr_sdk::{
     nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
     JsonUtil, Keys, Kind, Metadata, Options, Profile, Relay, RelayOptions, RelayPoolNotification,
-    Result, SQLiteDatabase, SQLiteError, Tag, Timestamp, UncheckedUrl, Url,
+    Result, SQLiteDatabase, Tag, Timestamp, UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -45,9 +45,8 @@ use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
-use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
 use smartvaults_protocol::v1::{
-    Label, LabelData, SmartVaultsEventBuilder, SmartVaultsEventBuilderError, VerifiedKeyAgents,
+    Encryption, Label, LabelData, SmartVaultsEventBuilder, VerifiedKeyAgents,
 };
 use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
@@ -63,112 +62,12 @@ mod sync;
 pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
-use crate::manager::{Error as ManagerError, Manager, WalletError};
+use crate::manager::Manager;
 use crate::types::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
     GetTransaction, GetUtxo, InternalGetPolicy, PolicyBackup,
 };
-use crate::util;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    IO(#[from] std::io::Error),
-    #[error(transparent)]
-    Keechain(#[from] smartvaults_core::types::keechain::Error),
-    #[error(transparent)]
-    Keychain(#[from] smartvaults_core::types::keychain::Error),
-    #[error(transparent)]
-    Dir(#[from] util::dir::Error),
-    #[error(transparent)]
-    Electrum(#[from] bdk_electrum::electrum_client::Error),
-    #[error(transparent)]
-    Url(#[from] nostr_sdk::url::ParseError),
-    #[error(transparent)]
-    Client(#[from] nostr_sdk::client::Error),
-    #[error(transparent)]
-    RelayPool(#[from] nostr_sdk::relay::pool::Error),
-    #[error(transparent)]
-    NostrDatabase(#[from] DatabaseError),
-    #[error(transparent)]
-    NostrDatabaseSQLite(#[from] SQLiteError),
-    #[error(transparent)]
-    Keys(#[from] nostr_sdk::key::Error),
-    #[error(transparent)]
-    EventId(#[from] nostr_sdk::event::id::Error),
-    #[error(transparent)]
-    EventBuilder(#[from] nostr_sdk::event::builder::Error),
-    #[error(transparent)]
-    SmartVaultsEventBuilder(#[from] SmartVaultsEventBuilderError),
-    #[error(transparent)]
-    Relay(#[from] nostr_sdk::relay::Error),
-    #[error(transparent)]
-    Policy(#[from] smartvaults_core::policy::Error),
-    #[error(transparent)]
-    Proposal(#[from] smartvaults_core::proposal::Error),
-    #[error(transparent)]
-    Secp256k1(#[from] smartvaults_core::bitcoin::secp256k1::Error),
-    #[error(transparent)]
-    Address(#[from] smartvaults_core::bitcoin::address::Error),
-    #[error(transparent)]
-    Encryption(#[from] EncryptionError),
-    #[error(transparent)]
-    NIP04(#[from] nostr_sdk::nips::nip04::Error),
-    #[error(transparent)]
-    NIP06(#[from] nostr_sdk::nips::nip06::Error),
-    #[error(transparent)]
-    NIP46(#[from] nostr_sdk::nips::nip46::Error),
-    #[error(transparent)]
-    BIP32(#[from] smartvaults_core::bitcoin::bip32::Error),
-    #[error(transparent)]
-    Signer(#[from] smartvaults_core::signer::Error),
-    #[error(transparent)]
-    Manager(#[from] ManagerError),
-    #[error(transparent)]
-    Wallet(#[from] WalletError),
-    #[error(transparent)]
-    Config(#[from] crate::config::Error),
-    #[error(transparent)]
-    Store(#[from] smartvaults_sdk_sqlite::Error),
-    #[error(transparent)]
-    Label(#[from] smartvaults_protocol::v1::label::Error),
-    #[error("password not match")]
-    PasswordNotMatch,
-    #[error("not enough public keys")]
-    NotEnoughPublicKeys,
-    #[error("shared keys not found")]
-    SharedKeysNotFound,
-    #[error("policy not found")]
-    PolicyNotFound,
-    #[error("proposal not found")]
-    ProposalNotFound,
-    #[error("unexpected proposal")]
-    UnexpectedProposal,
-    #[error("approved proposal/s not found")]
-    ApprovedProposalNotFound,
-    #[error("signer not found")]
-    SignerNotFound,
-    #[error("signer ID not found")]
-    SignerIdNotFound,
-    #[error("public key not found")]
-    PublicKeyNotFound,
-    #[error("signer already shared")]
-    SignerAlreadyShared,
-    #[error("signer descriptor already exists")]
-    SignerDescriptorAlreadyExists,
-    #[error("nostr connect request already approved")]
-    NostrConnectRequestAlreadyApproved,
-    #[error("impossible to generate nostr connect response")]
-    CantGenerateNostrConnectResponse,
-    #[error("invalid fee rate")]
-    InvalidFeeRate,
-    #[error("impossible to delete a not owned event")]
-    TryingToDeleteNotOwnedEvent,
-    #[error("not found")]
-    NotFound,
-    #[error("{0}")]
-    Generic(String),
-}
+use crate::{util, Error};
 
 /// Smart Vaults Client
 #[derive(Debug, Clone)]
