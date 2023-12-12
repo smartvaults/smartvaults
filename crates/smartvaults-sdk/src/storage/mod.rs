@@ -467,6 +467,11 @@ impl SmartVaultsStorage {
         vaults.insert(policy_id, internal);
     }
 
+    pub async fn delete_vault(&self, vault_id: &EventId) {
+        let mut vaults = self.vaults.write().await;
+        vaults.remove(vault_id);
+    }
+
     /// Get vaults
     pub async fn vaults(&self) -> HashMap<EventId, InternalPolicy> {
         self.vaults

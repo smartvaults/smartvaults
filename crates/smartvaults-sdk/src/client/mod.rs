@@ -734,6 +734,8 @@ impl SmartVaults {
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
             self.client.send_event(event).await?;
 
+            self.storage.delete_vault(&policy_id).await;
+
             // Unload policy
             self.manager.unload_policy(policy_id).await?;
 
