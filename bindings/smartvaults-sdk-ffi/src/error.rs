@@ -35,8 +35,8 @@ impl From<std::io::Error> for SmartVaultsError {
     }
 }
 
-impl From<smartvaults_sdk::client::Error> for SmartVaultsError {
-    fn from(e: smartvaults_sdk::client::Error) -> Self {
+impl From<smartvaults_sdk::Error> for SmartVaultsError {
+    fn from(e: smartvaults_sdk::Error) -> Self {
         Self::Generic { err: e.to_string() }
     }
 }

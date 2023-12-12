@@ -6,28 +6,9 @@ use std::ops::Deref;
 
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
+use smartvaults_core::{ApprovedProposal, CompletedProposal, Proposal};
 use smartvaults_protocol::nostr::nips::nip46::Message;
 use smartvaults_protocol::nostr::{EventId, Timestamp};
-
-#[derive(PartialEq, Eq)]
-pub struct InternalGetPolicy {
-    pub policy_id: EventId,
-    pub policy: Policy,
-    pub last_sync: Option<Timestamp>,
-}
-
-impl Ord for InternalGetPolicy {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.policy.cmp(&other.policy)
-    }
-}
-
-impl PartialOrd for InternalGetPolicy {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
 
 pub struct GetApprovedProposals {
     pub policy_id: EventId,

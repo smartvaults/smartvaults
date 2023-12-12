@@ -14,8 +14,9 @@ pub mod config;
 pub mod constants;
 mod error;
 pub mod logger;
-mod manager;
+pub mod manager;
 pub mod prelude;
+mod storage;
 pub mod types;
 pub mod util;
 

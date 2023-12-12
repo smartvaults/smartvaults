@@ -21,13 +21,12 @@ use smartvaults_core::bitcoin::{Network, Txid};
 use smartvaults_core::proposal::{CompletedProposal, Proposal};
 use smartvaults_core::ApprovedProposal;
 use smartvaults_protocol::nostr::event::id::EventId;
-use smartvaults_protocol::nostr::secp256k1::{SecretKey, XOnlyPublicKey};
+use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
 use smartvaults_protocol::nostr::{Event, JsonUtil, Keys, Timestamp};
 use tokio::sync::RwLock;
 
 mod connect;
 mod label;
-mod policy;
 mod relays;
 mod signers;
 mod timechain;
@@ -161,56 +160,6 @@ impl Store {
         .await?
     }
 
-    pub async fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            conn.execute(
-                "INSERT OR IGNORE INTO shared_keys (policy_id, shared_key) VALUES (?, ?);",
-                (
-                    policy_id.to_hex(),
-                    shared_key.secret_key()?.encrypt(&cipher)?,
-                ),
-            )?;
-            Ok(())
-        })
-        .await?
-    }
-
-    pub async fn get_shared_key(&self, policy_id: EventId) -> Result<Keys, Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT shared_key FROM shared_keys WHERE policy_id = ?;")?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
-            let row = rows.next()?.ok_or(Error::NotFound("shared_key".into()))?;
-            let sk: Vec<u8> = row.get(0)?;
-            let sk = SecretKey::decrypt(&cipher, sk)?;
-            Ok(Keys::new(sk))
-        })
-        .await?
-    }
-
-    pub async fn get_nostr_pubkeys(
-        &self,
-        policy_id: EventId,
-    ) -> Result<Vec<XOnlyPublicKey>, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn
-                .prepare_cached("SELECT public_key FROM nostr_public_keys WHERE policy_id = ?;")?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
-            let mut pubkeys = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let public_key: String = row.get(0)?;
-                pubkeys.push(XOnlyPublicKey::from_str(&public_key)?);
-            }
-            Ok(pubkeys)
-        })
-        .await?
-    }
-
     pub async fn save_proposal(
         &self,
         proposal_id: EventId,
@@ -274,25 +223,6 @@ impl Store {
             proposals.sort();
 
             Ok(proposals)
-        })
-        .await?
-    }
-
-    async fn get_proposal_ids_by_policy_id(
-        &self,
-        policy_id: EventId,
-    ) -> Result<Vec<EventId>, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT proposal_id FROM proposals WHERE policy_id = ?;")?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
-            let mut ids = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let proposal_id: String = row.get(0)?;
-                ids.push(EventId::from_hex(proposal_id)?);
-            }
-            Ok(ids)
         })
         .await?
     }
@@ -598,26 +528,6 @@ impl Store {
         }).await?
     }
 
-    async fn get_completed_proposal_ids_by_policy_id(
-        &self,
-        policy_id: EventId,
-    ) -> Result<Vec<EventId>, Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT completed_proposal_id FROM completed_proposals WHERE policy_id = ?;",
-            )?;
-            let mut rows = stmt.query([policy_id.to_hex()])?;
-            let mut ids = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let completed_proposal_id: String = row.get(0)?;
-                ids.push(EventId::from_hex(completed_proposal_id)?);
-            }
-            Ok(ids)
-        })
-        .await?
-    }
-
     pub async fn delete_completed_proposal(
         &self,
         completed_proposal_id: EventId,
@@ -680,13 +590,6 @@ impl Store {
 
     pub async fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
         if self
-            .exists(Type::Policy {
-                policy_id: event_id,
-            })
-            .await?
-        {
-            self.delete_policy(event_id).await?;
-        } else if self
             .exists(Type::Proposal {
                 proposal_id: event_id,
             })
