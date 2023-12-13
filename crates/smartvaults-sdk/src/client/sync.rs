@@ -29,14 +29,15 @@ use smartvaults_protocol::v1::constants::{
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Encryption, Label, Serde, VerifiedKeyAgents};
-use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
 use crate::constants::WALLET_SYNC_INTERVAL;
 
 use crate::manager::{Error as ManagerError, WalletError};
-use crate::storage::{InternalApproval, InternalPolicy, InternalProposal};
+use crate::storage::{
+    InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -432,14 +433,7 @@ impl SmartVaults {
                     event.id
                 );
             }
-        } else if event.kind == COMPLETED_PROPOSAL_KIND
-            && !self
-                .db
-                .exists(Type::CompletedProposal {
-                    completed_proposal_id: event.id,
-                })
-                .await?
-        {
+        } else if event.kind == COMPLETED_PROPOSAL_KIND {
             let mut ids = event.event_ids();
             if let Some(proposal_id) = ids.next() {
                 self.storage.delete_proposal(proposal_id).await;
@@ -483,9 +477,16 @@ impl SmartVaults {
                             }
                         }
 
-                        self.db
-                            .save_completed_proposal(event.id, *policy_id, completed_proposal)
-                            .await?;
+                        self.storage
+                            .save_completed_proposal(
+                                event.id,
+                                InternalCompletedProposal {
+                                    policy_id: *policy_id,
+                                    proposal: completed_proposal,
+                                    timestamp: event.created_at,
+                                },
+                            )
+                            .await;
                         self.sync_channel.send(Message::EventHandled(
                             EventHandled::CompletedProposal(event.id),
                         ))?;

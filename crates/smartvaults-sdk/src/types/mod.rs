@@ -10,7 +10,7 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalUtxo;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::{ApprovedProposal, Policy, Proposal, SharedSigner};
+use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner};
 use smartvaults_protocol::v1::SignerOffering;
 pub use smartvaults_sdk_sqlite::model::*;
 
@@ -63,7 +63,11 @@ impl PartialOrd for GetProposal {
 
 impl Ord for GetProposal {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.timestamp.cmp(&other.timestamp).reverse()
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp).reverse()
+        } else {
+            self.policy_id.cmp(&other.policy_id)
+        }
     }
 }
 
@@ -83,7 +87,11 @@ impl PartialOrd for GetApproval {
 
 impl Ord for GetApproval {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.timestamp.cmp(&other.timestamp).reverse()
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp).reverse()
+        } else {
+            self.approval_id.cmp(&other.approval_id)
+        }
     }
 }
 
@@ -91,6 +99,30 @@ pub struct GetApprovedProposals {
     pub policy_id: EventId,
     pub proposal: Proposal,
     pub approved_proposals: Vec<ApprovedProposal>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetCompletedProposal {
+    pub policy_id: EventId,
+    pub completed_proposal_id: EventId,
+    pub proposal: CompletedProposal,
+    pub timestamp: Timestamp,
+}
+
+impl PartialOrd for GetCompletedProposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetCompletedProposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp).reverse()
+        } else {
+            self.policy_id.cmp(&other.policy_id)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

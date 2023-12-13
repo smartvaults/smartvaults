@@ -5,7 +5,6 @@ use std::ops::Deref;
 
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
-use smartvaults_core::CompletedProposal;
 use smartvaults_protocol::nostr::nips::nip46::Message;
 use smartvaults_protocol::nostr::{EventId, Timestamp};
 
@@ -36,11 +35,4 @@ pub struct NostrConnectRequest {
     pub message: Message,
     pub timestamp: Timestamp,
     pub approved: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct GetCompletedProposal {
-    pub policy_id: EventId,
-    pub completed_proposal_id: EventId,
-    pub proposal: CompletedProposal,
 }

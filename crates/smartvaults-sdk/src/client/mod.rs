@@ -62,7 +62,10 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::Manager;
-use crate::storage::{InternalApproval, InternalPolicy, InternalProposal, SmartVaultsStorage};
+use crate::storage::{
+    InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
+    SmartVaultsStorage,
+};
 use crate::types::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
     GetTransaction, GetUtxo, PolicyBackup,
@@ -700,10 +703,15 @@ impl SmartVaults {
         &self,
         completed_proposal_id: EventId,
     ) -> Result<GetCompletedProposal, Error> {
-        Ok(self
-            .db
-            .get_completed_proposal(completed_proposal_id)
-            .await?)
+        self.storage
+            .completed_proposal(&completed_proposal_id)
+            .await
+            .map(|p| GetCompletedProposal {
+                policy_id: p.policy_id,
+                completed_proposal_id,
+                proposal: p.proposal,
+                timestamp: p.timestamp,
+            })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -841,9 +849,9 @@ impl SmartVaults {
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
             self.client.send_event(event).await?;
 
-            self.db
-                .delete_completed_proposal(completed_proposal_id)
-                .await?;
+            self.storage
+                .delete_completed_proposal(&completed_proposal_id)
+                .await;
 
             Ok(())
         } else {
@@ -956,7 +964,20 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
-        Ok(self.db.completed_proposals().await?)
+        let mut list: Vec<GetCompletedProposal> = self
+            .storage
+            .completed_proposals()
+            .await
+            .into_iter()
+            .map(|(id, p)| GetCompletedProposal {
+                policy_id: p.policy_id,
+                completed_proposal_id: id,
+                proposal: p.proposal,
+                timestamp: p.timestamp,
+            })
+            .collect();
+        list.sort();
+        Ok(list)
     }
 
     pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<Profile>, Error> {
@@ -1486,6 +1507,7 @@ impl SmartVaults {
         tags.push(Tag::event(policy_id));
         let event =
             EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
+        let timestamp = event.created_at;
 
         // Publish the event
         let event_id = self.client.send_event(event).await?;
@@ -1496,9 +1518,16 @@ impl SmartVaults {
         }
 
         // Cache
-        self.db
-            .save_completed_proposal(event_id, policy_id, completed_proposal.clone())
-            .await?;
+        self.storage
+            .save_completed_proposal(
+                event_id,
+                InternalCompletedProposal {
+                    policy_id,
+                    proposal: completed_proposal.clone(),
+                    timestamp,
+                },
+            )
+            .await;
 
         Ok(completed_proposal)
     }
@@ -1601,7 +1630,7 @@ impl SmartVaults {
             });
         }
 
-        let descriptions: HashMap<Txid, String> = self.db.get_txs_descriptions(policy_id).await?;
+        let descriptions: HashMap<Txid, String> = self.storage.txs_descriptions(policy_id).await;
         let script_labels: HashMap<ScriptBuf, Label> =
             self.db.get_addresses_labels(policy_id).await?;
 
@@ -1665,7 +1694,7 @@ impl SmartVaults {
             label
         } else {
             // TODO: try to get UTXO label?
-            self.db.get_description_by_txid(policy_id, txid).await?
+            self.storage.description_by_txid(policy_id, txid).await
         };
 
         let block_explorer = self.config.block_explorer().await.ok();

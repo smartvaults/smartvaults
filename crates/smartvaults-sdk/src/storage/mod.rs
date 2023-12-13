@@ -6,11 +6,12 @@ use std::collections::{HashMap, VecDeque};
 use std::str::FromStr;
 use std::sync::Arc;
 
+use nostr_sdk::bitcoin::Txid;
 use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Client, Event, EventId, Filter, Keys, Tag, Timestamp};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
-use smartvaults_core::{ApprovedProposal, Policy, Proposal};
+use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SIGNERS_KIND,
@@ -20,7 +21,9 @@ use tokio::sync::RwLock;
 
 mod model;
 
-pub(crate) use self::model::{InternalApproval, InternalPolicy, InternalProposal};
+pub(crate) use self::model::{
+    InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
+};
 use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
 
@@ -32,6 +35,7 @@ pub(crate) struct SmartVaultsStorage {
     vaults: Arc<RwLock<HashMap<EventId, InternalPolicy>>>,
     proposals: Arc<RwLock<HashMap<EventId, InternalProposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
+    completed_proposals: Arc<RwLock<HashMap<EventId, InternalCompletedProposal>>>,
     pending: Arc<RwLock<VecDeque<Event>>>,
 }
 
@@ -48,6 +52,7 @@ impl SmartVaultsStorage {
             vaults: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
             approvals: Arc::new(RwLock::new(HashMap::new())),
+            completed_proposals: Arc::new(RwLock::new(HashMap::new())),
             pending: Arc::new(RwLock::new(VecDeque::new())),
         };
 
@@ -181,74 +186,36 @@ impl SmartVaultsStorage {
                     );
                 }
             }
-        } /* else if event.kind == COMPLETED_PROPOSAL_KIND
-              && !self
-                  .db
-                  .exists(Type::CompletedProposal {
-                      completed_proposal_id: event.id,
-                  })
-                  .await?
-          {
-              let mut ids = event.event_ids();
-              if let Some(proposal_id) = ids.next().copied() {
-                  self.db.delete_proposal(proposal_id).await?;
-                  if let Some(policy_id) = ids.next() {
-                      if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
-                          let completed_proposal =
-                              CompletedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-
-                          // Insert TX from completed proposal if the event was created in the last 60 secs
-                          if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                              if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
-                                  match self
-                                      .manager
-                                      .insert_tx(
-                                          *policy_id,
-                                          tx.clone(),
-                                          ConfirmationTime::Unconfirmed {
-                                              last_seen: event.created_at.as_u64(),
-                                          },
-                                      )
-                                      .await
-                                  {
-                                      Ok(res) => {
-                                          if res {
-                                              tracing::info!(
-                                                  "Saved pending TX for finalized proposal {}",
-                                                  event.id
-                                              );
-                                          } else {
-                                              tracing::warn!(
-                                                  "TX of finalized proposal {} already exists",
-                                                  event.id
-                                              );
-                                          }
-                                      }
-                                      Err(e) => tracing::error!(
-                                          "Impossible to save TX from completed proposal {}: {e}",
-                                          event.id
-                                      ),
-                                  }
-                              }
-                          }
-
-                          self.db
-                              .save_completed_proposal(event.id, *policy_id, completed_proposal)
-                              .await?;
-                          self.sync_channel.send(Message::EventHandled(
-                              EventHandled::CompletedProposal(event.id),
-                          ))?;
-                      } else {
-                          self.db.save_pending_event(event.clone()).await?;
-                      }
-                  } else {
-                      tracing::error!(
-                          "Impossible to find policy id in completed proposal {}",
-                          event.id
-                      );
-                  }
-              }
-          } else if event.kind == SIGNERS_KIND {
+        } else if event.kind == COMPLETED_PROPOSAL_KIND {
+            let shared_keys = self.shared_keys.read().await;
+            let mut completed_proposals = self.completed_proposals.write().await;
+            if let HashMapEntry::Vacant(e) = completed_proposals.entry(event.id) {
+                let mut ids = event.event_ids();
+                if let Some(proposal_id) = ids.next() {
+                    self.delete_proposal(proposal_id).await;
+                    if let Some(policy_id) = ids.next() {
+                        if let Some(shared_key) = shared_keys.get(policy_id) {
+                            let completed_proposal =
+                                CompletedProposal::decrypt_with_keys(shared_key, &event.content)?;
+                            e.insert(InternalCompletedProposal {
+                                policy_id: *policy_id,
+                                proposal: completed_proposal,
+                                timestamp: event.created_at,
+                            });
+                            return Ok(Some(EventHandled::CompletedProposal(event.id)));
+                        } else {
+                            let mut pending = self.pending.write().await;
+                            pending.push_back(event.clone());
+                        }
+                    } else {
+                        tracing::error!(
+                            "Impossible to find policy id in completed proposal {}",
+                            event.id
+                        );
+                    }
+                }
+            }
+        } /* else if event.kind == SIGNERS_KIND {
               let keys: Keys = self.keys().await;
               let signer = Signer::decrypt_with_keys(&keys, event.content)?;
               self.db.save_signer(event.id, signer).await?;
@@ -562,5 +529,77 @@ impl SmartVaultsStorage {
                 .map(|internal| internal.approval.clone())
                 .collect(),
         })
+    }
+
+    pub async fn save_completed_proposal(
+        &self,
+        completed_proposal_id: EventId,
+        internal: InternalCompletedProposal,
+    ) {
+        let mut completed_proposals = self.completed_proposals.write().await;
+        completed_proposals.insert(completed_proposal_id, internal);
+    }
+
+    pub async fn delete_completed_proposal(&self, completed_proposal_id: &EventId) {
+        let mut completed_proposals = self.completed_proposals.write().await;
+        completed_proposals.remove(completed_proposal_id);
+    }
+
+    /// Get completed_proposals
+    pub async fn completed_proposals(&self) -> HashMap<EventId, InternalCompletedProposal> {
+        self.completed_proposals
+            .read()
+            .await
+            .iter()
+            .map(|(id, internal)| (*id, internal.clone()))
+            .collect()
+    }
+
+    pub async fn completed_proposal(
+        &self,
+        completed_proposal_id: &EventId,
+    ) -> Result<InternalCompletedProposal, Error> {
+        let completed_proposals = self.completed_proposals.read().await;
+        completed_proposals
+            .get(completed_proposal_id)
+            .cloned()
+            .ok_or(Error::NotFound)
+    }
+
+    pub async fn description_by_txid(&self, policy_id: EventId, txid: Txid) -> Option<String> {
+        let completed_proposals = self.completed_proposals.read().await;
+        for InternalCompletedProposal { proposal, .. } in completed_proposals
+            .values()
+            .filter(|i| i.policy_id == policy_id)
+        {
+            if let CompletedProposal::Spending {
+                tx, description, ..
+            } = proposal
+            {
+                if tx.txid() == txid {
+                    return Some(description.clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub async fn txs_descriptions(&self, policy_id: EventId) -> HashMap<Txid, String> {
+        let mut map = HashMap::new();
+        let completed_proposals = self.completed_proposals.read().await;
+        for InternalCompletedProposal { proposal, .. } in completed_proposals
+            .values()
+            .filter(|i| i.policy_id == policy_id)
+        {
+            if let CompletedProposal::Spending {
+                tx, description, ..
+            } = proposal
+            {
+                if let HashMapEntry::Vacant(e) = map.entry(tx.txid()) {
+                    e.insert(description.clone());
+                }
+            }
+        }
+        map
     }
 }

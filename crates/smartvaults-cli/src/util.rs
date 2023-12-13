@@ -464,6 +464,7 @@ pub fn print_completed_proposals(proposals: Vec<GetCompletedProposal>) {
             policy_id,
             completed_proposal_id,
             proposal,
+            ..
         },
     ) in proposals.into_iter().enumerate()
     {

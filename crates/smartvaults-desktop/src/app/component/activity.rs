@@ -374,6 +374,7 @@ impl CompletedProposalsList {
                 policy_id,
                 completed_proposal_id,
                 proposal,
+                ..
             } in self.map.iter()
             {
                 let row = Row::new()
