@@ -21,6 +21,8 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
+    JSON(#[from] serde_json::Error),
+    #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
     Url(#[from] nostr_sdk::url::ParseError),

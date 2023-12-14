@@ -9,4 +9,4 @@ mod store;
 
 pub use self::encryption::StoreEncryption;
 pub use self::error::Error;
-pub use self::store::{Store, Type};
+pub use self::store::Store;

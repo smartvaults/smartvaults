@@ -12,9 +12,9 @@ use smartvaults_core::signer::{SharedSigner, Signer};
 use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
 use smartvaults_protocol::v1::util::Encryption;
 use smartvaults_protocol::v1::util::Serde;
-use smartvaults_sdk_sqlite::model::GetSharedSignerRaw;
 
 use super::{Error, SmartVaults};
+use crate::storage::InternalSharedSigner;
 use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
 
 impl SmartVaults {
@@ -27,9 +27,9 @@ impl SmartVaults {
         let keys: Keys = self.keys().await;
 
         let my_shared_signers = self
-            .db
-            .get_my_shared_signers_by_signer_id(signer_id)
-            .await?;
+            .storage
+            .get_my_shared_signers_by_signer_id(&signer_id)
+            .await;
         let mut tags: Vec<Tag> = Vec::new();
 
         tags.push(Tag::event(signer_id));
@@ -125,9 +125,9 @@ impl SmartVaults {
         public_key: XOnlyPublicKey,
     ) -> Result<EventId, Error> {
         if !self
-            .db
+            .storage
             .my_shared_signer_already_shared(signer_id, public_key)
-            .await?
+            .await
         {
             let keys: Keys = self.keys().await;
             let signer: Signer = self.get_signer_by_id(signer_id).await?;
@@ -138,9 +138,9 @@ impl SmartVaults {
             let event: Event =
                 EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
             let event_id = self.client.send_event(event).await?;
-            self.db
+            self.storage
                 .save_my_shared_signer(signer_id, event_id, public_key)
-                .await?;
+                .await;
             Ok(event_id)
         } else {
             Err(Error::SignerAlreadyShared)
@@ -162,9 +162,9 @@ impl SmartVaults {
 
         for public_key in public_keys.into_iter() {
             if self
-                .db
+                .storage
                 .my_shared_signer_already_shared(signer_id, public_key)
-                .await?
+                .await
             {
                 tracing::warn!("Signer {signer_id} already shared with {public_key}");
             } else {
@@ -181,9 +181,9 @@ impl SmartVaults {
                     .send_msg(ClientMessage::new_event(event), None)
                     .await?;
 
-                self.db
+                self.storage
                     .save_my_shared_signer(signer_id, event_id, public_key)
-                    .await?;
+                    .await;
             }
         }
 
@@ -192,25 +192,25 @@ impl SmartVaults {
 
     pub async fn revoke_all_shared_signers(&self) -> Result<(), Error> {
         let keys: Keys = self.keys().await;
-        for (shared_signer_id, public_key) in self.db.get_my_shared_signers().await?.into_iter() {
+        for (shared_signer_id, public_key) in self.storage.my_shared_signers().await.into_iter() {
             let tags = [Tag::public_key(public_key), Tag::event(shared_signer_id)];
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
             self.client.send_event(event).await?;
-            self.db.delete_shared_signer(shared_signer_id).await?;
+            self.storage.delete_shared_signer(&shared_signer_id).await;
         }
         Ok(())
     }
 
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
         let keys: Keys = self.keys().await;
-        let public_key = self
-            .db
+        let public_key: XOnlyPublicKey = self
+            .storage
             .get_public_key_for_my_shared_signer(shared_signer_id)
             .await?;
         let tags = [Tag::public_key(public_key), Tag::event(shared_signer_id)];
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
         self.client.send_event(event).await?;
-        self.db.delete_shared_signer(shared_signer_id).await?;
+        self.storage.delete_shared_signer(&shared_signer_id).await;
         Ok(())
     }
 
@@ -221,9 +221,9 @@ impl SmartVaults {
         public_key: XOnlyPublicKey,
     ) -> Result<bool, Error> {
         Ok(self
-            .db
+            .storage
             .my_shared_signer_already_shared(signer_id, public_key)
-            .await?)
+            .await)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -233,9 +233,9 @@ impl SmartVaults {
     ) -> Result<BTreeMap<EventId, Profile>, Error> {
         let mut map = BTreeMap::new();
         let ssbs = self
-            .db
-            .get_my_shared_signers_by_signer_id(signer_id)
-            .await?;
+            .storage
+            .get_my_shared_signers_by_signer_id(&signer_id)
+            .await;
         for (key, pk) in ssbs.into_iter() {
             let profile: Profile = self.client.database().profile(pk).await?;
             map.insert(key, profile);
@@ -246,12 +246,13 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         let mut list = Vec::new();
-        let ss = self.db.get_shared_signers().await?;
-        for GetSharedSignerRaw {
+        for (
             shared_signer_id,
-            owner_public_key,
-            shared_signer,
-        } in ss.into_iter()
+            InternalSharedSigner {
+                owner_public_key,
+                shared_signer,
+            },
+        ) in self.storage.shared_signers().await.into_iter()
         {
             let profile: Profile = self.client.database().profile(owner_public_key).await?;
             list.push(GetSharedSigner {
@@ -267,7 +268,8 @@ impl SmartVaults {
         &self,
         include_contacts: bool,
     ) -> Result<Vec<XOnlyPublicKey>, Error> {
-        let public_keys: HashSet<XOnlyPublicKey> = self.db.get_shared_signers_public_keys().await?;
+        let public_keys: HashSet<XOnlyPublicKey> =
+            self.storage.get_shared_signers_public_keys().await;
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
@@ -289,16 +291,12 @@ impl SmartVaults {
     ) -> Result<Vec<GetSharedSigner>, Error> {
         let profile: Profile = self.client.database().profile(public_key).await?;
         Ok(self
-            .db
+            .storage
             .get_shared_signers_by_public_key(public_key)
-            .await?
+            .await
             .into_iter()
             .map(
-                |GetSharedSignerRaw {
-                     shared_signer_id,
-                     shared_signer,
-                     ..
-                 }| GetSharedSigner {
+                |(shared_signer_id, shared_signer)| GetSharedSigner {
                     shared_signer_id,
                     owner: profile.clone(),
                     shared_signer,

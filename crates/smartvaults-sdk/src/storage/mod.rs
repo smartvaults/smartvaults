@@ -1,8 +1,9 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::cmp::Ordering;
 use std::collections::hash_map::Entry as HashMapEntry;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -12,21 +13,45 @@ use nostr_sdk::nips::nip04;
 use nostr_sdk::{Client, Event, EventId, Filter, Keys, Tag, Timestamp};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, Signer};
+use smartvaults_core::{
+    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
+};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND, SIGNERS_KIND,
+    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
-use smartvaults_protocol::v1::Encryption;
+use smartvaults_protocol::v1::{Encryption, Serde};
 use tokio::sync::RwLock;
 
 mod model;
 
 pub(crate) use self::model::{
     InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
+    InternalSharedSigner,
 };
 use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WrappedEvent {
+    inner: Event,
+}
+
+impl PartialOrd for WrappedEvent {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for WrappedEvent {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.inner.created_at != other.inner.created_at {
+            self.inner.created_at.cmp(&other.inner.created_at)
+        } else {
+            self.inner.id.cmp(&other.inner.id)
+        }
+    }
+}
 
 /// Smart Vaults In-Memory Storage
 #[derive(Debug, Clone)]
@@ -38,7 +63,9 @@ pub(crate) struct SmartVaultsStorage {
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     completed_proposals: Arc<RwLock<HashMap<EventId, InternalCompletedProposal>>>,
     signers: Arc<RwLock<HashMap<EventId, Signer>>>,
-    pending: Arc<RwLock<VecDeque<Event>>>,
+    my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, XOnlyPublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
+    shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
+    pending: Arc<RwLock<BTreeSet<Event>>>,
 }
 
 impl SmartVaultsStorage {
@@ -56,13 +83,20 @@ impl SmartVaultsStorage {
             approvals: Arc::new(RwLock::new(HashMap::new())),
             completed_proposals: Arc::new(RwLock::new(HashMap::new())),
             signers: Arc::new(RwLock::new(HashMap::new())),
-            pending: Arc::new(RwLock::new(VecDeque::new())),
+            my_shared_signers: Arc::new(RwLock::new(HashMap::new())),
+            shared_signers: Arc::new(RwLock::new(HashMap::new())),
+            pending: Arc::new(RwLock::new(BTreeSet::new())),
         };
 
         let author_filter: Filter = Filter::new().author(this.keys.public_key()).kinds([
             SHARED_KEY_KIND,
+            POLICY_KIND,
+            PROPOSAL_KIND,
             APPROVED_PROPOSAL_KIND,
+            COMPLETED_PROPOSAL_KIND,
             SIGNERS_KIND,
+            SHARED_SIGNERS_KIND,
+            LABELS_KIND,
         ]);
         let pubkey_filter: Filter = Filter::new().pubkey(this.keys.public_key()).kinds([
             SHARED_KEY_KIND,
@@ -70,30 +104,48 @@ impl SmartVaultsStorage {
             PROPOSAL_KIND,
             APPROVED_PROPOSAL_KIND,
             COMPLETED_PROPOSAL_KIND,
+            SIGNERS_KIND,
+            SHARED_SIGNERS_KIND,
             LABELS_KIND,
         ]);
+
+        let mut pending = this.pending.write().await;
         for event in database
             .query(vec![author_filter, pubkey_filter])
             .await?
             .into_iter()
         {
-            if let Err(e) = this.handle_event(&event).await {
+            if let Err(e) = this.internal_handle_event(&mut pending, &event).await {
                 tracing::error!("Impossible to handle event: {e}");
             }
         }
 
         // Clone to avoid lock in handle event
-        let pending = this.pending.read().await.clone();
-        for event in pending.into_iter() {
-            if let Err(e) = this.handle_event(&event).await {
+        for event in pending.clone().into_iter() {
+            if let Err(e) = this.internal_handle_event(&mut pending, &event).await {
                 tracing::error!("Impossible to handle event: {e}");
             }
         }
 
+        drop(pending);
+
         Ok(this)
     }
 
-    async fn handle_event(&self, event: &Event) -> Result<Option<EventHandled>, Error> {
+    pub(crate) async fn handle_event(&self, event: &Event) -> Result<Option<EventHandled>, Error> {
+        let mut pending = self.pending.write().await;
+        self.internal_handle_event(&mut pending, event).await
+    }
+
+    async fn internal_handle_event(
+        &self,
+        pending: &mut BTreeSet<Event>,
+        event: &Event,
+    ) -> Result<Option<EventHandled>, Error> {
+        if pending.contains(event) {
+            pending.remove(event);
+        }
+
         if event.kind == SHARED_KEY_KIND {
             let policy_id = event
                 .event_ids()
@@ -132,8 +184,7 @@ impl SmartVaultsStorage {
                         return Ok(Some(EventHandled::Policy(event.id)));
                     }
                 } else {
-                    let mut pending = self.pending.write().await;
-                    pending.push_back(event.clone());
+                    pending.insert(event.clone());
                 }
             }
         } else if event.kind == PROPOSAL_KIND {
@@ -150,8 +201,7 @@ impl SmartVaultsStorage {
                         });
                         return Ok(Some(EventHandled::Proposal(event.id)));
                     } else {
-                        let mut pending = self.pending.write().await;
-                        pending.push_back(event.clone());
+                        pending.insert(event.clone());
                     }
                 } else {
                     tracing::error!("Impossible to find policy id in proposal {}", event.id);
@@ -176,8 +226,7 @@ impl SmartVaultsStorage {
                             });
                             return Ok(Some(EventHandled::Approval { proposal_id }));
                         } else {
-                            let mut pending = self.pending.write().await;
-                            pending.push_back(event.clone());
+                            pending.insert(event.clone());
                         }
                     } else {
                         tracing::error!("Impossible to find policy id in proposal {}", event.id);
@@ -207,8 +256,7 @@ impl SmartVaultsStorage {
                             });
                             return Ok(Some(EventHandled::CompletedProposal(event.id)));
                         } else {
-                            let mut pending = self.pending.write().await;
-                            pending.push_back(event.clone());
+                            pending.insert(event.clone());
                         }
                     } else {
                         tracing::error!(
@@ -225,29 +273,34 @@ impl SmartVaultsStorage {
                 e.insert(signer);
                 return Ok(Some(EventHandled::Signer(event.id)));
             }
-        } /* else if event.kind == SHARED_SIGNERS_KIND {
-              let public_key = event.public_keys().next().ok_or(Error::PublicKeyNotFound)?;
-              let keys: Keys = self.keys().await;
-              if event.pubkey == keys.public_key() {
-                  let signer_id = event.event_ids().next().ok_or(Error::SignerIdNotFound)?;
-                  self.db
-                      .save_my_shared_signer(*signer_id, event.id, *public_key)
-                      .await?;
-                  self.sync_channel
-                      .send(Message::EventHandled(EventHandled::MySharedSigner(
-                          event.id,
-                      )))?;
-              } else {
-                  let shared_signer =
-                      nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
-                  let shared_signer = SharedSigner::from_json(shared_signer)?;
-                  self.db
-                      .save_shared_signer(event.id, event.pubkey, shared_signer)
-                      .await?;
-                  self.sync_channel
-                      .send(Message::EventHandled(EventHandled::SharedSigner(event.id)))?;
-              }
-          } else if event.kind == LABELS_KIND {
+        } else if event.kind == SHARED_SIGNERS_KIND {
+            if event.pubkey == self.keys.public_key() {
+                let signer_id = event
+                    .event_ids()
+                    .next()
+                    .copied()
+                    .ok_or(Error::SignerIdNotFound)?;
+                let public_key = event.public_keys().next().ok_or(Error::PublicKeyNotFound)?;
+
+                let mut my_shared_signers = self.my_shared_signers.write().await;
+                if let HashMapEntry::Vacant(e) = my_shared_signers.entry(signer_id) {
+                    e.insert((event.id, *public_key));
+                    return Ok(Some(EventHandled::MySharedSigner(event.id)));
+                }
+            } else {
+                let mut shared_signers = self.shared_signers.write().await;
+                if let HashMapEntry::Vacant(e) = shared_signers.entry(event.id) {
+                    let shared_signer: String =
+                        nip04::decrypt(&self.keys.secret_key()?, &event.pubkey, &event.content)?;
+                    let shared_signer: SharedSigner = SharedSigner::from_json(shared_signer)?;
+                    e.insert(InternalSharedSigner {
+                        owner_public_key: event.pubkey,
+                        shared_signer,
+                    });
+                    return Ok(Some(EventHandled::SharedSigner(event.id)));
+                }
+            }
+        } /* else if event.kind == LABELS_KIND {
               if let Some(policy_id) = event.event_ids().next().copied() {
                   if let Some(identifier) = event.identifier() {
                       if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
@@ -414,6 +467,15 @@ impl SmartVaultsStorage {
           } */
 
         Ok(None)
+    }
+
+    pub async fn pending_events(&self) -> BTreeSet<Event> {
+        self.pending.read().await.clone()
+    }
+
+    pub async fn save_pending_event(&self, event: Event) {
+        let mut pending = self.pending.write().await;
+        pending.insert(event);
     }
 
     pub async fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) {
@@ -644,5 +706,109 @@ impl SmartVaultsStorage {
             }
         }
         false
+    }
+
+    pub async fn save_my_shared_signer(
+        &self,
+        signer_id: EventId,
+        shared_signer_id: EventId,
+        public_key: XOnlyPublicKey,
+    ) {
+        let mut my_shared_signers = self.my_shared_signers.write().await;
+        my_shared_signers.insert(signer_id, (shared_signer_id, public_key));
+    }
+
+    /// Delete shared signer from both `shared_signers` and `my_shared_signers` collections
+    pub async fn delete_shared_signer(&self, shared_signer_id: &EventId) {
+        let mut shared_signers = self.shared_signers.write().await;
+        shared_signers.remove(shared_signer_id);
+        let mut my_shared_signers = self.my_shared_signers.write().await;
+        my_shared_signers.retain(|_, (id, ..)| id == shared_signer_id);
+    }
+
+    pub async fn my_shared_signers(&self) -> HashMap<EventId, XOnlyPublicKey> {
+        self.my_shared_signers
+            .read()
+            .await
+            .iter()
+            .map(|(_, (id, p))| (*id, *p))
+            .collect()
+    }
+
+    pub async fn shared_signers(&self) -> HashMap<EventId, InternalSharedSigner> {
+        self.shared_signers
+            .read()
+            .await
+            .iter()
+            .map(|(id, internal)| (*id, internal.clone()))
+            .collect()
+    }
+
+    pub async fn my_shared_signer_already_shared(
+        &self,
+        signer_id: EventId,
+        public_key: XOnlyPublicKey,
+    ) -> bool {
+        if let Some((_, pk)) = self.my_shared_signers.read().await.get(&signer_id) {
+            if *pk == public_key {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub async fn get_public_key_for_my_shared_signer(
+        &self,
+        shared_signer_id: EventId,
+    ) -> Result<XOnlyPublicKey, Error> {
+        self.my_shared_signers
+            .read()
+            .await
+            .values()
+            .filter_map(|(id, pk)| {
+                if *id == shared_signer_id {
+                    Some(*pk)
+                } else {
+                    None
+                }
+            })
+            .take(1)
+            .next()
+            .ok_or(Error::NotFound)
+    }
+
+    pub async fn get_my_shared_signers_by_signer_id(
+        &self,
+        signer_id: &EventId,
+    ) -> BTreeMap<EventId, XOnlyPublicKey> {
+        self.my_shared_signers
+            .read()
+            .await
+            .iter()
+            .filter(|(id, _)| *id == signer_id)
+            .map(|(_, (k, v))| (*k, *v))
+            .collect()
+    }
+
+    pub async fn get_shared_signers_public_keys(&self) -> HashSet<XOnlyPublicKey> {
+        self.shared_signers
+            .read()
+            .await
+            .values()
+            .map(|i| i.owner_public_key)
+            .collect()
+    }
+
+    pub async fn get_shared_signers_by_public_key(
+        &self,
+        public_key: XOnlyPublicKey,
+    ) -> Vec<(EventId, SharedSigner)> {
+        self.shared_signers
+            .read()
+            .await
+            .iter()
+            .filter(|(_, i)| i.owner_public_key == public_key)
+            .map(|(id, i)| (*id, i.shared_signer.clone()))
+            .collect()
     }
 }
