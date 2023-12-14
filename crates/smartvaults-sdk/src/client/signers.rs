@@ -93,12 +93,15 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_signers(&self) -> Vec<GetSigner> {
-        self.storage
+        let mut list: Vec<GetSigner> = self
+            .storage
             .signers()
             .await
             .into_iter()
             .map(GetSigner::from)
-            .collect()
+            .collect();
+        list.sort();
+        list
     }
 
     #[tracing::instrument(skip_all, level = "trace")]

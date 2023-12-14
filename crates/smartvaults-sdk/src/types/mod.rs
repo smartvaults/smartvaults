@@ -133,6 +133,18 @@ pub struct GetSigner {
     pub signer: Signer,
 }
 
+impl PartialOrd for GetSigner {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetSigner {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.signer.cmp(&other.signer)
+    }
+}
+
 impl From<(EventId, Signer)> for GetSigner {
     fn from((signer_id, signer): (EventId, Signer)) -> Self {
         Self { signer_id, signer }
