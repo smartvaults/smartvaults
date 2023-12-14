@@ -10,8 +10,9 @@ use nostr_sdk::bitcoin::Txid;
 use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Client, Event, EventId, Filter, Keys, Tag, Timestamp};
+use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal};
+use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, Signer};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SIGNERS_KIND,
@@ -36,6 +37,7 @@ pub(crate) struct SmartVaultsStorage {
     proposals: Arc<RwLock<HashMap<EventId, InternalProposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     completed_proposals: Arc<RwLock<HashMap<EventId, InternalCompletedProposal>>>,
+    signers: Arc<RwLock<HashMap<EventId, Signer>>>,
     pending: Arc<RwLock<VecDeque<Event>>>,
 }
 
@@ -53,6 +55,7 @@ impl SmartVaultsStorage {
             proposals: Arc::new(RwLock::new(HashMap::new())),
             approvals: Arc::new(RwLock::new(HashMap::new())),
             completed_proposals: Arc::new(RwLock::new(HashMap::new())),
+            signers: Arc::new(RwLock::new(HashMap::new())),
             pending: Arc::new(RwLock::new(VecDeque::new())),
         };
 
@@ -215,13 +218,14 @@ impl SmartVaultsStorage {
                     }
                 }
             }
-        } /* else if event.kind == SIGNERS_KIND {
-              let keys: Keys = self.keys().await;
-              let signer = Signer::decrypt_with_keys(&keys, event.content)?;
-              self.db.save_signer(event.id, signer).await?;
-              self.sync_channel
-                  .send(Message::EventHandled(EventHandled::Signer(event.id)))?;
-          } else if event.kind == SHARED_SIGNERS_KIND {
+        } else if event.kind == SIGNERS_KIND {
+            let mut signers = self.signers.write().await;
+            if let HashMapEntry::Vacant(e) = signers.entry(event.id) {
+                let signer = Signer::decrypt_with_keys(&self.keys, &event.content)?;
+                e.insert(signer);
+                return Ok(Some(EventHandled::Signer(event.id)));
+            }
+        } /* else if event.kind == SHARED_SIGNERS_KIND {
               let public_key = event.public_keys().next().ok_or(Error::PublicKeyNotFound)?;
               let keys: Keys = self.keys().await;
               if event.pubkey == keys.public_key() {
@@ -601,5 +605,44 @@ impl SmartVaultsStorage {
             }
         }
         map
+    }
+
+    pub async fn save_signer(&self, signer_id: EventId, signer: Signer) {
+        let mut signers = self.signers.write().await;
+        signers.insert(signer_id, signer);
+    }
+
+    pub async fn delete_signer(&self, signer_id: &EventId) {
+        let mut signers = self.signers.write().await;
+        signers.remove(signer_id);
+    }
+
+    /// Get signers
+    pub async fn signers(&self) -> HashMap<EventId, Signer> {
+        self.signers
+            .read()
+            .await
+            .iter()
+            .map(|(id, s)| (*id, s.clone()))
+            .collect()
+    }
+
+    /// Get [`Signer`]
+    pub async fn signer(&self, signer_id: &EventId) -> Result<Signer, Error> {
+        let signers = self.signers.read().await;
+        signers.get(signer_id).cloned().ok_or(Error::NotFound)
+    }
+
+    pub async fn signer_descriptor_exists(
+        &self,
+        descriptor: Descriptor<DescriptorPublicKey>,
+    ) -> bool {
+        let signers = self.signers.read().await;
+        for signer in signers.values() {
+            if signer.descriptor() == descriptor {
+                return true;
+            }
+        }
+        false
     }
 }

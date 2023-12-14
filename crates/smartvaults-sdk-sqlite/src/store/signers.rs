@@ -4,100 +4,14 @@
 use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 
-use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_core::{SharedSigner, Signer};
+use smartvaults_core::SharedSigner;
 use smartvaults_protocol::nostr::EventId;
 
 use super::{Error, Store, StoreEncryption};
-use crate::model::{GetSharedSignerRaw, GetSigner};
+use crate::model::GetSharedSignerRaw;
 
 impl Store {
-    pub async fn save_signer(&self, signer_id: EventId, signer: Signer) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached(
-                "INSERT OR IGNORE INTO signers (signer_id, signer) VALUES (?, ?);",
-            )?;
-            stmt.execute((signer_id.to_hex(), signer.encrypt(&cipher)?))?;
-            tracing::info!("Saved signer {signer_id}");
-            Ok(())
-        })
-        .await?
-    }
-
-    pub async fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            let mut stmt = conn.prepare_cached("SELECT signer_id, signer FROM signers;")?;
-            let mut rows = stmt.query([])?;
-            let mut list = Vec::new();
-            while let Ok(Some(row)) = rows.next() {
-                let signer_id: String = row.get(0)?;
-                let signer: Vec<u8> = row.get(1)?;
-                list.push(GetSigner {
-                    signer_id: EventId::from_hex(signer_id)?,
-                    signer: Signer::decrypt(&cipher, signer)?,
-                });
-            }
-            Ok(list)
-        })
-        .await?
-    }
-
-    pub async fn signer_descriptor_exists(
-        &self,
-        descriptor: Descriptor<DescriptorPublicKey>,
-    ) -> Result<bool, Error> {
-        let signers = self.get_signers().await?;
-        for GetSigner { signer, .. } in signers.into_iter() {
-            if signer.descriptor() == descriptor {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-
-    pub async fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        let conn = self.acquire().await?;
-        let cipher = self.cipher.clone();
-        conn.interact(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("SELECT signer FROM signers WHERE signer_id = ?;")?;
-            let mut rows = stmt.query([signer_id.to_hex()])?;
-            let row = rows.next()?.ok_or(Error::NotFound("signer".into()))?;
-            let signer: Vec<u8> = row.get(0)?;
-            Ok(Signer::decrypt(&cipher, signer)?)
-        })
-        .await?
-    }
-
-    pub async fn delete_signer(&self, signer_id: EventId) -> Result<(), Error> {
-        // Delete notification
-        //self.delete_notification(Notification::NewProposal(proposal_id))?;
-
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            // Delete signer
-
-            conn.execute(
-                "DELETE FROM signers WHERE signer_id = ?;",
-                [signer_id.to_hex()],
-            )?;
-
-            conn.execute(
-                "DELETE FROM my_shared_signers WHERE signer_id = ?;",
-                [signer_id.to_hex()],
-            )?;
-
-            tracing::info!("Deleted signer {signer_id}");
-            Ok(())
-        })
-        .await?
-    }
-
     pub async fn delete_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {

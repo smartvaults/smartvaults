@@ -10,7 +10,9 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalUtxo;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner};
+use smartvaults_core::{
+    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
+};
 use smartvaults_protocol::v1::SignerOffering;
 pub use smartvaults_sdk_sqlite::model::*;
 
@@ -122,6 +124,25 @@ impl Ord for GetCompletedProposal {
         } else {
             self.policy_id.cmp(&other.policy_id)
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetSigner {
+    pub signer_id: EventId,
+    pub signer: Signer,
+}
+
+impl From<(EventId, Signer)> for GetSigner {
+    fn from((signer_id, signer): (EventId, Signer)) -> Self {
+        Self { signer_id, signer }
+    }
+}
+
+impl Deref for GetSigner {
+    type Target = Signer;
+    fn deref(&self) -> &Self::Target {
+        &self.signer
     }
 }
 

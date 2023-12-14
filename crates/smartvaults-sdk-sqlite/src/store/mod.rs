@@ -32,7 +32,6 @@ use super::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Type {
-    Signer { signer_id: EventId },
     MySharedSigner { my_shared_signer_id: EventId },
     SharedSigner { shared_signer_id: EventId },
 }
@@ -107,9 +106,6 @@ impl Store {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             let (sql, params) = match t {
-                Type::Signer { signer_id } => {
-                    ("SELECT EXISTS(SELECT 1 FROM signers WHERE signer_id = ? LIMIT 1);", [signer_id.to_hex()])
-                },
                 Type::MySharedSigner { my_shared_signer_id } => {
                     ("SELECT EXISTS(SELECT 1 FROM my_shared_signers WHERE shared_signer_id = ? LIMIT 1);", [my_shared_signer_id.to_hex()])
                 },
@@ -133,13 +129,6 @@ impl Store {
 
     pub async fn delete_generic_event_id(&self, event_id: EventId) -> Result<(), Error> {
         if self
-            .exists(Type::Signer {
-                signer_id: event_id,
-            })
-            .await?
-        {
-            self.delete_signer(event_id).await?;
-        } else if self
             .exists(Type::MySharedSigner {
                 my_shared_signer_id: event_id,
             })

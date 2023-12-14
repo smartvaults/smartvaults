@@ -503,7 +503,7 @@ impl SmartVaults {
         } else if event.kind == SIGNERS_KIND {
             let keys: Keys = self.keys().await;
             let signer = Signer::decrypt_with_keys(&keys, event.content)?;
-            self.db.save_signer(event.id, signer).await?;
+            self.storage.save_signer(event.id, signer).await;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Signer(event.id)))?;
         } else if event.kind == SHARED_SIGNERS_KIND {

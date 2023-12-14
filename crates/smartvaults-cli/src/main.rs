@@ -543,7 +543,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
             GetCommand::Signers => {
-                let signers = client.get_signers().await?;
+                let signers = client.get_signers().await;
                 util::print_signers(signers);
                 Ok(())
             }

@@ -20,7 +20,7 @@ use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        Ok(self.db.get_signer_by_id(signer_id).await?)
+        self.storage.signer(&signer_id).await
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
@@ -42,7 +42,7 @@ impl SmartVaults {
         let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
         self.client.send_event(event).await?;
 
-        self.db.delete_signer(signer_id).await?;
+        self.storage.delete_signer(&signer_id).await;
 
         Ok(())
     }
@@ -51,9 +51,9 @@ impl SmartVaults {
         let keys: Keys = self.keys().await;
 
         if self
-            .db
+            .storage
             .signer_descriptor_exists(signer.descriptor())
-            .await?
+            .await
         {
             return Err(Error::SignerDescriptorAlreadyExists);
         }
@@ -68,16 +68,15 @@ impl SmartVaults {
         let signer_id = self.client.send_event(event).await?;
 
         // Save signer in db
-        self.db.save_signer(signer_id, signer).await?;
+        self.storage.save_signer(signer_id, signer).await;
 
         Ok(signer_id)
     }
 
-    pub async fn smartvaults_signer_exists(&self) -> Result<bool, Error> {
-        Ok(self
-            .db
+    pub async fn smartvaults_signer_exists(&self) -> bool {
+        self.storage
             .signer_descriptor_exists(self.default_signer.descriptor())
-            .await?)
+            .await
     }
 
     pub async fn save_smartvaults_signer(&self) -> Result<EventId, Error> {
@@ -87,14 +86,19 @@ impl SmartVaults {
     /// Get all own signers and contacts shared signers
     pub async fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
         Ok(GetAllSigners {
-            my: self.get_signers().await?,
+            my: self.get_signers().await,
             contacts: self.get_shared_signers().await?,
         })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signers(&self) -> Result<Vec<GetSigner>, Error> {
-        Ok(self.db.get_signers().await?)
+    pub async fn get_signers(&self) -> Vec<GetSigner> {
+        self.storage
+            .signers()
+            .await
+            .into_iter()
+            .map(GetSigner::from)
+            .collect()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -103,8 +107,8 @@ impl SmartVaults {
         descriptor: Descriptor<String>,
     ) -> Result<Signer, Error> {
         let descriptor: String = descriptor.to_string();
-        for GetSigner { signer, .. } in self.db.get_signers().await?.into_iter() {
-            let signer_descriptor = signer.descriptor_public_key()?.to_string();
+        for signer in self.storage.signers().await.into_values() {
+            let signer_descriptor: String = signer.descriptor_public_key()?.to_string();
             if descriptor.contains(&signer_descriptor) {
                 return Ok(signer);
             }
