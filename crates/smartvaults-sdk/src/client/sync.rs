@@ -373,8 +373,8 @@ impl SmartVaults {
                 let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
                 let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
                 for tag in event.tags.iter() {
-                    if let Tag::PubKey(pubkey, ..) = tag {
-                        nostr_pubkeys.push(*pubkey);
+                    if let Tag::PublicKey { public_key, .. } = tag {
+                        nostr_pubkeys.push(*public_key);
                     }
                 }
                 if nostr_pubkeys.is_empty() {
@@ -563,7 +563,7 @@ impl SmartVaults {
             }
         } else if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
-                if let Tag::Event(event_id, ..) = tag {
+                if let Tag::Event { event_id, .. } = tag {
                     if let Ok(Event { pubkey, .. }) =
                         self.client.database().event_by_id(*event_id).await
                     {

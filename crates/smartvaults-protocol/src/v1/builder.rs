@@ -48,10 +48,7 @@ pub trait SmartVaultsEventBuilder {
         let event: Event = EventBuilder::new(
             SHARED_KEY_KIND,
             encrypted_shared_key,
-            &[
-                Tag::Event(policy_id, None, None),
-                Tag::PubKey(*receiver, None),
-            ],
+            [Tag::event(policy_id), Tag::public_key(*receiver)],
         )
         .to_event(keys)?;
         Ok(event)
@@ -63,11 +60,8 @@ pub trait SmartVaultsEventBuilder {
         nostr_pubkeys: &[XOnlyPublicKey],
     ) -> Result<Event, Error> {
         let content: String = policy.encrypt_with_keys(shared_key)?;
-        let tags: Vec<Tag> = nostr_pubkeys
-            .iter()
-            .map(|p| Tag::PubKey(*p, None))
-            .collect();
-        Ok(EventBuilder::new(POLICY_KIND, content, &tags).to_event(shared_key)?)
+        let tags = nostr_pubkeys.iter().copied().map(Tag::public_key);
+        Ok(EventBuilder::new(POLICY_KIND, content, tags).to_event(shared_key)?)
     }
 
     fn proposal(
@@ -76,13 +70,10 @@ pub trait SmartVaultsEventBuilder {
         proposal: &Proposal,
         nostr_pubkeys: &[XOnlyPublicKey],
     ) -> Result<Event, Error> {
-        let mut tags: Vec<Tag> = nostr_pubkeys
-            .iter()
-            .map(|p| Tag::PubKey(*p, None))
-            .collect();
-        tags.push(Tag::Event(policy_id, None, None));
+        let mut tags: Vec<Tag> = nostr_pubkeys.iter().copied().map(Tag::public_key).collect();
+        tags.push(Tag::event(policy_id));
         let content: String = proposal.encrypt_with_keys(shared_key)?;
-        Ok(EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(shared_key)?)
+        Ok(EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(shared_key)?)
     }
 
     fn label(
@@ -93,19 +84,16 @@ pub trait SmartVaultsEventBuilder {
     ) -> Result<Event, Error> {
         let identifier: String = label.generate_identifier(shared_key)?;
         let content: String = label.encrypt_with_keys(shared_key)?;
-        let mut tags: Vec<Tag> = nostr_pubkeys
-            .iter()
-            .map(|p| Tag::PubKey(*p, None))
-            .collect();
+        let mut tags: Vec<Tag> = nostr_pubkeys.iter().copied().map(Tag::public_key).collect();
         tags.push(Tag::Identifier(identifier));
-        tags.push(Tag::Event(policy_id, None, None));
-        Ok(EventBuilder::new(LABELS_KIND, content, &tags).to_event(shared_key)?)
+        tags.push(Tag::event(policy_id));
+        Ok(EventBuilder::new(LABELS_KIND, content, tags).to_event(shared_key)?)
     }
 
     fn key_agent_signaling(keys: &Keys, network: Network) -> Result<Event, Error> {
         let identifier: String = network.magic().to_string();
         Ok(
-            EventBuilder::new(KEY_AGENT_SIGNALING, "", &[Tag::Identifier(identifier)])
+            EventBuilder::new(KEY_AGENT_SIGNALING, "", [Tag::Identifier(identifier)])
                 .to_event(keys)?,
         )
     }
@@ -120,7 +108,7 @@ pub trait SmartVaultsEventBuilder {
         Ok(EventBuilder::new(
             KEY_AGENT_SIGNER_OFFERING_KIND,
             content,
-            &[Tag::Identifier(signer.generate_identifier(network))],
+            [Tag::Identifier(signer.generate_identifier(network))],
         )
         .to_event(keys)?)
     }
@@ -134,7 +122,7 @@ pub trait SmartVaultsEventBuilder {
         let content: String = serde_json::json!(public_keys).to_string();
         let mut tags: Vec<Tag> = Vec::with_capacity(1 + public_keys.len());
         tags.push(Tag::Identifier(identifier));
-        Ok(EventBuilder::new(KEY_AGENT_VERIFIED, content, &tags).to_event(keys)?)
+        Ok(EventBuilder::new(KEY_AGENT_VERIFIED, content, tags).to_event(keys)?)
     }
 }
 

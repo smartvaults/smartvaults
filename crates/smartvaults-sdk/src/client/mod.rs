@@ -814,14 +814,16 @@ impl SmartVaults {
 
             let mut tags: Vec<Tag> = nostr_pubkeys
                 .into_iter()
-                .map(|p| Tag::PubKey(p, None))
+                .map(|public_key| Tag::PublicKey {
+                    public_key,
+                    relay_url: None,
+                    alias: None,
+                })
                 .collect();
-            tags.push(Tag::Event(policy_id, None, None));
-            event_ids
-                .into_iter()
-                .for_each(|id| tags.push(Tag::Event(id, None, None)));
+            tags.push(Tag::event(policy_id));
+            tags.extend(event_ids.into_iter().map(Tag::event));
 
-            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_keys)?;
             self.client.send_event(event).await?;
 
             self.db.delete_policy(policy_id).await?;
@@ -853,14 +855,19 @@ impl SmartVaults {
             // Extract `p` tags from proposal event to notify users about proposal deletion
             let mut tags: Vec<Tag> = proposal_event
                 .public_keys()
-                .map(|p| Tag::PubKey(*p, None))
+                .copied()
+                .map(|public_key| Tag::PublicKey {
+                    public_key,
+                    relay_url: None,
+                    alias: None,
+                })
                 .collect();
 
             // Get all events linked to the proposal
             /* let filter = Filter::new().event(proposal_id);
             let events = self.client.get_events_of(vec![filter], timeout).await?; */
 
-            tags.push(Tag::Event(proposal_id, None, None));
+            tags.push(Tag::event(proposal_id));
             /* let mut ids: Vec<EventId> = vec![proposal_id];
 
             for event in events.into_iter() {
@@ -869,7 +876,7 @@ impl SmartVaults {
                 }
             } */
 
-            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_keys)?;
             self.client.send_event(event).await?;
 
             self.db.delete_proposal(proposal_id).await?;
@@ -906,12 +913,17 @@ impl SmartVaults {
             // Extract `p` tags from proposal event to notify users about proposal deletion
             let mut tags: Vec<Tag> = proposal_event
                 .public_keys()
-                .map(|p| Tag::PubKey(*p, None))
+                .copied()
+                .map(|public_key| Tag::PublicKey {
+                    public_key,
+                    relay_url: None,
+                    alias: None,
+                })
                 .collect();
 
-            tags.push(Tag::Event(completed_proposal_id, None, None));
+            tags.push(Tag::event(completed_proposal_id));
 
-            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&shared_keys)?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_keys)?;
             self.client.send_event(event).await?;
 
             self.db
@@ -1260,15 +1272,19 @@ impl SmartVaults {
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
-            .map(|p| Tag::PubKey(p, None))
+            .map(|public_key| Tag::PublicKey {
+                public_key,
+                relay_url: None,
+                alias: None,
+            })
             .collect();
-        tags.push(Tag::Event(proposal_id, None, None));
-        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::event(proposal_id));
+        tags.push(Tag::event(policy_id));
         tags.push(Tag::Expiration(
             Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
         ));
 
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(&keys)?;
         let timestamp = event.created_at;
 
         // Publish the event
@@ -1312,15 +1328,19 @@ impl SmartVaults {
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .into_iter()
-            .map(|p| Tag::PubKey(p, None))
+            .map(|public_key| Tag::PublicKey {
+                public_key,
+                relay_url: None,
+                alias: None,
+            })
             .collect();
-        tags.push(Tag::Event(proposal_id, None, None));
-        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::event(proposal_id));
+        tags.push(Tag::event(policy_id));
         tags.push(Tag::Expiration(
             Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
         ));
 
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(&keys)?;
         let timestamp = event.created_at;
 
         // Publish the event
@@ -1366,8 +1386,8 @@ impl SmartVaults {
             .into_iter()
             .map(|p| Tag::PubKey(p, None))
             .collect();
-        tags.push(Tag::Event(proposal_id, None, None));
-        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::event(proposal_id));
+        tags.push(Tag::event(policy_id));
         tags.push(Tag::Expiration(
             Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
         ));
@@ -1401,11 +1421,15 @@ impl SmartVaults {
 
             let mut tags: Vec<Tag> = nostr_pubkeys
                 .into_iter()
-                .map(|p| Tag::PubKey(p, None))
+                .map(|public_key| Tag::PublicKey {
+                    public_key,
+                    relay_url: None,
+                    alias: None,
+                })
                 .collect();
-            tags.push(Tag::Event(approval_id, None, None));
+            tags.push(Tag::event(approval_id));
 
-            let event = EventBuilder::new(Kind::EventDeletion, "", &tags).to_event(&keys)?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
             self.client.send_event(event).await?;
 
             self.db.delete_approval(approval_id).await?;
@@ -1470,12 +1494,17 @@ impl SmartVaults {
         let content: String = completed_proposal.encrypt_with_keys(&shared_keys)?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .iter()
-            .map(|p| Tag::PubKey(*p, None))
+            .copied()
+            .map(|public_key| Tag::PublicKey {
+                public_key,
+                relay_url: None,
+                alias: None,
+            })
             .collect();
-        tags.push(Tag::Event(proposal_id, None, None));
-        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::event(proposal_id));
+        tags.push(Tag::event(policy_id));
         let event =
-            EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+            EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, tags).to_event(&shared_keys)?;
 
         // Publish the event
         let event_id = self.client.send_event(event).await?;
@@ -1514,12 +1543,17 @@ impl SmartVaults {
         let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut tags: Vec<Tag> = nostr_pubkeys
             .iter()
-            .map(|p| Tag::PubKey(*p, None))
+            .copied()
+            .map(|public_key| Tag::PublicKey {
+                public_key,
+                relay_url: None,
+                alias: None,
+            })
             .collect();
-        tags.push(Tag::Event(policy_id, None, None));
+        tags.push(Tag::event(policy_id));
         let content = proposal.encrypt_with_keys(&shared_keys)?;
         // Publish proposal with `shared_key` so every owner can delete it
-        let event = EventBuilder::new(PROPOSAL_KIND, content, &tags).to_event(&shared_keys)?;
+        let event = EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(&shared_keys)?;
         let proposal_id = self.client.send_event(event).await?;
 
         // Send DM msg
@@ -1832,18 +1866,22 @@ impl SmartVaults {
         let shared_key = self.db.get_shared_key(policy_id).await?;
         let pubkeys = self.db.get_nostr_pubkeys(policy_id).await?;
         // Publish the shared key
-        for pubkey in pubkeys.iter() {
+        for public_key in pubkeys.into_iter() {
             let encrypted_shared_key = nips::nip04::encrypt(
                 &keys.secret_key()?,
-                pubkey,
+                &public_key,
                 shared_key.secret_key()?.display_secret().to_string(),
             )?;
             let event: Event = EventBuilder::new(
                 SHARED_KEY_KIND,
                 encrypted_shared_key,
-                &[
-                    Tag::Event(policy_id, None, None),
-                    Tag::PubKey(*pubkey, None),
+                [
+                    Tag::event(policy_id),
+                    Tag::PublicKey {
+                        public_key,
+                        relay_url: None,
+                        alias: None,
+                    },
                 ],
             )
             .to_event(&keys)?;
@@ -1854,7 +1892,7 @@ impl SmartVaults {
                 .pool()
                 .send_msg(ClientMessage::new_event(event), None)
                 .await?;
-            tracing::info!("Published shared key for {pubkey} at event {event_id}");
+            tracing::info!("Published shared key for {public_key} at event {event_id}");
         }
         Ok(())
     }
