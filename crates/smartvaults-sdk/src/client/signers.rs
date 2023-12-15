@@ -261,6 +261,7 @@ impl SmartVaults {
                 shared_signer,
             });
         }
+        list.sort();
         Ok(list)
     }
 

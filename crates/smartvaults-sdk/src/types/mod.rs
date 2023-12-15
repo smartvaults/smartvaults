@@ -158,11 +158,23 @@ impl Deref for GetSigner {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSharedSigner {
     pub shared_signer_id: EventId,
     pub owner: Profile,
     pub shared_signer: SharedSigner,
+}
+
+impl PartialOrd for GetSharedSigner {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetSharedSigner {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.shared_signer.cmp(&other.shared_signer)
+    }
 }
 
 #[derive(Debug, Clone)]
