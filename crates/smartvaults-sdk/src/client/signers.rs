@@ -296,13 +296,11 @@ impl SmartVaults {
             .get_shared_signers_by_public_key(public_key)
             .await
             .into_iter()
-            .map(
-                |(shared_signer_id, shared_signer)| GetSharedSigner {
-                    shared_signer_id,
-                    owner: profile.clone(),
-                    shared_signer,
-                },
-            )
+            .map(|(shared_signer_id, shared_signer)| GetSharedSigner {
+                shared_signer_id,
+                owner: profile.clone(),
+                shared_signer,
+            })
             .collect())
     }
 }

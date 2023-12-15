@@ -169,8 +169,8 @@ impl SmartVaultsStorage {
                     let policy = Policy::decrypt_with_keys(shared_key, &event.content)?;
                     let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
                     for tag in event.tags.iter() {
-                        if let Tag::PubKey(pubkey, ..) = tag {
-                            nostr_pubkeys.push(*pubkey);
+                        if let Tag::PublicKey { public_key, .. } = tag {
+                            nostr_pubkeys.push(*public_key);
                         }
                     }
                     if nostr_pubkeys.is_empty() {
