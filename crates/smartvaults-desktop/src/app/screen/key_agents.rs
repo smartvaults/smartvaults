@@ -5,7 +5,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::types::KeyAgent;
-use smartvaults_sdk::util;
+use smartvaults_sdk::util::{self, format};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, State};
@@ -129,6 +129,13 @@ impl State for KeyAgentsState {
                             )
                             .push(Text::new("Name").bold().big().width(Length::Fill).view())
                             .push(Text::new("Website").bold().big().width(Length::Fill).view())
+                            .push(
+                                Text::new("Offerings")
+                                    .bold()
+                                    .big()
+                                    .width(Length::Fixed(120.0))
+                                    .view(),
+                            )
                             .push(Space::with_width(Length::Fixed(40.0)))
                             .push(Space::with_width(Length::Fixed(40.0)))
                             .push(
@@ -174,6 +181,11 @@ impl State for KeyAgentsState {
                         .push(
                             Text::new(metadata.website.as_deref().unwrap_or("-"))
                                 .width(Length::Fill)
+                                .view(),
+                        )
+                        .push(
+                            Text::new(format::number(key_agent.list.len() as u64))
+                                .width(Length::Fixed(120.0))
                                 .view(),
                         )
                         .push(
