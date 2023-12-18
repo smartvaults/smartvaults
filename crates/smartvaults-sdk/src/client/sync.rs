@@ -224,7 +224,7 @@ impl SmartVaults {
             .since(since);
         let other_filters: Filter = Filter::new()
             .author(public_key)
-            .kinds(vec![Kind::Metadata, Kind::ContactList, Kind::RelayList])
+            .kinds([Kind::Metadata, Kind::ContactList, Kind::RelayList])
             .since(since);
         let key_agents: Filter = Filter::new()
             .kinds([KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND])
@@ -234,7 +234,7 @@ impl SmartVaults {
                 Network::Bitcoin => *SMARTVAULTS_MAINNET_PUBLIC_KEY,
                 _ => *SMARTVAULTS_TESTNET_PUBLIC_KEY,
             })
-            .kinds(vec![KEY_AGENT_VERIFIED]);
+            .kind(KEY_AGENT_VERIFIED);
 
         let mut filters = vec![
             author_filter,
@@ -291,7 +291,7 @@ impl SmartVaults {
                     .client
                     .handle_notifications(|notification| async {
                         match notification {
-                            RelayPoolNotification::Event(_, event) => {
+                            RelayPoolNotification::Event { event, ..} => {
                                 let event_id = event.id;
                                 if event.is_expired() {
                                     tracing::warn!("Event {event_id} expired");
@@ -299,8 +299,8 @@ impl SmartVaults {
                                     tracing::error!("Impossible to handle event {event_id}: {e}");
                                 }
                             }
-                            RelayPoolNotification::Message(relay_url, relay_msg) => {
-                                if let RelayMessage::EndOfStoredEvents(subscription_id) = relay_msg {
+                            RelayPoolNotification::Message { relay_url, message } => {
+                                if let RelayMessage::EndOfStoredEvents(subscription_id) = message {
                                     tracing::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
                                     if let Ok(relay) = this.client.relay(&relay_url).await {
                                         for (_, subscription) in relay.subscriptions().await.into_iter() {
