@@ -112,7 +112,7 @@ impl SmartVaults {
         .await?;
 
         // Nostr client
-        let nostr_db_path = util::dir::nostr_db(base_path, network)?;
+        let nostr_db_path = util::dir::nostr_db(base_path, keys.public_key(), network)?;
         let nostr_db = SQLiteDatabase::open(nostr_db_path).await?;
         let opts = Options::new()
             .wait_for_connection(false)
