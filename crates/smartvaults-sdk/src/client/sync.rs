@@ -13,7 +13,7 @@ use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyOptions,
-    RelayMessage, RelayPoolNotification, Result, Tag, Timestamp, Url,
+    RelayMessage, RelayPoolNotification, Result, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bitcoin::secp256k1::XOnlyPublicKey;
@@ -299,25 +299,7 @@ impl SmartVaults {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        if event.kind == Kind::EventDeletion {
-            for tag in event.tags.iter() {
-                if let Tag::Event { event_id, .. } = tag {
-                    if let Ok(Event { pubkey, .. }) =
-                        self.client.database().event_by_id(*event_id).await
-                    {
-                        if pubkey == event.pubkey {
-                            // TODO: self.storage.delete_generic_event_id(*event_id).await;
-                        } else {
-                            tracing::warn!(
-                                "{pubkey} tried to delete an event not owned by him: {event_id}"
-                            );
-                        }
-                    }
-                }
-            }
-            self.sync_channel
-                .send(Message::EventHandled(EventHandled::EventDeletion))?;
-        } else if event.kind == Kind::ContactList {
+        if event.kind == Kind::ContactList {
             let pubkeys = event.public_keys().copied();
             let filter: Filter = Filter::new().authors(pubkeys).kind(Kind::Metadata);
             self.client

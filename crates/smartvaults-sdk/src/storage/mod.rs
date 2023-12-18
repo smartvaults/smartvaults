@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{Client, Event, EventId, Filter, Keys, Tag, Timestamp};
+use nostr_sdk::{Client, Event, EventId, Filter, Keys, Kind, Tag, Timestamp};
 use smartvaults_core::bitcoin::{OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -57,6 +57,7 @@ impl Ord for WrappedEvent {
 #[derive(Debug, Clone)]
 pub(crate) struct SmartVaultsStorage {
     keys: Keys,
+    database: Arc<DynNostrDatabase>,
     shared_keys: Arc<RwLock<HashMap<EventId, Keys>>>,
     vaults: Arc<RwLock<HashMap<EventId, InternalPolicy>>>,
     proposals: Arc<RwLock<HashMap<EventId, InternalProposal>>>,
@@ -78,6 +79,7 @@ impl SmartVaultsStorage {
 
         let this: Self = Self {
             keys,
+            database,
             shared_keys: Arc::new(RwLock::new(HashMap::new())),
             vaults: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
@@ -112,7 +114,8 @@ impl SmartVaultsStorage {
         ]);
 
         let mut pending = this.pending.write().await;
-        for event in database
+        for event in this
+            .database
             .query(vec![author_filter, pubkey_filter])
             .await?
             .into_iter()
@@ -326,25 +329,10 @@ impl SmartVaultsStorage {
             } else {
                 tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
-        } /* else if event.kind == Kind::EventDeletion {
-              for tag in event.tags.iter() {
-                  if let Tag::Event(event_id, ..) = tag {
-                      if let Ok(Event { pubkey, .. }) =
-                          self.client.database().event_by_id(*event_id).await
-                      {
-                          if pubkey == event.pubkey {
-                              self.db.delete_generic_event_id(*event_id).await?;
-                          } else {
-                              tracing::warn!(
-                                  "{pubkey} tried to delete an event not owned by him: {event_id}"
-                              );
-                          }
-                      }
-                  }
-              }
-              self.sync_channel
-                  .send(Message::EventHandled(EventHandled::EventDeletion))?;
-          } else if event.kind == Kind::ContactList {
+        } else if event.kind == Kind::EventDeletion {
+            self.delete_event(event).await;
+            return Ok(Some(EventHandled::EventDeletion));
+        } /* else if event.kind == Kind::ContactList {
               let pubkeys = event.public_keys().copied();
               let filter: Filter = Filter::new().authors(pubkeys).kind(Kind::Metadata);
               self.client
@@ -482,6 +470,36 @@ impl SmartVaultsStorage {
         self.pending.read().await.clone()
     }
 
+    pub async fn delete_event(&self, event: &Event) {
+        for tag in event.tags.iter() {
+            if let Tag::Event { event_id, .. } = tag {
+                if let Ok(Event { pubkey, .. }) = self.database.event_by_id(*event_id).await {
+                    if pubkey == event.pubkey {
+                        // TODO: replace with `match event.kind {}` when
+                        // https://doc.rust-lang.org/stable/std/marker/trait.StructuralEq.html will be stable
+                        if event.kind == POLICY_KIND {
+                            self.delete_vault(event_id).await
+                        } else if event.kind == PROPOSAL_KIND {
+                            self.delete_proposal(event_id).await
+                        } else if event.kind == APPROVED_PROPOSAL_KIND {
+                            self.delete_approval(event_id).await
+                        } else if event.kind == COMPLETED_PROPOSAL_KIND {
+                            self.delete_completed_proposal(event_id).await
+                        } else if event.kind == SIGNERS_KIND {
+                            self.delete_signer(event_id).await
+                        } else if event.kind == SHARED_SIGNERS_KIND {
+                            self.delete_shared_signer(event_id).await
+                        }
+                    } else {
+                        tracing::warn!(
+                            "{pubkey} tried to delete an event not owned by him: {event_id}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     pub async fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) {
         let mut shared_keys = self.shared_keys.write().await;
         shared_keys.insert(policy_id, shared_key);
@@ -501,6 +519,7 @@ impl SmartVaultsStorage {
     pub async fn delete_vault(&self, vault_id: &EventId) {
         let mut vaults = self.vaults.write().await;
         vaults.remove(vault_id);
+        tracing::info!("Deleted vault {vault_id}");
     }
 
     /// Get vaults
@@ -535,6 +554,7 @@ impl SmartVaultsStorage {
     pub async fn delete_proposal(&self, proposal_id: &EventId) {
         let mut proposals = self.proposals.write().await;
         proposals.remove(proposal_id);
+        tracing::info!("Deleted proposal {proposal_id}");
     }
 
     /// Get proposals
@@ -560,6 +580,7 @@ impl SmartVaultsStorage {
     pub async fn delete_approval(&self, approval_id: &EventId) {
         let mut approvals = self.approvals.write().await;
         approvals.remove(approval_id);
+        tracing::info!("Deleted approval {approval_id}");
     }
 
     /// Get approvals
@@ -613,6 +634,7 @@ impl SmartVaultsStorage {
     pub async fn delete_completed_proposal(&self, completed_proposal_id: &EventId) {
         let mut completed_proposals = self.completed_proposals.write().await;
         completed_proposals.remove(completed_proposal_id);
+        tracing::info!("Deleted completed proposal {completed_proposal_id}");
     }
 
     /// Get completed_proposals
@@ -681,6 +703,7 @@ impl SmartVaultsStorage {
     pub async fn delete_signer(&self, signer_id: &EventId) {
         let mut signers = self.signers.write().await;
         signers.remove(signer_id);
+        tracing::info!("Deleted signer {signer_id}");
     }
 
     /// Get signers
@@ -728,6 +751,7 @@ impl SmartVaultsStorage {
         shared_signers.remove(shared_signer_id);
         let mut my_shared_signers = self.my_shared_signers.write().await;
         my_shared_signers.retain(|_, (id, ..)| id == shared_signer_id);
+        tracing::info!("Deleted shared signer {shared_signer_id}");
     }
 
     pub async fn my_shared_signers(&self) -> HashMap<EventId, XOnlyPublicKey> {
