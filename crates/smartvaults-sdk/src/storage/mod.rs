@@ -7,10 +7,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use nostr_sdk::bitcoin::Txid;
 use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Client, Event, EventId, Filter, Keys, Tag, Timestamp};
+use smartvaults_core::bitcoin::{OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::{
@@ -20,13 +20,13 @@ use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
-use smartvaults_protocol::v1::{Encryption, Serde};
+use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, Serde};
 use tokio::sync::RwLock;
 
 mod model;
 
 pub(crate) use self::model::{
-    InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
+    InternalApproval, InternalCompletedProposal, InternalLabel, InternalPolicy, InternalProposal,
     InternalSharedSigner,
 };
 use crate::types::GetApprovedProposals;
@@ -65,6 +65,7 @@ pub(crate) struct SmartVaultsStorage {
     signers: Arc<RwLock<HashMap<EventId, Signer>>>,
     my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, XOnlyPublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
     shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
+    labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
     pending: Arc<RwLock<BTreeSet<Event>>>,
 }
 
@@ -85,6 +86,7 @@ impl SmartVaultsStorage {
             signers: Arc::new(RwLock::new(HashMap::new())),
             my_shared_signers: Arc::new(RwLock::new(HashMap::new())),
             shared_signers: Arc::new(RwLock::new(HashMap::new())),
+            labels: Arc::new(RwLock::new(HashMap::new())),
             pending: Arc::new(RwLock::new(BTreeSet::new())),
         };
 
@@ -300,24 +302,31 @@ impl SmartVaultsStorage {
                     return Ok(Some(EventHandled::SharedSigner(event.id)));
                 }
             }
-        } /* else if event.kind == LABELS_KIND {
-              if let Some(policy_id) = event.event_ids().next().copied() {
-                  if let Some(identifier) = event.identifier() {
-                      if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
-                          let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
-                          self.db.save_label(identifier, policy_id, label).await?;
-                          self.sync_channel
-                              .send(Message::EventHandled(EventHandled::Label))?;
-                      } else {
-                          self.db.save_pending_event(event.clone()).await?;
-                      }
-                  } else {
-                      tracing::error!("Label identifier not found in event {}", event.id);
-                  }
-              } else {
-                  tracing::error!("Impossible to find policy id in proposal {}", event.id);
-              }
-          } else if event.kind == Kind::EventDeletion {
+        } else if event.kind == LABELS_KIND {
+            let mut labels = self.labels.write().await;
+            let shared_keys = self.shared_keys.read().await;
+            if let Some(policy_id) = event.event_ids().next() {
+                if let Some(identifier) = event.identifier() {
+                    if let Some(shared_key) = shared_keys.get(policy_id) {
+                        let label = Label::decrypt_with_keys(shared_key, &event.content)?;
+                        labels.insert(
+                            identifier.to_string(),
+                            InternalLabel {
+                                policy_id: *policy_id,
+                                label,
+                            },
+                        );
+                        return Ok(Some(EventHandled::Label));
+                    } else {
+                        pending.insert(event.clone());
+                    }
+                } else {
+                    tracing::error!("Label identifier not found in event {}", event.id);
+                }
+            } else {
+                tracing::error!("Impossible to find policy id in proposal {}", event.id);
+            }
+        } /* else if event.kind == Kind::EventDeletion {
               for tag in event.tags.iter() {
                   if let Tag::Event(event_id, ..) = tag {
                       if let Ok(Event { pubkey, .. }) =
@@ -471,11 +480,6 @@ impl SmartVaultsStorage {
 
     pub async fn pending_events(&self) -> BTreeSet<Event> {
         self.pending.read().await.clone()
-    }
-
-    pub async fn save_pending_event(&self, event: Event) {
-        let mut pending = self.pending.write().await;
-        pending.insert(event);
     }
 
     pub async fn save_shared_key(&self, policy_id: EventId, shared_key: Keys) {
@@ -810,5 +814,57 @@ impl SmartVaultsStorage {
             .filter(|(_, i)| i.owner_public_key == public_key)
             .map(|(id, i)| (*id, i.shared_signer.clone()))
             .collect()
+    }
+
+    pub async fn save_label<S>(&self, identifier: S, policy_id: EventId, label: Label)
+    where
+        S: Into<String>,
+    {
+        let mut labels = self.labels.write().await;
+        labels.insert(identifier.into(), InternalLabel { policy_id, label });
+    }
+
+    pub async fn get_addresses_labels(&self, policy_id: EventId) -> HashMap<ScriptBuf, Label> {
+        self.labels
+            .read()
+            .await
+            .values()
+            .filter(|i| i.label.kind() == LabelKind::Address && i.policy_id == policy_id)
+            .filter_map(|i| {
+                if let LabelData::Address(address) = i.label.data() {
+                    Some((address.payload.script_pubkey(), i.label.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub async fn get_utxos_labels(&self, policy_id: EventId) -> HashMap<OutPoint, Label> {
+        self.labels
+            .read()
+            .await
+            .values()
+            .filter(|i| i.label.kind() == LabelKind::Utxo && i.policy_id == policy_id)
+            .filter_map(|i| {
+                if let LabelData::Utxo(utxo) = i.label.data() {
+                    Some((utxo, i.label.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub async fn get_label_by_identifier<S>(&self, identifier: S) -> Result<Label, Error>
+    where
+        S: AsRef<str>,
+    {
+        self.labels
+            .read()
+            .await
+            .get(identifier.as_ref())
+            .map(|i| i.label.clone())
+            .ok_or(Error::NotFound)
     }
 }

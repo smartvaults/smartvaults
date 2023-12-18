@@ -1632,7 +1632,7 @@ impl SmartVaults {
 
         let descriptions: HashMap<Txid, String> = self.storage.txs_descriptions(policy_id).await;
         let script_labels: HashMap<ScriptBuf, Label> =
-            self.db.get_addresses_labels(policy_id).await?;
+            self.storage.get_addresses_labels(policy_id).await;
 
         let block_explorer = self.config.block_explorer().await.ok();
 
@@ -1683,7 +1683,7 @@ impl SmartVaults {
                         LabelData::Address(Address::new(self.network, address.payload))
                             .generate_identifier(&shared_key)?;
                     label = self
-                        .db
+                        .storage
                         .get_label_by_identifier(identifier)
                         .await
                         .ok()
@@ -1722,7 +1722,7 @@ impl SmartVaults {
         let identifier: String =
             LabelData::Address(address.clone()).generate_identifier(&shared_key)?;
         let label = self
-            .db
+            .storage
             .get_label_by_identifier(identifier)
             .await
             .ok()
@@ -1738,7 +1738,7 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
         let script_labels: HashMap<ScriptBuf, Label> =
-            self.db.get_addresses_labels(policy_id).await?;
+            self.storage.get_addresses_labels(policy_id).await;
         Ok(self
             .manager
             .get_addresses(policy_id)
@@ -1766,8 +1766,8 @@ impl SmartVaults {
     pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
         // Get labels
         let script_labels: HashMap<ScriptBuf, Label> =
-            self.db.get_addresses_labels(policy_id).await?;
-        let utxo_labels: HashMap<OutPoint, Label> = self.db.get_utxos_labels(policy_id).await?;
+            self.storage.get_addresses_labels(policy_id).await;
+        let utxo_labels: HashMap<OutPoint, Label> = self.storage.get_utxos_labels(policy_id).await;
         let frozen_utxos: HashSet<Sha256Hash> = self.db.get_frozen_utxos(policy_id).await?;
 
         // Compose output

@@ -19,7 +19,6 @@ use smartvaults_protocol::nostr::{Keys, Timestamp};
 use tokio::sync::RwLock;
 
 mod connect;
-mod label;
 mod relays;
 mod timechain;
 mod utxos;

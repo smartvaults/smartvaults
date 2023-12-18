@@ -23,7 +23,7 @@ impl SmartVaults {
 
         // Save to db
         let identifier: String = label.generate_identifier(&shared_key)?;
-        self.db.save_label(identifier, policy_id, label).await?;
+        self.storage.save_label(identifier, policy_id, label).await;
 
         Ok(event_id)
     }

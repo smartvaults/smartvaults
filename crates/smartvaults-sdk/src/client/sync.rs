@@ -25,7 +25,7 @@ use smartvaults_protocol::v1::constants::{
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::{Encryption, Label, VerifiedKeyAgents};
+use smartvaults_protocol::v1::VerifiedKeyAgents;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
@@ -299,25 +299,7 @@ impl SmartVaults {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        if event.kind == LABELS_KIND {
-            // TODO
-            if let Some(policy_id) = event.event_ids().next() {
-                if let Some(identifier) = event.identifier() {
-                    if let Ok(shared_key) = self.storage.shared_key(policy_id).await {
-                        let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db.save_label(identifier, *policy_id, label).await?;
-                        self.sync_channel
-                            .send(Message::EventHandled(EventHandled::Label))?;
-                    } else {
-                        self.storage.save_pending_event(event.clone()).await;
-                    }
-                } else {
-                    tracing::error!("Label identifier not found in event {}", event.id);
-                }
-            } else {
-                tracing::error!("Impossible to find policy id in proposal {}", event.id);
-            }
-        } else if event.kind == Kind::EventDeletion {
+        if event.kind == Kind::EventDeletion {
             for tag in event.tags.iter() {
                 if let Tag::Event { event_id, .. } = tag {
                     if let Ok(Event { pubkey, .. }) =
