@@ -17,7 +17,7 @@ impl SmartVaults {
         let relay_url: Url = uri.relay_url.clone();
 
         // Try to add relay and check if it's already added
-        if self.client.add_relay(&relay_url, None).await? {
+        if self.client.add_relay(&relay_url).await? {
             let relay = self.client.relay(&relay_url).await?;
             relay.connect(true).await;
 

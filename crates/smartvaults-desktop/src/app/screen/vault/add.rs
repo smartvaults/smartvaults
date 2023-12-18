@@ -1,12 +1,12 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{BTreeSet, HashSet};
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::types::User;
+use smartvaults_sdk::nostr::Profile;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -20,7 +20,7 @@ pub enum AddVaultMessage {
     NameChanged(String),
     DescriptionChanged(String),
     DescriptorChanged(String),
-    Load(Box<User>, VecDeque<User>),
+    Load(Box<Profile>, BTreeSet<Profile>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     SelectPublicKeys(bool),
@@ -33,8 +33,8 @@ pub struct AddVaultState {
     name: String,
     description: String,
     descriptor: String,
-    profile: Option<User>,
-    contacts: VecDeque<User>,
+    profile: Option<Profile>,
+    contacts: BTreeSet<Profile>,
     public_keys: HashSet<XOnlyPublicKey>,
     loading: bool,
     loaded: bool,
@@ -63,9 +63,8 @@ impl State for AddVaultState {
         Command::perform(
             async move {
                 let profile = client.get_profile().await.unwrap();
-                let mut contacts: VecDeque<User> =
-                    client.get_contacts().await.unwrap().into_iter().collect();
-                contacts.push_front(profile.clone());
+                let mut contacts = client.get_contacts().await.unwrap();
+                contacts.insert(profile.clone());
                 (profile, contacts)
             },
             |(profile, contacts)| AddVaultMessage::Load(Box::new(profile), contacts).into(),

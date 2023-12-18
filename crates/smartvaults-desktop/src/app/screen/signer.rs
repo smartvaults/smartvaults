@@ -7,7 +7,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::types::User;
+use smartvaults_sdk::nostr::Profile;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -18,7 +18,7 @@ use crate::theme::icon::TRASH;
 
 #[derive(Debug, Clone)]
 pub enum SignerMessage {
-    LoadMySharedSigners(BTreeMap<EventId, User>),
+    LoadMySharedSigners(BTreeMap<EventId, Profile>),
     Delete,
     RevokeSharedSigner(EventId),
     Reload,
@@ -31,7 +31,7 @@ pub struct SignerState {
     loaded: bool,
     signer_id: EventId,
     signer: Signer,
-    my_shared_signers: BTreeMap<EventId, User>,
+    my_shared_signers: BTreeMap<EventId, Profile>,
     error: Option<String>,
 }
 

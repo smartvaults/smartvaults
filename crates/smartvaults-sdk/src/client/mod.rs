@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::path::{Path, PathBuf};
@@ -19,8 +19,8 @@ use nostr_sdk::relay::pool;
 use nostr_sdk::util::TryIntoUrl;
 use nostr_sdk::{
     nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
-    JsonUtil, Keys, Kind, Metadata, Options, Relay, RelayPoolNotification, Result, SQLiteDatabase,
-    SQLiteError, Tag, Timestamp, UncheckedUrl, Url,
+    JsonUtil, Keys, Kind, Metadata, Options, Profile, Relay, RelayOptions, RelayPoolNotification,
+    Result, SQLiteDatabase, SQLiteError, Tag, Timestamp, UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -66,7 +66,7 @@ use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Error as ManagerError, Manager, WalletError};
 use crate::types::{
     GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
-    GetTransaction, GetUtxo, InternalGetPolicy, PolicyBackup, User,
+    GetTransaction, GetUtxo, InternalGetPolicy, PolicyBackup,
 };
 use crate::util;
 
@@ -508,7 +508,9 @@ impl SmartVaults {
         self.db.insert_relay(url.clone(), proxy).await?;
         self.db.enable_relay(url.clone()).await?;
 
-        if self.client.add_relay(url.as_str(), proxy).await? {
+        let opts = RelayOptions::new().proxy(proxy);
+
+        if self.client.add_relay_with_opts(url.as_str(), opts).await? {
             let relay = self.client.relay(&url).await?;
             let last_sync: Timestamp = match self.db.get_last_relay_sync(url.clone()).await {
                 Ok(ts) => ts,
@@ -555,8 +557,7 @@ impl SmartVaults {
     }
 
     async fn load_nostr_connect_relays(&self) -> Result<(), Error> {
-        let relays = self.db.get_nostr_connect_sessions_relays().await?;
-        let relays = relays.into_iter().map(|r| (r, None)).collect();
+        let relays: Vec<Url> = self.db.get_nostr_connect_sessions_relays().await?;
         self.client.add_relays(relays).await?;
         Ok(())
     }
@@ -566,13 +567,14 @@ impl SmartVaults {
     async fn restore_relays(&self) -> Result<(), Error> {
         let relays = self.db.get_relays(true).await?;
         for (url, proxy) in relays.into_iter() {
-            self.client.add_relay(url, proxy).await?;
+            let opts = RelayOptions::new().proxy(proxy);
+            self.client.add_relay_with_opts(url, opts).await?;
         }
 
         if self.client.relays().await.is_empty() {
             for url in self.default_relays().into_iter() {
                 let url = Url::parse(&url)?;
-                self.client.add_relay(&url, None).await?;
+                self.client.add_relay(&url).await?;
                 self.db.insert_relay(url.clone(), None).await?;
                 self.db.enable_relay(url).await?;
             }
@@ -678,10 +680,9 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_profile(&self) -> Result<User, Error> {
+    pub async fn get_profile(&self) -> Result<Profile, Error> {
         let public_key: XOnlyPublicKey = self.keys().await.public_key();
-        let metadata = self.client.database().profile(public_key).await?;
-        Ok(User::new(public_key, metadata))
+        Ok(self.client.database().profile(public_key).await?)
     }
 
     /// Get [`Metadata`] of [`XOnlyPublicKey`]
@@ -692,7 +693,8 @@ impl SmartVaults {
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Metadata, Error> {
-        let metadata: Metadata = self.client.database().profile(public_key).await?;
+        let profile: Profile = self.client.database().profile(public_key).await?;
+        let metadata: Metadata = profile.metadata();
         if metadata == Metadata::default() {
             self.client
                 .req_events_of(
@@ -708,18 +710,9 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_contacts(&self) -> Result<Vec<User>, Error> {
+    pub async fn get_contacts(&self) -> Result<BTreeSet<Profile>, Error> {
         let keys = self.keys().await;
-        let mut contacts: Vec<User> = self
-            .client
-            .database()
-            .contacts(keys.public_key())
-            .await?
-            .into_iter()
-            .map(|(public_key, metadata)| User::new(public_key, metadata))
-            .collect();
-        contacts.sort();
-        Ok(contacts)
+        Ok(self.client.database().contacts(keys.public_key()).await?)
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
@@ -984,10 +977,9 @@ impl SmartVaults {
             timestamp,
         } in approvals.into_iter()
         {
-            let metadata: Metadata = self.client.database().profile(public_key).await?;
             list.push(GetApproval {
                 approval_id,
-                user: User::new(public_key, metadata),
+                user: self.client.database().profile(public_key).await?,
                 approved_proposal,
                 timestamp,
             });
@@ -1000,12 +992,12 @@ impl SmartVaults {
         Ok(self.db.completed_proposals().await?)
     }
 
-    pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<User>, Error> {
+    pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<Profile>, Error> {
         let public_keys = self.db.get_nostr_pubkeys(policy_id).await?;
         let mut users = Vec::with_capacity(public_keys.len());
         for public_key in public_keys.into_iter() {
             let metadata = self.get_public_key_metadata(public_key).await?;
-            let user = User::new(public_key, metadata);
+            let user = Profile::new(public_key, metadata);
             users.push(user);
         }
         Ok(users)
@@ -1919,7 +1911,7 @@ impl SmartVaults {
         Ok(())
     }
 
-    pub async fn get_known_public_keys_with_metadata(&self) -> Result<Vec<User>, Error> {
+    pub async fn get_known_profiles(&self) -> Result<BTreeSet<Profile>, Error> {
         let filter = Filter::new().kind(Kind::Metadata);
         Ok(self
             .client
@@ -1929,7 +1921,7 @@ impl SmartVaults {
             .into_iter()
             .map(|e| {
                 let metadata = Metadata::from_json(e.content).unwrap_or_default();
-                User::new(e.pubkey, metadata)
+                Profile::new(e.pubkey, metadata)
             })
             .collect())
     }

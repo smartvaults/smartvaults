@@ -24,7 +24,6 @@ mod proposal;
 mod seed;
 mod signer;
 mod transaction;
-mod user;
 
 use self::error::Result;
 
@@ -53,7 +52,6 @@ pub use self::signer::{GetSharedSigner, GetSigner, SharedSigner, Signer, SignerT
 pub use self::transaction::{
     BlockTime, GetTransaction, OutPoint, Transaction, TransactionDetails, TxIn, TxOut, Utxo,
 };
-pub use self::user::User;
 
 #[derive(Object)]
 pub struct SmartVaultsLibrary;

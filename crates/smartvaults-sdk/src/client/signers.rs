@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Metadata, Tag};
+use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, Tag};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
@@ -15,7 +15,7 @@ use smartvaults_protocol::v1::util::Serde;
 use smartvaults_sdk_sqlite::model::GetSharedSignerRaw;
 
 use super::{Error, SmartVaults};
-use crate::types::{GetAllSigners, GetSharedSigner, GetSigner, User};
+use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
 
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
@@ -223,15 +223,15 @@ impl SmartVaults {
     pub async fn get_my_shared_signers_by_signer_id(
         &self,
         signer_id: EventId,
-    ) -> Result<BTreeMap<EventId, User>, Error> {
+    ) -> Result<BTreeMap<EventId, Profile>, Error> {
         let mut map = BTreeMap::new();
         let ssbs = self
             .db
             .get_my_shared_signers_by_signer_id(signer_id)
             .await?;
         for (key, pk) in ssbs.into_iter() {
-            let metadata: Metadata = self.client.database().profile(pk).await?;
-            map.insert(key, User::new(pk, metadata));
+            let profile: Profile = self.client.database().profile(pk).await?;
+            map.insert(key, profile);
         }
         Ok(map)
     }
@@ -246,10 +246,10 @@ impl SmartVaults {
             shared_signer,
         } in ss.into_iter()
         {
-            let metadata: Metadata = self.client.database().profile(owner_public_key).await?;
+            let profile: Profile = self.client.database().profile(owner_public_key).await?;
             list.push(GetSharedSigner {
                 shared_signer_id,
-                owner: User::new(owner_public_key, metadata),
+                owner: profile,
                 shared_signer,
             });
         }
@@ -280,8 +280,7 @@ impl SmartVaults {
         &self,
         public_key: XOnlyPublicKey,
     ) -> Result<Vec<GetSharedSigner>, Error> {
-        let metadata: Metadata = self.client.database().profile(public_key).await?;
-        let user = User::new(public_key, metadata);
+        let profile: Profile = self.client.database().profile(public_key).await?;
         Ok(self
             .db
             .get_shared_signers_by_public_key(public_key)
@@ -294,7 +293,7 @@ impl SmartVaults {
                      ..
                  }| GetSharedSigner {
                     shared_signer_id,
-                    owner: user.clone(),
+                    owner: profile.clone(),
                     shared_signer,
                 },
             )

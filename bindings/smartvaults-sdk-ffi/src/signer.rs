@@ -5,12 +5,13 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use nostr_ffi::EventId;
+use nostr_sdk_ffi::profile::Profile;
 use smartvaults_sdk::core::signer;
 use smartvaults_sdk::types;
 use uniffi::{Enum, Object};
 
 use crate::error::Result;
-use crate::{Descriptor, User};
+use crate::Descriptor;
 
 #[derive(Enum)]
 pub enum SignerType {
@@ -109,7 +110,7 @@ impl GetSharedSigner {
         Arc::new(self.inner.shared_signer_id.into())
     }
 
-    pub fn owner(&self) -> Arc<User> {
+    pub fn owner(&self) -> Arc<Profile> {
         Arc::new(self.inner.owner.clone().into())
     }
 

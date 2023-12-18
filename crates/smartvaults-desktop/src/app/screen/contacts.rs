@@ -1,10 +1,12 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::types::User;
+use smartvaults_sdk::nostr::Profile;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -14,7 +16,7 @@ use crate::theme::icon::{CLIPBOARD, PLUS, RELOAD, TRASH};
 
 #[derive(Debug, Clone)]
 pub enum ContactsMessage {
-    LoadContacts(Vec<User>),
+    LoadContacts(BTreeSet<Profile>),
     RemovePublicKey(XOnlyPublicKey),
     ErrorChanged(Option<String>),
     Reload,
@@ -24,7 +26,7 @@ pub enum ContactsMessage {
 pub struct ContactsState {
     loading: bool,
     loaded: bool,
-    contacts: Vec<User>,
+    contacts: BTreeSet<Profile>,
     error: Option<String>,
 }
 

@@ -6,7 +6,8 @@ use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::PolicyTemplate;
-use smartvaults_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner, User};
+use smartvaults_sdk::nostr::Profile;
+use smartvaults_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -21,9 +22,9 @@ pub enum PolicyBuilderMessage {
     DescriptionChanged(String),
     IncreaseThreshold,
     DecreaseThreshold,
-    Load((GetAllSigners, User)),
+    Load((GetAllSigners, Profile)),
     AddSigner,
-    EditSigner(usize, Box<User>, Box<DescriptorPublicKey>),
+    EditSigner(usize, Box<Profile>, Box<DescriptorPublicKey>),
     RemoveSigner(usize),
     SelectingSigner { index: Option<usize> },
     ErrorChanged(Option<String>),
@@ -36,8 +37,8 @@ pub struct PolicyBuilderState {
     description: String,
     signers: GetAllSigners,
     threshold: usize,
-    policy: Vec<Option<(User, DescriptorPublicKey)>>,
-    profile: Option<User>,
+    policy: Vec<Option<(Profile, DescriptorPublicKey)>>,
+    profile: Option<Profile>,
     loading: bool,
     loaded: bool,
     selecting_signer: Option<usize>,

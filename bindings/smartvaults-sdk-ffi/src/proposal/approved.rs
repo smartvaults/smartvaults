@@ -4,11 +4,10 @@
 use std::sync::Arc;
 
 use nostr_ffi::{EventId, Timestamp};
+use nostr_sdk_ffi::profile::Profile;
 use smartvaults_sdk::core::proposal;
 use smartvaults_sdk::types;
 use uniffi::{Enum, Object};
-
-use crate::User;
 
 #[derive(Clone, Enum)]
 pub enum ApprovedProposal {
@@ -50,7 +49,7 @@ impl GetApproval {
         Arc::new(self.inner.approval_id.into())
     }
 
-    pub fn user(&self) -> Arc<User> {
+    pub fn user(&self) -> Arc<Profile> {
         Arc::new(self.inner.user.clone().into())
     }
 

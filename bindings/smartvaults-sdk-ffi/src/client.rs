@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use async_utility::thread;
 use nostr_ffi::{EventId, Keys, Metadata, NostrConnectURI, PublicKey};
+use nostr_sdk_ffi::profile::Profile;
 use nostr_sdk_ffi::Relay;
 use smartvaults_sdk::client;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
@@ -27,7 +28,7 @@ use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
     GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
     KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession, OutPoint, Period,
-    PolicyTemplate, Seed, Signer, SignerOffering, User, Utxo, WordCount,
+    PolicyTemplate, Seed, Signer, SignerOffering, Utxo, WordCount,
 };
 
 #[derive(Object)]
@@ -243,7 +244,7 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.set_metadata(metadata.as_ref().deref()).await?) })
     }
 
-    pub fn get_profile(&self) -> Result<Arc<User>> {
+    pub fn get_profile(&self) -> Result<Arc<Profile>> {
         block_on(async move { Ok(Arc::new(self.inner.get_profile().await?.into())) })
     }
 
@@ -258,7 +259,7 @@ impl SmartVaults {
         })
     }
 
-    pub fn get_contacts(&self) -> Result<Vec<Arc<User>>> {
+    pub fn get_contacts(&self) -> Result<Vec<Arc<Profile>>> {
         block_on(async move {
             Ok(self
                 .inner
@@ -391,7 +392,7 @@ impl SmartVaults {
         })
     }
 
-    pub fn get_members_of_policy(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<User>>> {
+    pub fn get_members_of_policy(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<Profile>>> {
         block_on(async move {
             Ok(self
                 .inner

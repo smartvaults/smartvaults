@@ -1,12 +1,14 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
+use smartvaults_sdk::nostr::Profile;
 use smartvaults_sdk::types::backup::PolicyBackup;
-use smartvaults_sdk::types::User;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -16,7 +18,7 @@ use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone)]
 pub enum RestoreVaultMessage {
-    Load(Vec<User>),
+    Load(BTreeSet<Profile>),
     NameChanged(String),
     DescriptionChanged(String),
     SelectPolicyBackup,
@@ -32,7 +34,7 @@ pub struct RestoreVaultState {
     description: String,
     descriptor: String,
     public_keys: Vec<XOnlyPublicKey>,
-    known_public_keys: Vec<User>,
+    known_public_keys: BTreeSet<Profile>,
     loading: bool,
     loaded: bool,
     error: Option<String>,
@@ -63,7 +65,7 @@ impl State for RestoreVaultState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.get_known_public_keys_with_metadata().await.unwrap() },
+            async move { client.get_known_profiles().await.unwrap() },
             |known_public_keys| RestoreVaultMessage::Load(known_public_keys).into(),
         )
     }

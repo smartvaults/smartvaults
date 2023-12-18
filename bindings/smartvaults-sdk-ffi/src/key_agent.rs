@@ -5,17 +5,18 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use nostr_sdk_ffi::profile::Profile;
 pub use smartvaults_sdk::protocol::v1::key_agent::{self, Currency};
 use smartvaults_sdk::protocol::v1::BasisPoints;
 use smartvaults_sdk::types;
 use uniffi::{Enum, Object, Record};
 
 use crate::error::Result;
-use crate::{Network, User};
+use crate::Network;
 
 #[derive(Record)]
 pub struct KeyAgent {
-    pub user: Arc<User>,
+    pub user: Arc<Profile>,
     pub signer_offerings: Vec<SignerOffering>,
     pub verified: bool,
     pub is_contact: bool,

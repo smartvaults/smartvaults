@@ -1,13 +1,13 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::nostr::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::types::User;
+use smartvaults_sdk::nostr::Profile;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -18,7 +18,7 @@ use crate::theme::icon::{PLUS, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum ShareSignerMessage {
-    Load(Vec<User>, Vec<XOnlyPublicKey>),
+    Load(BTreeSet<Profile>, Vec<XOnlyPublicKey>),
     AddPublicKey(XOnlyPublicKey),
     RemovePublicKey(XOnlyPublicKey),
     Share,
@@ -31,7 +31,7 @@ pub struct ShareSignerState {
     loading: bool,
     loaded: bool,
     signer_id: EventId,
-    contacts: Vec<User>,
+    contacts: BTreeSet<Profile>,
     public_keys: HashSet<XOnlyPublicKey>,
     already_shared_with: Vec<XOnlyPublicKey>,
     error: Option<String>,
@@ -43,7 +43,7 @@ impl ShareSignerState {
             loading: false,
             loaded: false,
             signer_id,
-            contacts: Vec::new(),
+            contacts: BTreeSet::new(),
             public_keys: HashSet::new(),
             already_shared_with: Vec::new(),
             error: None,

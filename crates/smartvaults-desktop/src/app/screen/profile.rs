@@ -3,7 +3,7 @@
 
 use iced::widget::Column;
 use iced::{Command, Element, Length};
-use smartvaults_sdk::types::User;
+use smartvaults_sdk::nostr::Profile;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -13,14 +13,14 @@ use crate::theme::icon::CLIPBOARD;
 
 #[derive(Debug, Clone)]
 pub enum ProfileMessage {
-    LoadProfile { user: User },
+    LoadProfile { user: Profile },
 }
 
 #[derive(Debug, Default)]
 pub struct ProfileState {
     loading: bool,
     loaded: bool,
-    user: Option<User>,
+    user: Option<Profile>,
 }
 
 impl ProfileState {

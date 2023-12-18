@@ -2786,7 +2786,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.25.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "aes",
  "base64 0.21.3",
@@ -2808,7 +2808,7 @@ dependencies = [
 [[package]]
 name = "nostr-database"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "async-trait",
  "flatbuffers",
@@ -2822,7 +2822,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2831,7 +2831,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.25.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2847,7 +2847,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2859,7 +2859,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.25.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -2868,14 +2868,14 @@ dependencies = [
  "tokio-socks",
  "tokio-tungstenite",
  "url-fork",
+ "wasm-ws",
  "webpki-roots",
- "ws_stream_wasm",
 ]
 
 [[package]]
 name = "nostr-sqlite"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=0c5e393d5d7f0af836b231168361c60b42605f82#0c5e393d5d7f0af836b231168361c60b42605f82"
+source = "git+https://github.com/rust-nostr/nostr?rev=d1dab35f2b9ee0178551d075792ae8e869708251#d1dab35f2b9ee0178551d075792ae8e869708251"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",
@@ -5313,6 +5313,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-ws"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "601c6f6340b473083c38e6cdda1f39dfc35d67b0e4b54fa56624d6189c2aa366"
+dependencies = [
+ "async_io_stream",
+ "futures",
+ "js-sys",
+ "pharos",
+ "send_wrapper",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "wayland-backend"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5921,25 +5938,6 @@ checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "ws_stream_wasm"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7999f5f4217fe3818726b66257a4475f71e74ffd190776ad053fa159e50737f5"
-dependencies = [
- "async_io_stream",
- "futures",
- "js-sys",
- "log",
- "pharos",
- "rustc_version",
- "send_wrapper",
- "thiserror",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

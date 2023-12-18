@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip01::Coordinate;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
-use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys};
+use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::{Address, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
@@ -17,7 +17,7 @@ use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder};
 use smartvaults_sdk_sqlite::model::{GetProposal, GetSigner};
 
 use super::{Error, SmartVaults};
-use crate::types::{GetSignerOffering, KeyAgent, User};
+use crate::types::{GetSignerOffering, KeyAgent};
 
 impl SmartVaults {
     /// Announce as Key Agent
@@ -198,7 +198,7 @@ impl SmartVaults {
         for (public_key, set) in key_agents.into_iter() {
             let metadata = self.get_public_key_metadata(public_key).await?;
             list.push(KeyAgent {
-                user: User::new(public_key, metadata),
+                user: Profile::new(public_key, metadata),
                 list: set,
                 verified: verified_key_agents.is_verified(&public_key),
                 is_contact: contacts.contains(&public_key),

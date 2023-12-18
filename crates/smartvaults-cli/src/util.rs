@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use owo_colors::colors::css::Lime;
 use owo_colors::colors::xterm::{BlazeOrange, BrightElectricViolet, Pistachio};
@@ -17,10 +17,10 @@ use smartvaults_sdk::core::proposal::{CompletedProposal, Proposal};
 use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
-use smartvaults_sdk::nostr::{EventId, Keys, Relay, Timestamp, Url};
+use smartvaults_sdk::nostr::{EventId, Keys, Profile, Relay, Timestamp, Url};
 use smartvaults_sdk::types::{
     GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, GetUtxo,
-    NostrConnectRequest, User,
+    NostrConnectRequest,
 };
 use smartvaults_sdk::util::{self, format};
 use termtree::Tree;
@@ -66,7 +66,7 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     Ok(())
 }
 
-pub fn print_contacts(contacts: Vec<User>) {
+pub fn print_contacts(contacts: BTreeSet<Profile>) {
     let mut table = Table::new();
 
     table.set_titles(row![
