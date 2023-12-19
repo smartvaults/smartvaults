@@ -30,8 +30,6 @@ use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::bip32::Fingerprint;
-use smartvaults_core::bitcoin::hashes::sha256::Hash as Sha256Hash;
-use smartvaults_core::bitcoin::hashes::Hash;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, PrivateKey, ScriptBuf, Txid};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
@@ -660,7 +658,7 @@ impl SmartVaults {
         Ok(())
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
         Ok(GetPolicy {
             policy_id,
@@ -1067,14 +1065,6 @@ impl SmartVaults {
         .await
     }
 
-    /* async fn save_proposal(&self) {
-        /* // Freeze UTXOs
-        for txin in psbt.unsigned_tx.input.into_iter() {
-            self.freeze_utxo(txin.previous_output, policy_id, Some(proposal_id))
-                .await?;
-        } */
-    } */
-
     /// Make a spending proposal
     pub async fn spend<S>(
         &self,
@@ -1114,15 +1104,16 @@ impl SmartVaults {
 
         let mut frozen_utxos: Option<Vec<OutPoint>> = None;
         if !skip_frozen_utxos {
-            let mut list = Vec::new();
-            let hashed_frozen_utxos = self.db.get_frozen_utxos(policy_id).await?;
-            for local_utxo in self.manager.get_utxos(policy_id).await?.into_iter() {
-                let hash = Sha256Hash::hash(local_utxo.outpoint.to_string().as_bytes());
-                if hashed_frozen_utxos.contains(&hash) {
-                    list.push(local_utxo.outpoint);
-                }
-            }
-            frozen_utxos = Some(list);
+            let set: HashSet<OutPoint> = self.storage.get_frozen_utxos(&policy_id).await;
+            frozen_utxos = Some(
+                self.manager
+                    .get_utxos(policy_id)
+                    .await?
+                    .into_iter()
+                    .filter(|utxo| set.contains(&utxo.outpoint))
+                    .map(|utxo| utxo.outpoint)
+                    .collect(),
+            );
         }
 
         // Build spending proposal
@@ -1140,7 +1131,7 @@ impl SmartVaults {
             )
             .await?;
 
-        if let Proposal::Spending { .. } = &proposal {
+        if let Proposal::Spending { psbt, .. } = &proposal {
             // Get shared keys
             let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
 
@@ -1178,6 +1169,18 @@ impl SmartVaults {
                 )
                 .await;
 
+            // Froze UTXOs
+            self.storage
+                .freeze_utxos(
+                    policy_id,
+                    psbt.unsigned_tx
+                        .input
+                        .iter()
+                        .map(|txin| txin.previous_output),
+                )
+                .await;
+
+            // Compose output
             Ok(GetProposal {
                 proposal_id,
                 policy_id,
@@ -1763,7 +1766,7 @@ impl SmartVaults {
         let script_labels: HashMap<ScriptBuf, Label> =
             self.storage.get_addresses_labels(policy_id).await;
         let utxo_labels: HashMap<OutPoint, Label> = self.storage.get_utxos_labels(policy_id).await;
-        let frozen_utxos: HashSet<Sha256Hash> = self.db.get_frozen_utxos(policy_id).await?;
+        let frozen_utxos: HashSet<OutPoint> = self.storage.get_frozen_utxos(&policy_id).await;
 
         // Compose output
         Ok(self
@@ -1776,10 +1779,7 @@ impl SmartVaults {
                     .get(&utxo.outpoint)
                     .or_else(|| script_labels.get(&utxo.txout.script_pubkey))
                     .map(|l| l.text()),
-                frozen: {
-                    let hash = Sha256Hash::hash(utxo.outpoint.to_string().as_bytes());
-                    frozen_utxos.contains(&hash)
-                },
+                frozen: frozen_utxos.contains(&utxo.outpoint),
                 utxo,
             })
             .collect())

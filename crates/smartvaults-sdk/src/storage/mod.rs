@@ -67,6 +67,7 @@ pub(crate) struct SmartVaultsStorage {
     my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, XOnlyPublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
     shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
+    frozed_utxos: Arc<RwLock<HashMap<EventId, HashSet<OutPoint>>>>,
     verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
     pending: Arc<RwLock<BTreeSet<Event>>>,
 }
@@ -90,6 +91,7 @@ impl SmartVaultsStorage {
             my_shared_signers: Arc::new(RwLock::new(HashMap::new())),
             shared_signers: Arc::new(RwLock::new(HashMap::new())),
             labels: Arc::new(RwLock::new(HashMap::new())),
+            frozed_utxos: Arc::new(RwLock::new(HashMap::new())),
             verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
             pending: Arc::new(RwLock::new(BTreeSet::new())),
         };
@@ -200,12 +202,28 @@ impl SmartVaultsStorage {
             if let HashMapEntry::Vacant(e) = proposals.entry(event.id) {
                 if let Some(policy_id) = event.event_ids().next() {
                     if let Some(shared_key) = shared_keys.get(policy_id) {
-                        let proposal = Proposal::decrypt_with_keys(shared_key, &event.content)?;
+                        // Decrypt proposal
+                        let proposal: Proposal =
+                            Proposal::decrypt_with_keys(shared_key, &event.content)?;
+
+                        // Froze UTXOs
+                        let psbt = proposal.psbt();
+                        self.freeze_utxos(
+                            *policy_id,
+                            psbt.unsigned_tx
+                                .input
+                                .iter()
+                                .map(|txin| txin.previous_output),
+                        )
+                        .await;
+
+                        // Insert proposal
                         e.insert(InternalProposal {
                             policy_id: *policy_id,
                             proposal,
                             timestamp: event.created_at,
                         });
+
                         return Ok(Some(EventHandled::Proposal(event.id)));
                     } else {
                         pending.insert(event.clone());
@@ -764,6 +782,29 @@ impl SmartVaultsStorage {
             .get(identifier.as_ref())
             .map(|i| i.label.clone())
             .ok_or(Error::NotFound)
+    }
+
+    pub async fn freeze_utxos<I>(&self, policy_id: EventId, utxos: I)
+    where
+        I: IntoIterator<Item = OutPoint> + Clone,
+    {
+        let mut frozed_utxos = self.frozed_utxos.write().await;
+        frozed_utxos
+            .entry(policy_id)
+            .and_modify(|set| {
+                set.extend(utxos.clone());
+            })
+            .or_default()
+            .extend(utxos);
+    }
+
+    pub async fn get_frozen_utxos(&self, policy_id: &EventId) -> HashSet<OutPoint> {
+        self.frozed_utxos
+            .read()
+            .await
+            .get(policy_id)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub async fn verified_key_agents(&self) -> VerifiedKeyAgents {

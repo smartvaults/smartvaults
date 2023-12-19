@@ -21,7 +21,6 @@ use tokio::sync::RwLock;
 mod connect;
 mod relays;
 mod timechain;
-mod utxos;
 
 use super::encryption::StoreEncryption;
 use super::migration::{self, STARTUP_SQL};
