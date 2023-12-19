@@ -10,17 +10,17 @@ use std::sync::Arc;
 use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Client, Event, EventId, Filter, Keys, Kind, Tag, Timestamp};
-use smartvaults_core::bitcoin::{OutPoint, ScriptBuf, Txid};
+use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::{
     ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND,
+    PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
 };
-use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, Serde};
+use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, Serde, VerifiedKeyAgents};
 use tokio::sync::RwLock;
 
 mod model;
@@ -67,13 +67,14 @@ pub(crate) struct SmartVaultsStorage {
     my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, XOnlyPublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
     shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
+    verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
     pending: Arc<RwLock<BTreeSet<Event>>>,
 }
 
 impl SmartVaultsStorage {
     /// Build storage from Nostr Database
     #[tracing::instrument(skip_all)]
-    pub async fn build(client: &Client) -> Result<Self, Error> {
+    pub async fn build(client: &Client, network: Network) -> Result<Self, Error> {
         let keys: Keys = client.keys().await;
         let database: Arc<DynNostrDatabase> = client.database();
 
@@ -89,6 +90,7 @@ impl SmartVaultsStorage {
             my_shared_signers: Arc::new(RwLock::new(HashMap::new())),
             shared_signers: Arc::new(RwLock::new(HashMap::new())),
             labels: Arc::new(RwLock::new(HashMap::new())),
+            verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
             pending: Arc::new(RwLock::new(BTreeSet::new())),
         };
 
@@ -338,136 +340,13 @@ impl SmartVaultsStorage {
                     tracing::error!("Event {event_id} not deleted");
                 }
             }
-        } /* else if event.kind == Kind::ContactList {
-              let pubkeys = event.public_keys().copied();
-              let filter: Filter = Filter::new().authors(pubkeys).kind(Kind::Metadata);
-              self.client
-                  .req_events_of(vec![filter], Some(Duration::from_secs(60)))
-                  .await;
-              self.sync_channel
-                  .send(Message::EventHandled(EventHandled::Contacts))?;
-          } else if event.kind == Kind::Metadata {
-              self.sync_channel
-                  .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
-          } else if event.kind == Kind::RelayList {
-              if event.pubkey == self.keys().await.public_key() {
-                  tracing::debug!("Received relay list: {:?}", event.tags);
-                  let current_relays: HashSet<Url> = self
-                      .db
-                      .get_relays(true)
-                      .await?
-                      .into_iter()
-                      .map(|(url, ..)| url)
-                      .collect();
-                  let list: HashSet<Url> = nip65::extract_relay_list(&event)
-                      .into_iter()
-                      .filter_map(|(url, ..)| Url::try_from(url).ok())
-                      .collect();
+        } else if event.kind == KEY_AGENT_VERIFIED {
+            let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
+            let mut verified_key_agents = self.verified_key_agents.write().await;
+            *verified_key_agents = new_verified_agents;
 
-                  // Add relays
-                  for relay_url in list.difference(&current_relays) {
-                      tracing::debug!("[relay list] Added {relay_url}");
-                      self.add_relay_with_opts(relay_url.to_string(), None, false)
-                          .await?;
-                  }
-
-                  // Remove relays
-                  for relay_url in current_relays.difference(&list) {
-                      tracing::debug!("[relay list] Removed {relay_url}");
-                      self.remove_relay_with_opts(relay_url.to_string(), false)
-                          .await?;
-                  }
-
-                  self.sync_channel
-                      .send(Message::EventHandled(EventHandled::RelayList))?;
-              }
-          } else if event.kind == KEY_AGENT_VERIFIED {
-              let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
-              let mut verified_key_agents = self.verified_key_agents.write().await;
-              *verified_key_agents = new_verified_agents;
-
-              // TODO: send notification
-          } else if event.kind == Kind::NostrConnect
-              && self.db.nostr_connect_session_exists(event.pubkey).await?
-          {
-              let keys: Keys = self.keys().await;
-              let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
-              let msg = NIP46Message::from_json(content)?;
-              if let Ok(request) = msg.to_request() {
-                  match request {
-                      NIP46Request::Disconnect => {
-                          self._disconnect_nostr_connect_session(event.pubkey, false)
-                              .await?;
-                      }
-                      NIP46Request::GetPublicKey => {
-                          let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
-                          let msg = msg
-                              .generate_response(&keys)?
-                              .ok_or(Error::CantGenerateNostrConnectResponse)?;
-                          let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
-                              .to_event(&keys)?;
-                          // TODO: use send_event?
-                          self.client
-                              .pool()
-                              .send_msg_to(uri.relay_url, ClientMessage::new_event(nip46_event), None)
-                              .await?;
-                      }
-                      _ => {
-                          if self
-                              .db
-                              .is_nostr_connect_session_pre_authorized(event.pubkey)
-                              .await
-                          {
-                              let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
-                              let keys: Keys = self.keys().await;
-                              let req_message = msg.clone();
-                              let msg = msg
-                                  .generate_response(&keys)?
-                                  .ok_or(Error::CantGenerateNostrConnectResponse)?;
-                              let nip46_event =
-                                  EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
-                                      .to_event(&keys)?;
-                              self.client
-                                  .pool()
-                                  .send_msg_to(
-                                      uri.relay_url,
-                                      ClientMessage::new_event(nip46_event),
-                                      None,
-                                  )
-                                  .await?;
-                              self.db
-                                  .save_nostr_connect_request(
-                                      event.id,
-                                      event.pubkey,
-                                      req_message,
-                                      event.created_at,
-                                      true,
-                                  )
-                                  .await?;
-                              tracing::info!(
-                                  "Auto approved nostr connect request {} for app {}",
-                                  event.id,
-                                  event.pubkey
-                              )
-                          } else {
-                              self.db
-                                  .save_nostr_connect_request(
-                                      event.id,
-                                      event.pubkey,
-                                      msg,
-                                      event.created_at,
-                                      false,
-                                  )
-                                  .await?;
-                              // TODO: save/send notification
-                          }
-                      }
-                  };
-                  self.sync_channel.send(Message::EventHandled(
-                      EventHandled::NostrConnectRequest(event.id),
-                  ))?;
-              }
-          } */
+            // TODO: send notification
+        }
 
         Ok(None)
     }
@@ -885,5 +764,9 @@ impl SmartVaultsStorage {
             .get(identifier.as_ref())
             .map(|i| i.label.clone())
             .ok_or(Error::NotFound)
+    }
+
+    pub async fn verified_key_agents(&self) -> VerifiedKeyAgents {
+        self.verified_key_agents.read().await.clone()
     }
 }

@@ -45,12 +45,9 @@ use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND,
 };
-use smartvaults_protocol::v1::{
-    Encryption, Label, LabelData, SmartVaultsEventBuilder, VerifiedKeyAgents,
-};
+use smartvaults_protocol::v1::{Encryption, Label, LabelData, SmartVaultsEventBuilder};
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
-use tokio::sync::RwLock;
 
 mod connect;
 mod key_agent;
@@ -85,7 +82,6 @@ pub struct SmartVaults {
     syncing: Arc<AtomicBool>,
     sync_channel: Sender<Message>,
     default_signer: Signer,
-    verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
 }
 
 impl SmartVaults {
@@ -126,7 +122,7 @@ impl SmartVaults {
             .build();
 
         // Storage
-        let storage = SmartVaultsStorage::build(&client).await?;
+        let storage = SmartVaultsStorage::build(&client, network).await?;
 
         let (sender, _) = broadcast::channel::<Message>(4096);
 
@@ -141,7 +137,6 @@ impl SmartVaults {
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             default_signer: smartvaults_signer(seed, network)?,
-            verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
         };
 
         this.init().await?;

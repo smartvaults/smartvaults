@@ -13,7 +13,7 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::proposal::Period;
 use smartvaults_core::{Amount, FeeRate, Proposal, Signer};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
-use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder};
+use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents};
 
 use super::{Error, SmartVaults};
 use crate::types::{GetProposal, GetSigner, GetSignerOffering, KeyAgent};
@@ -160,7 +160,7 @@ impl SmartVaults {
             .await?;
 
         // Get verified key agents
-        let verified_key_agents = self.verified_key_agents.read().await;
+        let verified_key_agents: VerifiedKeyAgents = self.storage.verified_key_agents().await;
 
         // Get key agents and signer offerings
         let filters: Vec<Filter> = vec![

@@ -74,6 +74,8 @@ pub enum Error {
     Store(#[from] smartvaults_sdk_sqlite::Error),
     #[error(transparent)]
     Label(#[from] smartvaults_protocol::v1::label::Error),
+    #[error(transparent)]
+    KeyAgentVerified(#[from] smartvaults_protocol::v1::key_agent::verified::Error),
     #[error("password not match")]
     PasswordNotMatch,
     #[error("not enough public keys")]

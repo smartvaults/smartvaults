@@ -25,7 +25,6 @@ use smartvaults_protocol::v1::constants::{
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::VerifiedKeyAgents;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
@@ -342,12 +341,6 @@ impl SmartVaults {
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::RelayList))?;
             }
-        } else if event.kind == KEY_AGENT_VERIFIED {
-            let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
-            let mut verified_key_agents = self.verified_key_agents.write().await;
-            *verified_key_agents = new_verified_agents;
-
-            // TODO: send notification
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
