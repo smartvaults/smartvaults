@@ -233,13 +233,7 @@ impl Activity {
                     Icon::new(HOURGLASS).color(YELLOW)
                 };
 
-                let (total, positive): (u64, bool) = {
-                    let received: i64 = tx.received as i64;
-                    let sent: i64 = tx.sent as i64;
-                    let tot = received - sent;
-                    let positive = tot >= 0;
-                    (tot.unsigned_abs(), positive)
-                };
+                let total: i64 = tx.total();
 
                 let row = Row::new()
                     .push(status.width(Length::Fixed(70.0)))
@@ -282,12 +276,12 @@ impl Activity {
                             } else {
                                 format!(
                                     "{}{}",
-                                    if positive { "+" } else { "-" },
-                                    format::number(total)
+                                    if total >= 0 { "+" } else { "-" },
+                                    format::number(total.unsigned_abs())
                                 )
                             }
                         ))
-                        .color(if positive { GREEN } else { RED })
+                        .color(if total >= 0 { GREEN } else { RED })
                         .width(Length::Fill)
                         .view(),
                     )

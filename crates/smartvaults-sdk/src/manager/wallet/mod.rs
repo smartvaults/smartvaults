@@ -70,6 +70,14 @@ impl Deref for TransactionDetails {
     }
 }
 
+impl TransactionDetails {
+    pub fn total(&self) -> i64 {
+        let received: i64 = self.received as i64;
+        let sent: i64 = self.sent as i64;
+        received.saturating_sub(sent)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SmartVaultsWallet {
     policy: Policy,
