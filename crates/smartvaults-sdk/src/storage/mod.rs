@@ -341,11 +341,11 @@ impl SmartVaultsStorage {
                 }
             }
         } else if event.kind == KEY_AGENT_VERIFIED {
-            let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
+            let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(event)?;
             let mut verified_key_agents = self.verified_key_agents.write().await;
             *verified_key_agents = new_verified_agents;
 
-            // TODO: send notification
+            return Ok(Some(EventHandled::VerifiedKeyAgents));
         }
 
         Ok(None)

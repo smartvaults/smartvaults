@@ -50,6 +50,7 @@ pub enum EventHandled {
     EventDeletion,
     RelayList,
     KeyAgentSignerOffering,
+    VerifiedKeyAgents,
 }
 
 #[derive(Debug, Clone, Copy)]
