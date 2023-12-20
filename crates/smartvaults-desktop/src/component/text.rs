@@ -51,6 +51,11 @@ where
         }
     }
 
+    pub fn color_maybe(mut self, color: Option<Color>) -> Self {
+        self.color = color;
+        self
+    }
+
     pub fn extra_light(self) -> Self {
         Self {
             font: EXTRA_LIGHT,
@@ -64,21 +69,21 @@ where
 
     pub fn small(self) -> Self {
         Self {
-            size: SMALL_FONT_SIZE as u16,
+            size: SMALL_FONT_SIZE,
             ..self
         }
     }
 
     pub fn smaller(self) -> Self {
         Self {
-            size: SMALLER_FONT_SIZE as u16,
+            size: SMALLER_FONT_SIZE,
             ..self
         }
     }
 
     pub fn big(self) -> Self {
         Self {
-            size: BIG_FONT_SIZE as u16,
+            size: BIG_FONT_SIZE,
             ..self
         }
     }
@@ -86,7 +91,7 @@ where
     #[allow(dead_code)]
     pub fn bigger(self) -> Self {
         Self {
-            size: BIGGER_FONT_SIZE as u16,
+            size: BIGGER_FONT_SIZE,
             ..self
         }
     }

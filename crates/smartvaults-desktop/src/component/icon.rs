@@ -11,7 +11,7 @@ use crate::theme::font::ICON_FONT;
 #[derive(Debug, Clone)]
 pub struct Icon {
     unicode: char,
-    size: u8,
+    size: u16,
     width: Length,
     color: Option<Color>,
 }
@@ -26,7 +26,7 @@ impl Icon {
         }
     }
 
-    pub fn size(self, size: u8) -> Self {
+    pub fn size(self, size: u16) -> Self {
         Self { size, ..self }
     }
 
@@ -62,7 +62,7 @@ impl<Message> Component<Message, Renderer> for Icon {
             .font(ICON_FONT)
             .width(self.width)
             .horizontal_alignment(Horizontal::Center)
-            .size(self.size as u16);
+            .size(self.size);
 
         if let Some(color) = self.color {
             icon = icon.style(color);
