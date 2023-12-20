@@ -4,10 +4,10 @@
 use iced::widget::{Column, Row};
 use iced::{Alignment, Length};
 use smartvaults_sdk::core::bdk::wallet::Balance;
-use smartvaults_sdk::util::format;
 
 use crate::app::Message;
-use crate::component::{Button, ButtonStyle, Text};
+use crate::component::{Amount, AmountSign, Button, ButtonStyle};
+use crate::theme::color::YELLOW;
 use crate::theme::icon::{ARROW_DOWN, ARROW_UP};
 
 pub struct Balances {
@@ -52,25 +52,13 @@ impl Balances {
     }
 
     pub fn view(self) -> Column<'static, Message> {
-        let (balance, pending) = if self.hide {
-            (Text::new("***** sat"), None)
-        } else {
-            let pending_balance = self.balance.untrusted_pending
-                + self.balance.trusted_pending
-                + self.balance.immature;
-
-            (
-                Text::new(format!("{} sat", format::number(self.balance.confirmed))),
-                if pending_balance > 0 {
-                    Some(Text::new(format!(
-                        "Pending: +{} sat",
-                        format::number(pending_balance)
-                    )))
-                } else {
-                    None
-                },
-            )
-        };
+        let balance = Amount::new(self.balance.confirmed)
+            .size(self.size)
+            .bold()
+            .hidden(self.hide)
+            .view();
+        let unconfirmed_balance: u64 =
+            self.balance.untrusted_pending + self.balance.trusted_pending + self.balance.immature;
 
         let btn_size: f32 = self.size as f32 * 3.7 + 30.0;
 
@@ -96,13 +84,20 @@ impl Balances {
         Column::new()
             .push({
                 let mut content = Column::new()
-                    .push(balance.size(self.size).view())
+                    .push(balance)
                     .spacing(10)
                     .width(Length::Fill)
                     .align_items(Alignment::Center);
 
-                if let Some(pending) = pending {
-                    content = content.push(pending.size(self.size / 2).extra_light().view());
+                if unconfirmed_balance > 0 {
+                    content = content.push(
+                        Amount::new(unconfirmed_balance)
+                            .sign(AmountSign::Positive)
+                            .override_color(YELLOW)
+                            .size(self.size * 3 / 5)
+                            .hidden(self.hide)
+                            .view(),
+                    );
                 }
 
                 content

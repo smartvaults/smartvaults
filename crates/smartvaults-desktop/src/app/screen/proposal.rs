@@ -15,7 +15,7 @@ use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, Card, Modal, Text, TextInput};
+use crate::component::{rule, Amount, Button, ButtonStyle, Card, Modal, Text, TextInput};
 use crate::theme::color::{GREEN, RED, YELLOW};
 use crate::theme::icon::{CLIPBOARD, SAVE, TRASH};
 
@@ -372,21 +372,24 @@ impl State for ProposalState {
                                     .view(),
                                 )
                                 .push(
-                                    Text::new(format!(
-                                        "Amount: {} sat",
-                                        util::format::number(*amount)
-                                    ))
-                                    .view(),
+                                    Row::new()
+                                        .push(Text::new("Amount:").view())
+                                        .push(Amount::new(*amount).bold().view())
+                                        .spacing(5),
                                 );
 
                             match psbt.fee() {
                                 Ok(fee) => {
                                     left_content = left_content.push(
-                                        Text::new(format!(
-                                            "Fee: {} sat",
-                                            util::format::number(fee.to_sat())
-                                        ))
-                                        .view(),
+                                        Row::new()
+                                            .push(Text::new("Fee:").view())
+                                            .push(
+                                                Amount::new(fee.to_sat())
+                                                    .override_color(RED)
+                                                    .bold()
+                                                    .view(),
+                                            )
+                                            .spacing(5),
                                     )
                                 }
                                 Err(e) => {

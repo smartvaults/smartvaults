@@ -9,11 +9,13 @@ use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
 use smartvaults_sdk::core::proposal::Proposal;
 use smartvaults_sdk::nostr::Timestamp;
 use smartvaults_sdk::types::{GetCompletedProposal, GetProposal, GetTransaction};
-use smartvaults_sdk::util::{self, format};
+use smartvaults_sdk::util;
 
 use crate::app::{Context, Message, Stage};
-use crate::component::{rule, Badge, BadgeStyle, Button, ButtonStyle, Icon, Text};
-use crate::theme::color::{GREEN, RED, YELLOW};
+use crate::component::{
+    rule, Amount, AmountSign, Badge, BadgeStyle, Button, ButtonStyle, Icon, Text,
+};
+use crate::theme::color::{GREEN, YELLOW};
 use crate::theme::icon::{BROWSER, CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
 pub struct Activity {
@@ -60,7 +62,7 @@ impl Activity {
                     .push(
                         Text::new("Status")
                             .bold()
-                            .width(Length::Fixed(140.0))
+                            .width(Length::Fixed(170.0))
                             .view(),
                     )
                     .push(Text::new("Amount").bold().width(Length::Fill).view())
@@ -142,20 +144,16 @@ impl Activity {
                                     })
                                     .width(Length::Fixed(125.0)),
                                 )
-                                .width(Length::Fixed(140.0)),
+                                .width(Length::Fixed(170.0)),
                         )
                         .push(
-                            Text::new(format!(
-                                "{} sat",
-                                if ctx.hide_balances {
-                                    String::from("*****")
-                                } else {
-                                    format!("-{}", format::number(amount))
-                                }
-                            ))
-                            .color(RED)
-                            .width(Length::Fill)
-                            .view(),
+                            Amount::new(amount)
+                                .sign(AmountSign::Negative)
+                                .big()
+                                .bold()
+                                .hidden(ctx.hide_balances)
+                                .view()
+                                .width(Length::Fill),
                         )
                         .push(Text::new(description).width(Length::FillPortion(2)).view())
                         .push(Space::with_width(Length::Fixed(40.0)))
@@ -268,24 +266,20 @@ impl Activity {
                                     .style(BadgeStyle::Success)
                                     .width(Length::Fixed(125.0)),
                             )
-                            .width(Length::Fixed(140.0)),
+                            .width(Length::Fixed(170.0)),
                     )
                     .push(
-                        Text::new(format!(
-                            "{} sat",
-                            if ctx.hide_balances {
-                                String::from("*****")
+                        Amount::new(total.unsigned_abs())
+                            .sign(if total >= 0 {
+                                AmountSign::Positive
                             } else {
-                                format!(
-                                    "{}{}",
-                                    if total >= 0 { "+" } else { "-" },
-                                    format::number(total.unsigned_abs())
-                                )
-                            }
-                        ))
-                        .color(if total >= 0 { GREEN } else { RED })
-                        .width(Length::Fill)
-                        .view(),
+                                AmountSign::Negative
+                            })
+                            .big()
+                            .bold()
+                            .hidden(ctx.hide_balances)
+                            .view()
+                            .width(Length::Fill),
                     )
                     .push(
                         Text::new(label.unwrap_or_default())

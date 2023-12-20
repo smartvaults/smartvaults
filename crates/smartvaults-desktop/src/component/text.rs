@@ -31,7 +31,7 @@ where
     {
         Self {
             content: content.into(),
-            size: DEFAULT_FONT_SIZE as u16,
+            size: DEFAULT_FONT_SIZE,
             color: None,
             font: REGULAR,
             width: None,
@@ -65,6 +65,14 @@ where
 
     pub fn bold(self) -> Self {
         Self { font: BOLD, ..self }
+    }
+
+    pub fn bold_maybe(self, bold: bool) -> Self {
+        if bold {
+            self.bold()
+        } else {
+            self
+        }
     }
 
     pub fn small(self) -> Self {

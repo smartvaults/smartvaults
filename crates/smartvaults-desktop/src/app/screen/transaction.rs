@@ -11,8 +11,8 @@ use smartvaults_sdk::util::{self, format};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Text};
-use crate::theme::color::{GREEN, RED};
+use crate::component::{rule, Amount, AmountSign, Text};
+use crate::theme::color::RED;
 
 #[derive(Debug, Clone)]
 pub enum TransactionMessage {
@@ -149,11 +149,7 @@ impl State for TransactionState {
                                     )
                                     .view(),
                                 )
-                                .push(
-                                    Text::new(format!("{} sat", format::number(txout.value)))
-                                        .extra_light()
-                                        .view(),
-                                )
+                                .push(Amount::new(txout.value).bold().view())
                                 .spacing(5),
                         )
                         .push(rule::horizontal());
@@ -222,22 +218,14 @@ impl State for TransactionState {
                         .push(
                             Column::new()
                                 .push(Text::new("Incoming").big().extra_light().view())
-                                .push(
-                                    Text::new(format!("{} sat", format::number(tx.received)))
-                                        .big()
-                                        .view(),
-                                )
+                                .push(Amount::new(tx.received).bold().bigger().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
                         .push(
                             Column::new()
                                 .push(Text::new("Outcoming").big().extra_light().view())
-                                .push(
-                                    Text::new(format!("{} sat", format::number(tx.sent)))
-                                        .big()
-                                        .view(),
-                                )
+                                .push(Amount::new(tx.sent).bold().bigger().view())
                                 .spacing(10)
                                 .width(Length::Fill),
                         )
@@ -245,14 +233,15 @@ impl State for TransactionState {
                             Column::new()
                                 .push(Text::new("Net").big().extra_light().view())
                                 .push(
-                                    Text::new(format!(
-                                        "{}{} sat",
-                                        if positive { "+" } else { "-" },
-                                        format::number(total)
-                                    ))
-                                    .color(if positive { GREEN } else { RED })
-                                    .big()
-                                    .view(),
+                                    Amount::new(total)
+                                        .sign(if positive {
+                                            AmountSign::Positive
+                                        } else {
+                                            AmountSign::Negative
+                                        })
+                                        .bold()
+                                        .bigger()
+                                        .view(),
                                 )
                                 .spacing(10)
                                 .width(Length::Fill),
@@ -265,15 +254,13 @@ impl State for TransactionState {
                         .push(
                             Column::new()
                                 .push(Text::new("Fee").big().extra_light().view())
-                                .push(
-                                    Text::new(match tx.fee {
-                                        Some(fee) => format!("{} sat", format::number(fee)),
-                                        None => String::from("-"),
-                                    })
-                                    .color(RED)
-                                    .big()
-                                    .view(),
-                                )
+                                .push(match tx.fee {
+                                    Some(fee) => {
+                                        Amount::new(fee).override_color(RED).bold().bigger().view()
+                                    }
+                                    None => Row::new()
+                                        .push(Text::new("Unknown").big().color(RED).view()),
+                                })
                                 .spacing(10)
                                 .width(Length::Fill),
                         )

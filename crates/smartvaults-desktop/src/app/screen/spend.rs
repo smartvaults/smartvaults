@@ -16,7 +16,9 @@ use smartvaults_sdk::util::format;
 
 use crate::app::component::{Dashboard, FeeSelector, PolicyPickList, PolicyTree, UtxoSelector};
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, NumericInput, Text, TextInput};
+use crate::component::{
+    rule, Amount as AmountComponent, Button, ButtonStyle, NumericInput, Text, TextInput,
+};
 use crate::theme::color::{DARK_RED, RED};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -666,16 +668,14 @@ impl SpendState {
 
         let amount = Column::new()
             .push(Row::new().push(Text::new("Amount").bold().view()))
-            .push(
-                Row::new().push(
-                    Text::new(if self.send_all {
-                        String::from("Send all")
-                    } else {
-                        self.amount.unwrap_or_default().to_string()
-                    })
-                    .view(),
-                ),
-            )
+            .push(if self.send_all {
+                Row::new().push(Text::new("Send all").view())
+            } else {
+                AmountComponent::new(self.amount.unwrap_or_default())
+                    .bigger()
+                    .bold()
+                    .view()
+            })
             .spacing(5)
             .width(Length::Fill);
 
