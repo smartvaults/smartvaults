@@ -12,13 +12,16 @@ pub use smartvaults_protocol as protocol;
 pub mod client;
 pub mod config;
 pub mod constants;
+mod error;
 pub mod logger;
 pub mod manager;
 pub mod prelude;
+mod storage;
 pub mod types;
 pub mod util;
 
 pub use self::client::{EventHandled, Message, SmartVaults};
+pub use self::error::Error;
 pub use self::types::PolicyBackup;
 
 pub fn git_hash_version() -> &'static str {

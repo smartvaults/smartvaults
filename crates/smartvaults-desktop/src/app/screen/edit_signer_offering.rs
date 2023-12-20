@@ -137,7 +137,6 @@ impl State for EditSignerOfferingState {
                 client
                     .get_signers()
                     .await
-                    .unwrap()
                     .into_iter()
                     .map(|p| {
                         let offering: Option<SignerOffering> = offerings.get(&p.signer_id).cloned();

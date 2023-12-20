@@ -567,8 +567,8 @@ impl SmartVaults {
 
     // TODO: add save_signer
 
-    pub fn smartvaults_signer_exists(&self) -> Result<bool> {
-        block_on(async move { Ok(self.inner.smartvaults_signer_exists().await?) })
+    pub fn smartvaults_signer_exists(&self) -> bool {
+        block_on(async move { self.inner.smartvaults_signer_exists().await })
     }
 
     pub fn save_smartvaults_signer(&self) -> Result<Arc<EventId>> {
@@ -577,15 +577,14 @@ impl SmartVaults {
 
     // TODO: add get_all_signers
 
-    pub fn get_signers(&self) -> Result<Vec<Arc<GetSigner>>> {
+    pub fn get_signers(&self) -> Vec<Arc<GetSigner>> {
         block_on(async move {
-            Ok(self
-                .inner
+            self.inner
                 .get_signers()
-                .await?
+                .await
                 .into_iter()
                 .map(|s| Arc::new(s.into()))
-                .collect())
+                .collect()
         })
     }
 

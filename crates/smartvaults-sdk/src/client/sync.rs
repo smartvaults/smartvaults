@@ -3,7 +3,6 @@
 
 use std::collections::HashSet;
 use std::ops::Add;
-use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -14,29 +13,25 @@ use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyOptions,
-    RelayMessage, RelayPoolNotification, Result, Tag, Timestamp, Url,
+    RelayMessage, RelayPoolNotification, Result, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
-use smartvaults_core::bitcoin::secp256k1::{SecretKey, XOnlyPublicKey};
+use smartvaults_core::bitcoin::secp256k1::XOnlyPublicKey;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::{
-    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
-};
+use smartvaults_core::CompletedProposal;
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNALING,
     KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::{Encryption, Label, Serde, VerifiedKeyAgents};
-use smartvaults_sdk_sqlite::model::InternalGetPolicy;
-use smartvaults_sdk_sqlite::Type;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
 use crate::constants::WALLET_SYNC_INTERVAL;
 
 use crate::manager::{Error as ManagerError, WalletError};
+use crate::storage::{InternalCompletedProposal, InternalPolicy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -55,6 +50,7 @@ pub enum EventHandled {
     EventDeletion,
     RelayList,
     KeyAgentSignerOffering,
+    VerifiedKeyAgents,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -92,56 +88,43 @@ impl SmartVaults {
         thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint().await {
-                    Ok(endpoint) => match this.db.get_policies().await {
-                        Ok(policies) => {
-                            let proxy = this.config.proxy().await.ok();
-                            for InternalGetPolicy {
-                                policy_id,
-                                last_sync,
-                                ..
-                            } in policies.into_iter()
-                            {
-                                let last_sync: Timestamp =
-                                    last_sync.unwrap_or_else(|| Timestamp::from(0));
-                                if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
-                                    let manager = this.manager.clone();
-                                    let db = this.db.clone();
-                                    let sync_channel = this.sync_channel.clone();
-                                    let endpoint = endpoint.clone();
-                                    thread::spawn(async move {
-                                        tracing::debug!("Syncing policy {policy_id}");
-                                        match manager.sync(policy_id, endpoint, proxy).await {
-                                            Ok(_) => {
-                                                tracing::info!("Policy {policy_id} synced");
-                                                if let Err(e) = db
-                                                    .update_last_sync(
-                                                        policy_id,
-                                                        Some(Timestamp::now()),
-                                                    )
-                                                    .await
-                                                {
-                                                    tracing::error!(
-                                                        "Impossible to save last policy sync: {e}"
-                                                    );
-                                                }
-                                                let _ = sync_channel
-                                                    .send(Message::WalletSyncCompleted(policy_id));
-                                            }
-                                            Err(ManagerError::Wallet(
-                                                WalletError::AlreadySyncing,
-                                            )) => tracing::warn!(
-                                                "Policy {policy_id} is already syncing"
-                                            ),
-                                            Err(e) => tracing::error!(
-                                                "Impossible to sync policy {policy_id}: {e}"
-                                            ),
+                    Ok(endpoint) => {
+                        let proxy = this.config.proxy().await.ok();
+                        for (policy_id, InternalPolicy { last_sync, .. }) in
+                            this.storage.vaults().await.into_iter()
+                        {
+                            let last_sync: Timestamp =
+                                last_sync.unwrap_or_else(|| Timestamp::from(0));
+                            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
+                                let manager = this.manager.clone();
+                                let storage = this.storage.clone();
+                                let sync_channel = this.sync_channel.clone();
+                                let endpoint = endpoint.clone();
+                                thread::spawn(async move {
+                                    tracing::debug!("Syncing policy {policy_id}");
+                                    match manager.sync(policy_id, endpoint, proxy).await {
+                                        Ok(_) => {
+                                            tracing::info!("Policy {policy_id} synced");
+                                            storage
+                                                .update_last_sync(
+                                                    &policy_id,
+                                                    Some(Timestamp::now()),
+                                                )
+                                                .await;
+                                            let _ = sync_channel
+                                                .send(Message::WalletSyncCompleted(policy_id));
                                         }
-                                    });
-                                }
+                                        Err(ManagerError::Wallet(WalletError::AlreadySyncing)) => {
+                                            tracing::warn!("Policy {policy_id} is already syncing")
+                                        }
+                                        Err(e) => tracing::error!(
+                                            "Impossible to sync policy {policy_id}: {e}"
+                                        ),
+                                    }
+                                });
                             }
                         }
-                        Err(e) => tracing::error!("Impossible to get policies: {e}"),
-                    },
+                    }
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
@@ -154,38 +137,13 @@ impl SmartVaults {
         let this = self.clone();
         thread::abortable(async move {
             loop {
-                match this.db.get_pending_events().await {
-                    Ok(events) => {
-                        for event in events.into_iter() {
-                            let event_id = event.id;
-                            if let Err(e) = this.handle_event(event).await {
-                                tracing::error!(
-                                    "Impossible to handle pending event {event_id}: {e}"
-                                );
-                            }
-                        }
+                for event in this.storage.pending_events().await.into_iter() {
+                    let event_id = event.id;
+                    if let Err(e) = this.handle_event(event).await {
+                        tracing::error!("Impossible to handle pending event {event_id}: {e}");
                     }
-                    Err(e) => tracing::error!("Impossible to get pending events: {e}"),
                 }
                 thread::sleep(Duration::from_secs(30)).await;
-            }
-        })
-    }
-
-    fn rebroadcaster(&self) -> AbortHandle {
-        let this = self.clone();
-        thread::abortable(async move {
-            loop {
-                // TODO: check last rebroadcast timestamp from db
-                if false {
-                    match this.rebroadcast_all_events().await {
-                        Ok(_) => tracing::info!("All events rebroadcasted to relays"),
-                        Err(e) => {
-                            tracing::error!("Impossible to rebroadcast events to relays: {e}")
-                        }
-                    }
-                }
-                thread::sleep(Duration::from_secs(60)).await;
             }
         })
     }
@@ -195,7 +153,7 @@ impl SmartVaults {
     }
 
     pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
-        let base_filter = Filter::new().kinds(vec![
+        let base_filter = Filter::new().kinds([
             POLICY_KIND,
             PROPOSAL_KIND,
             APPROVED_PROPOSAL_KIND,
@@ -267,10 +225,6 @@ impl SmartVaults {
 
                 // Pending events handler
                 let pending_event_handler = this.handle_pending_events();
-                // TODO: let metadata_sync = this.sync_metadata();
-
-                // Rebroadcaster
-                let rebroadcaster = this.rebroadcaster();
 
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp =
@@ -323,7 +277,6 @@ impl SmartVaults {
                                 block_height_syncer.abort();
                                 policies_syncer.abort();
                                 pending_event_handler.abort();
-                                rebroadcaster.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
@@ -346,240 +299,7 @@ impl SmartVaults {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        if event.kind == SHARED_KEY_KIND {
-            let policy_id = event
-                .event_ids()
-                .next()
-                .copied()
-                .ok_or(Error::PolicyNotFound)?;
-            if !self.db.exists(Type::SharedKey { policy_id }).await? {
-                let keys: Keys = self.keys().await;
-                let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, &event.content)?;
-                let sk = SecretKey::from_str(&content)?;
-                let shared_key = Keys::new(sk);
-                self.db.save_shared_key(policy_id, shared_key).await?;
-                self.sync_channel
-                    .send(Message::EventHandled(EventHandled::SharedKey(event.id)))?;
-            }
-        } else if event.kind == POLICY_KIND
-            && !self
-                .db
-                .exists(Type::Policy {
-                    policy_id: event.id,
-                })
-                .await?
-        {
-            if let Ok(shared_key) = self.db.get_shared_key(event.id).await {
-                let policy = Policy::decrypt_with_keys(&shared_key, &event.content)?;
-                let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
-                for tag in event.tags.iter() {
-                    if let Tag::PublicKey { public_key, .. } = tag {
-                        nostr_pubkeys.push(*public_key);
-                    }
-                }
-                if nostr_pubkeys.is_empty() {
-                    tracing::error!("Policy {} not contains any nostr pubkey", event.id);
-                } else {
-                    self.db
-                        .save_policy(event.id, policy.clone(), nostr_pubkeys)
-                        .await?;
-                    self.manager.load_policy(event.id, policy).await?;
-                    self.sync_channel
-                        .send(Message::EventHandled(EventHandled::Policy(event.id)))?;
-                }
-            } else {
-                self.db.save_pending_event(event.clone()).await?;
-            }
-        } else if event.kind == PROPOSAL_KIND
-            && !self
-                .db
-                .exists(Type::Proposal {
-                    proposal_id: event.id,
-                })
-                .await?
-        {
-            if let Some(policy_id) = event.event_ids().next().copied() {
-                if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
-                    let proposal = Proposal::decrypt_with_keys(&shared_key, &event.content)?;
-                    self.db.save_proposal(event.id, policy_id, proposal).await?;
-                    self.sync_channel
-                        .send(Message::EventHandled(EventHandled::Proposal(event.id)))?;
-                } else {
-                    self.db.save_pending_event(event.clone()).await?;
-                }
-            } else {
-                tracing::error!("Impossible to find policy id in proposal {}", event.id);
-            }
-        } else if event.kind == APPROVED_PROPOSAL_KIND
-            && !self
-                .db
-                .exists(Type::ApprovedProposal {
-                    approval_id: event.id,
-                })
-                .await?
-        {
-            let mut ids = event.event_ids();
-            if let Some(proposal_id) = ids.next().copied() {
-                if let Some(policy_id) = ids.next() {
-                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
-                        let approved_proposal =
-                            ApprovedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db
-                            .save_approved_proposal(
-                                proposal_id,
-                                event.pubkey,
-                                event.id,
-                                approved_proposal,
-                                event.created_at,
-                            )
-                            .await?;
-                        self.sync_channel
-                            .send(Message::EventHandled(EventHandled::Approval {
-                                proposal_id,
-                            }))?;
-                    } else {
-                        self.db.save_pending_event(event.clone()).await?;
-                    }
-                } else {
-                    tracing::error!("Impossible to find policy id in proposal {}", event.id);
-                }
-            } else {
-                tracing::error!(
-                    "Impossible to find proposal id in approved proposal {}",
-                    event.id
-                );
-            }
-        } else if event.kind == COMPLETED_PROPOSAL_KIND
-            && !self
-                .db
-                .exists(Type::CompletedProposal {
-                    completed_proposal_id: event.id,
-                })
-                .await?
-        {
-            let mut ids = event.event_ids();
-            if let Some(proposal_id) = ids.next().copied() {
-                self.db.delete_proposal(proposal_id).await?;
-                if let Some(policy_id) = ids.next() {
-                    if let Ok(shared_key) = self.db.get_shared_key(*policy_id).await {
-                        let completed_proposal =
-                            CompletedProposal::decrypt_with_keys(&shared_key, &event.content)?;
-
-                        // Insert TX from completed proposal if the event was created in the last 60 secs
-                        if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                            if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
-                                match self
-                                    .manager
-                                    .insert_tx(
-                                        *policy_id,
-                                        tx.clone(),
-                                        ConfirmationTime::Unconfirmed {
-                                            last_seen: event.created_at.as_u64(),
-                                        },
-                                    )
-                                    .await
-                                {
-                                    Ok(res) => {
-                                        if res {
-                                            tracing::info!(
-                                                "Saved pending TX for finalized proposal {}",
-                                                event.id
-                                            );
-                                        } else {
-                                            tracing::warn!(
-                                                "TX of finalized proposal {} already exists",
-                                                event.id
-                                            );
-                                        }
-                                    }
-                                    Err(e) => tracing::error!(
-                                        "Impossible to save TX from completed proposal {}: {e}",
-                                        event.id
-                                    ),
-                                }
-                            }
-                        }
-
-                        self.db
-                            .save_completed_proposal(event.id, *policy_id, completed_proposal)
-                            .await?;
-                        self.sync_channel.send(Message::EventHandled(
-                            EventHandled::CompletedProposal(event.id),
-                        ))?;
-                    } else {
-                        self.db.save_pending_event(event.clone()).await?;
-                    }
-                } else {
-                    tracing::error!(
-                        "Impossible to find policy id in completed proposal {}",
-                        event.id
-                    );
-                }
-            }
-        } else if event.kind == SIGNERS_KIND {
-            let keys: Keys = self.keys().await;
-            let signer = Signer::decrypt_with_keys(&keys, event.content)?;
-            self.db.save_signer(event.id, signer).await?;
-            self.sync_channel
-                .send(Message::EventHandled(EventHandled::Signer(event.id)))?;
-        } else if event.kind == SHARED_SIGNERS_KIND {
-            let public_key = event.public_keys().next().ok_or(Error::PublicKeyNotFound)?;
-            let keys: Keys = self.keys().await;
-            if event.pubkey == keys.public_key() {
-                let signer_id = event.event_ids().next().ok_or(Error::SignerIdNotFound)?;
-                self.db
-                    .save_my_shared_signer(*signer_id, event.id, *public_key)
-                    .await?;
-                self.sync_channel
-                    .send(Message::EventHandled(EventHandled::MySharedSigner(
-                        event.id,
-                    )))?;
-            } else {
-                let shared_signer =
-                    nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
-                let shared_signer = SharedSigner::from_json(shared_signer)?;
-                self.db
-                    .save_shared_signer(event.id, event.pubkey, shared_signer)
-                    .await?;
-                self.sync_channel
-                    .send(Message::EventHandled(EventHandled::SharedSigner(event.id)))?;
-            }
-        } else if event.kind == LABELS_KIND {
-            if let Some(policy_id) = event.event_ids().next().copied() {
-                if let Some(identifier) = event.identifier() {
-                    if let Ok(shared_key) = self.db.get_shared_key(policy_id).await {
-                        let label = Label::decrypt_with_keys(&shared_key, &event.content)?;
-                        self.db.save_label(identifier, policy_id, label).await?;
-                        self.sync_channel
-                            .send(Message::EventHandled(EventHandled::Label))?;
-                    } else {
-                        self.db.save_pending_event(event.clone()).await?;
-                    }
-                } else {
-                    tracing::error!("Label identifier not found in event {}", event.id);
-                }
-            } else {
-                tracing::error!("Impossible to find policy id in proposal {}", event.id);
-            }
-        } else if event.kind == Kind::EventDeletion {
-            for tag in event.tags.iter() {
-                if let Tag::Event { event_id, .. } = tag {
-                    if let Ok(Event { pubkey, .. }) =
-                        self.client.database().event_by_id(*event_id).await
-                    {
-                        if pubkey == event.pubkey {
-                            self.db.delete_generic_event_id(*event_id).await?;
-                        } else {
-                            tracing::warn!(
-                                "{pubkey} tried to delete an event not owned by him: {event_id}"
-                            );
-                        }
-                    }
-                }
-            }
-            self.sync_channel
-                .send(Message::EventHandled(EventHandled::EventDeletion))?;
-        } else if event.kind == Kind::ContactList {
+        if event.kind == Kind::ContactList {
             let pubkeys = event.public_keys().copied();
             let filter: Filter = Filter::new().authors(pubkeys).kind(Kind::Metadata);
             self.client
@@ -622,12 +342,6 @@ impl SmartVaults {
                 self.sync_channel
                     .send(Message::EventHandled(EventHandled::RelayList))?;
             }
-        } else if event.kind == KEY_AGENT_VERIFIED {
-            let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(&event)?;
-            let mut verified_key_agents = self.verified_key_agents.write().await;
-            *verified_key_agents = new_verified_agents;
-
-            // TODO: send notification
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
@@ -700,7 +414,6 @@ impl SmartVaults {
                                     false,
                                 )
                                 .await?;
-                            // TODO: save/send notification
                         }
                     }
                 };
@@ -708,6 +421,59 @@ impl SmartVaults {
                     EventHandled::NostrConnectRequest(event.id),
                 ))?;
             }
+        } else if let Some(h) = self.storage.handle_event(&event).await? {
+            match h {
+                EventHandled::Policy(vault_id) => {
+                    let InternalPolicy { policy, .. } = self.storage.vault(&vault_id).await?;
+                    self.manager.load_policy(event.id, policy).await?;
+                }
+                EventHandled::CompletedProposal(completed_proposal_id) => {
+                    let InternalCompletedProposal {
+                        policy_id,
+                        proposal,
+                        ..
+                    } = self
+                        .storage
+                        .completed_proposal(&completed_proposal_id)
+                        .await?;
+                    // Insert TX from completed proposal if the event was created in the last 60 secs
+                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
+                        if let CompletedProposal::Spending { tx, .. } = proposal {
+                            match self
+                                .manager
+                                .insert_tx(
+                                    policy_id,
+                                    tx,
+                                    ConfirmationTime::Unconfirmed {
+                                        last_seen: event.created_at.as_u64(),
+                                    },
+                                )
+                                .await
+                            {
+                                Ok(res) => {
+                                    if res {
+                                        tracing::info!(
+                                            "Saved pending TX for finalized proposal {}",
+                                            event.id
+                                        );
+                                    } else {
+                                        tracing::warn!(
+                                            "TX of finalized proposal {} already exists",
+                                            event.id
+                                        );
+                                    }
+                                }
+                                Err(e) => tracing::error!(
+                                    "Impossible to save TX from completed proposal {}: {e}",
+                                    event.id
+                                ),
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            };
+            self.sync_channel.send(Message::EventHandled(h))?;
         }
 
         Ok(())

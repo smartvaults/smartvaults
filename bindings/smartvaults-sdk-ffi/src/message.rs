@@ -24,6 +24,7 @@ pub enum EventHandled {
     EventDeletion,
     RelayList,
     KeyAgentSignerOffering,
+    VerifiedKeyAgents,
 }
 
 impl From<EventHandledSdk> for EventHandled {
@@ -64,6 +65,7 @@ impl From<EventHandledSdk> for EventHandled {
             EventHandledSdk::EventDeletion => Self::EventDeletion,
             EventHandledSdk::RelayList => Self::RelayList,
             EventHandledSdk::KeyAgentSignerOffering => Self::KeyAgentSignerOffering,
+            EventHandledSdk::VerifiedKeyAgents => Self::VerifiedKeyAgents,
         }
     }
 }

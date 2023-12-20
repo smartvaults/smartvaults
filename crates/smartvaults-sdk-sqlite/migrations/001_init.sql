@@ -6,14 +6,14 @@ PRAGMA foreign_keys = ON;
 PRAGMA application_id = 1654008667;
 PRAGMA user_version = 1; -- Schema version
 
--- Policies
+-- Policies - Removed in v2
 CREATE TABLE IF NOT EXISTS policies (
     policy_id BLOB PRIMARY KEY NOT NULL,
     policy BLOB NOT NULL,
     last_sync BIGINT DEFAULT NULL
 );
 
--- Nostr public keys
+-- Nostr public keys - Removed in v2
 CREATE TABLE IF NOT EXISTS nostr_public_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     policy_id BLOB NOT NULL,
@@ -22,12 +22,13 @@ CREATE TABLE IF NOT EXISTS nostr_public_keys (
 
 CREATE UNIQUE INDEX IF NOT EXISTS nostr_public_keys_index ON nostr_public_keys(policy_id,public_key);
 
--- Shared keys
+-- Shared keys - Removed in v2
 CREATE TABLE IF NOT EXISTS shared_keys (
     policy_id BLOB PRIMARY KEY NOT NULL,
     shared_key BLOB NOT NULL
 );
 
+-- Removed in v2
 CREATE TABLE IF NOT EXISTS pending_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     event BLOB NOT NULL
@@ -35,13 +36,14 @@ CREATE TABLE IF NOT EXISTS pending_events (
 
 CREATE UNIQUE INDEX IF NOT EXISTS pending_events_index ON pending_events(event);
 
--- Proposals
+-- Proposals - Removed in v2
 CREATE TABLE IF NOT EXISTS proposals (
     proposal_id BLOB PRIMARY KEY NOT NULL,
     policy_id BLOB NOT NULL,
     proposal BLOB NOT NULL
 );
 
+-- Removed in v2
 CREATE TABLE IF NOT EXISTS approved_proposals (
     approval_id BLOB PRIMARY KEY NOT NULL,
     proposal_id BLOB NOT NULL,
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS approved_proposals (
     timestamp BIGINT NOT NULL
 );
 
+-- Removed in v2
 CREATE TABLE IF NOT EXISTS completed_proposals (
     completed_proposal_id BLOB PRIMARY KEY NOT NULL,
     policy_id BLOB NOT NULL,
@@ -86,7 +89,7 @@ CREATE TABLE IF NOT EXISTS metadata (
     last_sync BIGINT DEFAULT NULL
 );
 
--- Signers
+-- Signers - Removed in v2
 CREATE TABLE IF NOT EXISTS signers (
     signer_id BLOB PRIMARY KEY NOT NULL,
     signer BLOB NOT NULL
@@ -94,14 +97,14 @@ CREATE TABLE IF NOT EXISTS signers (
 
 CREATE UNIQUE INDEX IF NOT EXISTS signers_index ON signers(signer);
 
--- Shared signer that I have shared
+-- Shared signer that I have shared - Removed in v2
 CREATE TABLE IF NOT EXISTS my_shared_signers (
     shared_signer_id BLOB PRIMARY KEY NOT NULL,
     signer_id BLOB NOT NULL,
     public_key BLOB NOT NULL
 );
 
--- Shared signers that I have received (others shared with me)
+-- Shared signers that I have received (others shared with me) - Removed in v2
 CREATE TABLE IF NOT EXISTS shared_signers (
     shared_signer_id BLOB PRIMARY KEY NOT NULL,
     owner_public_key BLOB NOT NULL,
@@ -124,6 +127,7 @@ CREATE TABLE IF NOT EXISTS nostr_connect_requests (
     approved BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- Removed in v2
 CREATE TABLE IF NOT EXISTS labels (
     id BLOB PRIMARY KEY NOT NULL,
     policy_id BLOB NOT NULL,
@@ -136,6 +140,7 @@ CREATE TABLE IF NOT EXISTS timechain (
     data BLOB NOT NULL
 );
 
+-- Removed in v2
 CREATE TABLE IF NOT EXISTS frozen_utxos (
     utxo_hash BLOB PRIMARY KEY NOT NULL,
     policy_id BLOB NOT NULL,

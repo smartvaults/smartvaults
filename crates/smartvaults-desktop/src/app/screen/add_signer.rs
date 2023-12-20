@@ -40,7 +40,7 @@ impl State for AddSignerState {
         self.loading = true;
         let client = ctx.client.clone();
         Command::perform(
-            async move { client.smartvaults_signer_exists().await.unwrap() },
+            async move { client.smartvaults_signer_exists().await },
             |value| AddSignerMessage::LoadSmartVaultsSigner(value).into(),
         )
     }

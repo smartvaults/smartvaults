@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use super::Error;
 
 /// Latest database version
-pub const DB_VERSION: usize = 2;
+pub const DB_VERSION: usize = 3;
 
 /// Startup DB Pragmas
 pub const STARTUP_SQL: &str = r##"
@@ -57,11 +57,11 @@ pub(crate) async fn run(conn: &Object) -> Result<(), Error> {
                     curr_version = mig_1_to_2(conn)?;
                 }
 
-                /*
                 if curr_version == 2 {
                     curr_version = mig_2_to_3(conn)?;
                 }
 
+                /*
                 if curr_version == 3 {
                     curr_version = mig_3_to_4(conn)?;
                 }
@@ -111,5 +111,11 @@ fn mig_init(conn: &mut Connection) -> Result<usize, Error> {
 fn mig_1_to_2(conn: &mut Connection) -> Result<usize, Error> {
     conn.execute_batch(include_str!("../migrations/002_drop.sql"))?;
     tracing::info!("database schema upgraded v1 -> v2");
+    Ok(2)
+}
+
+fn mig_2_to_3(conn: &mut Connection) -> Result<usize, Error> {
+    conn.execute_batch(include_str!("../migrations/003_drop_again.sql"))?;
+    tracing::info!("database schema upgraded v2 -> v3");
     Ok(2)
 }

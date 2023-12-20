@@ -219,9 +219,7 @@ impl TransactionDetails {
     }
 
     pub fn total(&self) -> i64 {
-        let received = self.inner.received as i64;
-        let sent = self.inner.sent as i64;
-        received.saturating_sub(sent)
+        self.inner.total()
     }
 
     pub fn fee(&self) -> Option<u64> {

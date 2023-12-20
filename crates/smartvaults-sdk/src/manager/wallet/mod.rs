@@ -70,6 +70,14 @@ impl Deref for TransactionDetails {
     }
 }
 
+impl TransactionDetails {
+    pub fn total(&self) -> i64 {
+        let received: i64 = self.received as i64;
+        let sent: i64 = self.sent as i64;
+        received.saturating_sub(sent)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SmartVaultsWallet {
     policy: Policy,
@@ -198,21 +206,23 @@ impl SmartVaultsWallet {
 
     pub async fn get_txs(&self) -> Vec<TransactionDetails> {
         let wallet = self.wallet.read().await;
-        let mut txs = Vec::new();
-        for canonical_tx in wallet.transactions() {
-            let tx: &Transaction = canonical_tx.tx_node.tx;
-            let confirmation_time: ConfirmationTime = canonical_tx.chain_position.cloned().into();
-            let (sent, received) = wallet.sent_and_received(tx);
-            let fee: Option<u64> = wallet.calculate_fee(tx).ok();
-            txs.push(TransactionDetails {
-                transaction: tx.clone(),
-                received,
-                sent,
-                fee,
-                confirmation_time,
+        wallet
+            .transactions()
+            .map(|canonical_tx| {
+                let tx: &Transaction = canonical_tx.tx_node.tx;
+                let confirmation_time: ConfirmationTime =
+                    canonical_tx.chain_position.cloned().into();
+                let (sent, received) = wallet.sent_and_received(tx);
+                let fee: Option<u64> = wallet.calculate_fee(tx).ok();
+                TransactionDetails {
+                    transaction: tx.clone(),
+                    received,
+                    sent,
+                    fee,
+                    confirmation_time,
+                }
             })
-        }
-        txs
+            .collect()
     }
 
     pub async fn get_tx(&self, txid: Txid) -> Result<TransactionDetails, Error> {

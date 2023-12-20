@@ -8,8 +8,8 @@ use smartvaults_protocol::nostr::nips::nip46::{Message as NIP46Message, NostrCon
 use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
 use smartvaults_protocol::nostr::{EventId, JsonUtil, Timestamp, Url};
 
-use super::super::model::NostrConnectRequest;
 use super::Store;
+use crate::model::NostrConnectRequest;
 use crate::Error;
 
 impl Store {

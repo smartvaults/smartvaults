@@ -15,10 +15,10 @@ impl Store {
     ) -> Result<(), Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
-let last_sync: u64 = timestamp.as_u64();
-        let mut stmt = conn.prepare_cached("INSERT INTO relays (url, enabled, last_sync) VALUES (?, ?, ?) ON CONFLICT(url) DO UPDATE SET last_sync = ?;")?;
-        stmt.execute((relay_url.as_str(), false, last_sync, last_sync))?;
-        Ok(())
+            let last_sync: u64 = timestamp.as_u64();
+            let mut stmt = conn.prepare_cached("INSERT INTO relays (url, enabled, last_sync) VALUES (?, ?, ?) ON CONFLICT(url) DO UPDATE SET last_sync = ?;")?;
+            stmt.execute((relay_url.as_str(), false, last_sync, last_sync))?;
+            Ok(())
         }).await?
     }
 

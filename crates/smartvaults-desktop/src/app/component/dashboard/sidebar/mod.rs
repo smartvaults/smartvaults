@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use iced::widget::{svg, Column, Container, PickList, Space};
-use iced::Length;
+use iced::{Alignment, Length};
 
 mod button;
 
@@ -83,8 +83,9 @@ impl Sidebar {
 
         // Footer
         let lock_button = SidebarButton::new("Lock", LOCK).view(ctx, Message::Lock);
+        let app_name = Text::new(APP_NAME).smaller().view();
         let version = Text::new(format!(
-            "{APP_NAME} v{} ({})",
+            "v{} ({})",
             env!("CARGO_PKG_VERSION"),
             smartvaults_sdk::git_hash_version()
                 .chars()
@@ -103,7 +104,14 @@ impl Sidebar {
             sidebar_menu(menu_buttons),
             sidebar_menu([
                 lock_button,
-                Container::new(version).width(Length::Fill).center_x(),
+                Container::new(
+                    Column::new()
+                        .push(app_name)
+                        .push(version)
+                        .align_items(Alignment::Center),
+                )
+                .width(Length::Fill)
+                .center_x(),
             ]),
         )
     }

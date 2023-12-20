@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::ops::Deref;
 
@@ -9,7 +10,9 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalUtxo;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::{ApprovedProposal, Policy, SharedSigner};
+use smartvaults_core::{
+    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
+};
 use smartvaults_protocol::v1::SignerOffering;
 pub use smartvaults_sdk_sqlite::model::*;
 
@@ -26,6 +29,18 @@ pub struct GetPolicy {
     pub last_sync: Option<Timestamp>,
 }
 
+impl PartialOrd for GetPolicy {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetPolicy {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.policy.cmp(&other.policy)
+    }
+}
+
 impl Deref for GetPolicy {
     type Target = Policy;
     fn deref(&self) -> &Self::Target {
@@ -33,7 +48,32 @@ impl Deref for GetPolicy {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetProposal {
+    pub proposal_id: EventId,
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+    pub signed: bool,
+    pub timestamp: Timestamp,
+}
+
+impl PartialOrd for GetProposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetProposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp).reverse()
+        } else {
+            self.policy_id.cmp(&other.policy_id)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetApproval {
     pub approval_id: EventId,
     pub user: Profile,
@@ -41,11 +81,100 @@ pub struct GetApproval {
     pub timestamp: Timestamp,
 }
 
-#[derive(Debug, Clone)]
+impl PartialOrd for GetApproval {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetApproval {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp).reverse()
+        } else {
+            self.approval_id.cmp(&other.approval_id)
+        }
+    }
+}
+
+pub struct GetApprovedProposals {
+    pub policy_id: EventId,
+    pub proposal: Proposal,
+    pub approved_proposals: Vec<ApprovedProposal>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetCompletedProposal {
+    pub policy_id: EventId,
+    pub completed_proposal_id: EventId,
+    pub proposal: CompletedProposal,
+    pub timestamp: Timestamp,
+}
+
+impl PartialOrd for GetCompletedProposal {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetCompletedProposal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.timestamp != other.timestamp {
+            self.timestamp.cmp(&other.timestamp).reverse()
+        } else {
+            self.policy_id.cmp(&other.policy_id)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GetSigner {
+    pub signer_id: EventId,
+    pub signer: Signer,
+}
+
+impl PartialOrd for GetSigner {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetSigner {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.signer.cmp(&other.signer)
+    }
+}
+
+impl From<(EventId, Signer)> for GetSigner {
+    fn from((signer_id, signer): (EventId, Signer)) -> Self {
+        Self { signer_id, signer }
+    }
+}
+
+impl Deref for GetSigner {
+    type Target = Signer;
+    fn deref(&self) -> &Self::Target {
+        &self.signer
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSharedSigner {
     pub shared_signer_id: EventId,
     pub owner: Profile,
     pub shared_signer: SharedSigner,
+}
+
+impl PartialOrd for GetSharedSigner {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetSharedSigner {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.shared_signer.cmp(&other.shared_signer)
+    }
 }
 
 #[derive(Debug, Clone)]
