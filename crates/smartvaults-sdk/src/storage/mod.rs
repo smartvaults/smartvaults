@@ -351,11 +351,27 @@ impl SmartVaultsStorage {
             }
         } else if event.kind == Kind::EventDeletion {
             for event_id in event.event_ids() {
-                if let Ok(true) = self.database.has_been_deleted(*event_id).await {
+                if let Ok(true) = self.database.has_event_id_been_deleted(event_id).await {
                     self.delete_event(event_id).await;
                     return Ok(Some(EventHandled::EventDeletion));
                 } else {
                     tracing::error!("Event {event_id} not deleted");
+                }
+            }
+
+            for coordinate in event.coordinates() {
+                if let Ok(true) = self
+                    .database
+                    .has_coordinate_been_deleted(&coordinate, event.created_at)
+                    .await
+                {
+                    let filter: Filter = coordinate.into();
+                    let filter: Filter = filter.until(event.created_at);
+                    let event_ids = self.database.event_ids_by_filters(vec![filter]).await?;
+                    for event_id in event_ids.into_iter() {
+                        self.delete_event(&event_id).await;
+                    }
+                    return Ok(Some(EventHandled::EventDeletion));
                 }
             }
         } else if event.kind == KEY_AGENT_VERIFIED {
