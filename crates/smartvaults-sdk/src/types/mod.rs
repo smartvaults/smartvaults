@@ -191,12 +191,24 @@ impl Deref for GetUtxo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetTransaction {
     pub policy_id: EventId,
     pub tx: TransactionDetails,
     pub label: Option<String>,
     pub block_explorer: Option<String>,
+}
+
+impl PartialOrd for GetTransaction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GetTransaction {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.tx.cmp(&other.tx)
+    }
 }
 
 impl Deref for GetTransaction {

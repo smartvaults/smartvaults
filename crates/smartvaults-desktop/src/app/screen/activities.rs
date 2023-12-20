@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::types::{GetProposal, GetTransaction};
@@ -12,7 +14,7 @@ use crate::theme::icon::RELOAD;
 
 #[derive(Debug, Clone)]
 pub enum ActivityMessage {
-    Load(Vec<GetProposal>, Vec<GetTransaction>),
+    Load(Vec<GetProposal>, BTreeSet<GetTransaction>),
     Reload,
 }
 
@@ -21,7 +23,7 @@ pub struct ActivityState {
     loading: bool,
     loaded: bool,
     proposals: Vec<GetProposal>,
-    txs: Vec<GetTransaction>,
+    txs: BTreeSet<GetTransaction>,
 }
 
 impl ActivityState {

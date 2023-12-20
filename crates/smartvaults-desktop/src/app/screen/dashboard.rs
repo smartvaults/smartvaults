@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Space};
 use iced::{Command, Element, Length};
 use smartvaults_sdk::core::bdk::wallet::Balance;
@@ -14,7 +16,7 @@ use crate::component::Text;
 pub enum DashboardMessage {
     Send,
     Deposit,
-    Load(Balance, Vec<GetProposal>, Vec<GetTransaction>),
+    Load(Balance, Vec<GetProposal>, BTreeSet<GetTransaction>),
     Reload,
 }
 
@@ -24,7 +26,7 @@ pub struct DashboardState {
     loaded: bool,
     balance: Balance,
     proposals: Vec<GetProposal>,
-    transactions: Vec<GetTransaction>,
+    transactions: BTreeSet<GetTransaction>,
 }
 
 impl DashboardState {

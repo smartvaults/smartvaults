@@ -681,7 +681,7 @@ impl SmartVaults {
         block_on(async move {
             Ok(self
                 .inner
-                .get_txs(**policy_id, true)
+                .get_txs(**policy_id)
                 .await?
                 .into_iter()
                 .map(|tx| Arc::new(tx.into()))

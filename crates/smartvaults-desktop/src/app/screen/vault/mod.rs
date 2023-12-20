@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
@@ -32,7 +34,7 @@ pub enum VaultMessage {
         GetPolicy,
         Vec<GetProposal>,
         Option<Signer>,
-        Vec<GetTransaction>,
+        BTreeSet<GetTransaction>,
     ),
     ErrorChanged(Option<String>),
     Reload,
@@ -47,7 +49,7 @@ pub struct VaultState {
     policy: Option<GetPolicy>,
     proposals: Vec<GetProposal>,
     signer: Option<Signer>,
-    transactions: Vec<GetTransaction>,
+    transactions: BTreeSet<GetTransaction>,
     error: Option<String>,
 }
 
@@ -60,7 +62,7 @@ impl VaultState {
             policy: None,
             proposals: Vec::new(),
             signer: None,
-            transactions: Vec::new(),
+            transactions: BTreeSet::new(),
             error: None,
         }
     }
@@ -82,7 +84,7 @@ impl State for VaultState {
         Command::perform(
             async move {
                 let policy = client.get_policy_by_id(policy_id).await.ok()?;
-                let list = client.get_txs(policy_id, true).await.ok()?;
+                let list = client.get_txs(policy_id).await.ok()?;
                 let proposals = client.get_proposals_by_policy_id(policy_id).await.ok()?;
                 let signer = client
                     .search_signer_by_descriptor(policy.policy.descriptor.clone())

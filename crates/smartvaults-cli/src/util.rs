@@ -96,7 +96,7 @@ pub fn print_policy(
     policy_id: EventId,
     item: SatisfiableItem,
     address: GetAddress,
-    txs: Vec<GetTransaction>,
+    txs: BTreeSet<GetTransaction>,
     utxos: Vec<GetUtxo>,
 ) {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
@@ -148,7 +148,7 @@ pub fn print_policy(
     }
 }
 
-pub fn print_txs(txs: Vec<GetTransaction>, limit: usize) {
+pub fn print_txs(txs: BTreeSet<GetTransaction>, limit: usize) {
     let mut table = Table::new();
 
     table.set_titles(row![

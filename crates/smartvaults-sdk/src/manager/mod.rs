@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::ops::Add;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -216,8 +216,8 @@ impl Manager {
         Ok(self.wallet(policy_id).await?.get_addresses_balances().await)
     }
 
-    pub async fn get_txs(&self, policy_id: EventId) -> Result<Vec<TransactionDetails>, Error> {
-        Ok(self.wallet(policy_id).await?.get_txs().await)
+    pub async fn get_txs(&self, policy_id: EventId) -> Result<BTreeSet<TransactionDetails>, Error> {
+        Ok(self.wallet(policy_id).await?.txs().await)
     }
 
     pub async fn get_tx(

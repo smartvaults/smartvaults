@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
@@ -16,12 +18,12 @@ use crate::theme::icon::{BROWSER, CHECK, CLIPBOARD, FULLSCREEN, HOURGLASS};
 
 pub struct Activity {
     proposals: Vec<GetProposal>,
-    txs: Vec<GetTransaction>,
+    txs: BTreeSet<GetTransaction>,
     hide_policy_id: bool,
 }
 
 impl Activity {
-    pub fn new(proposals: Vec<GetProposal>, txs: Vec<GetTransaction>) -> Self {
+    pub fn new(proposals: Vec<GetProposal>, txs: BTreeSet<GetTransaction>) -> Self {
         Self {
             proposals,
             txs,

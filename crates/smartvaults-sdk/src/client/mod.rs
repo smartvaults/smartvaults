@@ -32,6 +32,7 @@ use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, PrivateKey, ScriptBuf, Txid};
+use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::smartvaults_signer;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
@@ -56,7 +57,7 @@ mod sync;
 pub use self::sync::{EventHandled, Message};
 use crate::config::Config;
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
-use crate::manager::Manager;
+use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
 use crate::storage::{
     InternalApproval, InternalCompletedProposal, InternalPolicy, InternalProposal,
     SmartVaultsStorage,
@@ -1604,29 +1605,9 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_txs(
-        &self,
-        policy_id: EventId,
-        sort: bool,
-    ) -> Result<Vec<GetTransaction>, Error> {
-        let wallet = self.manager.wallet(policy_id).await?;
-        let mut txs = wallet.get_txs().await;
-
-        if sort {
-            txs.sort_by(|a, b| {
-                let a = match a.confirmation_time {
-                    ConfirmationTime::Confirmed { height, .. } => height,
-                    ConfirmationTime::Unconfirmed { .. } => u32::MAX,
-                };
-
-                let b = match b.confirmation_time {
-                    ConfirmationTime::Confirmed { height, .. } => height,
-                    ConfirmationTime::Unconfirmed { .. } => u32::MAX,
-                };
-
-                b.cmp(&a)
-            });
-        }
+    pub async fn get_txs(&self, policy_id: EventId) -> Result<BTreeSet<GetTransaction>, Error> {
+        let wallet: SmartVaultsWallet = self.manager.wallet(policy_id).await?;
+        let txs: BTreeSet<TransactionDetails> = wallet.txs().await;
 
         let descriptions: HashMap<Txid, String> = self.storage.txs_descriptions(policy_id).await;
         let script_labels: HashMap<ScriptBuf, Label> =
@@ -1634,13 +1615,13 @@ impl SmartVaults {
 
         let block_explorer = self.config.block_explorer().await.ok();
 
-        let mut list: Vec<GetTransaction> = Vec::new();
+        let mut list: BTreeSet<GetTransaction> = BTreeSet::new();
 
         for tx in txs.into_iter() {
             let txid: Txid = tx.txid();
 
             let label: Option<String> = if tx.received > tx.sent {
-                let mut label = None;
+                let mut label: Option<String> = None;
                 for txout in tx.output.iter() {
                     if wallet.is_mine(&txout.script_pubkey).await {
                         label = script_labels.get(&txout.script_pubkey).map(|l| l.text());
@@ -1653,14 +1634,14 @@ impl SmartVaults {
                 descriptions.get(&txid).cloned()
             };
 
-            list.push(GetTransaction {
+            list.insert(GetTransaction {
                 policy_id,
                 label,
                 tx,
                 block_explorer: block_explorer
                     .as_ref()
                     .map(|url| format!("{url}/tx/{txid}")),
-            })
+            });
         }
 
         Ok(list)
@@ -1787,50 +1768,35 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_total_balance(&self) -> Result<Balance, Error> {
-        let mut total_balance = Balance::default();
-        let mut already_seen = Vec::new();
-        for (policy_id, InternalPolicy { policy, .. }) in self.storage.vaults().await.into_iter() {
-            if !already_seen.contains(&policy.descriptor) {
-                let balance = self.manager.get_balance(policy_id).await?;
+        let vaults: HashMap<EventId, InternalPolicy> = self.storage.vaults().await;
+        let mut total_balance: Balance = Balance::default();
+        #[allow(clippy::mutable_key_type)]
+        let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
+        for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
+            if already_seen.insert(policy.descriptor) {
+                let balance: Balance = self.manager.get_balance(policy_id).await?;
                 total_balance = total_balance.add(balance);
-                already_seen.push(policy.descriptor);
             }
         }
         Ok(total_balance)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_all_transactions(&self) -> Result<Vec<GetTransaction>, Error> {
-        let mut txs = Vec::new();
-        let mut already_seen = Vec::new();
-        for (policy_id, InternalPolicy { policy, .. }) in self.storage.vaults().await.into_iter() {
-            if !already_seen.contains(&policy.descriptor) {
-                for tx in self
-                    .get_txs(policy_id, false)
-                    .await
-                    .unwrap_or_default()
-                    .into_iter()
-                {
-                    txs.push(tx)
-                }
-                already_seen.push(policy.descriptor);
+    pub async fn get_all_transactions(&self) -> Result<BTreeSet<GetTransaction>, Error> {
+        let vaults: HashMap<EventId, InternalPolicy> = self.storage.vaults().await;
+        let mut txs: BTreeSet<GetTransaction> = BTreeSet::new();
+        #[allow(clippy::mutable_key_type)]
+        let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
+        for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
+            if already_seen.insert(policy.descriptor) {
+                txs.extend(
+                    self.get_txs(policy_id)
+                        .await
+                        .unwrap_or_default()
+                        .into_iter(),
+                );
             }
         }
-
-        txs.sort_by(|a, b| {
-            let a = match a.confirmation_time {
-                ConfirmationTime::Confirmed { height, .. } => height,
-                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
-            };
-
-            let b = match b.confirmation_time {
-                ConfirmationTime::Confirmed { height, .. } => height,
-                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
-            };
-
-            b.cmp(&a)
-        });
-
         Ok(txs)
     }
 

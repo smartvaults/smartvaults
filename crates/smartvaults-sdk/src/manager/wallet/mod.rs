@@ -1,10 +1,11 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashMap};
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 
 use bdk_electrum::electrum_client::{
@@ -63,6 +64,32 @@ pub struct TransactionDetails {
     pub confirmation_time: ConfirmationTime,
 }
 
+impl PartialOrd for TransactionDetails {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TransactionDetails {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.confirmation_time != other.confirmation_time {
+            let this: u32 = match self.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => height,
+                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+            };
+
+            let that: u32 = match other.confirmation_time {
+                ConfirmationTime::Confirmed { height, .. } => height,
+                ConfirmationTime::Unconfirmed { .. } => u32::MAX,
+            };
+
+            this.cmp(&that).reverse()
+        } else {
+            self.total().cmp(&other.total()).reverse()
+        }
+    }
+}
+
 impl Deref for TransactionDetails {
     type Target = Transaction;
     fn deref(&self) -> &Self::Target {
@@ -95,13 +122,15 @@ impl SmartVaultsWallet {
     }
 
     fn is_syncing(&self) -> bool {
-        self.syncing.load(Ordering::SeqCst)
+        self.syncing.load(AtomicOrdering::SeqCst)
     }
 
     fn set_syncing(&self, syncing: bool) {
         let _ = self
             .syncing
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(syncing));
+            .fetch_update(AtomicOrdering::SeqCst, AtomicOrdering::SeqCst, |_| {
+                Some(syncing)
+            });
     }
 
     pub async fn latest_checkpoint(&self) -> Option<CheckPoint> {
@@ -204,7 +233,8 @@ impl SmartVaultsWallet {
         map
     }
 
-    pub async fn get_txs(&self) -> Vec<TransactionDetails> {
+    /// Get wallet TXs
+    pub async fn txs(&self) -> BTreeSet<TransactionDetails> {
         let wallet = self.wallet.read().await;
         wallet
             .transactions()
