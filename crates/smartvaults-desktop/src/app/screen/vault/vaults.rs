@@ -12,7 +12,7 @@ use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
-use crate::component::{rule, Button, ButtonStyle, SpinnerLinear, Text};
+use crate::component::{rule, Amount, Button, ButtonStyle, SpinnerLinear, Text};
 use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
@@ -124,7 +124,7 @@ impl State for PoliciesState {
                             .push(
                                 Text::new("Balance")
                                     .bold()
-                                    .width(Length::Fixed(125.0))
+                                    .width(Length::Fixed(200.0))
                                     .view(),
                             )
                             .push(
@@ -158,13 +158,14 @@ impl State for PoliciesState {
                 } in self.policies.iter()
                 {
                     let balance = if last_sync.is_some() {
-                        let balance: String =
-                            format!("{} sat", util::format::big_number(balance.total()));
-                        Column::new().push(Text::new(balance).width(Length::Fixed(125.0)).view())
+                        Amount::new(balance.total())
+                            .bold()
+                            .view()
+                            .width(Length::Fixed(200.0))
                     } else {
-                        Column::new().push(
+                        Row::new().push(
                             SpinnerLinear::new()
-                                .width(Length::Fixed(125.0))
+                                .width(Length::Fixed(200.0))
                                 .cycle_duration(Duration::from_secs(2)),
                         )
                     };
