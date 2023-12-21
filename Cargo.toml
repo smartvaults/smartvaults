@@ -13,7 +13,7 @@ default-members = ["crates/smartvaults-desktop", "crates/smartvaults-cli"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 description = "Bitcoin multi-custody signature orchestration"
 authors = ["Yuki Kishimoto <yukikishimoto@protonmail.com>", "Max Gravitt"]
 homepage = "https://github.com/smartvaults/smartvaults"

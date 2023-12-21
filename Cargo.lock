@@ -4088,7 +4088,7 @@ checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
 
 [[package]]
 name = "smartvaults-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "dialoguer",
@@ -4105,7 +4105,7 @@ dependencies = [
 
 [[package]]
 name = "smartvaults-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bdk",
  "bitcoinconsensus",
@@ -4118,7 +4118,7 @@ dependencies = [
 
 [[package]]
 name = "smartvaults-desktop"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-stream",
  "dirs",
@@ -4136,7 +4136,7 @@ dependencies = [
 
 [[package]]
 name = "smartvaults-protocol"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "nostr",
  "once_cell",
@@ -4148,7 +4148,7 @@ dependencies = [
 
 [[package]]
 name = "smartvaults-sdk"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-utility",
  "bdk_electrum",
@@ -4171,7 +4171,7 @@ dependencies = [
 
 [[package]]
 name = "smartvaults-sdk-ffi"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-utility",
  "nostr-ffi",
@@ -4184,7 +4184,7 @@ dependencies = [
 
 [[package]]
 name = "smartvaults-sdk-sqlite"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chacha20poly1305",
  "deadpool-sqlite",
