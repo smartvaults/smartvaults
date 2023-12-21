@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use iced::widget::{svg, Column, Container, PickList, Space};
+use iced::widget::{svg, Column, Container, PickList, Scrollable, Space};
 use iced::{Alignment, Length};
 
 mod button;
@@ -101,18 +101,21 @@ impl Sidebar {
                 .width(Length::Fill)
                 .center_x(),
             mode_selector,
-            sidebar_menu(menu_buttons),
-            sidebar_menu([
-                lock_button,
-                Container::new(
-                    Column::new()
-                        .push(app_name)
-                        .push(version)
-                        .align_items(Alignment::Center),
-                )
-                .width(Length::Fill)
-                .center_x(),
-            ]),
+            sidebar_menu(menu_buttons, true),
+            sidebar_menu(
+                [
+                    lock_button,
+                    Container::new(
+                        Column::new()
+                            .push(app_name)
+                            .push(version)
+                            .align_items(Alignment::Center),
+                    )
+                    .width(Length::Fill)
+                    .center_x(),
+                ],
+                false,
+            ),
         )
     }
 }
@@ -132,12 +135,13 @@ pub fn sidebar<'a, T: 'a>(
             .push(Column::new().padding(15).push(selector))
             .push(rule::horizontal())
             .push(menu.height(Length::Fill))
+            .push(rule::horizontal())
             .push(footer.height(Length::Shrink)),
     )
     .max_width(MAX_WIDTH)
 }
 
-pub fn sidebar_menu<'a, T: 'a, I>(items: I) -> Container<'a, T>
+pub fn sidebar_menu<'a, T: 'a, I>(items: I, scrollable: bool) -> Container<'a, T>
 where
     I: IntoIterator<Item = Container<'a, T>>,
 {
@@ -145,5 +149,9 @@ where
     for i in items.into_iter() {
         col = col.push(i)
     }
-    Container::new(col)
+    if scrollable {
+        Container::new(Scrollable::new(col)).padding([5, 0, 5, 0])
+    } else {
+        Container::new(col)
+    }
 }
