@@ -61,7 +61,7 @@ impl AddressesState {
         Self {
             policy: policy.map(|(policy_id, policy)| PolicyPickList {
                 policy_id,
-                name: policy.name,
+                name: policy.name(),
             }),
             policies: Vec::new(),
             addresses: Vec::new(),
@@ -93,7 +93,7 @@ impl State for AddressesState {
                              policy_id, policy, ..
                          }| PolicyPickList {
                             policy_id,
-                            name: policy.name,
+                            name: policy.name(),
                         },
                     )
                     .collect()

@@ -206,8 +206,8 @@ impl State for SpendState {
                         return Command::perform(
                             async move {
                                 let utxos = client.get_utxos(policy_id).await?;
-                                let item = policy.satisfiable_item(client.network())?;
-                                let conditions = policy.selectable_conditions(client.network())?;
+                                let item = policy.satisfiable_item()?;
+                                let conditions = policy.selectable_conditions()?;
                                 Ok::<
                                     (
                                         Vec<GetUtxo>,

@@ -1058,9 +1058,9 @@ impl SmartVaults {
     {
         let policy: Policy = Policy::from_template(name, description, template, self.network)?;
         self.save_policy(
-            policy.name,
-            policy.description,
-            policy.descriptor.to_string(),
+            policy.name(),
+            policy.description(),
+            policy.as_descriptor().to_string(),
             nostr_pubkeys,
         )
         .await
@@ -1261,7 +1261,9 @@ impl SmartVaults {
         let signer = SignerWrapper::new(
             PrivateKey::new(keys.secret_key()?, self.network),
             SignerContext::Tap {
-                is_internal_key: self.is_internal_key(policy.descriptor.to_string()).await?,
+                is_internal_key: self
+                    .is_internal_key(policy.as_descriptor().to_string())
+                    .await?,
             },
         );
         let seed: Seed = self.keechain.read().seed(password)?;
@@ -1773,7 +1775,7 @@ impl SmartVaults {
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
         for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
-            if already_seen.insert(policy.descriptor) {
+            if already_seen.insert(policy.descriptor()) {
                 let balance: Balance = self.manager.get_balance(policy_id).await?;
                 total_balance = total_balance.add(balance);
             }
@@ -1788,7 +1790,7 @@ impl SmartVaults {
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
         for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
-            if already_seen.insert(policy.descriptor) {
+            if already_seen.insert(policy.descriptor()) {
                 txs.extend(
                     self.get_txs(policy_id)
                         .await
@@ -1862,9 +1864,9 @@ impl SmartVaults {
             ..
         } = self.storage.vault(&policy_id).await?;
         Ok(PolicyBackup::new(
-            policy.name,
-            policy.description,
-            policy.descriptor,
+            policy.name(),
+            policy.description(),
+            policy.descriptor(),
             public_keys,
         ))
     }

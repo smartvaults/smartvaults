@@ -516,10 +516,10 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
 
                 // Print result
                 if export {
-                    println!("\n{}\n", policy.descriptor);
+                    println!("\n{}\n", policy.as_descriptor());
                     Ok(())
                 } else {
-                    let item = policy.satisfiable_item(client.network())?;
+                    let item = policy.satisfiable_item()?;
                     let address = client.get_last_unused_address(policy_id).await?;
                     let txs = client.get_txs(policy_id).await.unwrap_or_default();
                     let utxos = client.get_utxos(policy_id).await.unwrap_or_default();

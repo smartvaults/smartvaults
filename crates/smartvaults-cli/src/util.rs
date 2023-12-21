@@ -101,8 +101,8 @@ pub fn print_policy(
 ) {
     println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
     println!("- ID: {policy_id}");
-    println!("- Name: {}", &policy.name);
-    println!("- Description: {}", policy.description);
+    println!("- Name: {}", policy.name());
+    println!("- Description: {}", policy.description());
 
     let mut tree: Tree<String> = Tree::new("- Descriptor".to_string());
     tree.push(add_node(&item));
@@ -325,7 +325,12 @@ pub fn print_policies(policies: Vec<GetPolicy>) {
         },
     ) in policies.into_iter().enumerate()
     {
-        table.add_row(row![index + 1, policy_id, policy.name, policy.description]);
+        table.add_row(row![
+            index + 1,
+            policy_id,
+            policy.name(),
+            policy.description()
+        ]);
     }
 
     table.printstd();

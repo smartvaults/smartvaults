@@ -175,8 +175,8 @@ impl State for PoliciesState {
                                 .width(Length::Fixed(115.0))
                                 .view(),
                         )
-                        .push(Text::new(&policy.name).width(Length::Fill).view())
-                        .push(Text::new(&policy.description).width(Length::Fill).view())
+                        .push(Text::new(&policy.name()).width(Length::Fill).view())
+                        .push(Text::new(&policy.description()).width(Length::Fill).view())
                         .push(balance)
                         .push(
                             Button::new()

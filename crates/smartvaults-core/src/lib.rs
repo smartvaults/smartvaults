@@ -148,7 +148,7 @@ mod test {
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
-        let descriptor: String = policy.descriptor.to_string();
+        let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy.spend(
@@ -190,7 +190,7 @@ mod test {
 
         let template = PolicyTemplate::multisig(2, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
-        let descriptor: String = policy.descriptor.to_string();
+        let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal =
@@ -233,7 +233,7 @@ mod test {
 
         let template = PolicyTemplate::multisig(1, vec![desc_a, desc_b]);
         let policy: Policy = Policy::from_template("Name", "Description", template, NETWORK)?;
-        let descriptor: String = policy.descriptor.to_string();
+        let descriptor: String = policy.as_descriptor().to_string();
 
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: Proposal = policy.spend(

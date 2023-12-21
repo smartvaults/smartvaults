@@ -103,11 +103,12 @@ impl Manager {
         let mut wallets = self.wallets.write().await;
         if let Entry::Vacant(e) = wallets.entry(policy_id) {
             let wallet: SmartVaultsWallet = tokio::task::spawn_blocking(move || {
-                let descriptor_hash = Sha256Hash::hash(policy.descriptor.to_string().as_bytes());
+                let descriptor_hash =
+                    Sha256Hash::hash(policy.as_descriptor().to_string().as_bytes());
                 let db: SmartVaultsWalletStorage =
                     SmartVaultsWalletStorage::new(descriptor_hash, this.db.clone());
                 let wallet: Wallet<SmartVaultsWalletStorage> =
-                    Wallet::new(&policy.descriptor.to_string(), None, db, this.network)?;
+                    Wallet::new(&policy.as_descriptor().to_string(), None, db, this.network)?;
                 Ok::<SmartVaultsWallet, Error>(SmartVaultsWallet::new(policy, wallet))
             })
             .await??;

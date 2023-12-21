@@ -18,7 +18,7 @@ pub use self::template::{
     RelativeLockTime,
 };
 use crate::error::Result;
-use crate::{Balance, Network, Signer};
+use crate::{Balance, Signer};
 
 #[derive(Clone, Object)]
 pub struct Policy {
@@ -41,41 +41,35 @@ impl From<policy::Policy> for Policy {
 #[uniffi::export]
 impl Policy {
     pub fn name(&self) -> String {
-        self.inner.name.clone()
+        self.inner.name()
     }
 
     pub fn description(&self) -> String {
-        self.inner.description.clone()
+        self.inner.description()
     }
 
     pub fn descriptor(&self) -> String {
-        self.inner.descriptor.to_string()
+        self.inner.as_descriptor().to_string()
     }
 
-    pub fn satisfiable_item(&self, network: Network) -> Result<String> {
-        Ok(self.inner.satisfiable_item(network.into())?.as_json())
+    pub fn satisfiable_item(&self) -> Result<String> {
+        Ok(self.inner.satisfiable_item()?.as_json())
     }
 
     pub fn has_timelock(&self) -> bool {
         self.inner.has_timelock()
     }
 
-    pub fn selectable_conditions(
-        &self,
-        network: Network,
-    ) -> Result<Option<HashMap<String, Vec<String>>>> {
-        Ok(self
-            .inner
-            .selectable_conditions(network.into())?
-            .map(|list| {
-                list.into_iter()
-                    .map(
-                        |SelectableCondition {
-                             path, sub_paths, ..
-                         }| (path, sub_paths),
-                    )
-                    .collect()
-            }))
+    pub fn selectable_conditions(&self) -> Result<Option<HashMap<String, Vec<String>>>> {
+        Ok(self.inner.selectable_conditions()?.map(|list| {
+            list.into_iter()
+                .map(
+                    |SelectableCondition {
+                         path, sub_paths, ..
+                     }| (path, sub_paths),
+                )
+                .collect()
+        }))
     }
 
     pub fn search_used_signers(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
@@ -90,30 +84,22 @@ impl Policy {
     pub fn get_policy_path_from_signer(
         &self,
         signer: Arc<Signer>,
-        network: Network,
     ) -> Result<Option<PolicyPathSelector>> {
         let res = self
             .inner
-            .get_policy_path_from_signer(signer.as_ref().deref(), network.into())?;
+            .get_policy_path_from_signer(signer.as_ref().deref())?;
         Ok(res.map(|pp| pp.into()))
     }
 
-    pub fn get_policy_paths_from_signers(
-        &self,
-        signers: Vec<Arc<Signer>>,
-        network: Network,
-    ) -> Result<PolicyPath> {
+    pub fn get_policy_paths_from_signers(&self, signers: Vec<Arc<Signer>>) -> Result<PolicyPath> {
         Ok(self
             .inner
-            .get_policy_paths_from_signers(
-                signers.into_iter().map(|s| s.as_ref().deref().clone()),
-                network.into(),
-            )?
+            .get_policy_paths_from_signers(signers.into_iter().map(|s| s.as_ref().deref().clone()))?
             .into())
     }
 
-    pub fn template_match(&self, network: Network) -> Result<Option<PolicyTemplateType>> {
-        Ok(self.inner.template_match(network.into())?.map(|t| t.into()))
+    pub fn template_match(&self) -> Result<Option<PolicyTemplateType>> {
+        Ok(self.inner.template_match()?.map(|t| t.into()))
     }
 }
 

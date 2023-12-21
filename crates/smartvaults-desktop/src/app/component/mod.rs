@@ -38,7 +38,7 @@ impl fmt::Display for PolicyPickList {
         write!(
             f,
             "{} - #{}",
-            self.inner.policy.name,
+            self.inner.policy.name(),
             util::cut_event_id(self.inner.policy_id)
         )
     }

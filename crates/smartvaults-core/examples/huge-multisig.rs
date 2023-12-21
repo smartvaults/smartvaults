@@ -31,18 +31,19 @@ fn main() {
     let template = PolicyTemplate::multisig(size / 2, descriptors);
 
     let policy = Policy::from_template("", "", template, NETWORK).unwrap();
-    println!("Descriptor: {}", policy.descriptor);
+    println!("Descriptor: {}", policy.descriptor());
     println!(
         "Descriptor size: {} bytes",
-        policy.descriptor.to_string().as_bytes().len()
+        policy.as_descriptor().to_string().as_bytes().len()
     );
-    if let SatisfiableItem::Thresh { items, .. } = policy.satisfiable_item(NETWORK).unwrap() {
+    if let SatisfiableItem::Thresh { items, .. } = policy.satisfiable_item().unwrap() {
         if let SatisfiableItem::Multisig { keys, .. } = &items[1].item {
             println!("Keys in multisig: {}", keys.len());
         }
     }
 
-    let mut wallet = Wallet::new_no_persist(&policy.descriptor.to_string(), None, NETWORK).unwrap();
+    let mut wallet =
+        Wallet::new_no_persist(&policy.as_descriptor().to_string(), None, NETWORK).unwrap();
     println!(
         "Receiving address: {}",
         wallet.get_address(AddressIndex::New)
