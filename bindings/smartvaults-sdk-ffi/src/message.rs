@@ -72,7 +72,7 @@ impl From<EventHandledSdk> for EventHandled {
 
 #[derive(Enum)]
 pub enum Message {
-    EventHandled { event: EventHandled },
+    EventHandledMsg { event: EventHandled },
     WalletSyncCompleted { policy_id: Arc<EventId> },
     BlockHeightUpdated,
 }
@@ -80,7 +80,7 @@ pub enum Message {
 impl From<MessageSdk> for Message {
     fn from(value: MessageSdk) -> Self {
         match value {
-            MessageSdk::EventHandled(event) => Self::EventHandled {
+            MessageSdk::EventHandled(event) => Self::EventHandledMsg {
                 event: event.into(),
             },
             MessageSdk::WalletSyncCompleted(policy_id) => Self::WalletSyncCompleted {
