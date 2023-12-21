@@ -8,7 +8,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='smartvaults-sdk',
-    version='0.0.1',
+    version='0.4.0',
     description="Smart Vaults SDK",
     long_description=long_description,
     long_description_content_type='text/markdown',
