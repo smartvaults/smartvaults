@@ -120,13 +120,7 @@ impl State for PoliciesState {
                         Row::new()
                             .push(Text::new("ID").bold().width(Length::Fixed(115.0)).view())
                             .push(Text::new("Name").bold().width(Length::Fill).view())
-                            .push(Text::new("Description").bold().width(Length::Fill).view())
-                            .push(
-                                Text::new("Balance")
-                                    .bold()
-                                    .width(Length::Fixed(200.0))
-                                    .view(),
-                            )
+                            .push(Text::new("Balance").bold().width(Length::Fill).view())
                             .push(
                                 Button::new()
                                     .style(ButtonStyle::Bordered)
@@ -161,13 +155,15 @@ impl State for PoliciesState {
                         Amount::new(balance.total())
                             .bold()
                             .view()
-                            .width(Length::Fixed(200.0))
+                            .width(Length::Fill)
                     } else {
-                        Row::new().push(
-                            SpinnerLinear::new()
-                                .width(Length::Fixed(200.0))
-                                .cycle_duration(Duration::from_secs(2)),
-                        )
+                        Row::new()
+                            .push(
+                                SpinnerLinear::new()
+                                    .width(Length::Fixed(200.0))
+                                    .cycle_duration(Duration::from_secs(2)),
+                            )
+                            .width(Length::Fill)
                     };
 
                     let row = Row::new()
@@ -177,7 +173,6 @@ impl State for PoliciesState {
                                 .view(),
                         )
                         .push(Text::new(&policy.name()).width(Length::Fill).view())
-                        .push(Text::new(&policy.description()).width(Length::Fill).view())
                         .push(balance)
                         .push(
                             Button::new()
