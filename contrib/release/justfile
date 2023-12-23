@@ -1,0 +1,84 @@
+release_dir := "../../release"
+VERSION := "0.4.0"
+
+default: release
+
+[linux]
+release: appimage deb msi
+
+[macos]
+release: dmg
+
+create_dir:
+    mkdir -p {{release_dir}}
+
+deb: create_dir
+    cargo install cargo-deb
+    rustup target add x86_64-unknown-linux-gnu
+    cp -r linux/ {{release_dir}}
+    @# TODO: replace cargo deb with manually packaging
+    cd ../../crates/smartvaults-desktop && cargo deb --target x86_64-unknown-linux-gnu
+    cp ../../target/x86_64-unknown-linux-gnu/debian/smartvaults-desktop_{{VERSION}}_*.deb {{release_dir}}/smartvaults-desktop-{{VERSION}}-linux-x86_64.deb
+    cd {{release_dir}} && gpg --detach-sign --armor smartvaults-desktop-{{VERSION}}-linux-x86_64.deb
+    rm -rf {{release_dir}}/linux
+
+appimage: x86_64-unknown-linux-gnu
+    cp -r smartvaults.AppDir/ {{release_dir}}
+    cp linux/app.smartvaults.desktop {{release_dir}}/smartvaults.AppDir/app.smartvaults.desktop
+    cp linux/smartvaults.png {{release_dir}}/smartvaults.AppDir/smartvaults.png
+    cp ../../target/x86_64-unknown-linux-gnu/release/smartvaults-desktop {{release_dir}}/smartvaults.AppDir/usr/bin/smartvaults-desktop
+    chmod a+x {{release_dir}}/smartvaults.AppDir/usr/bin/smartvaults-desktop
+    chmod a+x {{release_dir}}/smartvaults.AppDir/AppRun
+    chmod a+x {{release_dir}}/smartvaults.AppDir/app.smartvaults.desktop
+    cd {{release_dir}} && appimagetool smartvaults.AppDir --sign
+    mv {{release_dir}}/Smart_Vaults-x86_64.AppImage {{release_dir}}/SmartVaults-{{VERSION}}-x86_64.AppImage
+    cd {{release_dir}} && gpg --detach-sign --armor SmartVaults-{{VERSION}}-x86_64.AppImage
+    rm -rf {{release_dir}}/smartvaults.AppDir
+
+[linux]
+msi: x86_64-pc-windows-gnu
+    cp -r windows/ {{release_dir}}
+    cp ../../target/x86_64-pc-windows-gnu/release/smartvaults-desktop.exe {{release_dir}}/windows/smartvaults-desktop.exe
+    cp /usr/lib/gcc/x86_64-w64-mingw32/12-win32/libstdc++-6.dll {{release_dir}}/windows/
+    cp /usr/lib/gcc/x86_64-w64-mingw32/12-win32/libgcc_s_seh-1.dll {{release_dir}}/windows/
+    sed -i s/VERSION_PLACEHOLDER/{{VERSION}}/g {{release_dir}}/windows/smartvaults-desktop.wxs
+    cd {{release_dir}}/windows && wixl -v smartvaults-desktop.wxs
+    mv {{release_dir}}/windows/smartvaults-desktop.msi {{release_dir}}/smartvaults-desktop-{{VERSION}}-windows-x86_64.msi
+    cd {{release_dir}} && gpg --detach-sign --armor smartvaults-desktop-{{VERSION}}-windows-x86_64.msi
+    rm -rf {{release_dir}}/windows
+
+dmg: x86_64-apple-darwin aarch64-apple-darwin
+    cd {{release_dir}}/macos && create-dmg --volname "Smart Vaults" --window-size 550 350 --icon-size 100 --hide-extension "SmartVaults.app" --icon "SmartVaults.app" 150 150 --app-drop-link 400 150 "smartvaults-desktop-{{VERSION}}-darwin-x86_64.dmg" "x86_64/"
+    cd {{release_dir}}/macos && create-dmg --volname "Smart Vaults" --window-size 550 350 --icon-size 100 --hide-extension "SmartVaults.app" --icon "SmartVaults.app" 150 150 --app-drop-link 400 150 "smartvaults-desktop-{{VERSION}}-darwin-aarch64.dmg" "aarch64/"
+    mv {{release_dir}}/macos/smartvaults-desktop-{{VERSION}}-darwin-x86_64.dmg {{release_dir}}/smartvaults-desktop-{{VERSION}}-darwin-x86_64.dmg
+    mv {{release_dir}}/macos/smartvaults-desktop-{{VERSION}}-darwin-aarch64.dmg {{release_dir}}/smartvaults-desktop-{{VERSION}}-darwin-aarch64.dmg
+    cd {{release_dir}} && gpg --detach-sign --armor smartvaults-desktop-{{VERSION}}-darwin-x86_64.dmg
+    cd {{release_dir}} && gpg --detach-sign --armor smartvaults-desktop-{{VERSION}}-darwin-aarch64.dmg
+    rm -rf {{release_dir}}/macos
+
+x86_64-unknown-linux-gnu: create_dir
+    rustup target add x86_64-unknown-linux-gnu
+    cargo build -p smartvaults-desktop --release --target x86_64-unknown-linux-gnu
+    
+x86_64-apple-darwin: create_dir
+    rustup target add x86_64-apple-darwin
+    cargo build -p smartvaults-desktop --release --target x86_64-apple-darwin
+    mkdir -p {{release_dir}}/macos/x86_64
+    cp -r macos/SmartVaults.app {{release_dir}}/macos/x86_64
+    sed -i "" s/VERSION_PLACEHOLDER/{{VERSION}}/g {{release_dir}}/macos/x86_64/SmartVaults.app/Contents/Info.plist
+    mkdir -p {{release_dir}}/macos/x86_64/SmartVaults.app/Contents/MacOS/
+    cp ../../target/x86_64-apple-darwin/release/smartvaults-desktop {{release_dir}}/macos/x86_64/SmartVaults.app/Contents/MacOS/
+
+aarch64-apple-darwin: create_dir
+    rustup target add aarch64-apple-darwin
+    cargo build -p smartvaults-desktop --release --target aarch64-apple-darwin
+    mkdir -p {{release_dir}}/macos/aarch64
+    cp -r macos/SmartVaults.app {{release_dir}}/macos/aarch64
+    sed -i "" s/VERSION_PLACEHOLDER/{{VERSION}}/g {{release_dir}}/macos/aarch64/SmartVaults.app/Contents/Info.plist
+    mkdir -p {{release_dir}}/macos/aarch64/SmartVaults.app/Contents/MacOS/
+    cp ../../target/aarch64-apple-darwin/release/smartvaults-desktop {{release_dir}}/macos/aarch64/SmartVaults.app/Contents/MacOS/
+
+[linux]
+x86_64-pc-windows-gnu: create_dir
+    rustup target add x86_64-pc-windows-gnu
+    cargo build -p smartvaults-desktop --release --target x86_64-pc-windows-gnu
