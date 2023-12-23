@@ -2786,7 +2786,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.26.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "aes",
  "base64 0.21.3",
@@ -2808,7 +2808,7 @@ dependencies = [
 [[package]]
 name = "nostr-database"
 version = "0.26.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "async-trait",
  "flatbuffers",
@@ -2822,7 +2822,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2831,7 +2831,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.26.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2847,7 +2847,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "nostr-ffi",
  "nostr-sdk",
@@ -2859,7 +2859,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-net"
 version = "0.26.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -2875,7 +2875,7 @@ dependencies = [
 [[package]]
 name = "nostr-sqlite"
 version = "0.26.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=dcc4c285a7a3e52f4c0390f4e58586576977c728#dcc4c285a7a3e52f4c0390f4e58586576977c728"
+source = "git+https://github.com/rust-nostr/nostr?rev=41c3536275e4813b38a36bfee1d03057960c5ce0#41c3536275e4813b38a36bfee1d03057960c5ce0"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",

@@ -84,7 +84,7 @@ impl BlockTime {
         self.height
     }
 
-    pub fn timestamp(&self) -> Arc<Timestamp> {
+    pub fn timestamp(&self) -> Timestamp {
         Timestamp::from_secs(self.timestamp)
     }
 }

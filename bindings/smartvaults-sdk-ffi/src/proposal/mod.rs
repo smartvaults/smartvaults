@@ -82,8 +82,8 @@ impl From<proposal::Proposal> for Proposal {
                 amount,
                 description,
                 period: Period {
-                    from: Timestamp::from_secs(period.from),
-                    to: Timestamp::from_secs(period.to),
+                    from: Arc::new(Timestamp::from_secs(period.from)),
+                    to: Arc::new(Timestamp::from_secs(period.to)),
                 },
                 psbt: psbt.to_string(),
             },

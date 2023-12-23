@@ -46,8 +46,8 @@ impl From<proposal::CompletedProposal> for CompletedProposal {
                 signer_descriptor: signer_descriptor.to_string(),
                 description,
                 period: Period {
-                    from: Timestamp::from_secs(period.from),
-                    to: Timestamp::from_secs(period.to),
+                    from: Arc::new(Timestamp::from_secs(period.from)),
+                    to: Arc::new(Timestamp::from_secs(period.to)),
                 },
             },
             proposal::CompletedProposal::ProofOfReserve {

@@ -3,7 +3,7 @@
 ## Prerequisites
 
 * When building for Android:
-  * NDK v25 (https://github.com/android/ndk/wiki/Unsupported-Downloads)
+  * NDK v26
   * Set the `ANDROID_SDK_ROOT` env variable (ex. Linux: `~/Android/Sdk`, macOS: `~/Library/Android/sdk`)
   * Set the `ANDROID_NDK_HOME` env variable (ex. Linux: `~/Android/Sdk/ndk/<version>`, macOS: `~/Library/Android/sdk/ndk/<version>`)
 
