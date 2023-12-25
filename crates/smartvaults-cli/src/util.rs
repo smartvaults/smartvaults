@@ -19,8 +19,8 @@ use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{EventId, Keys, Profile, Relay, Timestamp, Url};
 use smartvaults_sdk::types::{
-    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetTransaction, GetUtxo,
-    NostrConnectRequest,
+    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetSignerOffering,
+    GetTransaction, GetUtxo, NostrConnectRequest,
 };
 use smartvaults_sdk::util::{self, format};
 use termtree::Tree;
@@ -656,6 +656,56 @@ pub fn print_authorizations(authorizations: BTreeMap<XOnlyPublicKey, Timestamp>)
 
     for (index, (app_public_key, until)) in authorizations.into_iter().enumerate() {
         table.add_row(row![index + 1, app_public_key, until.to_human_datetime(),]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_key_agents_signer_offersing<I>(offerings: I)
+where
+    I: IntoIterator<Item = GetSignerOffering>,
+{
+    let mut table = Table::new();
+
+    table.set_titles(row![
+        "#",
+        "Name",
+        "Fingerprint",
+        "Temperature",
+        "Response time",
+        "Device type",
+        "Cost per signature",
+        "Yearly cost (BSP)",
+        "Yearly cost"
+    ]);
+
+    for (
+        index,
+        GetSignerOffering {
+            signer, offering, ..
+        },
+    ) in offerings.into_iter().enumerate()
+    {
+        table.add_row(row![
+            index + 1,
+            signer.name(),
+            signer.fingerprint(),
+            offering.temperature,
+            format!("{} min", offering.response_time),
+            offering.device_type,
+            offering
+                .cost_per_signature
+                .map(|p| p.to_string())
+                .unwrap_or_default(),
+            offering
+                .yearly_cost_basis_points
+                .map(|p| p.to_string())
+                .unwrap_or_default(),
+            offering
+                .yearly_cost
+                .map(|p| p.to_string())
+                .unwrap_or_default(),
+        ]);
     }
 
     table.printstd();

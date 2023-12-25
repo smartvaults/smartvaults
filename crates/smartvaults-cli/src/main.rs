@@ -447,7 +447,8 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
             KeyAgentCommand::ListSigners => {
-                println!("TODO");
+                let offerings = client.my_signer_offerings().await?;
+                util::print_key_agents_signer_offersing(offerings);
                 Ok(())
             }
         },
