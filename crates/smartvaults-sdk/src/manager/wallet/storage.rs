@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Smart Vaults
+// Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;

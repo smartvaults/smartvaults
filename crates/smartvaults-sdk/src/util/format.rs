@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Smart Vaults
+// Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
 const SCALES: [(u8, &str); 4] = [(1, "K"), (2, "M"), (3, "Bn"), (4, "T")];
