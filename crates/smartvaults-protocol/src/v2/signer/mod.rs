@@ -163,7 +163,7 @@ pub fn build_event(keys: &Keys, signer: &Signer) -> Result<Event, Error> {
     Ok(EventBuilder::new(
         SIGNER_KIND_V2,
         encrypted_content,
-        &[Tag::Identifier(identifier)],
+        [Tag::Identifier(identifier)],
     )
     .to_event(keys)?)
 }

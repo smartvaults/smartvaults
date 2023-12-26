@@ -180,7 +180,7 @@ pub fn smartvaults_signer(seed: Seed, network: Network) -> Result<Signer, Error>
     )
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SharedSigner {
     fingerprint: Fingerprint,
     descriptor: Descriptor<DescriptorPublicKey>,

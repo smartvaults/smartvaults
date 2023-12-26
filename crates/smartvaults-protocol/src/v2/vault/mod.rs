@@ -204,8 +204,8 @@ pub fn build_invitation_event(vault: &Vault, receiver: XOnlyPublicKey) -> Result
     Ok(EventBuilder::new(
         WRAPPER_KIND,
         encrypted_content,
-        &[
-            Tag::PubKey(receiver, None),
+        [
+            Tag::public_key(receiver),
             Tag::Expiration(Timestamp::now() + WRAPPER_EXIPRATION),
         ],
     )
@@ -220,7 +220,7 @@ pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {
     let encrypted_content: String = vault.encrypt_with_keys(keys)?;
 
     // Compose and build event
-    Ok(EventBuilder::new(VAULT_KIND_V2, encrypted_content, &[]).to_event(keys)?)
+    Ok(EventBuilder::new(VAULT_KIND_V2, encrypted_content, []).to_event(keys)?)
 }
 
 #[cfg(bench)]

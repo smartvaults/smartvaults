@@ -311,5 +311,5 @@ pub fn build_event(vault: &Vault, proposal: &Proposal) -> Result<Event, Error> {
 
     // Compose and build event
     let identifier = Tag::Identifier(proposal.generate_identifier());
-    Ok(EventBuilder::new(PROPOSAL_KIND_V2, encrypted_content, &[identifier]).to_event(&keys)?)
+    Ok(EventBuilder::new(PROPOSAL_KIND_V2, encrypted_content, [identifier]).to_event(&keys)?)
 }
