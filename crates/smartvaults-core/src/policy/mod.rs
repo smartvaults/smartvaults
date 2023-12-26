@@ -653,7 +653,7 @@ impl Policy {
     pub fn estimate_tx_vsize<D>(
         &self,
         wallet: &mut Wallet<D>,
-        destination: Destination,
+        destination: &Destination,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
@@ -679,7 +679,7 @@ impl Policy {
     pub fn spend<D>(
         &self,
         wallet: &mut Wallet<D>,
-        destination: Destination,
+        destination: &Destination,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
@@ -755,7 +755,7 @@ impl Policy {
                     builder.add_recipient(address.payload.script_pubkey(), amount.to_sat());
                 }
                 Destination::Multiple(recipients) => {
-                    for Recipient { address, amount } in recipients.into_iter() {
+                    for Recipient { address, amount } in recipients.iter() {
                         builder.add_recipient(address.payload.script_pubkey(), amount.to_sat());
                     }
                 }

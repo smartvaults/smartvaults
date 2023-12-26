@@ -33,6 +33,7 @@ pub struct VaultIdentifier(Sha256Hash);
 
 impl Deref for VaultIdentifier {
     type Target = Sha256Hash;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }

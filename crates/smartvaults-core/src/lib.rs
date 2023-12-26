@@ -169,7 +169,7 @@ mod tests {
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: SpendingProposal = policy.spend(
             &mut wallet,
-            Destination::Single(Recipient {
+            &Destination::Single(Recipient {
                 address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?
                     .require_network(NETWORK)?,
                 amount: Amount::from_sat(1120),
@@ -246,7 +246,7 @@ mod tests {
         let mut wallet = get_funded_wallet(&descriptor).unwrap();
         let proposal: SpendingProposal = policy.spend(
             &mut wallet,
-            Destination::Single(Recipient {
+            &Destination::Single(Recipient {
                 address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?
                     .require_network(NETWORK)?,
                 amount: Amount::from_sat(1120),
@@ -279,7 +279,7 @@ mod tests {
         let mut wallet = get_funded_wallet(&descriptor)?;
         let proposal: SpendingProposal = policy.spend(
             &mut wallet,
-            Destination::Single(Recipient {
+            &Destination::Single(Recipient {
                 address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?
                     .require_network(NETWORK)?,
                 amount: Amount::from_sat(2000),
