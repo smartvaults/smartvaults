@@ -3,6 +3,7 @@
 
 //! Error
 
+use nostr::nips::nip44;
 use smartvaults_core::bitcoin::hashes::{self, hex};
 use smartvaults_core::bitcoin::psbt::PsbtParseError;
 use smartvaults_core::bitcoin::{address, consensus};
@@ -11,7 +12,7 @@ use smartvaults_core::signer::Error as CoreSignerError;
 use smartvaults_core::{miniscript, policy, proposal, secp256k1};
 use thiserror::Error;
 
-use super::core::{CryptoError, SchemaError};
+use super::core::SchemaError;
 use super::network;
 
 /// Protocol V2 Error
@@ -39,7 +40,7 @@ pub enum Error {
     #[error(transparent)]
     Miniscript(#[from] miniscript::Error),
     #[error(transparent)]
-    Crypto(#[from] CryptoError),
+    NIP44(#[from] nip44::Error),
     #[error(transparent)]
     Schema(#[from] SchemaError),
     #[error(transparent)]

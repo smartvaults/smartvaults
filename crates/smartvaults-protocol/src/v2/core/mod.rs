@@ -1,13 +1,12 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+use nostr::nips::nip44;
 use nostr::Keys;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 
-mod crypto;
 mod schema;
 
-pub use self::crypto::Error as CryptoError;
 use self::schema::Schema;
 pub use self::schema::{Error as SchemaError, SchemaVersion};
 
@@ -46,7 +45,7 @@ pub trait ProtocolEncryption: ProtocolEncoding
 where
     <Self as ProtocolEncoding>::Err: From<schema::Error>,
     <Self as ProtocolEncryption>::Err:
-        From<<Self as ProtocolEncoding>::Err> + From<CryptoError> + From<nostr::key::Error>,
+        From<<Self as ProtocolEncoding>::Err> + From<nip44::Error> + From<nostr::key::Error>,
 {
     /// Error
     type Err;
@@ -60,7 +59,7 @@ where
     where
         T: AsRef<[u8]>,
     {
-        let payload: Vec<u8> = crypto::decrypt(secret_key, public_key, payload)?;
+        let payload: String = nip44::decrypt(secret_key, public_key, payload)?;
         Ok(Self::decode(payload)?)
     }
 
@@ -71,11 +70,11 @@ where
         public_key: &XOnlyPublicKey,
     ) -> Result<String, <Self as ProtocolEncryption>::Err> {
         let buf: Vec<u8> = self.encode();
-        Ok(crypto::encrypt(
+        Ok(nip44::encrypt(
             secret_key,
             public_key,
             buf,
-            crypto::Version::default(),
+            nip44::Version::V2,
         )?)
     }
 

@@ -5029,7 +5029,6 @@ dependencies = [
 name = "smartvaults-protocol"
 version = "0.4.0"
 dependencies = [
- "chacha20poly1305",
  "nostr",
  "once_cell",
  "prost 0.12.3",
