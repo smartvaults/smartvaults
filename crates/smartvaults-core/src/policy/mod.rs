@@ -1000,7 +1000,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(&seed, Some(784923), NETWORK).unwrap();
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
         let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -1013,7 +1013,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(&seed, Some(784923), NETWORK).unwrap();
 
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
@@ -1030,7 +1030,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(&seed, Some(784923), NETWORK).unwrap();
 
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
@@ -1059,7 +1059,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = CoreSigner::from_seed(seed, Some(784923), NETWORK).unwrap();
+        let signer = CoreSigner::from_seed(&seed, Some(784923), NETWORK).unwrap();
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
         let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();

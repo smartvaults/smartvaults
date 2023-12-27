@@ -88,13 +88,13 @@ impl Signer {
     }
 
     /// Compose [`Signer`] from [`Seed`]
-    pub fn from_seed(seed: Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
+    pub fn from_seed(seed: &Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
         let core: CoreSigner = CoreSigner::from_seed(seed, account, network)?;
         Ok(Self::new(core, SignerType::Seed))
     }
 
     /// Compose Smart Vaults signer (custom account index)
-    pub fn smartvaults(seed: Seed, network: Network) -> Result<Self, Error> {
+    pub fn smartvaults(seed: &Seed, network: Network) -> Result<Self, Error> {
         Self::from_seed(seed, Some(SMARTVAULTS_ACCOUNT_INDEX), network)
     }
 

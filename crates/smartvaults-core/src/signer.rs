@@ -72,14 +72,14 @@ impl CoreSigner {
             network,
         };
 
-        // Check descriptors
+        // Add descriptors
         signer.add_descriptors(descriptors)?;
 
         Ok(signer)
     }
 
     /// Compose [`Signer`] from [`Seed`]
-    pub fn from_seed(seed: Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
+    pub fn from_seed(seed: &Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
         let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
 
         // Derive descriptors
@@ -136,6 +136,7 @@ impl CoreSigner {
         self.descriptors.get(&purpose).cloned()
     }
 
+    /// Add descriptor
     pub fn add_descriptor(
         &mut self,
         purpose: Purpose,
