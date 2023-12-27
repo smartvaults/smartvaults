@@ -66,6 +66,16 @@ impl Ord for Proposal {
 }
 
 impl Proposal {
+    /// Create new pending proposal
+    pub fn pending(vault_id: VaultIdentifier, proposal: PendingProposal, network: Network) -> Self {
+        Self {
+            vault_id,
+            status: ProposalStatus::Pending(proposal),
+            network,
+            timestamp: Timestamp::now(),
+        }
+    }
+
     /// Vault Identifier
     pub fn vault_id(&self) -> VaultIdentifier {
         self.vault_id
