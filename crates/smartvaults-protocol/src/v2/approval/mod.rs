@@ -6,6 +6,8 @@
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::Network;
 
+use super::VaultIdentifier;
+
 /// Approval type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ApprovalType {
@@ -28,6 +30,7 @@ pub enum Version {
 /// Approval
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Approval {
+    vault_id: VaultIdentifier,
     version: Version,
     psbt: PartiallySignedTransaction,
     r#type: ApprovalType,
@@ -36,13 +39,24 @@ pub struct Approval {
 
 impl Approval {
     /// Compose new [`Approval`]
-    pub fn new(psbt: PartiallySignedTransaction, r#type: ApprovalType, network: Network) -> Self {
+    pub fn new(
+        vault_id: VaultIdentifier,
+        psbt: PartiallySignedTransaction,
+        r#type: ApprovalType,
+        network: Network,
+    ) -> Self {
         Self {
+            vault_id,
             version: Version::default(),
             psbt,
             r#type,
             network,
         }
+    }
+
+    /// Vault Identifier
+    pub fn vault_id(&self) -> VaultIdentifier {
+        self.vault_id
     }
 
     /// Get PSBT

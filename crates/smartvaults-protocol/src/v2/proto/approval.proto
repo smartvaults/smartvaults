@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package approval;
 
+import "vault.proto";
+
 enum ApprovalType {
   Spending = 0;
   ProofOfReserve = 1;
@@ -9,9 +11,10 @@ enum ApprovalType {
 }
 
 message ApprovalV1 {
-  string psbt = 1;
-  bytes network = 2;
-  ApprovalType type = 3;
+  vault.VaultIdentifier vault_id = 1;
+  string psbt = 2;
+  bytes network = 3;
+  ApprovalType type = 4;
 }
 
 message Approval {
