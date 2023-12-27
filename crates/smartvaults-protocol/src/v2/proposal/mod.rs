@@ -66,6 +66,31 @@ impl Ord for Proposal {
 }
 
 impl Proposal {
+    /// Vault Identifier
+    pub fn vault_id(&self) -> VaultIdentifier {
+        self.vault_id
+    }
+
+    /// Proposal status
+    pub fn status(&self) -> &ProposalStatus {
+        &self.status
+    }
+
+    /// Network
+    pub fn network(&self) -> Network {
+        self.network
+    }
+
+    /// Last UNIX timestamp update
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
+    }
+
+    /// Check if [`Proposal`] is finalized/completed
+    pub fn is_completed(&self) -> bool {
+        matches!(self.status, ProposalStatus::Completed(..))
+    }
+
     /// Get [`ProposalType`]
     pub fn r#type(&self) -> ProposalType {
         match &self.status {
