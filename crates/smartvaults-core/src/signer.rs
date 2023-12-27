@@ -65,51 +65,17 @@ impl CoreSigner {
         descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
         network: Network,
     ) -> Result<Self, Error> {
-        // Check descriptors
-        for (purpose, descriptor) in descriptors.iter() {
-            // Check if fingerprint match
-            if fingerprint != descriptor.master_fingerprint() {
-                return Err(Error::FingerprintNotMatch);
-            }
-
-            // Get derivation path
-            let path: DerivationPath = descriptor
-                .full_derivation_path()
-                .ok_or(Error::DerivationPathNotFound)?;
-            let mut path_iter = path.into_iter();
-
-            // Check purpose
-            let purp = path_iter.next().ok_or(Error::PurposeNotFound)?;
-            match purp {
-                ChildNumber::Hardened { index } => {
-                    if *index != purpose.as_u32() {
-                        return Err(Error::PurposeNotMatch);
-                    }
-                }
-                _ => return Err(Error::PurposeNotMatch),
-            };
-
-            // Check network
-            let coin: &ChildNumber = path_iter.next().ok_or(Error::NetworkNotFound)?;
-            let res: bool = match coin {
-                ChildNumber::Hardened { index } => match network {
-                    Network::Bitcoin => *index == 0, // Mainnet
-                    _ => *index == 1,                // Testnet, Signer or Regtest
-                },
-                _ => false,
-            };
-
-            if !res {
-                return Err(Error::NetworkNotMatch);
-            }
-        }
-
         // Compose signer
-        Ok(Self {
+        let mut signer = Self {
             fingerprint,
-            descriptors,
+            descriptors: BTreeMap::new(),
             network,
-        })
+        };
+
+        // Check descriptors
+        signer.add_descriptors(descriptors)?;
+
+        Ok(signer)
     }
 
     /// Compose [`Signer`] from [`Seed`]
@@ -168,5 +134,62 @@ impl CoreSigner {
 
     pub fn descriptor(&self, purpose: Purpose) -> Option<DescriptorPublicKey> {
         self.descriptors.get(&purpose).cloned()
+    }
+
+    pub fn add_descriptor(
+        &mut self,
+        purpose: Purpose,
+        descriptor: DescriptorPublicKey,
+    ) -> Result<(), Error> {
+        // Check if fingerprint match
+        if self.fingerprint != descriptor.master_fingerprint() {
+            return Err(Error::FingerprintNotMatch);
+        }
+
+        // Get derivation path
+        let path: DerivationPath = descriptor
+            .full_derivation_path()
+            .ok_or(Error::DerivationPathNotFound)?;
+        let mut path_iter = path.into_iter();
+
+        // Check purpose
+        let purp = path_iter.next().ok_or(Error::PurposeNotFound)?;
+        match purp {
+            ChildNumber::Hardened { index } => {
+                if *index != purpose.as_u32() {
+                    return Err(Error::PurposeNotMatch);
+                }
+            }
+            _ => return Err(Error::PurposeNotMatch),
+        };
+
+        // Check network
+        let coin: &ChildNumber = path_iter.next().ok_or(Error::NetworkNotFound)?;
+        let res: bool = match coin {
+            ChildNumber::Hardened { index } => match self.network {
+                Network::Bitcoin => *index == 0, // Mainnet
+                _ => *index == 1,                // Testnet, Signer or Regtest
+            },
+            _ => false,
+        };
+
+        if !res {
+            return Err(Error::NetworkNotMatch);
+        }
+
+        // Insert descriptor
+        self.descriptors.insert(purpose, descriptor);
+
+        Ok(())
+    }
+
+    pub fn add_descriptors<I>(&mut self, descriptors: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (Purpose, DescriptorPublicKey)>,
+    {
+        for (purpose, descriptor) in descriptors.into_iter() {
+            self.add_descriptor(purpose, descriptor)?;
+        }
+        Ok(())
     }
 }
