@@ -192,4 +192,9 @@ impl CoreSigner {
         }
         Ok(())
     }
+
+    /// Check if signer contains [`DescriptorPublicKey`]
+    pub fn contains_descriptor(&self, descriptor: &DescriptorPublicKey) -> bool {
+        self.descriptors.values().any(|d| d == descriptor)
+    }
 }
