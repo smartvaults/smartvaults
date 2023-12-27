@@ -214,6 +214,15 @@ impl Proposal {
         }
     }
 
+    /// Try to finalize without update internal status (useful to check if is signed)
+    pub fn try_finalize<I>(&self, approvals: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = Approval>,
+    {
+        let mut proposal = self.clone();
+        proposal.finalize(approvals)
+    }
+
     /// Finalize the [`Proposal`] and update the status to `ProposalStatus::Completed`.
     ///
     /// If the proposal is already completed, will return `Error::ProposalAlreadyFinalized`.

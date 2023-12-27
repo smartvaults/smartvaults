@@ -116,8 +116,7 @@ impl Vault {
 
     /// Deterministic identifier
     pub fn id(&self) -> VaultIdentifier {
-        let hash = hash::sha256(self.policy.as_descriptor().to_string());
-        VaultIdentifier(hash)
+        VaultIdentifier(hash::sha256(self.policy.as_descriptor().to_string()))
     }
 
     /// Get [`Version`]
