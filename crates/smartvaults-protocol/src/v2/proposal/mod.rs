@@ -19,7 +19,7 @@ mod proto;
 
 use super::constants::PROPOSAL_KIND_V2;
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
-use super::{Approval, Error, Vault, VaultIdentifier};
+use super::{Approval, ApprovalType, Error, Vault, VaultIdentifier};
 use crate::v2::proto::proposal::ProtoProposal;
 
 /// Period
@@ -47,14 +47,10 @@ pub enum ProposalType {
 /// Proposal
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Proposal {
-    /// Vault Identifier
-    pub vault_id: VaultIdentifier,
-    /// Status
-    pub status: ProposalStatus,
-    /// Network
-    pub network: Network,
-    /// Last update UNIX timestamp
-    pub timestamp: Timestamp,
+    vault_id: VaultIdentifier,
+    status: ProposalStatus,
+    network: Network,
+    timestamp: Timestamp,
 }
 
 impl PartialOrd for Proposal {
@@ -98,10 +94,12 @@ impl Proposal {
         }
     }
 
-    /// Approve a **pending** proposal
-    pub fn approve(&self, seed: &Seed) -> Result<PartiallySignedTransaction, Error> {
+    /// Approve a **pending** proposal with [`Seed`]
+    ///
+    /// If the proposal is already completed, will return `Error::ProposalAlreadyFinalized`.
+    pub fn approve(&self, seed: &Seed) -> Result<Approval, Error> {
         if let ProposalStatus::Pending(pending) = &self.status {
-            match pending {
+            let (psbt, r#type): (PartiallySignedTransaction, ApprovalType) = match pending {
                 PendingProposal::Spending {
                     descriptor, psbt, ..
                 } => {
@@ -110,7 +108,7 @@ impl Proposal {
                         psbt: psbt.clone(),
                         network: self.network,
                     };
-                    Ok(spending.approve(seed, Vec::new())?)
+                    (spending.approve(seed, Vec::new())?, ApprovalType::Spending)
                 }
                 PendingProposal::KeyAgentPayment {
                     descriptor, psbt, ..
@@ -120,7 +118,10 @@ impl Proposal {
                         psbt: psbt.clone(),
                         network: self.network,
                     };
-                    Ok(spending.approve(seed, Vec::new())?)
+                    (
+                        spending.approve(seed, Vec::new())?,
+                        ApprovalType::KeyAgentPayment,
+                    )
                 }
                 PendingProposal::ProofOfReserve {
                     descriptor,
@@ -133,9 +134,14 @@ impl Proposal {
                         psbt: psbt.clone(),
                         network: self.network,
                     };
-                    Ok(proof_of_reserve.approve(seed, Vec::new())?)
+                    (
+                        proof_of_reserve.approve(seed, Vec::new())?,
+                        ApprovalType::ProofOfReserve,
+                    )
                 }
-            }
+            };
+
+            Ok(Approval::new(self.vault_id, psbt, r#type, self.network))
         } else {
             Err(Error::ProposalAlreadyFinalized)
         }
@@ -161,7 +167,6 @@ impl Proposal {
                     };
                     let tx = spending.finalize(psbts)?;
                     self.status = ProposalStatus::Completed(CompletedProposal::Spending { tx });
-                    Ok(())
                 }
                 PendingProposal::KeyAgentPayment {
                     descriptor, psbt, ..
@@ -174,7 +179,6 @@ impl Proposal {
                     let tx = spending.finalize(psbts)?;
                     self.status =
                         ProposalStatus::Completed(CompletedProposal::KeyAgentPayment { tx });
-                    Ok(())
                 }
                 PendingProposal::ProofOfReserve {
                     descriptor,
@@ -191,9 +195,13 @@ impl Proposal {
                     self.status = ProposalStatus::Completed(CompletedProposal::ProofOfReserve {
                         psbt: proof.psbt,
                     });
-                    Ok(())
                 }
             }
+
+            // Update timestamp
+            self.timestamp = Timestamp::now();
+
+            Ok(())
         } else {
             Err(Error::ProposalAlreadyFinalized)
         }
