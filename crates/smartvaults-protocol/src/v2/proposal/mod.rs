@@ -107,6 +107,22 @@ impl Proposal {
         }
     }
 
+    /// Extract TX
+    pub fn tx(&self) -> &Transaction {
+        match &self.status {
+            ProposalStatus::Pending(inner) => match inner {
+                PendingProposal::Spending { psbt, .. } => &psbt.unsigned_tx,
+                PendingProposal::ProofOfReserve { psbt, .. } => &psbt.unsigned_tx,
+                PendingProposal::KeyAgentPayment { psbt, .. } => &psbt.unsigned_tx,
+            },
+            ProposalStatus::Completed(inner) => match inner {
+                CompletedProposal::Spending { tx, .. } => tx,
+                CompletedProposal::ProofOfReserve { psbt, .. } => &psbt.unsigned_tx,
+                CompletedProposal::KeyAgentPayment { tx, .. } => tx,
+            },
+        }
+    }
+
     /// Get PSBT if status is `ProposalStatus::Pending`
     pub fn psbt(&self) -> Option<&PartiallySignedTransaction> {
         match &self.status {
@@ -116,6 +132,22 @@ impl Proposal {
                 PendingProposal::KeyAgentPayment { psbt, .. } => Some(psbt),
             },
             ProposalStatus::Completed(..) => None,
+        }
+    }
+
+    /// Get description/message
+    pub fn description(&self) -> &String {
+        match &self.status {
+            ProposalStatus::Pending(inner) => match inner {
+                PendingProposal::Spending { description, .. } => description,
+                PendingProposal::ProofOfReserve { message, .. } => message,
+                PendingProposal::KeyAgentPayment { description, .. } => description,
+            },
+            ProposalStatus::Completed(inner) => match inner {
+                CompletedProposal::Spending { description, .. } => description,
+                CompletedProposal::ProofOfReserve { message, .. } => message,
+                CompletedProposal::KeyAgentPayment { description, .. } => description,
+            },
         }
     }
 
@@ -250,20 +282,7 @@ impl Proposal {
     /// WARNING: the deterministic identifier it's generated using the TXID
     /// so if the TX inside the PSBT change, the deterministic identifer will be different.
     pub fn generate_identifier(&self) -> String {
-        // Extract TX
-        let tx: &Transaction = match &self.status {
-            ProposalStatus::Pending(inner) => match inner {
-                PendingProposal::Spending { psbt, .. } => &psbt.unsigned_tx,
-                PendingProposal::ProofOfReserve { psbt, .. } => &psbt.unsigned_tx,
-                PendingProposal::KeyAgentPayment { psbt, .. } => &psbt.unsigned_tx,
-            },
-            ProposalStatus::Completed(inner) => match inner {
-                CompletedProposal::Spending { tx, .. } => tx,
-                CompletedProposal::ProofOfReserve { psbt, .. } => &psbt.unsigned_tx,
-                CompletedProposal::KeyAgentPayment { tx, .. } => tx,
-            },
-        };
-
+        let tx: &Transaction = self.tx();
         let unhashed_identifier: String = format!("{}:{}", self.network.magic(), tx.txid());
         let hash: String = hash::sha256(unhashed_identifier).to_string();
         hash[..32].to_string()
