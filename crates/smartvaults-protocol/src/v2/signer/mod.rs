@@ -4,6 +4,7 @@
 //! Signer
 
 use core::fmt;
+use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 use std::collections::BTreeMap;
 
@@ -46,12 +47,26 @@ impl fmt::Display for SignerType {
 }
 
 /// Signer
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub struct Signer {
     name: String,
     description: String,
     core: CoreSigner,
     r#type: SignerType,
+}
+
+impl PartialEq for Signer {
+    fn eq(&self, other: &Self) -> bool {
+        self.core == other.core
+    }
+}
+
+impl Eq for Signer {}
+
+impl Hash for Signer {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.core.hash(state)
+    }
 }
 
 impl Deref for Signer {
