@@ -103,19 +103,25 @@ impl From<&CompletedProposal> for ProtoCompletedProposal {
     fn from(value: &CompletedProposal) -> Self {
         Self {
             proposal: Some(match value {
-                CompletedProposal::Spending { tx } => {
+                CompletedProposal::Spending { tx, description } => {
                     ProtoCompletedProposalEnum::Spending(ProtoCompletedSpending {
                         tx: consensus::serialize(tx),
+                        description: description.clone(),
                     })
                 }
-                CompletedProposal::ProofOfReserve { psbt } => {
-                    ProtoCompletedProposalEnum::ProofOfReserve(ProtoCompletedProofOfReserve {
-                        psbt: psbt.to_string(),
-                    })
-                }
-                CompletedProposal::KeyAgentPayment { tx } => {
+                CompletedProposal::ProofOfReserve {
+                    psbt,
+                    descriptor,
+                    message,
+                } => ProtoCompletedProposalEnum::ProofOfReserve(ProtoCompletedProofOfReserve {
+                    descriptor: descriptor.to_string(),
+                    message: message.clone(),
+                    psbt: psbt.to_string(),
+                }),
+                CompletedProposal::KeyAgentPayment { tx, description } => {
                     ProtoCompletedProposalEnum::KeyAgentPayment(ProtoCompletedKeyAgentPayment {
                         tx: consensus::serialize(tx),
+                        description: description.clone(),
                     })
                 }
             }),
@@ -133,12 +139,16 @@ impl TryFrom<ProtoCompletedProposal> for CompletedProposal {
         {
             ProtoCompletedProposalEnum::Spending(inner) => Ok(Self::Spending {
                 tx: consensus::deserialize(&inner.tx)?,
+                description: inner.description,
             }),
             ProtoCompletedProposalEnum::ProofOfReserve(inner) => Ok(Self::ProofOfReserve {
+                descriptor: Descriptor::from_str(&inner.descriptor)?,
+                message: inner.message,
                 psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
             }),
             ProtoCompletedProposalEnum::KeyAgentPayment(inner) => Ok(Self::KeyAgentPayment {
                 tx: consensus::deserialize(&inner.tx)?,
+                description: inner.description,
             }),
         }
     }

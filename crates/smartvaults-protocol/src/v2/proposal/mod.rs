@@ -183,7 +183,10 @@ impl Proposal {
             let psbts = approvals.into_iter().map(|a| a.psbt());
             match pending {
                 PendingProposal::Spending {
-                    descriptor, psbt, ..
+                    descriptor,
+                    psbt,
+                    description,
+                    ..
                 } => {
                     let spending = SpendingProposal {
                         descriptor: descriptor.clone(),
@@ -191,10 +194,16 @@ impl Proposal {
                         network: self.network,
                     };
                     let tx = spending.finalize(psbts)?;
-                    self.status = ProposalStatus::Completed(CompletedProposal::Spending { tx });
+                    self.status = ProposalStatus::Completed(CompletedProposal::Spending {
+                        tx,
+                        description: description.clone(),
+                    });
                 }
                 PendingProposal::KeyAgentPayment {
-                    descriptor, psbt, ..
+                    descriptor,
+                    psbt,
+                    description,
+                    ..
                 } => {
                     let spending = SpendingProposal {
                         descriptor: descriptor.clone(),
@@ -202,8 +211,10 @@ impl Proposal {
                         network: self.network,
                     };
                     let tx = spending.finalize(psbts)?;
-                    self.status =
-                        ProposalStatus::Completed(CompletedProposal::KeyAgentPayment { tx });
+                    self.status = ProposalStatus::Completed(CompletedProposal::KeyAgentPayment {
+                        tx,
+                        description: description.clone(),
+                    });
                 }
                 PendingProposal::ProofOfReserve {
                     descriptor,
@@ -218,6 +229,8 @@ impl Proposal {
                     };
                     let proof = proof_of_reserve.finalize(psbts)?;
                     self.status = ProposalStatus::Completed(CompletedProposal::ProofOfReserve {
+                        descriptor: descriptor.clone(),
+                        message: message.clone(),
                         psbt: proof.psbt,
                     });
                 }
@@ -315,9 +328,15 @@ pub enum CompletedProposal {
     Spending {
         /// TX
         tx: Transaction,
+        /// Description/note
+        description: String,
     },
     /// Proof of reserve
     ProofOfReserve {
+        /// Descriptor
+        descriptor: Descriptor<String>,
+        /// Message
+        message: String,
         /// PSBT
         psbt: PartiallySignedTransaction,
     },
@@ -325,6 +344,8 @@ pub enum CompletedProposal {
     KeyAgentPayment {
         /// TX
         tx: Transaction,
+        /// Description/note
+        description: String,
     },
 }
 

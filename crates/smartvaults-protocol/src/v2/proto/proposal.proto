@@ -66,15 +66,19 @@ message ProposalStatus {
 
   message CompletedProposal {
     message Spending {
-        bytes tx = 1;
+      bytes tx = 1;
+      string description = 2;
     }
 
     message ProofOfReserve {
-        string psbt = 1;
+      string descriptor = 1;
+      string message = 2;
+      string psbt = 3;
     }
 
     message KeyAgentPayment {
-        bytes tx = 1;
+      bytes tx = 1;
+      string description = 2;
     }
 
     oneof proposal {
