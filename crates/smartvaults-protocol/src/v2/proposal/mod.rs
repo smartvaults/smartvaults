@@ -86,6 +86,18 @@ impl Proposal {
         }
     }
 
+    /// Get PSBT if status is `ProposalStatus::Pending`
+    pub fn psbt(&self) -> Option<&PartiallySignedTransaction> {
+        match &self.status {
+            ProposalStatus::Pending(p) => match p {
+                PendingProposal::Spending { psbt, .. } => Some(psbt),
+                PendingProposal::ProofOfReserve { psbt, .. } => Some(psbt),
+                PendingProposal::KeyAgentPayment { psbt, .. } => Some(psbt),
+            },
+            ProposalStatus::Completed(..) => None,
+        }
+    }
+
     /// Approve a **pending** proposal
     pub fn approve(&self, seed: &Seed) -> Result<PartiallySignedTransaction, Error> {
         if let ProposalStatus::Pending(pending) = &self.status {
