@@ -18,7 +18,7 @@ use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
 
 mod proto;
 
-use super::constants::SIGNER_KIND_V2;
+use super::constants::{SIGNER_KIND_V2, SMARTVAULTS_ACCOUNT_INDEX};
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use crate::v2::proto::signer::ProtoSigner;
 use crate::v2::Error;
@@ -91,6 +91,11 @@ impl Signer {
     pub fn from_seed(seed: Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
         let core: CoreSigner = CoreSigner::from_seed(seed, account, network)?;
         Ok(Self::new(core, SignerType::Seed))
+    }
+
+    /// Compose Smart Vaults signer (custom account index)
+    pub fn smartvaults(seed: Seed, network: Network) -> Result<Self, Error> {
+        Self::from_seed(seed, Some(SMARTVAULTS_ACCOUNT_INDEX), network)
     }
 
     /// Compose [`Signer`] from custom airgap device

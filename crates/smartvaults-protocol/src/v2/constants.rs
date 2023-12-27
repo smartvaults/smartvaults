@@ -7,6 +7,9 @@ use core::time::Duration;
 
 use nostr::Kind;
 
+/// Smart Vaults Signer derivation path
+pub const SMARTVAULTS_ACCOUNT_INDEX: u32 = 784923;
+
 /// Wrapper Kind (used for vault invitation, approvals, shared signers, ...)
 pub const WRAPPER_KIND: Kind = Kind::Custom(8288);
 
