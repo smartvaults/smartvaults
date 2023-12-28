@@ -106,8 +106,23 @@ impl Proposal {
     }
 
     /// Check if [`Proposal`] is finalized/completed
-    pub fn is_completed(&self) -> bool {
+    pub fn is_finalized(&self) -> bool {
         matches!(self.status, ProposalStatus::Completed(..))
+    }
+
+    /// Check if [`Proposal`] is broadcastable
+    ///
+    /// Internally check if is finalized and if type is different from `ProposalType::ProofOfReserve`.
+    ///
+    /// Return `false` if status is `pending` or type is `ProposalType::ProofOfReserve`
+    pub fn is_broadcastable(&self) -> bool {
+        match &self.status {
+            ProposalStatus::Pending(..) => false,
+            ProposalStatus::Completed(p) => matches!(
+                p,
+                CompletedProposal::Spending { .. } | CompletedProposal::KeyAgentPayment { .. }
+            ),
+        }
     }
 
     /// Get [`ProposalType`]
