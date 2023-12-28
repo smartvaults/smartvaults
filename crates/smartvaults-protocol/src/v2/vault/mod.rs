@@ -5,25 +5,24 @@
 
 use core::cmp::Ordering;
 use core::ops::Deref;
-use core::str::FromStr;
 
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::policy::Policy;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::PolicyTemplate;
 
 pub mod id;
 pub mod metadata;
+mod proto;
 
 pub use self::id::VaultIdentifier;
 pub use self::metadata::VaultMetadata;
 use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
-use super::proto::vault::{ProtoVault, ProtoVaultObject, ProtoVaultV1};
-use super::{Error, NetworkMagic, Wrapper};
+use super::proto::vault::ProtoVault;
+use super::{Error, Wrapper};
 
 /// Vault version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -105,41 +104,6 @@ impl Vault {
     /// Get [`SecretKey`]
     pub fn shared_key(&self) -> SecretKey {
         self.shared_key
-    }
-}
-
-impl From<&Vault> for ProtoVault {
-    fn from(vault: &Vault) -> Self {
-        ProtoVault {
-            object: Some(ProtoVaultObject::V1(ProtoVaultV1 {
-                descriptor: vault.as_descriptor().to_string(),
-                network: vault.network().magic().to_bytes().to_vec(),
-                shared_key: vault.shared_key.secret_bytes().to_vec(),
-            })),
-        }
-    }
-}
-
-impl TryFrom<ProtoVault> for Vault {
-    type Error = Error;
-
-    fn try_from(vault: ProtoVault) -> Result<Self, Self::Error> {
-        match vault.object {
-            Some(obj) => match obj {
-                ProtoVaultObject::V1(v) => {
-                    let descriptor: Descriptor<String> = Descriptor::from_str(&v.descriptor)?;
-                    let network: NetworkMagic = NetworkMagic::from_slice(&v.network)?;
-                    let shared_key: SecretKey = SecretKey::from_slice(&v.shared_key)?;
-
-                    Ok(Self {
-                        version: Version::V1,
-                        policy: Policy::new(descriptor, *network)?,
-                        shared_key,
-                    })
-                }
-            },
-            None => Err(Error::NotFound(String::from("protobuf vault obj"))),
-        }
     }
 }
 

@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
+//! Vault Identifier
+
 use core::fmt;
 use core::ops::Deref;
 
