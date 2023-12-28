@@ -9,7 +9,7 @@ use smartvaults_core::bitcoin::Network;
 
 mod proto;
 
-use super::{ProtocolEncoding, VaultIdentifier};
+use super::{ProtocolEncoding, ProtocolEncryption, VaultIdentifier};
 use crate::v2::core::SchemaVersion;
 use crate::v2::proto::approval::ProtoApproval;
 use crate::v2::Error;
@@ -93,4 +93,8 @@ impl ProtocolEncoding for Approval {
         let vault: ProtoApproval = ProtoApproval::decode(data)?;
         Self::try_from(vault)
     }
+}
+
+impl ProtocolEncryption for Approval {
+    type Err = Error;
 }
