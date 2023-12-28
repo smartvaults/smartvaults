@@ -7,7 +7,9 @@ pub mod approval {
     include!(concat!(env!("OUT_DIR"), "/approval.rs"));
 
     pub use self::approval::Object as ProtoApprovalObject;
-    pub use self::{Approval as ProtoApproval, ApprovalV1 as ProtoApprovalV1};
+    pub use self::{
+        Approval as ProtoApproval, ApprovalType as ProtoApprovalType, ApprovalV1 as ProtoApprovalV1,
+    };
 }
 
 pub mod proposal {

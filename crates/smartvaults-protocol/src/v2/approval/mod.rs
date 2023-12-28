@@ -6,6 +6,8 @@
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::Network;
 
+mod proto;
+
 use super::VaultIdentifier;
 
 /// Approval type
