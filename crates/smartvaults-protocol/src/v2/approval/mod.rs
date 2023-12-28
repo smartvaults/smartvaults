@@ -3,13 +3,15 @@
 
 //! Approval
 
+use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::Network;
 
 mod proto;
 
-use super::{ProposalIdentifier, ProtocolEncoding, ProtocolEncryption, VaultIdentifier};
+use super::constants::{APPROVAL_KIND_V2, WRAPPER_EXIPRATION};
+use super::{ProposalIdentifier, ProtocolEncoding, ProtocolEncryption, Vault, VaultIdentifier};
 use crate::v2::core::SchemaVersion;
 use crate::v2::proto::approval::ProtoApproval;
 use crate::v2::Error;
@@ -105,4 +107,21 @@ impl ProtocolEncoding for Approval {
 
 impl ProtocolEncryption for Approval {
     type Err = Error;
+}
+
+/// Build [`Approval`] event
+pub fn build_event(vault: &Vault, approval: &Approval, keys: &Keys) -> Result<Event, Error> {
+    let shared_key: Keys = Keys::new(vault.shared_key());
+    let encrypted_content: String = approval.encrypt_with_keys(&shared_key)?;
+
+    // Compose and build event
+    Ok(EventBuilder::new(
+        APPROVAL_KIND_V2,
+        encrypted_content,
+        [
+            Tag::public_key(shared_key.public_key()),
+            Tag::Expiration(Timestamp::now() + WRAPPER_EXIPRATION),
+        ],
+    )
+    .to_event(keys)?)
 }

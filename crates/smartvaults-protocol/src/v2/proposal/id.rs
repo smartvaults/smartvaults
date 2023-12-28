@@ -13,7 +13,7 @@ use smartvaults_core::hashes::Hash;
 
 use crate::v2::Error;
 
-/// Vault Identifier
+/// Proposal Identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProposalIdentifier(Sha256Hash);
 

@@ -22,6 +22,9 @@ pub const VAULT_METADATA_KIND_V2: Kind = Kind::ParameterizedReplaceable(38289);
 /// Used both for pending and completed proposals
 pub const PROPOSAL_KIND_V2: Kind = Kind::ParameterizedReplaceable(39290);
 
+/// Approval Kind
+pub const APPROVAL_KIND_V2: Kind = Kind::ParameterizedReplaceable(39291);
+
 /// Signer kind
 pub const SIGNER_KIND_V2: Kind = Kind::ParameterizedReplaceable(39294);
 
