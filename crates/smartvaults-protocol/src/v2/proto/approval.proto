@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package approval;
 
+import "proposal.proto";
 import "vault.proto";
 
 enum ApprovalType {
@@ -12,9 +13,10 @@ enum ApprovalType {
 
 message ApprovalV1 {
   vault.VaultIdentifier vault_id = 1;
-  string psbt = 2;
-  bytes network = 3;
-  ApprovalType type = 4;
+  proposal.ProposalIdentifier proposal_id = 2;
+  string psbt = 3;
+  bytes network = 4;
+  ApprovalType type = 5;
 }
 
 message Approval {

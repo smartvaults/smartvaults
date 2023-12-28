@@ -9,7 +9,7 @@ use smartvaults_core::bitcoin::Network;
 
 mod proto;
 
-use super::{ProtocolEncoding, ProtocolEncryption, VaultIdentifier};
+use super::{ProposalIdentifier, ProtocolEncoding, ProtocolEncryption, VaultIdentifier};
 use crate::v2::core::SchemaVersion;
 use crate::v2::proto::approval::ProtoApproval;
 use crate::v2::Error;
@@ -37,6 +37,7 @@ pub enum Version {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Approval {
     vault_id: VaultIdentifier,
+    proposal_id: ProposalIdentifier,
     version: Version,
     psbt: PartiallySignedTransaction,
     r#type: ApprovalType,
@@ -47,12 +48,14 @@ impl Approval {
     /// Compose new [`Approval`]
     pub fn new(
         vault_id: VaultIdentifier,
+        proposal_id: ProposalIdentifier,
         psbt: PartiallySignedTransaction,
         r#type: ApprovalType,
         network: Network,
     ) -> Self {
         Self {
             vault_id,
+            proposal_id,
             version: Version::default(),
             psbt,
             r#type,
@@ -63,6 +66,11 @@ impl Approval {
     /// Vault Identifier
     pub fn vault_id(&self) -> VaultIdentifier {
         self.vault_id
+    }
+
+    /// Proposal Identifier
+    pub fn proposal_id(&self) -> ProposalIdentifier {
+        self.proposal_id
     }
 
     /// Get PSBT

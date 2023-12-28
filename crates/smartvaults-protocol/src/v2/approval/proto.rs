@@ -10,8 +10,9 @@ use crate::v2::approval::Version;
 use crate::v2::proto::approval::{
     ProtoApproval, ProtoApprovalObject, ProtoApprovalType, ProtoApprovalV1,
 };
+use crate::v2::proto::proposal::ProtoProposalIdentifier;
 use crate::v2::proto::vault::ProtoVaultIdentifier;
-use crate::v2::{ApprovalType, Error, NetworkMagic, VaultIdentifier};
+use crate::v2::{ApprovalType, Error, NetworkMagic, ProposalIdentifier, VaultIdentifier};
 
 impl From<&Approval> for ProtoApproval {
     fn from(approval: &Approval) -> Self {
@@ -19,6 +20,7 @@ impl From<&Approval> for ProtoApproval {
         Self {
             object: Some(ProtoApprovalObject::V1(ProtoApprovalV1 {
                 vault_id: Some(approval.vault_id.into()),
+                proposal_id: Some(approval.proposal_id.into()),
                 r#type: approval_type as i32,
                 psbt: approval.psbt.to_string(),
                 network: approval.network.magic().to_bytes().to_vec(),
@@ -58,9 +60,13 @@ impl TryFrom<ProtoApproval> for Approval {
                 let vault_id: ProtoVaultIdentifier = v1
                     .vault_id
                     .ok_or(Error::NotFound(String::from("vault identifier")))?;
+                let proposal_id: ProtoProposalIdentifier = v1
+                    .proposal_id
+                    .ok_or(Error::NotFound(String::from("proposal identifier")))?;
 
                 Ok(Self {
                     vault_id: VaultIdentifier::from_slice(&vault_id.id)?,
+                    proposal_id: ProposalIdentifier::from_slice(&proposal_id.id)?,
                     version: Version::V1,
                     psbt: PartiallySignedTransaction::from_str(&v1.psbt)?,
                     r#type: ProtoApprovalType::try_from(v1.r#type)?.into(),
