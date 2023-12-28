@@ -15,15 +15,15 @@ use bdk_electrum::electrum_client::{
 };
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
-use nostr_sdk::{EventId, Timestamp};
+use nostr_sdk::Timestamp;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewOrLoadError};
 use smartvaults_core::bdk::{FeeRate, LocalOutput, Wallet};
-use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
+use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
-use smartvaults_core::{Amount, Policy, Priority};
-use smartvaults_protocol::v1::Proposal;
+use smartvaults_core::{Destination, Policy, Priority, ProofOfReserveProposal, SpendingProposal};
+use smartvaults_protocol::v2::VaultIdentifier;
 use smartvaults_sdk_sqlite::Store;
 use thiserror::Error;
 use tokio::sync::broadcast::Sender;
@@ -53,10 +53,10 @@ pub enum Error {
     Wallet(#[from] WalletError),
     #[error(transparent)]
     Join(#[from] tokio::task::JoinError),
-    #[error("policy {0} already loaded")]
-    AlreadyLoaded(EventId),
-    #[error("policy {0} not loaded")]
-    NotLoaded(EventId),
+    #[error("vault {0} already loaded")]
+    AlreadyLoaded(VaultIdentifier),
+    #[error("vault {0} not loaded")]
+    NotLoaded(VaultIdentifier),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -120,7 +120,7 @@ impl EstimatedMempoolFees {
 pub struct Manager {
     db: Store,
     network: Network,
-    wallets: Arc<RwLock<HashMap<EventId, SmartVaultsWallet>>>,
+    wallets: Arc<RwLock<HashMap<VaultIdentifier, SmartVaultsWallet>>>,
     block_height: BlockHeight,
     mempool_fees: EstimatedMempoolFees,
 }
@@ -137,10 +137,14 @@ impl Manager {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn load_policy(&self, policy_id: EventId, policy: Policy) -> Result<(), Error> {
+    pub async fn load_policy(
+        &self,
+        vault_id: VaultIdentifier,
+        policy: Policy,
+    ) -> Result<(), Error> {
         let this = self.clone();
         let mut wallets = self.wallets.write().await;
-        if let Entry::Vacant(e) = wallets.entry(policy_id) {
+        if let Entry::Vacant(e) = wallets.entry(vault_id) {
             let wallet: SmartVaultsWallet = tokio::task::spawn_blocking(move || {
                 let desc: String = policy.as_descriptor().to_string();
                 let descriptor_hash = Sha256Hash::hash(desc.as_bytes());
@@ -152,10 +156,10 @@ impl Manager {
             })
             .await??;
             e.insert(wallet);
-            tracing::info!("Loaded policy {policy_id}");
+            tracing::info!("Loaded policy {vault_id}");
             Ok(())
         } else {
-            Err(Error::AlreadyLoaded(policy_id))
+            Err(Error::AlreadyLoaded(vault_id))
         }
     }
 
@@ -167,11 +171,11 @@ impl Manager {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn unload_policy(&self, policy_id: EventId) -> Result<(), Error> {
+    pub async fn unload_policy(&self, vault_id: VaultIdentifier) -> Result<(), Error> {
         let mut wallets = self.wallets.write().await;
-        match wallets.remove(&policy_id) {
+        match wallets.remove(&vault_id) {
             Some(_) => Ok(()),
-            None => Err(Error::NotLoaded(policy_id)),
+            None => Err(Error::NotLoaded(vault_id)),
         }
     }
 
@@ -242,71 +246,70 @@ impl Manager {
         Ok(None)
     }
 
-    pub async fn wallet(&self, policy_id: EventId) -> Result<SmartVaultsWallet, Error> {
+    pub async fn wallet(&self, vault_id: &VaultIdentifier) -> Result<SmartVaultsWallet, Error> {
         let wallets = self.wallets.read().await;
         Ok(wallets
-            .get(&policy_id)
-            .ok_or(Error::NotLoaded(policy_id))?
+            .get(vault_id)
+            .ok_or(Error::NotLoaded(*vault_id))?
             .clone())
     }
 
     pub async fn insert_tx(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         tx: Transaction,
         position: ConfirmationTime,
     ) -> Result<bool, Error> {
-        Ok(self
-            .wallet(policy_id)
-            .await?
-            .insert_tx(tx, position)
-            .await?)
+        Ok(self.wallet(vault_id).await?.insert_tx(tx, position).await?)
     }
 
     pub async fn last_sync(&self, policy_id: EventId) -> Result<Timestamp, Error> {
         Ok(self.wallet(policy_id).await?.last_sync())
     }
 
-    pub async fn get_balance(&self, policy_id: EventId) -> Result<Balance, Error> {
-        Ok(self.wallet(policy_id).await?.get_balance().await)
+    pub async fn get_balance(&self, vault_id: &VaultIdentifier) -> Result<Balance, Error> {
+        Ok(self.wallet(vault_id).await?.get_balance().await)
     }
 
     pub async fn get_address(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         index: AddressIndex,
     ) -> Result<AddressInfo, Error> {
-        Ok(self.wallet(policy_id).await?.get_address(index).await?)
+        Ok(self.wallet(vault_id).await?.get_address(index).await?)
     }
 
     pub async fn get_addresses(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
     ) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
-        Ok(self.wallet(policy_id).await?.get_addresses().await?)
+        Ok(self.wallet(vault_id).await?.get_addresses().await?)
     }
 
     pub async fn get_addresses_balances(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
     ) -> Result<HashMap<ScriptBuf, u64>, Error> {
-        Ok(self.wallet(policy_id).await?.get_addresses_balances().await)
+        Ok(self.wallet(vault_id).await?.get_addresses_balances().await)
     }
 
-    pub async fn get_txs(&self, policy_id: EventId) -> Result<BTreeSet<TransactionDetails>, Error> {
-        Ok(self.wallet(policy_id).await?.txs().await)
+    pub async fn get_txs(
+        &self,
+        vault_id: &VaultIdentifier,
+    ) -> Result<BTreeSet<TransactionDetails>, Error> {
+        Ok(self.wallet(vault_id).await?.txs().await)
     }
 
     pub async fn get_tx(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         txid: Txid,
     ) -> Result<TransactionDetails, Error> {
-        Ok(self.wallet(policy_id).await?.get_tx(txid).await?)
+        Ok(self.wallet(vault_id).await?.get_tx(txid).await?)
     }
 
-    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalOutput>, Error> {
-        Ok(self.wallet(policy_id).await?.get_utxos().await)
+    pub async fn get_utxos(&self, vault_id: &VaultIdentifier) -> Result<Vec<LocalOutput>, Error> {
+        Ok(self.wallet(vault_id).await?.get_utxos().await)
     }
 
     /// Sync all policies with the timechain
@@ -343,11 +346,11 @@ impl Manager {
     /// If the local chain is empty, execute a full sync.
     pub async fn sync(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
     ) -> Result<(), Error> {
-        Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
+        Ok(self.wallet(vault_id).await?.sync(endpoint, proxy).await?)
     } */
 
     /// Full sync all policies with the timechain
@@ -383,13 +386,13 @@ impl Manager {
     /// Execute a **full** timechain sync.
     pub async fn full_sync(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
         force: bool,
     ) -> Result<(), Error> {
         Ok(self
-            .wallet(policy_id)
+            .wallet(vault_id)
             .await?
             .full_sync(endpoint, proxy, force)
             .await?)
@@ -397,9 +400,8 @@ impl Manager {
 
     pub async fn estimate_tx_vsize(
         &self,
-        policy_id: EventId,
-        address: Address<NetworkChecked>,
-        amount: Amount,
+        vault_id: &VaultIdentifier,
+        destination: &Destination,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
@@ -407,49 +409,36 @@ impl Manager {
         Ok(self
             .wallet(policy_id)
             .await?
-            .estimate_tx_vsize(address, amount, utxos, frozen_utxos, policy_path)
+            .estimate_tx_vsize(destination, utxos, frozen_utxos, policy_path)
             .await)
     }
 
-    pub async fn spend<S>(
+    pub async fn spend(
         &self,
-        policy_id: EventId,
-        address: Address<NetworkChecked>,
-        amount: Amount,
+        vault_id: &VaultIdentifier,
+        destination: &Destination,
         fee_rate: FeeRate,
-        descriptor: S,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<SpendingProposal, Error> {
         Ok(self
-            .wallet(policy_id)
+            .wallet(vault_id)
             .await?
-            .spend(
-                address,
-                amount,
-                fee_rate,
-                descriptor,
-                utxos,
-                frozen_utxos,
-                policy_path,
-            )
+            .spend(destination, fee_rate, utxos, frozen_utxos, policy_path)
             .await?)
     }
 
     pub async fn proof_of_reserve<S>(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         message: S,
-    ) -> Result<Proposal, Error>
+    ) -> Result<ProofOfReserveProposal, Error>
     where
         S: Into<String>,
     {
         Ok(self
-            .wallet(policy_id)
+            .wallet(vault_id)
             .await?
             .proof_of_reserve(message)
             .await?)
@@ -457,7 +446,7 @@ impl Manager {
 
     pub async fn verify_proof<S>(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
         psbt: &PartiallySignedTransaction,
         message: S,
     ) -> Result<u64, Error>
@@ -465,7 +454,7 @@ impl Manager {
         S: Into<String>,
     {
         Ok(self
-            .wallet(policy_id)
+            .wallet(vault_id)
             .await?
             .verify_proof(psbt, message)
             .await?)

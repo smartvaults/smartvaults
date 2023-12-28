@@ -21,12 +21,11 @@ use smartvaults_core::bdk::chain::{
 use smartvaults_core::bdk::wallet::error::CreateTxError;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
 use smartvaults_core::bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
-use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
+use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::psbt::{self, PartiallySignedTransaction};
 use smartvaults_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Transaction, Txid};
 use smartvaults_core::reserves::ProofOfReserves;
-use smartvaults_core::{Amount, Policy, ProofOfReserveProposal, SpendingProposal};
-use smartvaults_protocol::v1::Proposal;
+use smartvaults_core::{Destination, Policy, ProofOfReserveProposal, SpendingProposal};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -514,79 +513,41 @@ impl SmartVaultsWallet {
 
     pub async fn estimate_tx_vsize(
         &self,
-        address: Address<NetworkChecked>,
-        amount: Amount,
+        destination: &Destination,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Option<usize> {
         let mut wallet = self.wallet.write().await;
-        self.policy.estimate_tx_vsize(
-            &mut wallet,
-            address,
-            amount,
-            utxos,
-            frozen_utxos,
-            policy_path,
-        )
+        self.policy
+            .estimate_tx_vsize(&mut wallet, destination, utxos, frozen_utxos, policy_path)
     }
 
-    pub async fn spend<S>(
+    pub async fn spend(
         &self,
-        address: Address<NetworkChecked>,
-        amount: Amount,
+        destination: &Destination,
         fee_rate: FeeRate,
-        description: S,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<SpendingProposal, Error> {
         let mut wallet = self.wallet.write().await;
-        let proposal: SpendingProposal = self.policy.spend(
+        Ok(self.policy.spend(
             &mut wallet,
-            address.clone(),
-            amount,
+            destination,
             fee_rate,
             utxos,
             frozen_utxos,
             policy_path,
-        )?;
-
-        // Calculate amount
-        let amount: u64 = match amount {
-            Amount::Max => {
-                let fee: u64 = proposal.psbt.fee()?.to_sat();
-                let (sent, received) = wallet.sent_and_received(&proposal.psbt.unsigned_tx);
-                sent.saturating_sub(received).saturating_sub(fee)
-            }
-            Amount::Custom(amount) => amount,
-        };
-
-        // Compose proposal
-        Ok(Proposal::Spending {
-            descriptor: proposal.descriptor,
-            to_address: Address::new(address.network, address.payload),
-            amount,
-            description: description.into(),
-            psbt: proposal.psbt,
-        })
+        )?)
     }
 
-    pub async fn proof_of_reserve<S>(&self, message: S) -> Result<Proposal, Error>
+    pub async fn proof_of_reserve<S>(&self, message: S) -> Result<ProofOfReserveProposal, Error>
     where
         S: Into<String>,
     {
         let mut wallet = self.wallet.write().await;
-        let proposal: ProofOfReserveProposal =
-            self.policy.proof_of_reserve(&mut wallet, message)?;
-        Ok(Proposal::ProofOfReserve {
-            descriptor: proposal.descriptor,
-            message: proposal.message,
-            psbt: proposal.psbt,
-        })
+        Ok(self.policy.proof_of_reserve(&mut wallet, message)?)
     }
 
     pub async fn verify_proof<S>(
