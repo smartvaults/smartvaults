@@ -19,28 +19,24 @@ use nostr_sdk::{
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::{CompletedProposal, Priority};
+use smartvaults_core::Priority;
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNALING,
     KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::{
-    ApprovedProposal, CompletedProposal, Encryption, Label, Proposal, Serde, SharedSigner, Signer,
-    Vault, VerifiedKeyAgents,
-};
-use smartvaults_sdk_sqlite::model::InternalGetPolicy;
-use smartvaults_sdk_sqlite::Type;
+use smartvaults_protocol::v2::vault::VaultIdentifier;
+use smartvaults_protocol::v2::ProposalType;
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
-use crate::storage::{InternalCompletedProposal, InternalPolicy};
+use crate::storage::InternalVault;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
     SharedKey(EventId),
-    Policy(EventId),
+    Vault(VaultIdentifier),
     Proposal(EventId),
     Approval { proposal_id: EventId },
     CompletedProposal(EventId),
@@ -60,7 +56,7 @@ pub enum EventHandled {
 #[derive(Debug, Clone)]
 pub enum Message {
     EventHandled(EventHandled),
-    WalletSyncCompleted(EventId),
+    WalletSyncCompleted(VaultIdentifier),
     BlockHeightUpdated,
     MempoolFeesUpdated(BTreeMap<Priority, FeeRate>),
 }
@@ -129,7 +125,7 @@ impl SmartVaults {
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
-                thread::sleep(Duration::from_secs(10)).await;
+                thread::sleep(WALLET_SYNC_INTERVAL).await;
             }
         })?)
     }
@@ -436,27 +432,24 @@ impl SmartVaults {
             }
         } else if let Some(h) = self.storage.handle_event(&event).await? {
             match h {
-                EventHandled::Policy(vault_id) => {
-                    let InternalPolicy { policy, .. } = self.storage.vault(&vault_id).await?;
-                    self.manager.load_policy(event.id, policy).await?;
+                EventHandled::Vault(vault_id) => {
+                    let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+                    self.manager.load_policy(vault_id, vault.policy()).await?;
                 }
-                EventHandled::CompletedProposal(completed_proposal_id) => {
-                    let InternalCompletedProposal {
-                        policy_id,
-                        proposal,
-                        ..
-                    } = self
-                        .storage
-                        .completed_proposal(&completed_proposal_id)
-                        .await?;
+                EventHandled::Proposal(proposal_id) => {
+                    let proposal = self.storage.proposal(&proposal_id).await?;
                     // Insert TX from completed proposal if the event was created in the last 60 secs
-                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                        if let CompletedProposal::Spending { tx, .. } = proposal {
+                    if proposal.is_completed()
+                        && event.created_at.add(Duration::from_secs(60)) >= Timestamp::now()
+                    {
+                        if let ProposalType::Spending | ProposalType::KeyAgentPayment =
+                            proposal.r#type()
+                        {
                             match self
                                 .manager
                                 .insert_tx(
-                                    policy_id,
-                                    tx,
+                                    &proposal.vault_id(),
+                                    proposal.tx().clone(),
                                     ConfirmationTime::Unconfirmed {
                                         last_seen: event.created_at.as_u64(),
                                     },

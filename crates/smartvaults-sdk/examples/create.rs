@@ -32,7 +32,7 @@ async fn main() {
 
     // Save a new policy from a template
     client
-        .save_policy_from_template(
+        .save_vault_from_template(
             "My Hold Policy",
             "Policy to keep safe my SATs",
             template,

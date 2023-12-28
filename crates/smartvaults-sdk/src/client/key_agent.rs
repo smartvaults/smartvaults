@@ -6,16 +6,18 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use nostr_sdk::database::{NostrDatabaseExt, Order};
 use nostr_sdk::nips::nip01::Coordinate;
 use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile, PublicKey};
-use smartvaults_core::bitcoin::address::NetworkUnchecked;
-use smartvaults_core::bitcoin::{Address, OutPoint};
+use smartvaults_core::bitcoin::address::NetworkChecked;
+use smartvaults_core::bitcoin::{Address, Amount, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::{Amount, FeeRate};
+use smartvaults_core::{Destination, FeeRate, Recipient, SpendingProposal};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
 use smartvaults_protocol::v1::{
-    Period, Proposal, Serde, Signer, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents,
+    Serde, Signer, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents,
 };
+use smartvaults_protocol::v2::{self, PendingProposal, Period, Proposal, VaultIdentifier};
 
 use super::{Error, SmartVaults};
+use crate::storage::InternalVault;
 use crate::types::{GetProposal, GetSigner, GetSignerOffering, KeyAgent};
 
 impl SmartVaults {
@@ -116,10 +118,7 @@ impl SmartVaults {
             .get_signers()
             .await
             .into_iter()
-            .map(|signer| {
-                let identifier: String = signer.generate_identifier(self.network);
-                (identifier, signer)
-            })
+            .map(|signer| (signer.generate_identifier(), signer))
             .collect();
 
         // Get signer offering events by author
@@ -221,8 +220,8 @@ impl SmartVaults {
 
     pub async fn key_agent_payment<S>(
         &self,
-        policy_id: EventId,
-        address: Address<NetworkUnchecked>,
+        vault_id: &VaultIdentifier,
+        address: Address<NetworkChecked>,
         amount: Amount,
         description: S,
         signer_descriptor: Descriptor<String>,
@@ -235,37 +234,43 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        let mut prop: GetProposal = self
-            .spend(
-                policy_id,
-                address,
-                amount,
-                description,
+        let recipient = Recipient { address, amount };
+        let spending_proposal: SpendingProposal = self
+            .internal_spend(
+                vault_id,
+                &Destination::Single(recipient.clone()),
                 fee_rate,
                 utxos,
                 policy_path,
                 skip_frozen_utxos,
             )
             .await?;
-        if let Proposal::Spending {
-            descriptor,
-            amount,
-            description,
-            psbt,
-            ..
-        } = prop.proposal
-        {
-            prop.proposal = Proposal::KeyAgentPayment {
-                descriptor,
-                signer_descriptor,
-                amount,
-                description,
-                period,
-                psbt,
-            };
-            Ok(prop)
-        } else {
-            Err(Error::UnexpectedProposal)
-        }
+        let pending = PendingProposal::KeyAgentPayment {
+            descriptor: spending_proposal.descriptor,
+            signer_descriptor,
+            recipient,
+            period,
+            description: description.into(),
+            psbt: spending_proposal.psbt,
+        };
+        let proposal = Proposal::pending(*vault_id, pending, self.network);
+
+        // Get vault
+        let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+
+        // Compose the event
+        let event: Event = v2::proposal::build_event(&vault, &proposal)?;
+        let proposal_id = self.client.send_event(event).await?;
+
+        // Index proposal
+        self.storage
+            .save_proposal(proposal_id, proposal.clone())
+            .await;
+
+        Ok(GetProposal {
+            proposal_id,
+            proposal,
+            signed: false,
+        })
     }
 }

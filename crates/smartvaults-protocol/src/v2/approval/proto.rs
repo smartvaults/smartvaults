@@ -51,6 +51,7 @@ impl From<ProtoApprovalType> for ApprovalType {
 
 impl TryFrom<ProtoApproval> for Approval {
     type Error = Error;
+
     fn try_from(value: ProtoApproval) -> Result<Self, Self::Error> {
         let approval = value
             .object

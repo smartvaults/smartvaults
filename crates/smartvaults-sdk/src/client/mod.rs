@@ -27,24 +27,22 @@ use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
 use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
-use smartvaults_core::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
+use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
-use smartvaults_core::{Amount, FeeRate, PolicyTemplate, SECP256K1};
+use smartvaults_core::{
+    Destination, FeeRate, PolicyTemplate, ProofOfReserveProposal, SpendingProposal, SECP256K1,
+};
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_EXPIRATION, APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND,
+    COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
 };
-use smartvaults_protocol::v1::signer::smartvaults_signer;
-use smartvaults_protocol::v1::util::{Encryption, EncryptionError};
-use smartvaults_protocol::v1::{
-    ApprovedProposal, CompletedProposal, Label, LabelData, Proposal, Signer,
-    SmartVaultsEventBuilder, SmartVaultsEventBuilderError, Vault, VerifiedKeyAgents,
+use smartvaults_protocol::v1::{Label, LabelData, SmartVaultsEventBuilder};
+use smartvaults_protocol::v2::constants::PROPOSAL_KIND_V2;
+use smartvaults_protocol::v2::{
+    self, Approval, PendingProposal, Proposal, ProposalIdentifier, Signer, Vault, VaultIdentifier,
 };
-use smartvaults_sdk_sqlite::model::GetApprovalRaw;
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
 
@@ -58,13 +56,10 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::{Config, ElectrumEndpoint};
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
-use crate::storage::{
-    InternalApproval, InternalCompletedProposal, InternalProposal, InternalVault,
-    SmartVaultsStorage,
-};
+use crate::storage::{InternalApproval, InternalVault, SmartVaultsStorage};
 use crate::types::{
-    GetAddress, GetApproval, GetApprovedProposals, GetCompletedProposal, GetPolicy, GetProposal,
-    GetTransaction, GetUtxo, PolicyBackup,
+    GetAddress, GetApproval, GetApprovedProposals, GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    PolicyBackup,
 };
 use crate::{util, Error};
 
@@ -137,7 +132,7 @@ impl SmartVaults {
             db,
             syncing: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
-            default_signer: smartvaults_signer(seed, network)?,
+            default_signer: Signer::smartvaults(&seed, network)?,
         };
 
         this.init().await?;
@@ -272,11 +267,11 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     async fn init(&self) -> Result<(), Error> {
-        for (policy_id, InternalVault { vault, .. }) in self.storage.vaults().await.into_iter() {
+        for (vault_id, InternalVault { vault, .. }) in self.storage.vaults().await.into_iter() {
             let manager = self.manager.clone();
             thread::spawn(async move {
-                if let Err(e) = manager.load_policy(policy_id, vault.policy()).await {
-                    tracing::error!("Impossible to load policy {policy_id}: {e}");
+                if let Err(e) = manager.load_policy(vault_id, vault.policy()).await {
+                    tracing::error!("Impossible to load vault {vault_id}: {e}");
                 }
             })?;
         }
@@ -691,81 +686,44 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_policy_by_id(&self, policy_id: EventId) -> Result<GetPolicy, Error> {
+    pub async fn get_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<GetPolicy, Error> {
         Ok(GetPolicy {
-            policy_id,
-            vault: self.storage.vault(&policy_id).await?.policy,
-            balance: self.manager.get_balance(policy_id).await?,
+            vault: self.storage.vault(vault_id).await?.vault,
+            balance: self.manager.get_balance(vault_id).await?,
             last_sync: self.manager.last_sync(policy_id).await?,
         })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposal_by_id(&self, proposal_id: EventId) -> Result<GetProposal, Error> {
-        let InternalProposal {
-            policy_id,
-            proposal,
-            timestamp,
-        } = self.storage.proposal(&proposal_id).await?;
+    pub async fn get_proposal_by_id(
+        &self,
+        proposal_id: &ProposalIdentifier,
+    ) -> Result<GetProposal, Error> {
+        let proposal = self.storage.proposal(proposal_id).await?;
         let approvals = self
             .storage
             .approvals()
             .await
             .into_iter()
-            .filter(|(_, a)| a.proposal_id == proposal_id)
-            .map(|(_, a)| a.approval);
+            .filter(|(_, i)| i.approval.proposal_id() == *proposal_id)
+            .map(|(_, i)| i.approval);
         Ok(GetProposal {
-            proposal_id,
-            policy_id,
-            signed: proposal.finalize(approvals, self.network).is_ok(),
+            signed: proposal.try_finalize(approvals).is_ok(),
             proposal,
-            timestamp,
         })
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_completed_proposal_by_id(
-        &self,
-        completed_proposal_id: EventId,
-    ) -> Result<GetCompletedProposal, Error> {
-        self.storage
-            .completed_proposal(&completed_proposal_id)
-            .await
-            .map(|p| GetCompletedProposal {
-                policy_id: p.policy_id,
-                completed_proposal_id,
-                proposal: p.proposal,
-                timestamp: p.timestamp,
-            })
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
+    pub async fn delete_vault_by_id(&self, event_id: EventId) -> Result<(), Error> {
         let event = self.client.database().event_by_id(policy_id).await?;
         let author = event.author();
-
-        // Get nostr pubkeys and shared keys
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-
-        if author == shared_key.public_key() {
-            let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
-            tags.push(Tag::event(policy_id));
-
-            // Get all events linked to the policy
-            let filter = Filter::new().event(policy_id).author(author);
-            let event_ids = self
-                .client
-                .database()
-                .event_ids_by_filters(vec![filter], Order::Desc)
-                .await?
-                .into_iter()
-                .map(Tag::event);
-            tags.extend(event_ids);
-
+        if author == keys.public_key() {
             // Delete policy
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
+            let event: Event = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(event_id)])
+                .to_event(&keys)?;
             self.client.send_event(event).await?;
+
+            // TODO: get VaultIdentifier by EventId
 
             self.storage.delete_vault(&policy_id).await;
 
@@ -778,91 +736,32 @@ impl SmartVaults {
         }
     }
 
-    pub async fn delete_proposal_by_id(&self, proposal_id: EventId) -> Result<(), Error> {
+    pub async fn delete_proposal_by_id(
+        &self,
+        proposal_id: &ProposalIdentifier,
+    ) -> Result<(), Error> {
         // Get the proposal
-        let proposal_event = self.client.database().event_by_id(proposal_id).await?;
-        if proposal_event.kind != PROPOSAL_KIND {
-            return Err(Error::ProposalNotFound);
-        }
+        let proposal: Proposal = self.storage.proposal(proposal_id).await?;
 
-        let policy_id = proposal_event
-            .event_ids()
-            .next()
-            .ok_or(Error::PolicyNotFound)?;
+        // Get Vault for shared key
+        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
+        let shared_key: Keys = Keys::new(vault.shared_key());
 
-        // Get shared key
-        let shared_key: Keys = self.storage.shared_key(policy_id).await?;
+        let filter: Filter = Filter::new()
+            .kind(PROPOSAL_KIND_V2)
+            .author(shared_key.public_key())
+            .identifier(proposal_id.to_string())
+            .limit(1);
+        let res: Vec<Event> = self.client.database().query(vec![filter]).await?;
+        let proposal_event: &Event = res.first().ok_or(Error::NotFound)?;
 
         if proposal_event.author() == shared_key.public_key() {
-            // Extract `p` tags from proposal event to notify users about proposal deletion
-            let mut tags: Vec<Tag> = proposal_event
-                .public_keys()
-                .copied()
-                .map(Tag::public_key)
-                .collect();
-
-            // Get all events linked to the proposal
-            // let filter = Filter::new().event(proposal_id);
-            // let events = self.client.get_events_of(vec![filter], timeout).await?;
-
-            tags.push(Tag::event(proposal_id));
-            // let mut ids: Vec<EventId> = vec![proposal_id];
-            //
-            // for event in events.into_iter() {
-            // if event.kind != COMPLETED_PROPOSAL_KIND {
-            // ids.push(event.id);
-            // }
-            // }
-
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
+            let event: Event =
+                EventBuilder::new(Kind::EventDeletion, "", [Tag::event(proposal_event.id)])
+                    .to_event(&shared_key)?;
             self.client.send_event(event).await?;
 
             self.storage.delete_proposal(&proposal_id).await;
-
-            Ok(())
-        } else {
-            Err(Error::TryingToDeleteNotOwnedEvent)
-        }
-    }
-
-    pub async fn delete_completed_proposal_by_id(
-        &self,
-        completed_proposal_id: EventId,
-    ) -> Result<(), Error> {
-        // Get the completed proposal
-        let proposal_event = self
-            .client
-            .database()
-            .event_by_id(completed_proposal_id)
-            .await?;
-        if proposal_event.kind != COMPLETED_PROPOSAL_KIND {
-            return Err(Error::ProposalNotFound);
-        }
-
-        let policy_id: &EventId = proposal_event
-            .event_ids()
-            .nth(1)
-            .ok_or(Error::PolicyNotFound)?;
-
-        // Get shared key
-        let shared_key: Keys = self.storage.shared_key(policy_id).await?;
-
-        if proposal_event.author() == shared_key.public_key() {
-            // Extract `p` tags from proposal event to notify users about proposal deletion
-            let mut tags: Vec<Tag> = proposal_event
-                .public_keys()
-                .copied()
-                .map(Tag::public_key)
-                .collect();
-
-            tags.push(Tag::event(completed_proposal_id));
-
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
-            self.client.send_event(event).await?;
-
-            self.storage
-                .delete_completed_proposal(&completed_proposal_id)
-                .await;
 
             Ok(())
         } else {
@@ -877,9 +776,8 @@ impl SmartVaults {
 
         for (id, internal) in items.into_iter() {
             policies.push(GetPolicy {
-                policy_id: id,
                 vault: internal.vault,
-                balance: self.manager.get_balance(id).await?,
+                balance: self.manager.get_balance(&id).await?,
                 last_sync: self.manager.last_sync(id).await?,
             });
         }
@@ -893,20 +791,17 @@ impl SmartVaults {
     pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
         let proposals = self.storage.proposals().await;
         let mut list = Vec::with_capacity(proposals.len());
-        for (proposal_id, p) in proposals.into_iter() {
+        for (proposal_id, proposal) in proposals.into_iter() {
             let approvals = self
                 .storage
                 .approvals()
                 .await
-                .into_iter()
-                .filter(|(_, a)| a.proposal_id == proposal_id)
-                .map(|(_, a)| a.approval);
+                .into_values()
+                .filter(|i| i.approval.proposal_id() == proposal_id)
+                .map(|i| i.approval);
             list.push(GetProposal {
-                proposal_id,
-                policy_id: p.policy_id,
-                signed: p.proposal.finalize(approvals, self.network).is_ok(),
-                proposal: p.proposal,
-                timestamp: p.timestamp,
+                signed: proposal.try_finalize(approvals).is_ok(),
+                proposal,
             });
         }
         list.sort();
@@ -914,29 +809,26 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposals_by_policy_id(
+    pub async fn get_proposals_by_vault_id(
         &self,
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
     ) -> Result<Vec<GetProposal>, Error> {
         let proposals = self.storage.proposals().await;
         let mut list = Vec::with_capacity(proposals.len());
-        for (proposal_id, p) in proposals
+        for (proposal_id, proposal) in proposals
             .into_iter()
-            .filter(|(_, p)| p.policy_id == policy_id)
+            .filter(|(_, p)| p.vault_id() == vault_id)
         {
             let approvals = self
                 .storage
                 .approvals()
                 .await
-                .into_iter()
-                .filter(|(_, a)| a.proposal_id == proposal_id)
-                .map(|(_, a)| a.approval);
+                .into_values()
+                .filter(|i| i.approval.proposal_id() == proposal_id)
+                .map(|i| i.approval);
             list.push(GetProposal {
-                proposal_id,
-                policy_id: p.policy_id,
-                signed: p.proposal.finalize(approvals, self.network).is_ok(),
-                proposal: p.proposal,
-                timestamp: p.timestamp,
+                signed: proposal.try_finalize(approvals).is_ok(),
+                proposal,
             });
         }
         list.sort();
@@ -946,7 +838,7 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_approvals_by_proposal_id(
         &self,
-        proposal_id: EventId,
+        proposal_id: ProposalIdentifier,
     ) -> Result<Vec<GetApproval>, Error> {
         let mut list = Vec::new();
         let approvals = self.storage.approvals().await;
@@ -960,12 +852,12 @@ impl SmartVaults {
             },
         ) in approvals
             .into_iter()
-            .filter(|(_, a)| a.proposal_id == proposal_id)
+            .filter(|(_, i)| i.approval.proposal_id() == proposal_id)
         {
             list.push(GetApproval {
                 approval_id,
                 user: self.client.database().profile(public_key).await?,
-                approved_proposal: approval,
+                approval,
                 timestamp,
             });
         }
@@ -973,150 +865,101 @@ impl SmartVaults {
         Ok(list)
     }
 
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_completed_proposals(&self) -> Result<Vec<GetCompletedProposal>, Error> {
-        let mut list: Vec<GetCompletedProposal> = self
-            .storage
-            .completed_proposals()
-            .await
-            .into_iter()
-            .map(|(id, p)| GetCompletedProposal {
-                policy_id: p.policy_id,
-                completed_proposal_id: id,
-                proposal: p.proposal,
-                timestamp: p.timestamp,
-            })
-            .collect();
-        list.sort();
-        Ok(list)
-    }
+    // pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<Profile>, Error> {
+    // let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
+    // let mut users = Vec::with_capacity(public_keys.len());
+    // for public_key in public_keys.into_iter() {
+    // let metadata = self.get_public_key_metadata(public_key).await?;
+    // let user = Profile::new(public_key, metadata);
+    // users.push(user);
+    // }
+    // Ok(users)
+    // }
 
-    pub async fn get_members_of_policy(&self, policy_id: EventId) -> Result<Vec<Profile>, Error> {
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        let mut users = Vec::with_capacity(public_keys.len());
-        for public_key in public_keys.into_iter() {
-            let metadata = self.get_public_key_metadata(public_key).await?;
-            let user = Profile::new(public_key, metadata);
-            users.push(user);
-        }
-        Ok(users)
-    }
-
-    pub async fn save_policy<S>(
+    pub async fn save_vault<S>(
         &self,
         name: S,
         description: S,
         descriptor: S,
-        nostr_pubkeys: Vec<PublicKey>,
-    ) -> Result<EventId, Error>
+    ) -> Result<VaultIdentifier, Error>
     where
         S: AsRef<str>,
     {
-        if nostr_pubkeys.is_empty() {
-            return Err(Error::NotEnoughPublicKeys);
-        }
-
         // Generate a shared key
         let shared_key = Keys::generate();
-        let vault = Vault::new(name, description, descriptor, self.network)?;
+        let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;
 
-        // Compose the event
-        // Publish it with `shared_key` so every owner can delete it
-        let policy_event: Event = EventBuilder::policy(&shared_key, &vault, &nostr_pubkeys)?;
-        let policy_id = policy_event.id;
+        // Compose event
+        let keys = self.keys();
+        let event: Event = v2::vault::build_event(keys, &vault)?;
 
-        // Publish the shared key
-        for pubkey in nostr_pubkeys.iter() {
-            let event: Event =
-                EventBuilder::shared_key(self.keys(), &shared_key, pubkey, policy_id)?;
-            let event_id: EventId = event.id;
+        // Publish event
+        self.client.send_event(event).await?;
 
-            // TODO: use send_batch_event method from nostr-sdk
-            self.client.send_event(event).await?;
-            tracing::info!("Published shared key for {pubkey} at event {event_id}");
-        }
-
-        // Publish the event
-        self.client.send_event(policy_event).await?;
+        let vault_id: VaultIdentifier = vault.id();
 
         // Index event
-        self.storage.save_shared_key(policy_id, shared_key).await;
         self.storage
             .save_vault(
-                policy_id,
-                InternalPolicy {
+                vault_id,
+                InternalVault {
                     vault: vault.clone(),
-                    public_keys: nostr_pubkeys,
                 },
             )
             .await;
 
         // Load policy
-        self.manager.load_policy(policy_id, vault.policy()).await?;
+        self.manager.load_policy(vault_id, vault.policy()).await?;
 
-        Ok(policy_id)
+        Ok(vault_id)
     }
 
-    pub async fn save_policy_from_template<S>(
+    pub async fn save_vault_from_template<S>(
         &self,
         name: S,
         description: S,
         template: PolicyTemplate,
-        nostr_pubkeys: Vec<PublicKey>,
-    ) -> Result<EventId, Error>
+    ) -> Result<VaultIdentifier, Error>
     where
         S: Into<String>,
     {
-        let vault: Vault = Vault::from_template(name, description, template, self.network)?;
+        let shared_key = Keys::generate();
+        let vault: Vault = Vault::from_template(template, self.network, shared_key.secret_key()?)?;
         let descriptor: String = vault.as_descriptor().to_string();
-        self.save_policy(vault.name, vault.description, descriptor, nostr_pubkeys)
-            .await
+        self.save_vault(name, description, descriptor).await
     }
 
     pub async fn estimate_tx_vsize(
         &self,
-        policy_id: EventId,
-        address: Address<NetworkUnchecked>,
-        amount: Amount,
+        vault_id: &VaultIdentifier,
+        destination: &Destination,
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
         skip_frozen_utxos: bool,
-    ) -> Result<Option<usize>, Error> {
-        let mut frozen_utxos: Option<Vec<OutPoint>> = None;
-        if !skip_frozen_utxos {
-            let set: HashSet<OutPoint> = self.storage.get_frozen_utxos(&policy_id).await;
-            frozen_utxos = Some(
-                self.manager
-                    .get_utxos(policy_id)
-                    .await?
-                    .into_iter()
-                    .filter(|utxo| set.contains(&utxo.outpoint))
-                    .map(|utxo| utxo.outpoint)
-                    .collect(),
-            );
-        }
-
-        Ok(self
-            .manager
-            .estimate_tx_vsize(policy_id, address, amount, utxos, frozen_utxos, policy_path)
-            .await?)
+    ) -> Result<usize, Error> {
+        let fee_rate = FeeRate::min_relay_fee();
+        let SpendingProposal { psbt, .. } = self
+            .internal_spend(
+                vault_id,
+                destination,
+                fee_rate,
+                utxos,
+                policy_path,
+                skip_frozen_utxos,
+            )
+            .await?;
+        Ok(psbt.unsigned_tx.vsize())
     }
 
-    /// Make a spending proposal
-    pub async fn spend<S>(
+    async fn internal_spend(
         &self,
-        policy_id: EventId,
-        address: Address<NetworkUnchecked>,
-        amount: Amount,
-        description: S,
+        vault_id: &VaultIdentifier,
+        destination: &Destination,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
         skip_frozen_utxos: bool,
-    ) -> Result<GetProposal, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<SpendingProposal, Error> {
         // Check and calculate fee rate
         if !fee_rate.is_valid() {
             return Err(Error::InvalidFeeRate);
@@ -1134,10 +977,10 @@ impl SmartVaults {
 
         let mut frozen_utxos: Option<Vec<OutPoint>> = None;
         if !skip_frozen_utxos {
-            let set: HashSet<OutPoint> = self.storage.get_frozen_utxos(&policy_id).await;
+            let set: HashSet<OutPoint> = self.storage.get_frozen_utxos(vault_id).await;
             frozen_utxos = Some(
                 self.manager
-                    .get_utxos(policy_id)
+                    .get_utxos(vault_id)
                     .await?
                     .into_iter()
                     .filter(|utxo| set.contains(&utxo.outpoint))
@@ -1147,214 +990,121 @@ impl SmartVaults {
         }
 
         // Build spending proposal
-        let checked_addr: Address<NetworkChecked> =
-            address.clone().require_network(self.network)?;
-        let proposal: Proposal = self
+        Ok(self
             .manager
             .spend(
-                policy_id,
-                checked_addr,
-                amount,
+                vault_id,
+                destination,
                 fee_rate,
-                description,
                 utxos,
                 frozen_utxos,
                 policy_path,
             )
-            .await?;
-
-        if let Proposal::Spending { .. } = &proposal {
-            // Get shared keys
-            let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-
-            // Compose the event
-            let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-            let event: Event =
-                EventBuilder::proposal(&shared_key, policy_id, &proposal, &public_keys)?;
-            let timestamp = event.created_at;
-            let proposal_id = self.client.send_event(event).await?;
-
-            // Send DM msg
-            // TODO: send withoud wait for OK
-            /* let sender = self.client.keys().public_key();
-            let mut msg = String::from("New spending proposal:\n");
-            msg.push_str(&format!(
-                "- Amount: {} sat\n",
-                util::format::big_number(*amount)
-            ));
-            msg.push_str(&format!("- Description: {description}"));
-            for pubkey in nostr_pubkeys.into_iter() {
-                if sender != pubkey {
-                    self.client.send_direct_msg(pubkey, &msg, None).await?;
-                }
-            } */
-
-            // Index proposal
-            self.storage
-                .save_proposal(
-                    proposal_id,
-                    InternalProposal {
-                        policy_id,
-                        proposal: proposal.clone(),
-                        timestamp,
-                    },
-                )
-                .await;
-
-            // Compose output
-            Ok(GetProposal {
-                proposal_id,
-                policy_id,
-                proposal,
-                signed: false,
-                timestamp,
-            })
-        } else {
-            Err(Error::UnexpectedProposal)
-        }
+            .await?)
     }
 
-    /// Spend to another [`Policy`]
-    pub async fn self_transfer(
+    /// Make a spending proposal
+    pub async fn spend<S>(
         &self,
-        from_policy_id: EventId,
-        to_policy_id: EventId,
-        amount: Amount,
+        vault_id: &VaultIdentifier,
+        destination: Destination,
+        description: S,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
         skip_frozen_utxos: bool,
-    ) -> Result<GetProposal, Error> {
-        let address = self
-            .get_address(to_policy_id, AddressIndex::New)
-            .await?
-            .address;
-        let description: String = format!(
-            "Self transfer from policy #{} to #{}",
-            util::cut_event_id(from_policy_id),
-            util::cut_event_id(to_policy_id)
-        );
-        self.spend(
-            from_policy_id,
-            Address::new(self.network, address.payload),
-            amount,
-            description,
-            fee_rate,
-            utxos,
-            policy_path,
-            skip_frozen_utxos,
-        )
-        .await
-    }
-
-    /* async fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
+    ) -> Result<GetProposal, Error>
     where
         S: Into<String>,
     {
-        let descriptor = descriptor.into();
-        let keys: &Keys = self.keys();
-        Ok(
-            descriptor.starts_with(&format!("tr({}", keys.normalized_public_key()?))
-                || descriptor.starts_with(&format!("tr({}", keys.public_key())),
-        )
-    } */
+        let spending_proposal: SpendingProposal = self
+            .internal_spend(
+                vault_id,
+                &destination,
+                fee_rate,
+                utxos,
+                policy_path,
+                skip_frozen_utxos,
+            )
+            .await?;
+        let pending = PendingProposal::Spending {
+            descriptor: spending_proposal.descriptor,
+            destination,
+            description: description.into(),
+            psbt: spending_proposal.psbt,
+        };
+        let proposal = Proposal::pending(*vault_id, pending, self.network);
+
+        // Get vault
+        let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+
+        // Compose and send event
+        let event: Event = v2::proposal::build_event(&vault, &proposal)?;
+        self.client.send_event(event).await?;
+
+        // Index proposal
+        self.storage
+            .save_proposal(proposal.id(), proposal.clone())
+            .await;
+
+        Ok(GetProposal {
+            proposal,
+            signed: false,
+        })
+    }
+
+    // /// Spend to another [`Policy`]
+    // pub async fn self_transfer(
+    // &self,
+    // from_policy_id: EventId,
+    // to_policy_id: EventId,
+    // amount: Amount,
+    // fee_rate: FeeRate,
+    // utxos: Option<Vec<OutPoint>>,
+    // policy_path: Option<BTreeMap<String, Vec<usize>>>,
+    // skip_frozen_utxos: bool,
+    // ) -> Result<GetProposal, Error> {
+    // let address = self
+    // .get_address(to_policy_id, AddressIndex::New)
+    // .await?
+    // .address;
+    // let description: String = format!(
+    // "Self transfer from policy #{} to #{}",
+    // util::cut_event_id(from_policy_id),
+    // util::cut_event_id(to_policy_id)
+    // );
+    // self.spend(
+    // from_policy_id,
+    // destination,
+    // description,
+    // fee_rate,
+    // utxos,
+    // policy_path,
+    // skip_frozen_utxos,
+    // )
+    // .await
+    // }
 
     pub async fn approve<T>(
         &self,
+        proposal_id: &ProposalIdentifier,
         password: T,
-        proposal_id: EventId,
-    ) -> Result<(EventId, ApprovedProposal), Error>
+    ) -> Result<Approval, Error>
     where
         T: AsRef<[u8]>,
     {
         // Get proposal and policy
-        let GetProposal {
-            policy_id,
-            proposal,
-            ..
-        } = self.get_proposal_by_id(proposal_id).await?;
+        let proposal: Proposal = self.storage.proposal(proposal_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
 
-        let keys: &Keys = self.keys();
-
-        /* // Sign PSBT
-        // Custom signer
-        let signer = SignerWrapper::new(
-            PrivateKey::new(**keys.secret_key()?, self.network),
-            SignerContext::Tap {
-                is_internal_key: self
-                    .is_internal_key(vault.as_descriptor().to_string())
-                    .await?,
-            },
-        ); */
+        // Sign PSBT
         let seed: Seed = self.keechain.read().seed(password)?;
-        let approved_proposal = proposal.approve(&seed, Vec::new(), self.network)?;
-
-        // Get shared keys
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
+        let approval: Approval = proposal.approve(&seed)?;
+        drop(seed);
 
         // Compose the event
-        let content = approved_proposal.encrypt_with_keys(&shared_key)?;
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
-        tags.push(Tag::event(proposal_id));
-        tags.push(Tag::event(policy_id));
-        tags.push(Tag::Expiration(
-            Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
-        ));
-
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(keys)?;
-        let timestamp = event.created_at;
-
-        // Publish the event
-        let event_id = self.client.send_event(event).await?;
-
-        // Index approved proposal
-        self.storage
-            .save_approval(
-                event_id,
-                InternalApproval {
-                    proposal_id,
-                    policy_id,
-                    public_key: keys.public_key(),
-                    approval: approved_proposal.clone(),
-                    timestamp,
-                },
-            )
-            .await;
-
-        Ok((event_id, approved_proposal))
-    }
-
-    pub async fn approve_with_signed_psbt(
-        &self,
-        proposal_id: EventId,
-        signed_psbt: PartiallySignedTransaction,
-    ) -> Result<(EventId, ApprovedProposal), Error> {
         let keys: &Keys = self.keys();
-
-        // Get proposal and policy
-        let GetProposal {
-            policy_id,
-            proposal,
-            ..
-        } = self.get_proposal_by_id(proposal_id).await?;
-
-        let approved_proposal = proposal.approve_with_signed_psbt(signed_psbt)?;
-
-        // Get shared keys
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-
-        // Compose the event
-        let content = approved_proposal.encrypt_with_keys(&shared_key)?;
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
-        tags.push(Tag::event(proposal_id));
-        tags.push(Tag::event(policy_id));
-        tags.push(Tag::Expiration(
-            Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
-        ));
-
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(keys)?;
+        let event = v2::approval::build_event(&vault, &approval, &keys)?;
         let timestamp = event.created_at;
 
         // Publish the event
@@ -1365,17 +1115,67 @@ impl SmartVaults {
             .save_approval(
                 event_id,
                 InternalApproval {
-                    proposal_id,
-                    policy_id,
                     public_key: keys.public_key(),
-                    approval: approved_proposal.clone(),
+                    approval: approval.clone(),
                     timestamp,
                 },
             )
             .await;
 
-        Ok((event_id, approved_proposal))
+        Ok(approval)
     }
+
+    // pub async fn approve_with_signed_psbt(
+    // &self,
+    // proposal_id: EventId,
+    // signed_psbt: PartiallySignedTransaction,
+    // ) -> Result<(EventId, ApprovedProposal), Error> {
+    // let keys: &Keys = self.keys();
+    //
+    // Get proposal and policy
+    // let GetProposal {
+    // policy_id,
+    // proposal,
+    // ..
+    // } = self.get_proposal_by_id(proposal_id).await?;
+    //
+    // let approved_proposal = proposal.approve_with_signed_psbt(signed_psbt)?;
+    //
+    // Get shared keys
+    // let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
+    //
+    // Compose the event
+    // let content = approved_proposal.encrypt_with_keys(&shared_key)?;
+    // let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
+    // let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
+    // tags.push(Tag::event(proposal_id));
+    // tags.push(Tag::event(policy_id));
+    // tags.push(Tag::Expiration(
+    // Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
+    // ));
+    //
+    // let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(keys)?;
+    // let timestamp = event.created_at;
+    //
+    // Publish the event
+    // let event_id = self.client.send_event(event).await?;
+    //
+    // Index approved proposal
+    // self.storage
+    // .save_approval(
+    // event_id,
+    // InternalApproval {
+    // proposal_id,
+    // vault_id,
+    // public_key: keys.public_key(),
+    // approval: approved_proposal.clone(),
+    // timestamp,
+    // },
+    // )
+    // .await;
+    //
+    // Ok((event_id, approved_proposal))
+    // }
 
     // pub async fn approve_with_hwi_signer(
     // &self,
@@ -1427,48 +1227,46 @@ impl SmartVaults {
     // Ok((event_id, approved_proposal))
     // }
 
-    pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        let event = self.client.database().event_by_id(approval_id).await?;
-        let author = event.author();
-        let keys: &Keys = self.keys();
-        if author == keys.public_key() {
-            let InternalApproval { policy_id, .. } = self.storage.approval(&approval_id).await?;
-
-            // Get nostr pubkeys linked to policyit?;
-            let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-
-            let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
-            tags.push(Tag::event(approval_id));
-
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags);
-            self.client.send_event_builder(event).await?;
-
-            self.storage.delete_approval(&approval_id).await;
-
-            Ok(())
-        } else {
-            Err(Error::TryingToDeleteNotOwnedEvent)
-        }
-    }
+    // pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
+    // let event = self.client.database().event_by_id(approval_id).await?;
+    // let author = event.author();
+    // let keys: &Keys = self.keys();
+    // if author == keys.public_key() {
+    // let InternalApproval { vault_id, .. } = self.storage.approval(&approval_id).await?;
+    //
+    // Get nostr pubkeys linked to policyit?;
+    // let InternalVault { public_keys, .. } = self.storage.vault(&vault_id).await?;
+    //
+    // let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
+    // tags.push(Tag::event(approval_id));
+    //
+    // let event = EventBuilder::new(Kind::EventDeletion, "", tags);
+    // self.client.send_event_builder(event).await?;
+    //
+    // self.storage.delete_approval(&approval_id).await;
+    //
+    // Ok(())
+    // } else {
+    // Err(Error::TryingToDeleteNotOwnedEvent)
+    // }
+    // }
 
     /// Finalize [`Proposal`]
-    pub async fn finalize(&self, proposal_id: EventId) -> Result<CompletedProposal, Error> {
-        // Get PSBTs
+    pub async fn finalize(&self, proposal_id: &ProposalIdentifier) -> Result<(), Error> {
+        // Get Proposal, Approvals and vault
         let GetApprovedProposals {
-            policy_id,
-            proposal,
-            approved_proposals,
-        } = self.storage.approvals_by_proposal_id(&proposal_id).await?;
-
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
+            mut proposal,
+            approvals,
+        } = self.storage.approvals_by_proposal_id(proposal_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
 
         // Finalize proposal
-        let completed_proposal: CompletedProposal =
-            proposal.finalize(approved_proposals, self.network)?;
+        proposal.finalize(approvals)?;
 
         // Broadcast
-        if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
+        if proposal.is_broadcastable() {
+            let tx: &Transaction = proposal.tx();
+
             let blockchain = self.blockchain().await?;
             blockchain.transaction_broadcast(tx)?;
 
@@ -1477,7 +1275,7 @@ impl SmartVaults {
             match self
                 .manager
                 .insert_tx(
-                    policy_id,
+                    &proposal.vault_id(),
                     tx.clone(),
                     ConfirmationTime::Unconfirmed {
                         last_seen: Timestamp::now().as_u64(),
@@ -1496,123 +1294,90 @@ impl SmartVaults {
             }
         }
 
-        // Compose the event
-        let content: String = completed_proposal.encrypt_with_keys(&shared_key)?;
-        let mut tags: Vec<Tag> = public_keys.iter().copied().map(Tag::public_key).collect();
-        tags.push(Tag::event(proposal_id));
-        tags.push(Tag::event(policy_id));
-        let event =
-            EventBuilder::new(COMPLETED_PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
-        let timestamp = event.created_at;
+        // Compose and publish event
+        let event = v2::proposal::build_event(&vault, &proposal)?;
+        self.client.send_event(event).await?;
 
-        // Publish the event
-        let event_id = self.client.send_event(event).await?;
+        // Index proposal
+        self.storage.save_proposal(*proposal_id, proposal).await;
 
-        // Delete the proposal
-        if let Err(e) = self.delete_proposal_by_id(proposal_id).await {
-            tracing::error!("Impossibe to delete proposal {proposal_id}: {e}");
-        }
-
-        // Cache
-        self.storage
-            .save_completed_proposal(
-                event_id,
-                InternalCompletedProposal {
-                    policy_id,
-                    proposal: completed_proposal.clone(),
-                    timestamp,
-                },
-            )
-            .await;
-
-        Ok(completed_proposal)
+        Ok(())
     }
 
-    pub async fn new_proof_proposal<S>(
-        &self,
-        policy_id: EventId,
-        message: S,
-    ) -> Result<(EventId, Proposal, EventId), Error>
-    where
-        S: Into<String>,
-    {
-        let message: &str = &message.into();
+    // pub async fn new_proof_proposal<S>(
+    // &self,
+    // vault_id: &VaultIdentifier,
+    // message: S,
+    // ) -> Result<(EventId, Proposal, EventId), Error>
+    // where
+    // S: Into<String>,
+    // {
+    // let message: &str = &message.into();
+    //
+    // Build proposal
+    // let proof_of_reserve: ProofOfReserveProposal =
+    // self.manager.proof_of_reserve(vault_id, message).await?;
+    //
+    // Get shared keys
+    // let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
+    //
+    // Compose the event
+    // let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
+    // let mut tags: Vec<Tag> = public_keys.iter().copied().map(Tag::public_key).collect();
+    // tags.push(Tag::event(policy_id));
+    // let content = proposal.encrypt_with_keys(&shared_key)?;
+    // Publish proposal with `shared_key` so every owner can delete it
+    // let event = EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
+    // let timestamp = event.created_at;
+    // let proposal_id = self.client.send_event(event).await?;
+    //
+    // Index proposal
+    // self.storage
+    // .save_proposal(
+    // proposal_id,
+    // InternalProposal {
+    // policy_id,
+    // proposal: proposal.clone(),
+    // timestamp,
+    // },
+    // )
+    // .await;
+    //
+    // Ok((proposal_id, proposal, policy_id))
+    // }
 
-        // Build proposal
-        let proposal: Proposal = self.manager.proof_of_reserve(policy_id, message).await?;
-
-        if let Proposal::ProofOfReserve { .. } = &proposal {
-            // Get shared keys
-            let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-
-            // Compose the event
-            let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-            let mut tags: Vec<Tag> = public_keys.iter().copied().map(Tag::public_key).collect();
-            tags.push(Tag::event(policy_id));
-            let content = proposal.encrypt_with_keys(&shared_key)?;
-            // Publish proposal with `shared_key` so every owner can delete it
-            let event = EventBuilder::new(PROPOSAL_KIND, content, tags).to_event(&shared_key)?;
-            let timestamp = event.created_at;
-            let proposal_id = self.client.send_event(event).await?;
-
-            // Send DM msg
-            // TODO: send withoud wait for OK
-            // let sender = self.client.keys().public_key();
-            // let mut msg = String::from("New Proof of Reserve request:\n");
-            // msg.push_str(&format!("- Message: {message}"));
-            // for pubkey in nostr_pubkeys.into_iter() {
-            // if sender != pubkey {
-            // self.client.send_direct_msg(pubkey, &msg, None).await?;
-            // }
-            // }
-
-            // Index proposal
-            self.storage
-                .save_proposal(
-                    proposal_id,
-                    InternalProposal {
-                        policy_id,
-                        proposal: proposal.clone(),
-                        timestamp,
-                    },
-                )
-                .await;
-
-            Ok((proposal_id, proposal, policy_id))
-        } else {
-            Err(Error::UnexpectedProposal)
-        }
-    }
-
-    pub async fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
-        let GetCompletedProposal {
-            proposal,
-            policy_id,
-            ..
-        } = self
-            .get_completed_proposal_by_id(completed_proposal_id)
-            .await?;
-        if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
-            Ok(self.manager.verify_proof(policy_id, &psbt, message).await?)
-        } else {
-            Err(Error::UnexpectedProposal)
-        }
-    }
+    // pub async fn verify_proof_by_id(&self, completed_proposal_id: EventId) -> Result<u64, Error> {
+    // let GetCompletedProposal {
+    // proposal,
+    // policy_id,
+    // ..
+    // } = self
+    // .get_completed_proposal_by_id(completed_proposal_id)
+    // .await?;
+    // if let CompletedProposal::ProofOfReserve { message, psbt, .. } = proposal {
+    // Ok(self.manager.verify_proof(policy_id, &psbt, message).await?)
+    // } else {
+    // Err(Error::UnexpectedProposal)
+    // }
+    // }
 
     #[deprecated]
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_balance(&self, policy_id: EventId) -> Option<Balance> {
-        self.manager.get_balance(policy_id).await.ok()
+    pub async fn get_balance(&self, vault_id: &VaultIdentifier) -> Result<Balance, Error> {
+        Ok(self.manager.get_balance(vault_id).await?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_txs(&self, policy_id: EventId) -> Result<BTreeSet<GetTransaction>, Error> {
-        let wallet: SmartVaultsWallet = self.manager.wallet(policy_id).await?;
+    pub async fn get_txs(
+        &self,
+        vault_id: &VaultIdentifier,
+    ) -> Result<BTreeSet<GetTransaction>, Error> {
+        let wallet: SmartVaultsWallet = self.manager.wallet(vault_id).await?;
         let txs: BTreeSet<TransactionDetails> = wallet.txs().await;
 
-        let descriptions: HashMap<Txid, String> = self.storage.txs_descriptions(policy_id).await;
+        let descriptions: HashMap<Txid, String> = self.storage.txs_descriptions(*vault_id).await;
         let script_labels: HashMap<ScriptBuf, Label> =
-            self.storage.get_addresses_labels(policy_id).await;
+            self.storage.get_addresses_labels(*vault_id).await;
 
         let block_explorer = self.config.block_explorer().await.ok();
 
@@ -1636,7 +1401,7 @@ impl SmartVaults {
             };
 
             list.insert(GetTransaction {
-                policy_id,
+                vault_id: *vault_id,
                 label,
                 tx,
                 block_explorer: block_explorer
@@ -1649,38 +1414,43 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_tx(&self, policy_id: EventId, txid: Txid) -> Result<GetTransaction, Error> {
-        let wallet = self.manager.wallet(policy_id).await?;
+    pub async fn get_tx(
+        &self,
+        vault_id: &VaultIdentifier,
+        txid: Txid,
+    ) -> Result<GetTransaction, Error> {
+        let wallet = self.manager.wallet(vault_id).await?;
         let tx = wallet.get_tx(txid).await?;
 
         let label: Option<String> = if tx.received > tx.sent {
             let mut label = None;
             for txout in tx.output.iter() {
                 if wallet.is_mine(&txout.script_pubkey).await {
-                    let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-                    let address = Address::from_script(&txout.script_pubkey, self.network)?;
-                    let identifier: String =
-                        LabelData::Address(Address::new(self.network, address.payload))
-                            .generate_identifier(&shared_key)?;
-                    label = self
-                        .storage
-                        .get_label_by_identifier(identifier)
-                        .await
-                        .ok()
-                        .map(|l| l.text());
-                    break;
+                    // let shared_key: Keys = self.storage.shared_key(&vault_id).await?;
+                    // let address = Address::from_script(&txout.script_pubkey, self.network)?;
+                    // let identifier: String =
+                    // LabelData::Address(Address::new(self.network, address.payload))
+                    // .generate_identifier(&shared_key)?;
+                    // label = self
+                    // .storage
+                    // .get_label_by_identifier(identifier)
+                    // .await
+                    // .ok()
+                    // .map(|l| l.text());
+                    // break;
+                    todo!()
                 }
             }
             label
         } else {
             // TODO: try to get UTXO label?
-            self.storage.description_by_txid(policy_id, txid).await
+            self.storage.description_by_txid(*vault_id, txid).await
         };
 
         let block_explorer = self.config.block_explorer().await.ok();
 
         Ok(GetTransaction {
-            policy_id,
+            vault_id: *vault_id,
             tx,
             label,
             block_explorer: block_explorer
@@ -1737,24 +1507,24 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_addresses_balances(
         &self,
-        policy_id: EventId,
+        vault_id: &VaultIdentifier,
     ) -> Result<HashMap<ScriptBuf, u64>, Error> {
-        Ok(self.manager.get_addresses_balances(policy_id).await?)
+        Ok(self.manager.get_addresses_balances(vault_id).await?)
     }
 
     /// Get wallet UTXOs
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<GetUtxo>, Error> {
+    pub async fn get_utxos(&self, vault_id: &VaultIdentifier) -> Result<Vec<GetUtxo>, Error> {
         // Get labels
         let script_labels: HashMap<ScriptBuf, Label> =
-            self.storage.get_addresses_labels(policy_id).await;
-        let utxo_labels: HashMap<OutPoint, Label> = self.storage.get_utxos_labels(policy_id).await;
-        let frozen_utxos: HashSet<OutPoint> = self.storage.get_frozen_utxos(&policy_id).await;
+            self.storage.get_addresses_labels(*vault_id).await;
+        let utxo_labels: HashMap<OutPoint, Label> = self.storage.get_utxos_labels(*vault_id).await;
+        let frozen_utxos: HashSet<OutPoint> = self.storage.get_frozen_utxos(vault_id).await;
 
         // Compose output
         Ok(self
             .manager
-            .get_utxos(policy_id)
+            .get_utxos(vault_id)
             .await?
             .into_iter()
             .map(|utxo| GetUtxo {
@@ -1770,13 +1540,13 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_total_balance(&self) -> Result<Balance, Error> {
-        let vaults: HashMap<EventId, InternalPolicy> = self.storage.vaults().await;
+        let vaults: HashMap<VaultIdentifier, InternalVault> = self.storage.vaults().await;
         let mut total_balance: Balance = Balance::default();
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
-        for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
-            if already_seen.insert(policy.descriptor()) {
-                let balance: Balance = self.manager.get_balance(policy_id).await?;
+        for (vault_id, InternalVault { vault, .. }) in vaults.into_iter() {
+            if already_seen.insert(vault.descriptor()) {
+                let balance: Balance = self.manager.get_balance(&vault_id).await?;
                 total_balance = total_balance.add(balance);
             }
         }
@@ -1785,13 +1555,13 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_all_transactions(&self) -> Result<BTreeSet<GetTransaction>, Error> {
-        let vaults: HashMap<EventId, InternalPolicy> = self.storage.vaults().await;
+        let vaults: HashMap<VaultIdentifier, InternalVault> = self.storage.vaults().await;
         let mut txs: BTreeSet<GetTransaction> = BTreeSet::new();
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
-        for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
-            if already_seen.insert(policy.descriptor()) {
-                let t = self.get_txs(policy_id).await?;
+        for (vault_id, InternalVault { vault, .. }) in vaults.into_iter() {
+            if already_seen.insert(vault.descriptor()) {
+                let t = self.get_txs(&vault_id).await?;
                 txs.extend(t);
             }
         }
@@ -1839,51 +1609,30 @@ impl SmartVaults {
         Ok(())
     }
 
-    pub async fn republish_shared_key_for_policy(&self, policy_id: EventId) -> Result<(), Error> {
-        let keys: &Keys = self.keys();
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
-        let InternalVault { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        // Publish the shared key
-        for public_key in public_keys.into_iter() {
-            let encrypted_shared_key = nips::nip04::encrypt(
-                keys.secret_key()?,
-                &public_key,
-                shared_key.secret_key()?.display_secret().to_string(),
-            )?;
-            let event: Event = EventBuilder::new(
-                SHARED_KEY_KIND,
-                encrypted_shared_key,
-                [Tag::event(policy_id), Tag::public_key(public_key)],
-            )
-            .to_event(keys)?;
-            let event_id: EventId = event.id;
-
-            // TODO: use send_batch_event method from nostr-sdk
-            self.client.send_event(event).await?;
-            tracing::info!("Published shared key for {public_key} at event {event_id}");
-        }
-        Ok(())
-    }
-
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn export_policy_backup(&self, policy_id: EventId) -> Result<PolicyBackup, Error> {
-        let InternalVault {
-            vault, public_keys, ..
-        } = self.storage.vault(&policy_id).await?;
+    pub async fn export_policy_backup(
+        &self,
+        vault_id: &VaultIdentifier,
+    ) -> Result<PolicyBackup, Error> {
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
         Ok(PolicyBackup::new(
-            vault.name,
-            vault.description,
+            "TODO",
+            "TODO",
             vault.descriptor(),
-            nostr_pubkeys,
+            Vec::new(),
         ))
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn save_policy_backup<P>(&self, policy_id: EventId, path: P) -> Result<(), Error>
+    pub async fn save_vault_backup<P>(
+        &self,
+        vault_id: &VaultIdentifier,
+        path: P,
+    ) -> Result<(), Error>
     where
         P: AsRef<Path>,
     {
-        let backup = self.export_policy_backup(policy_id).await?;
+        let backup = self.export_policy_backup(vault_id).await?;
         backup.save(path)?;
         Ok(())
     }

@@ -10,10 +10,8 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_protocol::v1::{
-    ApprovedProposal, CompletedProposal, Proposal, SharedSigner, SignerOffering, Vault,
-};
+use smartvaults_protocol::v1::{SharedSigner, SignerOffering};
+use smartvaults_protocol::v2::{Approval, Proposal, Signer, Vault, VaultIdentifier};
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;
@@ -23,7 +21,6 @@ use crate::manager::TransactionDetails;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetPolicy {
-    pub policy_id: EventId,
     pub vault: Vault,
     pub balance: Balance,
     pub last_sync: Timestamp,
@@ -51,11 +48,8 @@ impl Deref for GetPolicy {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetProposal {
-    pub proposal_id: EventId,
-    pub policy_id: EventId,
     pub proposal: Proposal,
     pub signed: bool,
-    pub timestamp: Timestamp,
 }
 
 impl PartialOrd for GetProposal {
@@ -66,11 +60,7 @@ impl PartialOrd for GetProposal {
 
 impl Ord for GetProposal {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.timestamp != other.timestamp {
-            self.timestamp.cmp(&other.timestamp).reverse()
-        } else {
-            self.policy_id.cmp(&other.policy_id)
-        }
+        self.proposal.cmp(&other.proposal).reverse()
     }
 }
 
@@ -78,7 +68,7 @@ impl Ord for GetProposal {
 pub struct GetApproval {
     pub approval_id: EventId,
     pub user: Profile,
-    pub approved_proposal: ApprovedProposal,
+    pub approval: Approval,
     pub timestamp: Timestamp,
 }
 
@@ -99,33 +89,8 @@ impl Ord for GetApproval {
 }
 
 pub struct GetApprovedProposals {
-    pub policy_id: EventId,
     pub proposal: Proposal,
-    pub approved_proposals: Vec<ApprovedProposal>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetCompletedProposal {
-    pub policy_id: EventId,
-    pub completed_proposal_id: EventId,
-    pub proposal: CompletedProposal,
-    pub timestamp: Timestamp,
-}
-
-impl PartialOrd for GetCompletedProposal {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for GetCompletedProposal {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.timestamp != other.timestamp {
-            self.timestamp.cmp(&other.timestamp).reverse()
-        } else {
-            self.policy_id.cmp(&other.policy_id)
-        }
-    }
+    pub approvals: Vec<Approval>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,7 +161,7 @@ impl Deref for GetUtxo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetTransaction {
-    pub policy_id: EventId,
+    pub vault_id: VaultIdentifier,
     pub tx: TransactionDetails,
     pub label: Option<String>,
     pub block_explorer: Option<String>,

@@ -23,6 +23,8 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
+    ProtocolV2(#[from] smartvaults_protocol::v2::Error),
+    #[error(transparent)]
     JSON(#[from] serde_json::Error),
     #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),

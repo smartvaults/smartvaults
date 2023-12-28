@@ -398,21 +398,6 @@ impl Manager {
             .await?)
     }
 
-    pub async fn estimate_tx_vsize(
-        &self,
-        vault_id: &VaultIdentifier,
-        destination: &Destination,
-        utxos: Option<Vec<OutPoint>>,
-        frozen_utxos: Option<Vec<OutPoint>>,
-        policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Option<usize>, Error> {
-        Ok(self
-            .wallet(policy_id)
-            .await?
-            .estimate_tx_vsize(destination, utxos, frozen_utxos, policy_path)
-            .await)
-    }
-
     pub async fn spend(
         &self,
         vault_id: &VaultIdentifier,

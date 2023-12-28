@@ -647,34 +647,6 @@ impl Policy {
         Ok(None)
     }
 
-    /// Estimate TX vsize
-    ///
-    /// Useful to estimate TX fees
-    pub fn estimate_tx_vsize<D>(
-        &self,
-        wallet: &mut Wallet<D>,
-        destination: &Destination,
-        utxos: Option<Vec<OutPoint>>,
-        frozen_utxos: Option<Vec<OutPoint>>,
-        policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Option<usize>
-    where
-        D: PersistBackend<ChangeSet>,
-    {
-        let proposal = self
-            .spend(
-                wallet,
-                destination,
-                FeeRate::default_min_relay_fee(),
-                utxos,
-                frozen_utxos,
-                policy_path,
-            )
-            .ok()?;
-        let psbt = proposal.psbt;
-        Some(psbt.unsigned_tx.vsize())
-    }
-
     /// Create a new PSBT for [`Policy`]
     pub fn spend<D>(
         &self,

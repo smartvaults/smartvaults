@@ -10,8 +10,9 @@ use nostr_sdk::{
     Tag,
 };
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
-use smartvaults_protocol::v1::{Encryption, Serde, SharedSigner, Signer};
+use smartvaults_protocol::v1::constants::SHARED_SIGNERS_KIND;
+use smartvaults_protocol::v1::SharedSigner;
+use smartvaults_protocol::v2::{self, Signer};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalSharedSigner;
@@ -48,24 +49,13 @@ impl SmartVaults {
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
         let keys: &Keys = self.keys();
 
-        if self
-            .storage
-            .signer_descriptor_exists(signer.descriptor())
-            .await
-        {
-            return Err(Error::SignerDescriptorAlreadyExists);
-        }
-
-        // Compose the event
-        let content: String = signer.encrypt_with_keys(keys)?;
-
-        // Compose signer event
-        let event = EventBuilder::new(SIGNERS_KIND, content, []).to_event(keys)?;
+        // Compose event
+        let event: Event = v2::signer::build_event(keys, &signer)?;
 
         // Publish the event
         let signer_id = self.client.send_event(event).await?;
 
-        // Save signer in db
+        // Index signer
         self.storage.save_signer(signer_id, signer).await;
 
         Ok(signer_id)
@@ -73,7 +63,7 @@ impl SmartVaults {
 
     pub async fn smartvaults_signer_exists(&self) -> bool {
         self.storage
-            .signer_descriptor_exists(self.default_signer.descriptor())
+            .signer_fingerprint_exists(self.default_signer.fingerprint())
             .await
     }
 
@@ -109,9 +99,11 @@ impl SmartVaults {
     ) -> Result<Signer, Error> {
         let descriptor: String = descriptor.to_string();
         for signer in self.storage.signers().await.into_values() {
-            let signer_descriptor: String = signer.descriptor_public_key()?.to_string();
-            if descriptor.contains(&signer_descriptor) {
-                return Ok(signer);
+            for desc in signer.descriptors().values() {
+                let signer_descriptor: String = desc.to_string();
+                if descriptor.contains(&signer_descriptor) {
+                    return Ok(signer);
+                }
             }
         }
         Err(Error::SignerNotFound)
