@@ -34,7 +34,8 @@ pub mod proposal {
     };
     pub use self::{
         Destination as ProtoDestination, Period as ProtoPeriod, Proposal as ProtoProposal,
-        ProposalStatus as ProtoProposalStatus, Recipient as ProtoRecipient,
+        ProposalIdentifier as ProtoProposalIdentifier, ProposalStatus as ProtoProposalStatus,
+        Recipient as ProtoRecipient,
     };
 }
 

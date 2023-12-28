@@ -4,6 +4,10 @@ package proposal;
 
 import "vault.proto";
 
+message ProposalIdentifier {
+  bytes id = 1;
+}
+
 message Recipient {
   string address = 1;
   fixed64 amount = 2; // Amount in SAT

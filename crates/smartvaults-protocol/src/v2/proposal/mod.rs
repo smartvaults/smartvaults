@@ -9,14 +9,15 @@ use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Network, Transaction};
-use smartvaults_core::crypto::hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::{
     Destination, ProofOfReserveProposal, ProposalSigning, Recipient, Seed, SpendingProposal,
 };
 
+pub mod id;
 mod proto;
 
+pub use self::id::ProposalIdentifier;
 use super::constants::PROPOSAL_KIND_V2;
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::{Approval, ApprovalType, Error, Vault, VaultIdentifier};
@@ -74,6 +75,14 @@ impl Proposal {
             network,
             timestamp: Timestamp::now(),
         }
+    }
+
+    /// Generate unique deterministic identifier
+    ///
+    /// WARNING: the deterministic identifier it's generated using the TXID
+    /// so if the TX inside the PSBT change, the deterministic identifer will be different.
+    pub fn id(&self) -> ProposalIdentifier {
+        ProposalIdentifier::from((self.network, self.tx()))
     }
 
     /// Vault Identifier
@@ -208,7 +217,13 @@ impl Proposal {
                 }
             };
 
-            Ok(Approval::new(self.vault_id, psbt, r#type, self.network))
+            Ok(Approval::new(
+                self.vault_id,
+                self.id(),
+                psbt,
+                r#type,
+                self.network,
+            ))
         } else {
             Err(Error::ProposalAlreadyFinalized)
         }
@@ -294,17 +309,6 @@ impl Proposal {
         } else {
             Err(Error::ProposalAlreadyFinalized)
         }
-    }
-
-    /// Generate unique deterministic identifier
-    ///
-    /// WARNING: the deterministic identifier it's generated using the TXID
-    /// so if the TX inside the PSBT change, the deterministic identifer will be different.
-    pub fn generate_identifier(&self) -> String {
-        let tx: &Transaction = self.tx();
-        let unhashed_identifier: String = format!("{}:{}", self.network.magic(), tx.txid());
-        let hash: String = hash::sha256(unhashed_identifier).to_string();
-        hash[..32].to_string()
     }
 }
 
@@ -414,6 +418,6 @@ pub fn build_event(vault: &Vault, proposal: &Proposal) -> Result<Event, Error> {
     let encrypted_content: String = proposal.encrypt_with_keys(&keys)?;
 
     // Compose and build event
-    let identifier = Tag::Identifier(proposal.generate_identifier());
+    let identifier = Tag::Identifier(proposal.id().to_string());
     Ok(EventBuilder::new(PROPOSAL_KIND_V2, encrypted_content, [identifier]).to_event(&keys)?)
 }

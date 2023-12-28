@@ -19,7 +19,8 @@ pub use self::core::{ProtocolEncoding, ProtocolEncryption};
 pub use self::error::Error;
 pub use self::network::NetworkMagic;
 pub use self::proposal::{
-    CompletedProposal, PendingProposal, Period, Proposal, ProposalStatus, ProposalType,
+    CompletedProposal, PendingProposal, Period, Proposal, ProposalIdentifier, ProposalStatus,
+    ProposalType,
 };
 pub use self::signer::{Signer, SignerType};
 pub use self::vault::{Vault, VaultIdentifier};

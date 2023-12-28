@@ -10,16 +10,35 @@ use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::{Destination, Recipient};
 
-use super::{CompletedProposal, PendingProposal, Period, Proposal, ProposalStatus};
+use super::{
+    CompletedProposal, PendingProposal, Period, Proposal, ProposalIdentifier, ProposalStatus,
+};
 use crate::v2::proto::proposal::{
     ProtoCompletedKeyAgentPayment, ProtoCompletedProofOfReserve, ProtoCompletedProposal,
     ProtoCompletedProposalEnum, ProtoCompletedSpending, ProtoDestination, ProtoDestinationEnum,
     ProtoMultipleRecipients, ProtoPendingKeyAgentPayment, ProtoPendingProofOfReserve,
     ProtoPendingProposal, ProtoPendingProposalEnum, ProtoPendingSpending, ProtoPeriod,
-    ProtoProposal, ProtoProposalStatus, ProtoProposalStatusEnum, ProtoRecipient,
+    ProtoProposal, ProtoProposalIdentifier, ProtoProposalStatus, ProtoProposalStatusEnum,
+    ProtoRecipient,
 };
 use crate::v2::proto::vault::ProtoVaultIdentifier;
 use crate::v2::{Error, NetworkMagic, VaultIdentifier};
+
+impl From<&ProposalIdentifier> for ProtoProposalIdentifier {
+    fn from(id: &ProposalIdentifier) -> Self {
+        Self {
+            id: id.as_byte_array().to_vec(),
+        }
+    }
+}
+
+impl From<ProposalIdentifier> for ProtoProposalIdentifier {
+    fn from(id: ProposalIdentifier) -> Self {
+        Self {
+            id: id.to_byte_array().to_vec(),
+        }
+    }
+}
 
 impl From<&Recipient> for ProtoRecipient {
     fn from(recipient: &Recipient) -> Self {
