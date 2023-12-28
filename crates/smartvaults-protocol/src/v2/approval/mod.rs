@@ -3,12 +3,16 @@
 
 //! Approval
 
+use prost::Message;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::Network;
 
 mod proto;
 
-use super::VaultIdentifier;
+use super::{ProtocolEncoding, VaultIdentifier};
+use crate::v2::core::SchemaVersion;
+use crate::v2::proto::approval::ProtoApproval;
+use crate::v2::Error;
 
 /// Approval type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -74,5 +78,19 @@ impl Approval {
     /// Get approval network
     pub fn network(&self) -> Network {
         self.network
+    }
+}
+
+impl ProtocolEncoding for Approval {
+    type Err = Error;
+
+    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+        let proposal: ProtoApproval = self.into();
+        (SchemaVersion::ProtoBuf, proposal.encode_to_vec())
+    }
+
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoApproval = ProtoApproval::decode(data)?;
+        Self::try_from(vault)
     }
 }
