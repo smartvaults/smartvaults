@@ -260,15 +260,14 @@ impl SmartVaults {
 
         // Compose the event
         let event: Event = v2::proposal::build_event(&vault, &proposal)?;
-        let proposal_id = self.client.send_event(event).await?;
+        self.client.send_event(event).await?;
 
         // Index proposal
         self.storage
-            .save_proposal(proposal_id, proposal.clone())
+            .save_proposal(proposal.id(), proposal.clone())
             .await;
 
         Ok(GetProposal {
-            proposal_id,
             proposal,
             signed: false,
         })

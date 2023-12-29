@@ -27,7 +27,7 @@ use smartvaults_protocol::v1::constants::{
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v2::vault::VaultIdentifier;
-use smartvaults_protocol::v2::ProposalType;
+use smartvaults_protocol::v2::{ProposalIdentifier, ProposalType};
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
@@ -37,8 +37,11 @@ use crate::storage::InternalVault;
 pub enum EventHandled {
     SharedKey(EventId),
     Vault(VaultIdentifier),
-    Proposal(EventId),
-    Approval { proposal_id: EventId },
+    Proposal(ProposalIdentifier),
+    Approval {
+        vault_id: VaultIdentifier,
+        proposal_id: ProposalIdentifier,
+    },
     CompletedProposal(EventId),
     Signer(EventId),
     MySharedSigner(EventId),
@@ -439,7 +442,7 @@ impl SmartVaults {
                 EventHandled::Proposal(proposal_id) => {
                     let proposal = self.storage.proposal(&proposal_id).await?;
                     // Insert TX from completed proposal if the event was created in the last 60 secs
-                    if proposal.is_completed()
+                    if proposal.is_finalized()
                         && event.created_at.add(Duration::from_secs(60)) >= Timestamp::now()
                     {
                         if let ProposalType::Spending | ProposalType::KeyAgentPayment =

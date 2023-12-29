@@ -16,7 +16,9 @@ use smartvaults_protocol::v1::constants::{
     SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, VerifiedKeyAgents};
-use smartvaults_protocol::v2::constants::{PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2};
+use smartvaults_protocol::v2::constants::{
+    APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2,
+};
 use smartvaults_protocol::v2::{
     Approval, Proposal, ProposalIdentifier, ProtocolEncryption, Signer, Vault, VaultIdentifier,
 };
@@ -202,35 +204,35 @@ impl SmartVaultsStorage {
                     e.insert(proposal_id);
                     proposals.insert(proposal_id, proposal);
 
-                    return Ok(Some(EventHandled::Proposal(event.id)));
+                    return Ok(Some(EventHandled::Proposal(proposal_id)));
                 } else {
                     pending.insert(event.clone());
                 }
             }
-        } else if event.kind == APPROVED_PROPOSAL_KIND {
-            let shared_keys = self.shared_keys.read().await;
+        } else if event.kind == APPROVAL_KIND_V2 {
+            let mut vaults_keys = self.vaults_keys.write().await;
             let mut approvals = self.approvals.write().await;
             if let HashMapEntry::Vacant(e) = approvals.entry(event.id) {
-                let mut ids = event.event_ids();
-                if let Some(proposal_id) = ids.next().copied() {
-                    if let Some(policy_id) = ids.next() {
-                        if let Some(shared_key) = shared_keys.get(policy_id) {
-                            let approval = Approval::decrypt_with_keys(shared_key, &event.content)?;
-                            e.insert(InternalApproval {
-                                public_key: event.author(),
-                                approval,
-                                timestamp: event.created_at,
-                            });
-                            return Ok(Some(EventHandled::Approval { proposal_id }));
-                        } else {
-                            pending.insert(event.clone());
-                        }
+                if let Some(shared_public_key) = event.public_keys().next() {
+                    if let Some(shared_key) = vaults_keys.get(shared_public_key) {
+                        let approval = Approval::decrypt_with_keys(shared_key, &event.content)?;
+                        let vault_id = approval.vault_id();
+                        let proposal_id = approval.proposal_id();
+                        e.insert(InternalApproval {
+                            public_key: event.author(),
+                            approval,
+                            timestamp: event.created_at,
+                        });
+                        return Ok(Some(EventHandled::Approval {
+                            vault_id,
+                            proposal_id,
+                        }));
                     } else {
-                        tracing::error!("Impossible to find policy id in proposal {}", event.id);
+                        pending.insert(event.clone());
                     }
                 } else {
                     tracing::error!(
-                        "Impossible to find proposal id in approved proposal {}",
+                        "Impossible to find shared_key public key in approval tags {}",
                         event.id
                     );
                 }

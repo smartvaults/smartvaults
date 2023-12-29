@@ -14,34 +14,24 @@ use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
 use nostr_sdk::database::{NostrDatabaseExt, Order};
-use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::pool::pool;
-use nostr_sdk::{
-    nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
-    JsonUtil, Keys, Kind, Metadata, Options, Profile, PublicKey, Relay, RelayOptions,
-    RelayPoolNotification, RelaySendOptions, Result, SQLiteDatabase, Tag, Timestamp, TryIntoUrl,
-    UncheckedUrl, Url,
-};
+use nostr_sdk::prelude::*;
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
 use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
+use smartvaults_core::bitcoin::address::NetworkChecked;
 use smartvaults_core::bitcoin::bip32::Fingerprint;
-use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
-use smartvaults_core::{
-    Destination, FeeRate, PolicyTemplate, ProofOfReserveProposal, SpendingProposal, SECP256K1,
-};
-use smartvaults_protocol::v1::constants::{
-    COMPLETED_PROPOSAL_KIND, PROPOSAL_KIND, SHARED_KEY_KIND,
-};
-use smartvaults_protocol::v1::{Label, LabelData, SmartVaultsEventBuilder};
-use smartvaults_protocol::v2::constants::PROPOSAL_KIND_V2;
+use smartvaults_core::{Destination, FeeRate, PolicyTemplate, SpendingProposal, SECP256K1};
+use smartvaults_protocol::v1::{Label, LabelData};
+use smartvaults_protocol::v2::constants::{PROPOSAL_KIND_V2, VAULT_KIND_V2};
 use smartvaults_protocol::v2::{
-    self, Approval, PendingProposal, Proposal, ProposalIdentifier, Signer, Vault, VaultIdentifier,
+    self, Approval, NostrPublicIdentifier, PendingProposal, Proposal, ProposalIdentifier, Signer,
+    Vault, VaultIdentifier,
 };
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
@@ -714,21 +704,37 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn delete_vault_by_id(&self, event_id: EventId) -> Result<(), Error> {
-        let event = self.client.database().event_by_id(policy_id).await?;
+    pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
+
+        let keys = self.keys();
+        let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
+
+        let filter: Filter = Filter::new()
+            .kind(VAULT_KIND_V2)
+            .author(keys.public_key())
+            .identifier(nostr_public_identifier.to_string())
+            .limit(1);
+        let res: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![filter], Order::Desc)
+            .await?;
+        let vault_event: &Event = res.first().ok_or(Error::NotFound)?;
+
+        let event = self.client.database().event_by_id(vault_event.id).await?;
         let author = event.author();
         if author == keys.public_key() {
             // Delete policy
-            let event: Event = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(event_id)])
-                .to_event(&keys)?;
+            let event: Event =
+                EventBuilder::new(Kind::EventDeletion, "", [Tag::event(vault_event.id)])
+                    .to_event(&keys)?;
             self.client.send_event(event).await?;
 
-            // TODO: get VaultIdentifier by EventId
-
-            self.storage.delete_vault(&policy_id).await;
+            self.storage.delete_vault(vault_id).await;
 
             // Unload policy
-            self.manager.unload_policy(policy_id).await?;
+            self.manager.unload_policy(*vault_id).await?;
 
             Ok(())
         } else {
@@ -752,7 +758,11 @@ impl SmartVaults {
             .author(shared_key.public_key())
             .identifier(proposal_id.to_string())
             .limit(1);
-        let res: Vec<Event> = self.client.database().query(vec![filter]).await?;
+        let res: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![filter], Order::Desc)
+            .await?;
         let proposal_event: &Event = res.first().ok_or(Error::NotFound)?;
 
         if proposal_event.author() == shared_key.public_key() {
@@ -1462,13 +1472,14 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_address(
         &self,
-        policy_id: EventId,
+        vault: &VaultIdentifier,
         index: AddressIndex,
     ) -> Result<GetAddress, Error> {
         let address: Address<NetworkChecked> =
-            self.manager.get_address(policy_id, index).await?.address;
+            self.manager.get_address(vault, index).await?.address;
 
-        let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(vault).await?;
+        let shared_key = Keys::new(vault.shared_key());
         let address = Address::new(self.network, address.payload);
         let identifier: String =
             LabelData::Address(address.clone()).generate_identifier(&shared_key)?;
@@ -1482,17 +1493,23 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_last_unused_address(&self, policy_id: EventId) -> Result<GetAddress, Error> {
-        self.get_address(policy_id, AddressIndex::LastUnused).await
+    pub async fn get_last_unused_address(
+        &self,
+        vault_id: &VaultIdentifier,
+    ) -> Result<GetAddress, Error> {
+        self.get_address(vault_id, AddressIndex::LastUnused).await
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_addresses(&self, policy_id: EventId) -> Result<Vec<GetAddress>, Error> {
+    pub async fn get_addresses(
+        &self,
+        vault_id: &VaultIdentifier,
+    ) -> Result<Vec<GetAddress>, Error> {
         let script_labels: HashMap<ScriptBuf, Label> =
-            self.storage.get_addresses_labels(policy_id).await;
+            self.storage.get_addresses_labels(*vault_id).await;
         Ok(self
             .manager
-            .get_addresses(policy_id)
+            .get_addresses(vault_id)
             .await?
             .into_iter()
             .map(|address| GetAddress {
