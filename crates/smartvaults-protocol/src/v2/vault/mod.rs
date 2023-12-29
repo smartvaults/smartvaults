@@ -9,6 +9,7 @@ use core::ops::Deref;
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
+use smartvaults_core::crypto::hash;
 use smartvaults_core::policy::Policy;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::PolicyTemplate;
@@ -22,7 +23,7 @@ pub use self::metadata::VaultMetadata;
 use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::proto::vault::ProtoVault;
-use super::{Error, Wrapper};
+use super::{Error, NostrPublicIdentifier, Wrapper};
 
 /// Vault version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -105,6 +106,18 @@ impl Vault {
     pub fn shared_key(&self) -> SecretKey {
         self.shared_key
     }
+
+    /// Generate deterministic Nostr Public Identifier
+    pub fn nostr_public_identifier(&self, keys: &Keys) -> NostrPublicIdentifier {
+        // TODO: use keys.public_key()? Or secret_key()?
+        let unhashed = format!(
+            "{}:{}:{}",
+            self.policy.as_descriptor(),
+            self.shared_key.display_secret(),
+            keys.public_key()
+        );
+        NostrPublicIdentifier::from(hash::sha256(unhashed))
+    }
 }
 
 impl ProtocolEncoding for Vault {
@@ -156,7 +169,13 @@ pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {
     let encrypted_content: String = vault.encrypt_with_keys(keys)?;
 
     // Compose and build event
-    Ok(EventBuilder::new(VAULT_KIND_V2, encrypted_content, []).to_event(keys)?)
+    let identifier: String = vault.nostr_public_identifier(keys).to_string();
+    Ok(EventBuilder::new(
+        VAULT_KIND_V2,
+        encrypted_content,
+        [Tag::Identifier(identifier)],
+    )
+    .to_event(keys)?)
 }
 
 #[cfg(bench)]
