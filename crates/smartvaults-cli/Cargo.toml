@@ -17,7 +17,7 @@ smartvaults-sdk = { path = "../smartvaults-sdk" }
 dialoguer = "0.11"
 dirs = "5.0"
 once_cell = "1.18"
-owo-colors = "3.5"
+owo-colors = "4.0"
 prettytable-rs = "0.10"
 regex = "1.10"
 rustyline = { version = "12.0", default-features = false }
