@@ -1,0 +1,42 @@
+{
+  "name": "@smartvaults/core",
+  "version": "0.1.0",
+  "description": "Smart Vaults Core",
+  "keywords": [
+    "smartvaults",
+    "core"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/smartvaults/smartvaults",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smartvaults/smartvaults.git"
+  },
+  "bugs": {
+    "url": "https://github.com/smartvaults/smartvaults/issues"
+  },
+  "author": {
+    "name": "Yuki Kishimoto",
+    "email": "yukikishimoto@protonmail.com",
+    "url": "https://github.com/yukibtc"
+  },
+  "main": "pkg/smartvaults_core_js.js",
+  "types": "pkg/smartvaults_core_js.d.ts",
+  "files": [
+      "pkg/smartvaults_core_js_bg.wasm.js",
+      "pkg/smartvaults_core_js_bg.wasm.d.ts",
+      "pkg/smartvaults_core_js.js",
+      "pkg/smartvaults_core_js.d.ts"
+  ],
+  "devDependencies": {
+    "wasm-pack": "^0.10.2"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "scripts": {
+    "build": "WASM_PACK_ARGS=--release ./scripts/build.sh",
+    "build:dev": "WASM_PACK_ARGS=--dev ./scripts/build.sh",
+    "package": "npm run build && npm pack"
+  }
+}

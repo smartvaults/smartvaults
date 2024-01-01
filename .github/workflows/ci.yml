@@ -70,6 +70,7 @@ jobs:
           [
             "-p smartvaults-core",
             "-p smartvaults-protocol",
+            "-p smartvaults-core-js",
           ]
     steps:
     - name: Checkout

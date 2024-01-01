@@ -22,6 +22,7 @@ done
 buildargs=(
     "-p smartvaults-core --target wasm32-unknown-unknown"
     "-p smartvaults-protocol --target wasm32-unknown-unknown"
+    "-p smartvaults-core-js --target wasm32-unknown-unknown"
 )
 
 for arg in "${buildargs[@]}"; do

@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "strict": true
+    },
+    "typedocOptions": {
+        "entryPoints": ["pkg/smartvaults_core_js.d.ts"],
+        "readme": "README.md"
+    }
+}

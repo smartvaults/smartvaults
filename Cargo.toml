@@ -1,14 +1,5 @@
 [workspace]
-members = [
-    "bindings/smartvaults-sdk-ffi",
-    "bindings/uniffi-bindgen",
-    "crates/smartvaults-cli",
-    "crates/smartvaults-core",
-    "crates/smartvaults-desktop",
-    "crates/smartvaults-protocol",
-    "crates/smartvaults-sdk",
-    "crates/smartvaults-sdk-sqlite",
-]
+members = ["bindings/*", "crates/*"]
 default-members = ["crates/smartvaults-desktop", "crates/smartvaults-cli"]
 resolver = "2"
 
@@ -28,6 +19,7 @@ thiserror = "1.0"
 tracing = "0.1"
 tokio = { version = "1", default-features = false }
 uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "59c1e3ef15b1ea5143402e25264e933dbf8d1a1f" }
+wasm-bindgen = { version = "0.2", default-features = false }
 
 [patch.crates-io]
 electrum-client = { git = "https://github.com/yukibtc/rust-electrum-client", rev = "a331ae80591065fb331c1c1599ff85078b5154a4" }
