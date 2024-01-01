@@ -22,7 +22,7 @@ license = "MIT"
 keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
-once_cell = "1.18"
+once_cell = "1.19"
 serde = "1.0"
 thiserror = "1.0"
 tracing = "0.1"
