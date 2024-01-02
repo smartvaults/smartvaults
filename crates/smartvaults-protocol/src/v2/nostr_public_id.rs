@@ -4,12 +4,15 @@
 //! Nostr Public Identifier
 
 use core::fmt;
+use core::str::FromStr;
 
 use smartvaults_core::hashes::sha256::Hash as Sha256Hash;
 use smartvaults_core::hashes::Hash;
 use smartvaults_core::util::hex;
 
-const NOSTR_PUBLIC_IDENTIFIER_SIZE: usize = 12;
+use crate::v2::Error;
+
+const NOSTR_PUBLIC_IDENTIFIER_SIZE: usize = 16;
 
 /// Nostr Public Identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -27,5 +30,13 @@ impl From<Sha256Hash> for NostrPublicIdentifier {
         let cutted_hash: &[u8] = &h.to_byte_array()[..NOSTR_PUBLIC_IDENTIFIER_SIZE];
         id.copy_from_slice(cutted_hash);
         Self(id)
+    }
+}
+
+impl FromStr for NostrPublicIdentifier {
+    type Err = Error;
+    fn from_str(id: &str) -> Result<Self, Self::Err> {
+        let decode: Vec<u8> = hex::decode(id)?;
+        Ok(Self(decode.as_slice().try_into()?))
     }
 }

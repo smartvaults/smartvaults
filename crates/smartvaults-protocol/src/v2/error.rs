@@ -3,12 +3,15 @@
 
 //! Error
 
+use std::array::TryFromSliceError;
+
 use nostr::nips::nip44;
-use smartvaults_core::bitcoin::hashes::{self, hex};
+use smartvaults_core::bitcoin::hashes;
 use smartvaults_core::bitcoin::psbt::PsbtParseError;
 use smartvaults_core::bitcoin::{address, consensus};
 use smartvaults_core::miniscript::descriptor::DescriptorKeyParseError;
 use smartvaults_core::signer::Error as CoreSignerError;
+use smartvaults_core::util::hex;
 use smartvaults_core::{miniscript, policy, proposal, secp256k1};
 use thiserror::Error;
 
@@ -25,6 +28,8 @@ pub enum Error {
     Secp256k1(#[from] secp256k1::Error),
     #[error(transparent)]
     Hash(#[from] hashes::Error),
+    #[error(transparent)]
+    BitcoinHex(#[from] hashes::hex::Error),
     #[error(transparent)]
     Hex(#[from] hex::Error),
     #[error(transparent)]
@@ -53,6 +58,8 @@ pub enum Error {
     EventBuilder(#[from] nostr::event::builder::Error),
     #[error(transparent)]
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
+    #[error(transparent)]
+    TryFromSlice(#[from] TryFromSliceError),
     #[error("{0} not found")]
     NotFound(String),
     #[error("proposal already finalized")]
