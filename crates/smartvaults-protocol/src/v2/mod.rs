@@ -7,6 +7,7 @@ pub mod approval;
 pub mod constants;
 mod core;
 mod error;
+pub mod key_agent;
 mod network;
 mod nostr_public_id;
 pub mod proposal;

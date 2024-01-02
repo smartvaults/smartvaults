@@ -69,10 +69,8 @@ impl SmartVaults {
             tracing::debug!("Key agent already announced");
         }
 
-        // Compose event
-        let event: Event = EventBuilder::signer_offering(keys, signer, &offering, self.network)?;
-
-        // Publish event
+        // Compose and publish event
+        let event: Event = v2::key_agent::build_event(keys, signer, &offering)?;
         Ok(self.client.send_event(event).await?)
     }
 
