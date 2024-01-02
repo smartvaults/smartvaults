@@ -13,12 +13,15 @@ use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::miniscript::DescriptorPublicKey;
+use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
 
 pub mod id;
 mod proto;
+pub mod shared;
 
 pub use self::id::SignerIdentifier;
+pub use self::shared::SharedSigner;
 use super::constants::{SIGNER_KIND_V2, SMARTVAULTS_ACCOUNT_INDEX};
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
 use super::NostrPublicIdentifier;
@@ -158,6 +161,16 @@ impl Signer {
     /// Generate deterministic Nostr Public Identifier
     pub fn nostr_public_identifier(&self) -> NostrPublicIdentifier {
         NostrPublicIdentifier::from(*self.id())
+    }
+
+    /// Get Shared Signer
+    pub fn as_shared(&self, owner: XOnlyPublicKey, receiver: XOnlyPublicKey) -> SharedSigner {
+        SharedSigner::new(owner, receiver, self.core.clone())
+    }
+
+    /// Consume [`Signer`] and get Shared Signer
+    pub fn to_shared(self, owner: XOnlyPublicKey, receiver: XOnlyPublicKey) -> SharedSigner {
+        SharedSigner::new(owner, receiver, self.core)
     }
 }
 

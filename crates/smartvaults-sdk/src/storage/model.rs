@@ -4,7 +4,7 @@
 use std::cmp::Ordering;
 
 use nostr_sdk::{PublicKey, Timestamp};
-use smartvaults_protocol::v1::{Label, SharedSigner};
+use smartvaults_protocol::v1::Label;
 use smartvaults_protocol::v2::{Approval, Vault, VaultIdentifier};
 
 #[derive(Debug, Clone)]
@@ -33,12 +33,6 @@ impl Ord for InternalApproval {
             self.public_key.cmp(&other.public_key)
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct InternalSharedSigner {
-    pub owner_public_key: PublicKey,
-    pub shared_signer: SharedSigner,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

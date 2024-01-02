@@ -10,8 +10,8 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_protocol::v1::{SharedSigner, SignerOffering};
-use smartvaults_protocol::v2::{Approval, Proposal, Signer, Vault, VaultIdentifier};
+use smartvaults_protocol::v1::SignerOffering;
+use smartvaults_protocol::v2::{Approval, Proposal, SharedSigner, Signer, Vault, VaultIdentifier};
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;

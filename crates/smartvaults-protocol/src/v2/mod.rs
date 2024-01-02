@@ -24,6 +24,6 @@ pub use self::proposal::{
     CompletedProposal, PendingProposal, Period, Proposal, ProposalIdentifier, ProposalStatus,
     ProposalType,
 };
-pub use self::signer::{Signer, SignerType};
+pub use self::signer::{SharedSigner, Signer, SignerIdentifier, SignerType};
 pub use self::vault::{Vault, VaultIdentifier};
 use self::wrapper::Wrapper;

@@ -17,17 +17,15 @@ use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, Verified
 use smartvaults_protocol::v2::constants::{
     APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2,
 };
-use smartvaults_protocol::v2::signer::SignerIdentifier;
 use smartvaults_protocol::v2::{
-    Approval, Proposal, ProposalIdentifier, ProtocolEncryption, Signer, Vault, VaultIdentifier,
+    Approval, Proposal, ProposalIdentifier, ProtocolEncryption, SharedSigner, Signer,
+    SignerIdentifier, Vault, VaultIdentifier,
 };
 use tokio::sync::RwLock;
 
 mod model;
 
-pub(crate) use self::model::{
-    InternalApproval, InternalLabel, InternalSharedSigner, InternalVault,
-};
+pub(crate) use self::model::{InternalApproval, InternalLabel, InternalVault};
 use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
 
@@ -65,7 +63,7 @@ pub(crate) struct SmartVaultsStorage {
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     signers: Arc<RwLock<HashMap<SignerIdentifier, Signer>>>,
     my_shared_signers: Arc<RwLock<HashMap<SignerIdentifier, (EventId, PublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
-    shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
+    shared_signers: Arc<RwLock<HashMap<EventId, SharedSigner>>>,
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
     frozed_utxos: Arc<RwLock<HashMap<VaultIdentifier, HashSet<OutPoint>>>>,
     verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
@@ -262,10 +260,7 @@ impl SmartVaultsStorage {
                         &event.content,
                     )?;
                     let shared_signer: SharedSigner = SharedSigner::from_json(shared_signer)?;
-                    e.insert(InternalSharedSigner {
-                        owner_public_key: event.author(),
-                        shared_signer,
-                    });
+                    e.insert(shared_signer);
                     return Ok(Some(EventHandled::SharedSigner(event.id)));
                 }
             }
@@ -524,7 +519,7 @@ impl SmartVaultsStorage {
             .collect()
     }
 
-    pub async fn shared_signers(&self) -> HashMap<EventId, InternalSharedSigner> {
+    pub async fn shared_signers(&self) -> HashMap<EventId, SharedSigner> {
         self.shared_signers
             .read()
             .await
@@ -584,7 +579,8 @@ impl SmartVaultsStorage {
             .read()
             .await
             .values()
-            .map(|i| i.owner_public_key)
+            .map(|i| i.owner())
+            .copied()
             .collect()
     }
 
@@ -596,8 +592,8 @@ impl SmartVaultsStorage {
             .read()
             .await
             .iter()
-            .filter(|(_, i)| i.owner_public_key == public_key)
-            .map(|(id, i)| (*id, i.shared_signer.clone()))
+            .filter(|(_, s)| *s.owner() == public_key)
+            .map(|(id, s)| (*id, s.clone()))
             .collect()
     }
 

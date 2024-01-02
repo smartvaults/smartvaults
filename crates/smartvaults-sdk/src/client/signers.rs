@@ -5,14 +5,12 @@ use std::collections::{BTreeMap, HashSet};
 
 use nostr_sdk::prelude::*;
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_protocol::v1::constants::SHARED_SIGNERS_KIND;
-use smartvaults_protocol::v1::SharedSigner;
 use smartvaults_protocol::v2::constants::SIGNER_KIND_V2;
-use smartvaults_protocol::v2::signer::SignerIdentifier;
-use smartvaults_protocol::v2::{self, NostrPublicIdentifier, Signer};
+use smartvaults_protocol::v2::{
+    self, NostrPublicIdentifier, SharedSigner, Signer, SignerIdentifier,
+};
 
 use super::{Error, SmartVaults};
-use crate::storage::InternalSharedSigner;
 use crate::types::{GetAllSigners, GetSharedSigner};
 
 impl SmartVaults {
@@ -115,26 +113,23 @@ impl SmartVaults {
     pub async fn share_signer(
         &self,
         signer_id: &SignerIdentifier,
-        public_key: PublicKey,
+        receiver: PublicKey,
     ) -> Result<EventId, Error> {
         if !self
             .storage
-            .my_shared_signer_already_shared(signer_id, public_key)
+            .my_shared_signer_already_shared(signer_id, receiver)
             .await
         {
             let keys: &Keys = self.keys();
             let signer: Signer = self.get_signer_by_id(signer_id).await?;
-            let shared_signer: SharedSigner = signer.to_shared_signer();
-            let content: String =
-                nip04::encrypt(keys.secret_key()?, &public_key, shared_signer.as_json())?;
-            let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
-            let event: Event =
-                EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
-            let event_id = self.client.send_event(event).await?;
-            self.storage
-                .save_my_shared_signer(signer_id, event_id, public_key)
-                .await;
-            Ok(event_id)
+            let _shared_signer: SharedSigner = signer.to_shared(keys.public_key(), receiver);
+
+            todo!();
+
+            // self.storage
+            // .save_my_shared_signer(signer_id, event_id, public_key)
+            // .await;
+            // Ok(event_id)
         } else {
             Err(Error::SignerAlreadyShared)
         }
@@ -143,43 +138,39 @@ impl SmartVaults {
     pub async fn share_signer_to_multiple_public_keys(
         &self,
         signer_id: &SignerIdentifier,
-        public_keys: Vec<PublicKey>,
+        receivers: Vec<PublicKey>,
     ) -> Result<(), Error> {
-        if public_keys.is_empty() {
+        if receivers.is_empty() {
             return Err(Error::NotEnoughPublicKeys);
         }
 
         let keys: &Keys = self.keys();
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
-        let shared_signer: SharedSigner = signer.to_shared_signer();
 
-        for public_key in public_keys.into_iter() {
+        for receiver in receivers.into_iter() {
             if self
                 .storage
-                .my_shared_signer_already_shared(signer_id, public_key)
+                .my_shared_signer_already_shared(signer_id, receiver)
                 .await
             {
-                tracing::warn!("Signer {signer_id} already shared with {public_key}");
+                tracing::warn!("Signer {signer_id} already shared with {receiver}");
             } else {
-                let content: String =
-                    nip04::encrypt(keys.secret_key()?, &public_key, shared_signer.as_json())?;
-                let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
-                let event: Event =
-                    EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
-                let event_id: EventId = event.id;
+                let _shared_signer: SharedSigner = signer.as_shared(keys.public_key(), receiver);
+
+                todo!();
 
                 // TODO: use send_batch_event method from nostr-sdk
-                self.client
-                    .pool()
-                    .send_msg(
-                        ClientMessage::event(event),
-                        RelaySendOptions::new().skip_send_confirmation(true),
-                    )
-                    .await?;
-
-                self.storage
-                    .save_my_shared_signer(signer_id, event_id, public_key)
-                    .await;
+                // self.client
+                // .pool()
+                // .send_msg(
+                //      ClientMessage::event(event),
+                //      RelaySendOptions::new().skip_send_confirmation(true),
+                //  )
+                // .await?;
+                //
+                // self.storage
+                // .save_my_shared_signer(signer_id, event_id, public_key)
+                // .await;
             }
         }
 
@@ -212,7 +203,7 @@ impl SmartVaults {
     pub async fn my_shared_signer_already_shared(
         &self,
         signer_id: &SignerIdentifier,
-        public_key: PublicKey,
+        public_key: XOnlyPublicKey,
     ) -> Result<bool, Error> {
         Ok(self
             .storage
@@ -240,15 +231,12 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
         let mut list = Vec::new();
-        for (
-            shared_signer_id,
-            InternalSharedSigner {
-                owner_public_key,
-                shared_signer,
-            },
-        ) in self.storage.shared_signers().await.into_iter()
-        {
-            let profile: Profile = self.client.database().profile(owner_public_key).await?;
+        for (shared_signer_id, shared_signer) in self.storage.shared_signers().await.into_iter() {
+            let profile: Profile = self
+                .client
+                .database()
+                .profile(*shared_signer.owner())
+                .await?;
             list.push(GetSharedSigner {
                 shared_signer_id,
                 owner: profile,
