@@ -115,6 +115,7 @@ impl Amount {
                         Text::new(btc[btc.len() - 6..btc.len() - 3].to_string())
                             .bold_maybe(self.bold)
                             .size(self.size)
+                            .color_maybe(self.color)
                             .view(),
                     )
                 })
