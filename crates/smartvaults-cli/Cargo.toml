@@ -16,7 +16,7 @@ clap = { version = "4.4", features = ["derive"] }
 smartvaults-sdk = { path = "../smartvaults-sdk" }
 dialoguer = "0.11"
 dirs = "5.0"
-once_cell = "1.18"
+once_cell = "1.19"
 owo-colors = "3.5"
 prettytable-rs = "0.10"
 regex = "1.10"
