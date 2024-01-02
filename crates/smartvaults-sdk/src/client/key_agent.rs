@@ -22,10 +22,10 @@ impl SmartVaults {
     /// Announce as Key Agent
     pub async fn announce_key_agent(&self) -> Result<EventId, Error> {
         // Get keys
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
 
         // Compose event
-        let event: Event = EventBuilder::key_agent_signaling(&keys, self.network)?;
+        let event: Event = EventBuilder::key_agent_signaling(keys, self.network)?;
 
         // Publish event
         Ok(self.client.send_event(event).await?)
@@ -33,11 +33,11 @@ impl SmartVaults {
 
     /// De-announce Key Agent (delete Key Agent signaling event)
     pub async fn deannounce_key_agent(&self) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNALING, keys.public_key())
             .identifier(self.network.magic().to_string());
-        let event: Event = EventBuilder::delete([coordinate]).to_event(&keys)?;
-        self.client.send_event(event).await?;
+        let event: EventBuilder = EventBuilder::delete([coordinate]);
+        self.client.send_event_builder(event).await?;
         tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
         Ok(())
     }
@@ -49,7 +49,7 @@ impl SmartVaults {
         offering: SignerOffering,
     ) -> Result<EventId, Error> {
         // Get keys
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
 
         // Check if exists key agent signaling event
         let filter = Filter::new()
@@ -70,7 +70,7 @@ impl SmartVaults {
         }
 
         // Compose event
-        let event: Event = EventBuilder::signer_offering(&keys, signer, &offering, self.network)?;
+        let event: Event = EventBuilder::signer_offering(keys, signer, &offering, self.network)?;
 
         // Publish event
         Ok(self.client.send_event(event).await?)
@@ -79,14 +79,14 @@ impl SmartVaults {
     /// Delete signer offering for [`Signer`]
     pub async fn delete_signer_offering(&self, signer: &Signer) -> Result<(), Error> {
         // Get keys
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
 
         // Delete signer offering
         let coordinate: Coordinate =
             Coordinate::new(KEY_AGENT_SIGNER_OFFERING_KIND, keys.public_key())
                 .identifier(signer.generate_identifier(self.network));
-        let event: Event = EventBuilder::delete([coordinate]).to_event(&keys)?;
-        self.client.send_event(event).await?;
+        let event: EventBuilder = EventBuilder::delete([coordinate]);
+        self.client.send_event_builder(event).await?;
 
         // Check if I have other signer offerings. If not, delete key agent signaling
         let filter = Filter::new()
@@ -109,7 +109,7 @@ impl SmartVaults {
     /// Get my signer offerings
     pub async fn my_signer_offerings(&self) -> Result<Vec<GetSignerOffering>, Error> {
         // Get keys
-        let keys = self.client.keys().await;
+        let keys = self.keys();
 
         // Get signers
         let signers: HashMap<String, GetSigner> = self
@@ -152,7 +152,7 @@ impl SmartVaults {
     /// Get Key Agents
     pub async fn key_agents(&self) -> Result<Vec<KeyAgent>, Error> {
         // Get contacts to check if key agent it's already added
-        let keys = self.client.keys().await;
+        let keys = self.keys();
         let contacts = self
             .client
             .database()

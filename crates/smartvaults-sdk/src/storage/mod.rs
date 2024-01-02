@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use nostr_sdk::database::DynNostrDatabase;
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{Client, Event, EventId, Filter, Keys, Kind, Tag, Timestamp};
+use nostr_sdk::{Event, EventId, Filter, Keys, Kind, Tag, Timestamp};
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -75,10 +75,11 @@ pub(crate) struct SmartVaultsStorage {
 impl SmartVaultsStorage {
     /// Build storage from Nostr Database
     #[tracing::instrument(skip_all)]
-    pub async fn build(client: &Client, network: Network) -> Result<Self, Error> {
-        let keys: Keys = client.keys().await;
-        let database: Arc<DynNostrDatabase> = client.database();
-
+    pub async fn build(
+        keys: Keys,
+        database: Arc<DynNostrDatabase>,
+        network: Network,
+    ) -> Result<Self, Error> {
         let this: Self = Self {
             keys,
             database,

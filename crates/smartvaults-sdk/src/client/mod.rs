@@ -73,6 +73,7 @@ use crate::{util, Error};
 pub struct SmartVaults {
     network: Network,
     keechain: Arc<ParkingLotRwLock<KeeChain>>,
+    keys: Keys,
     client: Client,
     manager: Manager,
     config: Config,
@@ -115,19 +116,21 @@ impl SmartVaults {
             .wait_for_subscription(false)
             .skip_disconnected_relays(true)
             .send_timeout(Some(SEND_TIMEOUT));
-        let client: Client = ClientBuilder::new(&keys)
+        let client: Client = ClientBuilder::new()
+            .signer(&keys)
             .database(nostr_db)
             .opts(opts)
             .build();
 
         // Storage
-        let storage = SmartVaultsStorage::build(&client, network).await?;
+        let storage = SmartVaultsStorage::build(keys.clone(), client.database(), network).await?;
 
         let (sender, _) = broadcast::channel::<Message>(4096);
 
         let this = Self {
             network,
             keechain: Arc::new(ParkingLotRwLock::new(keechain)),
+            keys,
             client,
             manager: Manager::new(db.clone(), network),
             config: Config::try_from_file(base_path, network)?,
@@ -373,8 +376,8 @@ impl SmartVaults {
         Ok(self.keechain.read().keychain(password)?)
     }
 
-    pub async fn keys(&self) -> Keys {
-        self.client.keys().await
+    pub fn keys(&self) -> &Keys {
+        &self.keys
     }
 
     pub fn fingerprint(&self) -> Fingerprint {
@@ -436,13 +439,12 @@ impl SmartVaults {
 
     /// Save relay list (NIP65)
     pub async fn save_relay_list(&self) -> Result<EventId, Error> {
-        let keys = self.keys().await;
         let relays = self.client.relays().await;
         let list = relays
             .into_keys()
             .map(|url| (UncheckedUrl::from(url), None));
-        let event = EventBuilder::relay_list(list).to_event(&keys)?;
-        Ok(self.client.send_event(event).await?)
+        let event = EventBuilder::relay_list(list);
+        Ok(self.client.send_event_builder(event).await?)
     }
 
     /// Get default relays for current [`Network`]
@@ -570,15 +572,14 @@ impl SmartVaults {
     }
 
     pub async fn set_metadata(&self, metadata: &Metadata) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
-        let event = EventBuilder::set_metadata(metadata).to_event(&keys)?;
-        self.client.send_event(event).await?;
+        let builder = EventBuilder::set_metadata(metadata);
+        self.client.send_event_builder(builder).await?;
         Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_profile(&self) -> Result<Profile, Error> {
-        let public_key: XOnlyPublicKey = self.keys().await.public_key();
+        let public_key: XOnlyPublicKey = self.keys().public_key();
         Ok(self.client.database().profile(public_key).await?)
     }
 
@@ -608,12 +609,12 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_contacts(&self) -> Result<BTreeSet<Profile>, Error> {
-        let keys = self.keys().await;
+        let keys = self.keys();
         Ok(self.client.database().contacts(keys.public_key()).await?)
     }
 
     pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         if public_key != keys.public_key() {
             // Add contact
             let mut contacts: Vec<Contact> = self
@@ -625,8 +626,8 @@ impl SmartVaults {
                 .map(|p| Contact::new::<String>(p, None, None))
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
-            let event = EventBuilder::set_contact_list(contacts).to_event(&keys)?;
-            self.client.send_event(event).await?;
+            let event = EventBuilder::set_contact_list(contacts);
+            self.client.send_event_builder(event).await?;
 
             // Request contact metadata
             self.client
@@ -644,7 +645,7 @@ impl SmartVaults {
     }
 
     pub async fn remove_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let contacts: Vec<Contact> = self
             .client
             .database()
@@ -654,8 +655,8 @@ impl SmartVaults {
             .filter(|p| p != &public_key)
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
-        let event = EventBuilder::set_contact_list(contacts).to_event(&keys)?;
-        self.client.send_event(event).await?;
+        let event = EventBuilder::set_contact_list(contacts);
+        self.client.send_event_builder(event).await?;
         Ok(())
     }
 
@@ -995,7 +996,6 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        let keys: Keys = self.keys().await;
         let descriptor = descriptor.into();
 
         if nostr_pubkeys.is_empty() {
@@ -1013,7 +1013,8 @@ impl SmartVaults {
 
         // Publish the shared key
         for pubkey in nostr_pubkeys.iter() {
-            let event: Event = EventBuilder::shared_key(&keys, &shared_key, pubkey, policy_id)?;
+            let event: Event =
+                EventBuilder::shared_key(self.keys(), &shared_key, pubkey, policy_id)?;
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
@@ -1232,7 +1233,7 @@ impl SmartVaults {
         S: Into<String>,
     {
         let descriptor = descriptor.into();
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         Ok(
             descriptor.starts_with(&format!("tr({}", keys.normalized_public_key()?))
                 || descriptor.starts_with(&format!("tr({}", keys.public_key())),
@@ -1257,7 +1258,7 @@ impl SmartVaults {
 
         // Sign PSBT
         // Custom signer
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let signer = SignerWrapper::new(
             PrivateKey::new(keys.secret_key()?, self.network),
             SignerContext::Tap {
@@ -1289,7 +1290,7 @@ impl SmartVaults {
             Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
         ));
 
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(&keys)?;
+        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(keys)?;
         let timestamp = event.created_at;
 
         // Publish the event
@@ -1317,7 +1318,7 @@ impl SmartVaults {
         proposal_id: EventId,
         signed_psbt: PartiallySignedTransaction,
     ) -> Result<(EventId, ApprovedProposal), Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
 
         // Get proposal and policy
         let GetProposal {
@@ -1348,7 +1349,7 @@ impl SmartVaults {
             Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
         ));
 
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(&keys)?;
+        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, tags).to_event(keys)?;
         let timestamp = event.created_at;
 
         // Publish the event
@@ -1376,7 +1377,7 @@ impl SmartVaults {
         proposal_id: EventId,
         signer: Signer,
     ) -> Result<(EventId, ApprovedProposal), Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
 
         // Get proposal and policy
         let GetProposal {
@@ -1423,7 +1424,7 @@ impl SmartVaults {
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
         let Event { pubkey, .. } = self.client.database().event_by_id(approval_id).await?;
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         if pubkey == keys.public_key() {
             let InternalApproval { policy_id, .. } = self.storage.approval(&approval_id).await?;
 
@@ -1440,8 +1441,8 @@ impl SmartVaults {
                 .collect();
             tags.push(Tag::event(approval_id));
 
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-            self.client.send_event(event).await?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags);
+            self.client.send_event_builder(event).await?;
 
             self.storage.delete_approval(&approval_id).await;
 
@@ -1828,7 +1829,7 @@ impl SmartVaults {
     }
 
     pub async fn republish_shared_key_for_policy(&self, policy_id: EventId) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
         let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
         // Publish the shared key
@@ -1843,7 +1844,7 @@ impl SmartVaults {
                 encrypted_shared_key,
                 [Tag::event(policy_id), Tag::public_key(public_key)],
             )
-            .to_event(&keys)?;
+            .to_event(keys)?;
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk

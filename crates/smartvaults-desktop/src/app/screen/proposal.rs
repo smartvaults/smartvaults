@@ -112,7 +112,7 @@ impl State for ProposalState {
                     .get_approvals_by_proposal_id(proposal_id)
                     .await
                     .unwrap_or_default();
-                let keys = client.keys().await;
+                let keys = client.keys();
 
                 Some((
                     proposal,

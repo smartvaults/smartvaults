@@ -190,7 +190,7 @@ impl SmartVaults {
 
     /// Get client keys
     pub fn keys(&self) -> Arc<Keys> {
-        block_on(async move { Arc::new(self.inner.keys().await.into()) })
+        Arc::new(self.inner.keys().clone().into())
     }
 
     /// Get network

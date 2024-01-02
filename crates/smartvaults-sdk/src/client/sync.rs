@@ -165,7 +165,7 @@ impl SmartVaults {
             Kind::EventDeletion,
         ]);
 
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let public_key: XOnlyPublicKey = keys.public_key();
         let contacts: Vec<XOnlyPublicKey> = self
             .client
@@ -311,7 +311,7 @@ impl SmartVaults {
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
         } else if event.kind == Kind::RelayList {
-            if event.pubkey == self.keys().await.public_key() {
+            if event.pubkey == self.keys().public_key() {
                 tracing::debug!("Received relay list: {:?}", event.tags);
                 let current_relays: HashSet<Url> = self
                     .db
@@ -345,7 +345,7 @@ impl SmartVaults {
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.pubkey).await?
         {
-            let keys: Keys = self.keys().await;
+            let keys: &Keys = self.keys();
             let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
             let msg = NIP46Message::from_json(content)?;
             if let Ok(request) = msg.to_request() {
@@ -357,10 +357,10 @@ impl SmartVaults {
                     NIP46Request::GetPublicKey => {
                         let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
                         let msg = msg
-                            .generate_response(&keys)?
+                            .generate_response(keys)?
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
-                        let nip46_event = EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
-                            .to_event(&keys)?;
+                        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?
+                            .to_event(keys)?;
                         // TODO: use send_event?
                         self.client
                             .pool()
@@ -374,14 +374,14 @@ impl SmartVaults {
                             .await
                         {
                             let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
-                            let keys: Keys = self.keys().await;
+                            let keys: &Keys = self.keys();
                             let req_message = msg.clone();
                             let msg = msg
-                                .generate_response(&keys)?
+                                .generate_response(keys)?
                                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
                             let nip46_event =
-                                EventBuilder::nostr_connect(&keys, uri.public_key, msg)?
-                                    .to_event(&keys)?;
+                                EventBuilder::nostr_connect(keys, uri.public_key, msg)?
+                                    .to_event(keys)?;
                             self.client
                                 .pool()
                                 .send_msg_to(

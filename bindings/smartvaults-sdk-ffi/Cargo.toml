@@ -14,8 +14,8 @@ doctest = false
 
 [dependencies]
 async-utility = "0.1"
-nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "41c3536275e4813b38a36bfee1d03057960c5ce0" }
-nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "41c3536275e4813b38a36bfee1d03057960c5ce0" }
+nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "e847995431bbbfc96d7f95d87077214e8d1fefa3" }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "e847995431bbbfc96d7f95d87077214e8d1fefa3" }
 smartvaults-sdk = { path = "../../crates/smartvaults-sdk", features = ["blocking"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tracing.workspace = true

@@ -24,8 +24,6 @@ impl SmartVaults {
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
-
         let my_shared_signers = self
             .storage
             .get_my_shared_signers_by_signer_id(&signer_id)
@@ -39,8 +37,8 @@ impl SmartVaults {
             tags.push(Tag::event(shared_signer_id));
         }
 
-        let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-        self.client.send_event(event).await?;
+        let event = EventBuilder::new(Kind::EventDeletion, "", tags);
+        self.client.send_event_builder(event).await?;
 
         self.storage.delete_signer(&signer_id).await;
 
@@ -48,7 +46,7 @@ impl SmartVaults {
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
 
         if self
             .storage
@@ -59,10 +57,10 @@ impl SmartVaults {
         }
 
         // Compose the event
-        let content: String = signer.encrypt_with_keys(&keys)?;
+        let content: String = signer.encrypt_with_keys(keys)?;
 
         // Compose signer event
-        let event = EventBuilder::new(SIGNERS_KIND, content, []).to_event(&keys)?;
+        let event = EventBuilder::new(SIGNERS_KIND, content, []).to_event(keys)?;
 
         // Publish the event
         let signer_id = self.client.send_event(event).await?;
@@ -129,14 +127,14 @@ impl SmartVaults {
             .my_shared_signer_already_shared(signer_id, public_key)
             .await
         {
-            let keys: Keys = self.keys().await;
+            let keys: &Keys = self.keys();
             let signer: Signer = self.get_signer_by_id(signer_id).await?;
             let shared_signer: SharedSigner = signer.to_shared_signer();
             let content: String =
                 nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
             let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
             let event: Event =
-                EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+                EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
             let event_id = self.client.send_event(event).await?;
             self.storage
                 .save_my_shared_signer(signer_id, event_id, public_key)
@@ -156,7 +154,7 @@ impl SmartVaults {
             return Err(Error::NotEnoughPublicKeys);
         }
 
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
         let shared_signer: SharedSigner = signer.to_shared_signer();
 
@@ -172,7 +170,7 @@ impl SmartVaults {
                     nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
                 let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
                 let event: Event =
-                    EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(&keys)?;
+                    EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
                 let event_id: EventId = event.id;
 
                 // TODO: use send_batch_event method from nostr-sdk
@@ -191,25 +189,23 @@ impl SmartVaults {
     }
 
     pub async fn revoke_all_shared_signers(&self) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
         for (shared_signer_id, public_key) in self.storage.my_shared_signers().await.into_iter() {
             let tags = [Tag::public_key(public_key), Tag::event(shared_signer_id)];
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-            self.client.send_event(event).await?;
+            let event = EventBuilder::new(Kind::EventDeletion, "", tags);
+            self.client.send_event_builder(event).await?;
             self.storage.delete_shared_signer(&shared_signer_id).await;
         }
         Ok(())
     }
 
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
-        let keys: Keys = self.keys().await;
         let public_key: XOnlyPublicKey = self
             .storage
             .get_public_key_for_my_shared_signer(shared_signer_id)
             .await?;
         let tags = [Tag::public_key(public_key), Tag::event(shared_signer_id)];
-        let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&keys)?;
-        self.client.send_event(event).await?;
+        let event = EventBuilder::new(Kind::EventDeletion, "", tags);
+        self.client.send_event_builder(event).await?;
         self.storage.delete_shared_signer(&shared_signer_id).await;
         Ok(())
     }
@@ -274,7 +270,7 @@ impl SmartVaults {
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
-            let keys = self.client.keys().await;
+            let keys = self.keys();
             let contacts: Vec<XOnlyPublicKey> = self
                 .client
                 .database()

@@ -33,10 +33,9 @@ impl SmartVaults {
         }
 
         // Send connect ACK
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
-        let nip46_event =
-            EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
         self.client.send_event_to(relay_url, nip46_event).await?;
 
         self.db.save_nostr_connect_uri(uri).await?;
@@ -57,10 +56,9 @@ impl SmartVaults {
         wait: bool,
     ) -> Result<(), Error> {
         let uri = self.db.get_nostr_connect_session(app_public_key).await?;
-        let keys: Keys = self.keys().await;
+        let keys: &Keys = self.keys();
         let msg = NIP46Message::request(NIP46Request::Disconnect);
-        let nip46_event =
-            EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
         if wait {
             self.client
                 .send_event_to(uri.relay_url, nip46_event)
@@ -100,12 +98,12 @@ impl SmartVaults {
         } = self.db.get_nostr_connect_request(event_id).await?;
         if !approved {
             let uri = self.db.get_nostr_connect_session(app_public_key).await?;
-            let keys: Keys = self.keys().await;
+            let keys: &Keys = self.keys();
             let msg = message
-                .generate_response(&keys)?
+                .generate_response(keys)?
                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
             let nip46_event =
-                EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+                EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
             self.client
                 .send_event_to(uri.relay_url, nip46_event)
                 .await?;
@@ -127,10 +125,10 @@ impl SmartVaults {
         } = self.db.get_nostr_connect_request(event_id).await?;
         if !approved {
             let uri = self.db.get_nostr_connect_session(app_public_key).await?;
-            let keys: Keys = self.keys().await;
+            let keys: &Keys = self.keys();
             let msg = message.generate_error_response("Request rejected")?; // TODO: better error msg
             let nip46_event =
-                EventBuilder::nostr_connect(&keys, uri.public_key, msg)?.to_event(&keys)?;
+                EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
             self.client
                 .send_event_to(uri.relay_url, nip46_event)
                 .await?;
