@@ -12,14 +12,16 @@ use nostr::{Event, EventBuilder, Keys, Tag};
 use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::crypto::hash;
 use smartvaults_core::miniscript::DescriptorPublicKey;
 use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
 
+pub mod id;
 mod proto;
 
+pub use self::id::SignerIdentifier;
 use super::constants::{SIGNER_KIND_V2, SMARTVAULTS_ACCOUNT_INDEX};
 use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
+use super::NostrPublicIdentifier;
 use crate::v2::proto::signer::ProtoSigner;
 use crate::v2::Error;
 
@@ -114,6 +116,14 @@ impl Signer {
         Ok(Self::new(core, SignerType::AirGap))
     }
 
+    /// Generate unique deterministic identifier
+    ///
+    /// WARNING: the deterministic identifier it's generated using the `fingerprint`
+    /// so if it change, the deterministic identifer will be different.
+    pub fn id(&self) -> SignerIdentifier {
+        SignerIdentifier::from((self.network(), self.fingerprint()))
+    }
+
     /// Get [`Signer`] name
     pub fn name(&self) -> String {
         self.name.clone()
@@ -145,11 +155,9 @@ impl Signer {
         self.description = description.into();
     }
 
-    /// Generate deterministic identifier
-    pub fn generate_identifier(&self) -> String {
-        let unhashed: String = format!("{}:{}", self.network().magic(), self.fingerprint());
-        let hash: String = hash::sha256(unhashed.as_bytes()).to_string();
-        hash[..32].to_string()
+    /// Generate deterministic Nostr Public Identifier
+    pub fn nostr_public_identifier(&self) -> NostrPublicIdentifier {
+        NostrPublicIdentifier::from(*self.id())
     }
 }
 
@@ -179,7 +187,7 @@ pub fn build_event(keys: &Keys, signer: &Signer) -> Result<Event, Error> {
     let encrypted_content: String = signer.encrypt_with_keys(keys)?;
 
     // Compose and build event
-    let identifier: String = signer.generate_identifier();
+    let identifier: String = signer.nostr_public_identifier().to_string();
     Ok(EventBuilder::new(
         SIGNER_KIND_V2,
         encrypted_content,
