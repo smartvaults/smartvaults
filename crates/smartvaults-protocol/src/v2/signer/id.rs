@@ -20,6 +20,7 @@ pub struct SignerIdentifier(Sha256Hash);
 
 impl Deref for SignerIdentifier {
     type Target = Sha256Hash;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }

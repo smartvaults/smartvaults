@@ -94,38 +94,6 @@ pub struct GetApprovedProposals {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetSigner {
-    pub signer_id: EventId,
-    pub signer: Signer,
-}
-
-impl PartialOrd for GetSigner {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for GetSigner {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.signer.cmp(&other.signer)
-    }
-}
-
-impl From<(EventId, Signer)> for GetSigner {
-    fn from((signer_id, signer): (EventId, Signer)) -> Self {
-        Self { signer_id, signer }
-    }
-}
-
-impl Deref for GetSigner {
-    type Target = Signer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.signer
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSharedSigner {
     pub shared_signer_id: EventId,
     pub owner: Profile,
@@ -203,7 +171,7 @@ impl Deref for GetAddress {
 
 #[derive(Debug, Clone, Default)]
 pub struct GetAllSigners {
-    pub my: Vec<GetSigner>,
+    pub my: Vec<Signer>,
     pub contacts: Vec<GetSharedSigner>,
 }
 
@@ -238,6 +206,6 @@ impl Deref for KeyAgent {
 #[derive(Debug, Clone)]
 pub struct GetSignerOffering {
     pub id: EventId, // TODO: remove?
-    pub signer: GetSigner,
+    pub signer: Signer,
     pub offering: SignerOffering,
 }

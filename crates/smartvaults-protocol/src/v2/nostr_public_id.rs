@@ -35,6 +35,7 @@ impl From<Sha256Hash> for NostrPublicIdentifier {
 
 impl FromStr for NostrPublicIdentifier {
     type Err = Error;
+
     fn from_str(id: &str) -> Result<Self, Self::Err> {
         let decode: Vec<u8> = hex::decode(id)?;
         Ok(Self(decode.as_slice().try_into()?))

@@ -4,11 +4,9 @@
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::str::FromStr;
 use std::sync::Arc;
 
 use nostr_sdk::prelude::*;
-use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND,
@@ -19,6 +17,7 @@ use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, Verified
 use smartvaults_protocol::v2::constants::{
     APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2,
 };
+use smartvaults_protocol::v2::signer::SignerIdentifier;
 use smartvaults_protocol::v2::{
     Approval, Proposal, ProposalIdentifier, ProtocolEncryption, Signer, Vault, VaultIdentifier,
 };
@@ -64,8 +63,8 @@ pub(crate) struct SmartVaultsStorage {
     proposals_ids: Arc<RwLock<HashMap<EventId, ProposalIdentifier>>>,
     proposals: Arc<RwLock<HashMap<ProposalIdentifier, Proposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
-    signers: Arc<RwLock<HashMap<EventId, Signer>>>,
-    my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, PublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
+    signers: Arc<RwLock<HashMap<SignerIdentifier, Signer>>>,
+    my_shared_signers: Arc<RwLock<HashMap<SignerIdentifier, (EventId, PublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
     shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
     frozed_utxos: Arc<RwLock<HashMap<VaultIdentifier, HashSet<OutPoint>>>>,
@@ -239,18 +238,14 @@ impl SmartVaultsStorage {
             }
         } else if event.kind == SIGNER_KIND_V2 {
             let mut signers = self.signers.write().await;
-            if let HashMapEntry::Vacant(e) = signers.entry(event.id) {
-                let signer = Signer::decrypt_with_keys(&self.keys, &event.content)?;
+            let signer = Signer::decrypt_with_keys(&self.keys, &event.content)?;
+            if let HashMapEntry::Vacant(e) = signers.entry(signer.id()) {
                 e.insert(signer);
-                return Ok(Some(EventHandled::Signer(event.id)));
             }
+            return Ok(Some(EventHandled::Signer(event.id)));
         } else if event.kind == SHARED_SIGNERS_KIND {
             if event.author() == self.keys.public_key() {
-                let signer_id = event
-                    .event_ids()
-                    .next()
-                    .copied()
-                    .ok_or(Error::SignerIdNotFound)?;
+                let signer_id = event.identifier().ok_or(Error::SignerIdNotFound)?;
                 let public_key = event.public_keys().next().ok_or(Error::PublicKeyNotFound)?;
 
                 let mut my_shared_signers = self.my_shared_signers.write().await;
@@ -346,9 +341,7 @@ impl SmartVaultsStorage {
             return;
         }
 
-        if self.delete_signer(event_id).await {
-            return;
-        }
+        // TODO: delete proposal, signer, ...
 
         self.delete_shared_signer(event_id).await;
     }
@@ -473,18 +466,18 @@ impl SmartVaultsStorage {
         map
     }
 
-    pub async fn save_signer(&self, signer_id: EventId, signer: Signer) {
+    pub async fn save_signer(&self, signer_id: SignerIdentifier, signer: Signer) {
         let mut signers = self.signers.write().await;
         signers.insert(signer_id, signer);
     }
 
-    pub async fn delete_signer(&self, signer_id: &EventId) -> bool {
+    pub async fn delete_signer(&self, signer_id: &SignerIdentifier) -> bool {
         let mut signers = self.signers.write().await;
         signers.remove(signer_id).is_some()
     }
 
     /// Get signers
-    pub async fn signers(&self) -> HashMap<EventId, Signer> {
+    pub async fn signers(&self) -> HashMap<SignerIdentifier, Signer> {
         self.signers
             .read()
             .await
@@ -494,24 +487,19 @@ impl SmartVaultsStorage {
     }
 
     /// Get [`Signer`]
-    pub async fn signer(&self, signer_id: &EventId) -> Result<Signer, Error> {
+    pub async fn signer(&self, signer_id: &SignerIdentifier) -> Result<Signer, Error> {
         let signers = self.signers.read().await;
         signers.get(signer_id).cloned().ok_or(Error::NotFound)
     }
 
-    pub async fn signer_fingerprint_exists(&self, fingerprint: Fingerprint) -> bool {
+    pub async fn signer_exists(&self, signer_id: &SignerIdentifier) -> bool {
         let signers = self.signers.read().await;
-        for signer in signers.values() {
-            if signer.fingerprint() == fingerprint {
-                return true;
-            }
-        }
-        false
+        signers.contains_key(signer_id)
     }
 
     pub async fn save_my_shared_signer(
         &self,
-        signer_id: EventId,
+        signer_id: SignerIdentifier,
         shared_signer_id: EventId,
         public_key: PublicKey,
     ) {
@@ -547,10 +535,10 @@ impl SmartVaultsStorage {
 
     pub async fn my_shared_signer_already_shared(
         &self,
-        signer_id: EventId,
+        signer_id: &SignerIdentifier,
         public_key: PublicKey,
     ) -> bool {
-        if let Some((_, pk)) = self.my_shared_signers.read().await.get(&signer_id) {
+        if let Some((_, pk)) = self.my_shared_signers.read().await.get(signer_id) {
             if *pk == public_key {
                 return true;
             }
@@ -580,7 +568,7 @@ impl SmartVaultsStorage {
 
     pub async fn get_my_shared_signers_by_signer_id(
         &self,
-        signer_id: &EventId,
+        signer_id: &SignerIdentifier,
     ) -> BTreeMap<EventId, PublicKey> {
         self.my_shared_signers
             .read()

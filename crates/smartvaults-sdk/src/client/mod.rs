@@ -726,10 +726,8 @@ impl SmartVaults {
         let author = event.author();
         if author == keys.public_key() {
             // Delete policy
-            let event: Event =
-                EventBuilder::new(Kind::EventDeletion, "", [Tag::event(vault_event.id)])
-                    .to_event(&keys)?;
-            self.client.send_event(event).await?;
+            let builder = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(vault_event.id)]);
+            self.client.send_event_builder(builder).await?;
 
             self.storage.delete_vault(vault_id).await;
 

@@ -3,35 +3,48 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use nostr_sdk::database::NostrDatabaseExt;
-use nostr_sdk::nips::nip04;
-use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, PublicKey, RelaySendOptions,
-    Tag,
-};
+use nostr_sdk::prelude::*;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_protocol::v1::constants::SHARED_SIGNERS_KIND;
 use smartvaults_protocol::v1::SharedSigner;
-use smartvaults_protocol::v2::{self, Signer};
+use smartvaults_protocol::v2::constants::SIGNER_KIND_V2;
+use smartvaults_protocol::v2::signer::SignerIdentifier;
+use smartvaults_protocol::v2::{self, NostrPublicIdentifier, Signer};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalSharedSigner;
-use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
+use crate::types::{GetAllSigners, GetSharedSigner};
 
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        self.storage.signer(&signer_id).await
+    pub async fn get_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<Signer, Error> {
+        Ok(self.storage.signer(&signer_id).await?)
     }
 
-    pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
+    pub async fn delete_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<(), Error> {
+        let signer: Signer = self.storage.signer(signer_id).await?;
+
+        let nostr_public_identifier: NostrPublicIdentifier = signer.nostr_public_identifier();
+
+        let filter: Filter = Filter::new()
+            .kind(SIGNER_KIND_V2)
+            .author(self.keys.public_key())
+            .identifier(nostr_public_identifier.to_string())
+            .limit(1);
+        let res: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![filter], Order::Desc)
+            .await?;
+        let signer_event: &Event = res.first().ok_or(Error::NotFound)?;
+
         let my_shared_signers = self
             .storage
             .get_my_shared_signers_by_signer_id(&signer_id)
             .await;
         let mut tags: Vec<Tag> = Vec::new();
 
-        tags.push(Tag::event(signer_id));
+        tags.push(Tag::event(signer_event.id));
 
         for (shared_signer_id, public_key) in my_shared_signers.into_iter() {
             tags.push(Tag::public_key(public_key));
@@ -46,28 +59,24 @@ impl SmartVaults {
         Ok(())
     }
 
-    pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
+    pub async fn save_signer(&self, signer: Signer) -> Result<(), Error> {
         let keys: &Keys = self.keys();
 
-        // Compose event
+        // Compose and publish event
         let event: Event = v2::signer::build_event(keys, &signer)?;
-
-        // Publish the event
-        let signer_id = self.client.send_event(event).await?;
+        self.client.send_event(event).await?;
 
         // Index signer
-        self.storage.save_signer(signer_id, signer).await;
+        self.storage.save_signer(signer.id(), signer).await;
 
-        Ok(signer_id)
+        Ok(())
     }
 
     pub async fn smartvaults_signer_exists(&self) -> bool {
-        self.storage
-            .signer_fingerprint_exists(self.default_signer.fingerprint())
-            .await
+        self.storage.signer_exists(&self.default_signer.id()).await
     }
 
-    pub async fn save_smartvaults_signer(&self) -> Result<EventId, Error> {
+    pub async fn save_smartvaults_signer(&self) -> Result<(), Error> {
         self.save_signer(self.default_signer.clone()).await
     }
 
@@ -80,14 +89,8 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signers(&self) -> Vec<GetSigner> {
-        let mut list: Vec<GetSigner> = self
-            .storage
-            .signers()
-            .await
-            .into_iter()
-            .map(GetSigner::from)
-            .collect();
+    pub async fn get_signers(&self) -> Vec<Signer> {
+        let mut list: Vec<Signer> = self.storage.signers().await.into_values().collect();
         list.sort();
         list
     }
@@ -111,7 +114,7 @@ impl SmartVaults {
 
     pub async fn share_signer(
         &self,
-        signer_id: EventId,
+        signer_id: &SignerIdentifier,
         public_key: PublicKey,
     ) -> Result<EventId, Error> {
         if !self
@@ -139,7 +142,7 @@ impl SmartVaults {
 
     pub async fn share_signer_to_multiple_public_keys(
         &self,
-        signer_id: EventId,
+        signer_id: &SignerIdentifier,
         public_keys: Vec<PublicKey>,
     ) -> Result<(), Error> {
         if public_keys.is_empty() {
@@ -208,7 +211,7 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn my_shared_signer_already_shared(
         &self,
-        signer_id: EventId,
+        signer_id: &SignerIdentifier,
         public_key: PublicKey,
     ) -> Result<bool, Error> {
         Ok(self
@@ -220,7 +223,7 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_my_shared_signers_by_signer_id(
         &self,
-        signer_id: EventId,
+        signer_id: &SignerIdentifier,
     ) -> Result<BTreeMap<EventId, Profile>, Error> {
         let mut map = BTreeMap::new();
         let ssbs = self

@@ -11,14 +11,12 @@ use smartvaults_core::bitcoin::{Address, Amount, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::{Destination, FeeRate, Recipient, SpendingProposal};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
-use smartvaults_protocol::v1::{
-    Serde, Signer, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents,
-};
-use smartvaults_protocol::v2::{self, PendingProposal, Period, Proposal, VaultIdentifier};
+use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents};
+use smartvaults_protocol::v2::{self, PendingProposal, Period, Proposal, Signer, VaultIdentifier};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalVault;
-use crate::types::{GetProposal, GetSigner, GetSignerOffering, KeyAgent};
+use crate::types::{GetProposal, GetSignerOffering, KeyAgent};
 
 impl SmartVaults {
     /// Announce as Key Agent
@@ -86,7 +84,7 @@ impl SmartVaults {
         // Delete signer offering
         let coordinate: Coordinate =
             Coordinate::new(KEY_AGENT_SIGNER_OFFERING_KIND, keys.public_key())
-                .identifier(signer.generate_identifier(self.network));
+                .identifier(signer.nostr_public_identifier().to_string());
         let event: EventBuilder = EventBuilder::delete([coordinate]);
         self.client.send_event_builder(event).await?;
 
@@ -114,11 +112,11 @@ impl SmartVaults {
         let keys = self.keys();
 
         // Get signers
-        let signers: HashMap<String, GetSigner> = self
+        let signers: HashMap<String, Signer> = self
             .get_signers()
             .await
             .into_iter()
-            .map(|signer| (signer.generate_identifier(), signer))
+            .map(|signer| (signer.nostr_public_identifier().to_string(), signer))
             .collect();
 
         // Get signer offering events by author
@@ -133,7 +131,7 @@ impl SmartVaults {
             .into_iter()
             .filter_map(|event| {
                 let identifier: &str = event.identifier()?;
-                let signer: GetSigner = signers.get(identifier)?.clone();
+                let signer: Signer = signers.get(identifier)?.clone();
                 let offering: SignerOffering = SignerOffering::from_json(event.content()).ok()?;
                 if offering.network == self.network {
                     Some(GetSignerOffering {

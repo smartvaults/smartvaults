@@ -6,9 +6,8 @@
 use std::array::TryFromSliceError;
 
 use nostr::nips::nip44;
-use smartvaults_core::bitcoin::hashes;
 use smartvaults_core::bitcoin::psbt::PsbtParseError;
-use smartvaults_core::bitcoin::{address, consensus};
+use smartvaults_core::bitcoin::{address, consensus, hashes};
 use smartvaults_core::miniscript::descriptor::DescriptorKeyParseError;
 use smartvaults_core::signer::Error as CoreSignerError;
 use smartvaults_core::util::hex;
