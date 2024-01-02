@@ -75,15 +75,9 @@ impl JsPolicy {
     ///
     /// The descriptor must be typed, for example: `tr(...)`
     #[wasm_bindgen(js_name = fromDescriptor)]
-    pub fn from_descriptor(
-        name: &str,
-        description: &str,
-        descriptor: &str,
-        network: JsNetwork,
-    ) -> Result<JsPolicy> {
+    pub fn from_descriptor(descriptor: &str, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_descriptor(name, description, descriptor, network.into())
-                .map_err(into_err)?,
+            inner: Policy::from_descriptor(descriptor, network.into()).map_err(into_err)?,
         })
     }
 
@@ -91,15 +85,9 @@ impl JsPolicy {
     ///
     /// <https://bitcoin.sipa.be/miniscript/>
     #[wasm_bindgen(js_name = fromMiniscript)]
-    pub fn from_miniscript(
-        name: &str,
-        description: &str,
-        policy: &str,
-        network: JsNetwork,
-    ) -> Result<JsPolicy> {
+    pub fn from_miniscript(policy: &str, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_policy(name, description, policy, network.into())
-                .map_err(into_err)?,
+            inner: Policy::from_miniscript(policy, network.into()).map_err(into_err)?,
         })
     }
 
@@ -108,19 +96,12 @@ impl JsPolicy {
     /// Internally try before to construct the `Policy` from a descriptor string. If fail, try from miniscript policy.
     #[wasm_bindgen(js_name = fromDescOrMiniscript)]
     pub fn from_desc_or_miniscript(
-        name: &str,
-        description: &str,
         desc_or_miniscript: &str,
         network: JsNetwork,
     ) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_desc_or_policy(
-                name,
-                description,
-                desc_or_miniscript,
-                network.into(),
-            )
-            .map_err(into_err)?,
+            inner: Policy::from_desc_or_miniscript(desc_or_miniscript, network.into())
+                .map_err(into_err)?,
         })
     }
 
