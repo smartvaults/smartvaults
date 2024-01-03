@@ -19,6 +19,7 @@ use smartvaults_core::{
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND,
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
+    SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, Serde, VerifiedKeyAgents};
 use tokio::sync::RwLock;
@@ -117,11 +118,17 @@ impl SmartVaultsStorage {
             SHARED_SIGNERS_KIND,
             LABELS_KIND,
         ]);
+        let smartvaults: Filter = Filter::new()
+            .author(match network {
+                Network::Bitcoin => *SMARTVAULTS_MAINNET_PUBLIC_KEY,
+                _ => *SMARTVAULTS_TESTNET_PUBLIC_KEY,
+            })
+            .kind(KEY_AGENT_VERIFIED);
 
         let mut pending = this.pending.write().await;
         for event in this
             .database
-            .query(vec![author_filter, pubkey_filter])
+            .query(vec![author_filter, pubkey_filter, smartvaults])
             .await?
             .into_iter()
         {
@@ -379,7 +386,6 @@ impl SmartVaultsStorage {
             let new_verified_agents: VerifiedKeyAgents = VerifiedKeyAgents::from_event(event)?;
             let mut verified_key_agents = self.verified_key_agents.write().await;
             *verified_key_agents = new_verified_agents;
-
             return Ok(Some(EventHandled::VerifiedKeyAgents));
         }
 
