@@ -21,7 +21,7 @@ use smartvaults_core::bdk::{FeeRate, LocalUtxo, Wallet};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
-use smartvaults_core::{Amount, Policy, Proposal};
+use smartvaults_core::{Amount, Policy, Priority, Proposal};
 use smartvaults_sdk_sqlite::Store;
 use thiserror::Error;
 use tokio::sync::RwLock;
@@ -32,7 +32,9 @@ pub use self::wallet::{
     Error as WalletError, SmartVaultsWallet, SmartVaultsWalletStorage, StorageError,
     TransactionDetails,
 };
-use crate::constants::BLOCK_HEIGHT_SYNC_INTERVAL;
+use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, MEMPOOL_TX_FEES_SYNC_INTERVAL};
+
+const TARGET_BLOCKS: [Priority; 3] = [Priority::High, Priority::Medium, Priority::Low];
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -79,12 +81,41 @@ impl BlockHeight {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct EstimatedMempoolFees {
+    fees: Arc<RwLock<BTreeMap<Priority, FeeRate>>>,
+    last_sync: Arc<RwLock<Option<Timestamp>>>,
+}
+
+impl EstimatedMempoolFees {
+    pub async fn get(&self) -> BTreeMap<Priority, FeeRate> {
+        self.fees.read().await.clone()
+    }
+
+    pub async fn set_fees(&self, fees: BTreeMap<Priority, FeeRate>) {
+        let mut f = self.fees.write().await;
+        *f = fees;
+    }
+
+    pub async fn is_synced(&self) -> bool {
+        let last_sync = self.last_sync.read().await;
+        let last_sync: Timestamp = last_sync.unwrap_or_else(|| Timestamp::from(0));
+        last_sync.add(MEMPOOL_TX_FEES_SYNC_INTERVAL) > Timestamp::now()
+    }
+
+    pub async fn just_synced(&self) {
+        let mut last_sync = self.last_sync.write().await;
+        *last_sync = Some(Timestamp::now());
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Manager {
     db: Store,
     network: Network,
     wallets: Arc<RwLock<HashMap<EventId, SmartVaultsWallet>>>,
     block_height: BlockHeight,
+    mempool_fees: EstimatedMempoolFees,
 }
 
 impl Manager {
@@ -94,6 +125,7 @@ impl Manager {
             network,
             wallets: Arc::new(RwLock::new(HashMap::new())),
             block_height: BlockHeight::default(),
+            mempool_fees: EstimatedMempoolFees::default(),
         }
     }
 
@@ -168,6 +200,43 @@ impl Manager {
         }
 
         Ok(())
+    }
+
+    pub async fn sync_mempool_fees<S>(
+        &self,
+        endpoint: S,
+        proxy: Option<SocketAddr>,
+    ) -> Result<Option<BTreeMap<Priority, FeeRate>>, Error>
+    where
+        S: Into<String>,
+    {
+        if !self.mempool_fees.is_synced().await {
+            let endpoint: String = endpoint.into();
+
+            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+            let config = ElectrumConfig::builder().socks5(proxy).build();
+            let client = ElectrumClient::from_config(&endpoint, config)?;
+
+            let fees: Vec<f64> = client
+                .batch_estimate_fee(TARGET_BLOCKS.iter().map(|p| p.target_blocks() as usize))?;
+            if TARGET_BLOCKS.len() == fees.len() {
+                let mut estimated_fees = BTreeMap::new();
+                for (priority, btc_per_kvb) in TARGET_BLOCKS.into_iter().zip(fees) {
+                    let rate = FeeRate::from_btc_per_kvb(btc_per_kvb as f32);
+                    estimated_fees.insert(priority, rate);
+                }
+
+                // Save
+                self.mempool_fees.set_fees(estimated_fees.clone()).await;
+                self.mempool_fees.just_synced().await;
+                tracing::info!("Mempool fees synced");
+
+                return Ok(Some(estimated_fees));
+            }
+        }
+
+        Ok(None)
     }
 
     pub async fn wallet(&self, policy_id: EventId) -> Result<SmartVaultsWallet, Error> {

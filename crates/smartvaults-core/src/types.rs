@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 pub use keechain_core::types::*;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
     /// High: confirm in 1 blocks
     High,

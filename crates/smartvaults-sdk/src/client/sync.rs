@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::ops::Add;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -16,9 +16,10 @@ use nostr_sdk::{
     RelayMessage, RelayPoolNotification, Result, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
+use smartvaults_core::bdk::FeeRate;
 use smartvaults_core::bitcoin::secp256k1::XOnlyPublicKey;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::CompletedProposal;
+use smartvaults_core::{CompletedProposal, Priority};
 use smartvaults_protocol::v1::constants::{
     APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNALING,
     KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
@@ -53,11 +54,12 @@ pub enum EventHandled {
     VerifiedKeyAgents,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Message {
     EventHandled(EventHandled),
     WalletSyncCompleted(EventId),
     BlockHeightUpdated,
+    MempoolFeesUpdated(BTreeMap<Priority, FeeRate>),
 }
 
 impl SmartVaults {
@@ -76,6 +78,29 @@ impl SmartVaults {
                         }
                     }
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
+                }
+
+                thread::sleep(Duration::from_secs(10)).await;
+            }
+        })
+    }
+
+    fn mempool_fees_syncer(&self) -> AbortHandle {
+        let this = self.clone();
+        thread::abortable(async move {
+            loop {
+                match this.config.electrum_endpoint().await {
+                    Ok(endpoint) => {
+                        let proxy = this.config.proxy().await.ok();
+                        match this.manager.sync_mempool_fees(endpoint, proxy).await {
+                            Ok(Some(fees)) => {
+                                let _ = this.sync_channel.send(Message::MempoolFeesUpdated(fees));
+                            }
+                            Ok(None) => (),
+                            Err(e) => tracing::error!("Impossible to get mempool fees: {e}"),
+                        }
+                    }
+                    Err(e) => tracing::error!("Impossible to get mempool fees: {e}"),
                 }
 
                 thread::sleep(Duration::from_secs(10)).await;
@@ -221,6 +246,7 @@ impl SmartVaults {
             thread::spawn(async move {
                 // Sync timechain
                 let block_height_syncer: AbortHandle = this.block_height_syncer();
+                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer();
                 let policies_syncer: AbortHandle = this.policies_syncer();
 
                 // Pending events handler
@@ -275,6 +301,7 @@ impl SmartVaults {
                             RelayPoolNotification::Stop | RelayPoolNotification::Shutdown => {
                                 tracing::debug!("Received stop/shutdown msg");
                                 block_height_syncer.abort();
+                                mempool_fees_syncer.abort();
                                 policies_syncer.abort();
                                 pending_event_handler.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));

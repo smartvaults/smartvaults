@@ -75,6 +75,7 @@ pub enum Message {
     EventHandledMsg { event: EventHandled },
     WalletSyncCompleted { policy_id: Arc<EventId> },
     BlockHeightUpdated,
+    MempoolFeesUpdated,
 }
 
 impl From<MessageSdk> for Message {
@@ -87,6 +88,7 @@ impl From<MessageSdk> for Message {
                 policy_id: Arc::new(policy_id.into()),
             },
             MessageSdk::BlockHeightUpdated => Self::BlockHeightUpdated,
+            MessageSdk::MempoolFeesUpdated(..) => Self::MempoolFeesUpdated,
         }
     }
 }
