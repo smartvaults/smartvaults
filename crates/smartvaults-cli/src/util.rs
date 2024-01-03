@@ -691,7 +691,10 @@ where
             signer.name(),
             signer.fingerprint(),
             offering.temperature,
-            format!("{} min", offering.response_time),
+            offering
+                .response_time
+                .map(|p| format!("{p} min"))
+                .unwrap_or_default(),
             offering.device_type,
             offering
                 .cost_per_signature

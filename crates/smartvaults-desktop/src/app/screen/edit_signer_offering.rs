@@ -166,7 +166,7 @@ impl State for EditSignerOfferingState {
                     match &signer.offering {
                         Some(offering) => {
                             self.temperature = Some(offering.temperature);
-                            self.response_time = Some(offering.response_time);
+                            self.response_time = offering.response_time;
                             self.device_type = Some(offering.device_type);
                             self.yearly_cost_basis_points =
                                 offering.yearly_cost_basis_points.map(|p| *p);
@@ -263,7 +263,7 @@ impl State for EditSignerOfferingState {
                                 let signer = signer.signer.deref().clone();
                                 let offering = SignerOffering {
                                     temperature: *temperature,
-                                    response_time: self.response_time.unwrap_or(3600),
+                                    response_time: self.response_time,
                                     device_type: *device_type,
                                     cost_per_signature,
                                     yearly_cost,

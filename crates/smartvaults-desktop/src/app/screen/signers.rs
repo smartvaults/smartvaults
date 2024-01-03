@@ -373,7 +373,11 @@ impl State for SignersState {
                                     .push(
                                         Text::new(format!(
                                             "Response time: {} min",
-                                            offering.response_time
+                                            offering
+                                                .response_time
+                                                .as_ref()
+                                                .map(|p| p.to_string())
+                                                .unwrap_or_else(|| String::from("None"))
                                         ))
                                         .view(),
                                     )

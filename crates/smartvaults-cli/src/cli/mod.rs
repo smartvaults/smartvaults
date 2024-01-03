@@ -317,8 +317,8 @@ pub enum KeyAgentCommand {
         #[arg(required = true)]
         device_type: DeviceType,
         /// Response time (minutes)
-        #[arg(required = true)]
-        response_time: u16,
+        #[arg(long)]
+        response_time: Option<u16>,
         /// Cost per signature (ex. 25 USD or 250000 SAT)
         #[clap(long)]
         cost_per_signature: Option<Price>,

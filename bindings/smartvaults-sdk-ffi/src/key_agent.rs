@@ -36,7 +36,7 @@ impl From<types::KeyAgent> for KeyAgent {
 #[derive(Record)]
 pub struct SignerOffering {
     pub temperature: Temperature,
-    pub response_time: u16,
+    pub response_time: Option<u16>,
     pub device_type: DeviceType,
     pub cost_per_signature: Option<Arc<Price>>,
     pub yearly_cost_basis_points: Option<u64>,

@@ -32,7 +32,9 @@ pub struct SignerOffering {
     /// Temperature
     pub temperature: Temperature,
     /// Response time in minutes
-    pub response_time: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub response_time: Option<u16>,
     /// Device type
     pub device_type: DeviceType,
     /// Cost per signature
