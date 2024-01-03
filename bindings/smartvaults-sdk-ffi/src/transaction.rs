@@ -9,7 +9,7 @@ use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
 use smartvaults_sdk::core::bitcoin::{self, Address};
 use smartvaults_sdk::manager::wallet;
 use smartvaults_sdk::types::{self, GetUtxo};
-use uniffi::Object;
+use uniffi::{Object, Record};
 
 use crate::error::Result;
 use crate::Network;
@@ -193,6 +193,23 @@ impl Transaction {
     }
 }
 
+#[derive(Record)]
+pub struct Fee {
+    /// Fee amount (SAT)
+    pub amount: Option<u64>,
+    /// Fee rate (sat/vByte)
+    pub rate: Option<f32>,
+}
+
+impl From<wallet::Fee> for Fee {
+    fn from(fee: wallet::Fee) -> Self {
+        Self {
+            amount: fee.amount,
+            rate: fee.rate.map(|r| r.as_sat_per_vb()),
+        }
+    }
+}
+
 #[derive(Object)]
 pub struct TransactionDetails {
     inner: wallet::TransactionDetails,
@@ -222,8 +239,8 @@ impl TransactionDetails {
         self.inner.total()
     }
 
-    pub fn fee(&self) -> Option<u64> {
-        self.inner.fee
+    pub fn fee(&self) -> Fee {
+        self.inner.fee.into()
     }
 
     pub fn confirmation_time(&self) -> Option<Arc<BlockTime>> {

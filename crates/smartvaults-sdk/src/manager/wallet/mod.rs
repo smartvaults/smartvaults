@@ -55,12 +55,26 @@ pub enum Error {
     InsertTx(String),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Fee {
+    pub amount: Option<u64>,
+    pub rate: Option<FeeRate>,
+}
+
+impl PartialEq for Fee {
+    fn eq(&self, other: &Self) -> bool {
+        self.amount.eq(&other.amount)
+    }
+}
+
+impl Eq for Fee {}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransactionDetails {
     pub transaction: Transaction,
     pub received: u64,
     pub sent: u64,
-    pub fee: Option<u64>,
+    pub fee: Fee,
     pub confirmation_time: ConfirmationTime,
 }
 
@@ -243,12 +257,14 @@ impl SmartVaultsWallet {
                 let confirmation_time: ConfirmationTime =
                     canonical_tx.chain_position.cloned().into();
                 let (sent, received) = wallet.sent_and_received(tx);
-                let fee: Option<u64> = wallet.calculate_fee(tx).ok();
                 TransactionDetails {
                     transaction: tx.clone(),
                     received,
                     sent,
-                    fee,
+                    fee: Fee {
+                        amount: wallet.calculate_fee(tx).ok(),
+                        rate: wallet.calculate_fee_rate(tx).ok(),
+                    },
                     confirmation_time,
                 }
             })
@@ -261,12 +277,14 @@ impl SmartVaultsWallet {
         let tx: &Transaction = canonical_tx.tx_node.tx;
         let confirmation_time: ConfirmationTime = canonical_tx.chain_position.cloned().into();
         let (sent, received) = wallet.sent_and_received(tx);
-        let fee: Option<u64> = wallet.calculate_fee(tx).ok();
         Ok(TransactionDetails {
             transaction: tx.clone(),
             received,
             sent,
-            fee,
+            fee: Fee {
+                amount: wallet.calculate_fee(tx).ok(),
+                rate: wallet.calculate_fee_rate(tx).ok(),
+            },
             confirmation_time,
         })
     }

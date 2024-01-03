@@ -12,7 +12,6 @@ use smartvaults_sdk::util::{self, format};
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
 use crate::component::{rule, Amount, AmountSign, Text};
-use crate::theme::color::RED;
 
 #[derive(Debug, Clone)]
 pub enum TransactionMessage {
@@ -253,13 +252,24 @@ impl State for TransactionState {
                     Row::new()
                         .push(
                             Column::new()
-                                .push(Text::new("Fee").big().extra_light().view())
-                                .push(match tx.fee {
+                                .push(Text::new("Fee (amount)").big().extra_light().view())
+                                .push(match tx.fee.amount {
+                                    Some(fee) => Amount::new(fee).bold().bigger().view(),
+                                    None => Row::new().push(Text::new("Unknown").big().view()),
+                                })
+                                .spacing(10)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new("Fee (rate)").big().extra_light().view())
+                                .push(match tx.fee.rate {
                                     Some(fee) => {
-                                        Amount::new(fee).override_color(RED).bold().bigger().view()
+                                        Text::new(format!("{:.2} sat/vB", fee.as_sat_per_vb()))
+                                            .big()
+                                            .view()
                                     }
-                                    None => Row::new()
-                                        .push(Text::new("Unknown").big().color(RED).view()),
+                                    None => Text::new("Unknown").big().view(),
                                 })
                                 .spacing(10)
                                 .width(Length::Fill),
@@ -269,7 +279,7 @@ impl State for TransactionState {
                                 .push(Text::new("Date/Time").big().extra_light().view())
                                 .push(Text::new(confirmed_at_time).big().view())
                                 .spacing(10)
-                                .width(Length::FillPortion(2)),
+                                .width(Length::Fill),
                         ),
                 )
                 .push(
