@@ -30,12 +30,14 @@ pub enum Error {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SignerOffering {
     /// Temperature
+    #[serde(default)]
     pub temperature: Temperature,
     /// Response time in minutes
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub response_time: Option<u16>,
     /// Device type
+    #[serde(default)]
     pub device_type: DeviceType,
     /// Cost per signature
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -109,11 +111,12 @@ impl FromStr for BasisPoints {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Temperature {
     Warm,
     Cold,
     AirGapped,
+    #[default]
     Unknown,
 }
 
@@ -169,7 +172,7 @@ impl<'de> Deserialize<'de> for Temperature {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DeviceType {
     Coldcard,
     BitBox02,
@@ -178,6 +181,7 @@ pub enum DeviceType {
     Desktop,
     CloudBased,
     Undisclosed,
+    #[default]
     Unknown,
 }
 
