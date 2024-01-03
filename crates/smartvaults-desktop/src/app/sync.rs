@@ -9,14 +9,14 @@ use iced::advanced::subscription::{EventStream, Recipe};
 use iced::advanced::Hasher;
 use iced::Subscription;
 use iced_futures::BoxStream;
-use smartvaults_sdk::SmartVaults;
+use smartvaults_sdk::{Message, SmartVaults};
 
 pub struct SmartVaultsSync {
     client: SmartVaults,
 }
 
 impl Recipe for SmartVaultsSync {
-    type Output = ();
+    type Output = Message;
 
     fn hash(&self, state: &mut Hasher) {
         TypeId::of::<Self>().hash(state);
@@ -25,9 +25,8 @@ impl Recipe for SmartVaultsSync {
     fn stream(self: Box<Self>, _input: EventStream) -> BoxStream<Self::Output> {
         let mut receiver = self.client.sync_notifications();
         let stream = stream! {
-            while let Ok(_msg) = receiver.recv().await {
-                // TODO
-                yield ();
+            while let Ok(msg) = receiver.recv().await {
+                yield msg;
             }
         };
         Box::pin(stream)
@@ -35,7 +34,7 @@ impl Recipe for SmartVaultsSync {
 }
 
 impl SmartVaultsSync {
-    pub fn subscription(client: SmartVaults) -> Subscription<()> {
+    pub fn subscription(client: SmartVaults) -> Subscription<Message> {
         Subscription::from_recipe(Self { client })
     }
 }

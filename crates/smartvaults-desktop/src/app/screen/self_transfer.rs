@@ -383,6 +383,7 @@ impl State for SelfTransferState {
                                 FeeSelector::new(self.fee_rate, |f| {
                                     SelfTransferMessage::FeeRateChanged(f).into()
                                 })
+                                .current_mempool_fees(ctx.current_fees.clone())
                                 .max_width(400.0),
                             )
                             .spacing(25)

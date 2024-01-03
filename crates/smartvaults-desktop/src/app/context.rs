@@ -1,11 +1,14 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeMap;
 use std::fmt;
 
+use smartvaults_sdk::core::bdk::FeeRate;
 use smartvaults_sdk::core::bitcoin::Txid;
 use smartvaults_sdk::core::policy::Policy;
 use smartvaults_sdk::core::signer::Signer;
+use smartvaults_sdk::core::Priority;
 use smartvaults_sdk::nostr::{EventId, Url};
 use smartvaults_sdk::protocol::v1::SignerOffering;
 use smartvaults_sdk::types::{GetPolicy, GetSigner};
@@ -162,6 +165,7 @@ pub struct Context {
     pub hide_balances: bool,
     pub breadcrumb: Vec<Stage>,
     pub mode: Mode,
+    pub current_fees: BTreeMap<Priority, FeeRate>,
 }
 
 impl Context {
@@ -172,6 +176,7 @@ impl Context {
             hide_balances: false,
             breadcrumb: vec![stage],
             mode: Mode::default(),
+            current_fees: BTreeMap::new(),
         }
     }
 

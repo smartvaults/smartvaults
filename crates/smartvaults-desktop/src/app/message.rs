@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use smartvaults_sdk::Message as SdkMessage;
+
 use super::context::Mode;
 //use super::screen::AddHWSignerMessage;
 use super::screen::{
@@ -65,7 +67,7 @@ pub enum Message {
     ChangeMode(Mode),
     ToggleHideBalances,
     Lock,
-    Sync,
+    Sync(SdkMessage),
     Tick,
 }
 

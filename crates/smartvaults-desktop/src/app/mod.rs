@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use smartvaults_sdk::Message as SdkMessage;
+
 use iced::{clipboard, Command, Element, Subscription};
 use smartvaults_sdk::core::bitcoin::Network;
 use smartvaults_sdk::SmartVaults;
@@ -124,7 +126,7 @@ impl App {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        let sync = SmartVaultsSync::subscription(self.ctx.client.clone()).map(|_| Message::Sync);
+        let sync = SmartVaultsSync::subscription(self.ctx.client.clone()).map(Message::Sync);
         Subscription::batch(vec![sync, self.state.subscription()])
     }
 
@@ -139,7 +141,13 @@ impl App {
                 self.state.load(&self.ctx)
             }
             Message::Tick => self.state.update(&mut self.ctx, message),
-            Message::Sync => self.state.load(&self.ctx),
+            Message::Sync(msg) => match msg {
+                SdkMessage::MempoolFeesUpdated(fees) => {
+                    self.ctx.current_fees = fees;
+                    Command::none()
+                }
+                _ => self.state.load(&self.ctx),
+            },
             Message::Clipboard(data) => clipboard::write(data),
             Message::OpenInBrowser(url) => {
                 if let Err(e) = webbrowser::open(&url) {

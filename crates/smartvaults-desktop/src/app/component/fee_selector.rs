@@ -1,8 +1,11 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeMap;
+
 use iced::widget::{component, Column, Component, Radio, Row};
 use iced::{Alignment, Element, Length, Renderer};
+use smartvaults_sdk::core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_sdk::core::{FeeRate, Priority};
 
 use crate::app::Message;
@@ -30,6 +33,7 @@ pub struct FeeSelector {
     stage: InternalStage,
     max_width: Option<f32>,
     on_change: Box<dyn Fn(FeeRate) -> Message>,
+    current_mempool_fees: BTreeMap<Priority, BdkFeeRate>,
 }
 
 impl FeeSelector {
@@ -52,6 +56,7 @@ impl FeeSelector {
             },
             max_width: None,
             on_change: Box::new(on_change),
+            current_mempool_fees: BTreeMap::new(),
         }
     }
 
@@ -60,6 +65,11 @@ impl FeeSelector {
             max_width: Some(width),
             ..self
         }
+    }
+
+    pub fn current_mempool_fees(mut self, fees: BTreeMap<Priority, BdkFeeRate>) -> Self {
+        self.current_mempool_fees = fees;
+        self
     }
 }
 
@@ -146,8 +156,23 @@ impl FeeSelector {
             ))
             .push(
                 Column::new()
-                    .push(Text::new("High").view())
-                    .push(Text::new("10 - 20 minues").extra_light().size(18).view())
+                    .push(Text::new("High").big().view())
+                    .push({
+                        let mut row = Row::new()
+                            .push(Text::new("~10 - 20 minues").small().extra_light().view())
+                            .spacing(5);
+
+                        if let Some(rate) = self.current_mempool_fees.get(&Priority::High) {
+                            row = row.push(
+                                Text::new(format!("({:.2} sat/vB)", rate.as_sat_per_vb()))
+                                    .small()
+                                    .extra_light()
+                                    .view(),
+                            );
+                        }
+
+                        row
+                    })
                     .spacing(5),
             )
             .align_items(Alignment::Center)
@@ -162,8 +187,23 @@ impl FeeSelector {
             ))
             .push(
                 Column::new()
-                    .push(Text::new("Medium").view())
-                    .push(Text::new("20 - 60 minues").extra_light().size(18).view())
+                    .push(Text::new("Medium").big().view())
+                    .push({
+                        let mut row = Row::new()
+                            .push(Text::new("~20 - 60 minues").small().extra_light().view())
+                            .spacing(5);
+
+                        if let Some(rate) = self.current_mempool_fees.get(&Priority::Medium) {
+                            row = row.push(
+                                Text::new(format!("({:.2} sat/vB)", rate.as_sat_per_vb()))
+                                    .small()
+                                    .extra_light()
+                                    .view(),
+                            );
+                        }
+
+                        row
+                    })
                     .spacing(5),
             )
             .align_items(Alignment::Center)
@@ -178,8 +218,23 @@ impl FeeSelector {
             ))
             .push(
                 Column::new()
-                    .push(Text::new("Low").view())
-                    .push(Text::new("1 - 2 hours").extra_light().size(18).view())
+                    .push(Text::new("Low").big().view())
+                    .push({
+                        let mut row = Row::new()
+                            .push(Text::new("~1 - 2 hours").small().extra_light().view())
+                            .spacing(5);
+
+                        if let Some(rate) = self.current_mempool_fees.get(&Priority::Low) {
+                            row = row.push(
+                                Text::new(format!("({:.2} sat/vB)", rate.as_sat_per_vb()))
+                                    .small()
+                                    .extra_light()
+                                    .view(),
+                            );
+                        }
+
+                        row
+                    })
                     .spacing(5),
             )
             .align_items(Alignment::Center)

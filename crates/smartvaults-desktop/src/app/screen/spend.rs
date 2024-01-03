@@ -330,7 +330,7 @@ impl State for SpendState {
 
         if self.loaded {
             content = match self.stage {
-                InternalStage::Build(stage) => self.view_build_tx(stage),
+                InternalStage::Build(stage) => self.view_build_tx(ctx, stage),
                 InternalStage::SelectPolicyPath => self.view_policy_tree(),
                 InternalStage::Review => self.view_review(),
             };
@@ -352,7 +352,7 @@ impl State for SpendState {
 }
 
 impl SpendState {
-    fn view_build_tx<'a>(&self, stage: InternalStageBuild) -> Column<'a, Message> {
+    fn view_build_tx<'a>(&self, ctx: &Context, stage: InternalStageBuild) -> Column<'a, Message> {
         let error = if let Some(error) = &self.error {
             Row::new().push(Text::new(error).color(DARK_RED).view())
         } else {
@@ -432,7 +432,7 @@ impl SpendState {
             )
             .push(Space::with_height(Length::Fixed(5.0)))
             .push(match stage {
-                InternalStageBuild::Details => self.view_details(),
+                InternalStageBuild::Details => self.view_details(ctx),
                 InternalStageBuild::Utxos => self.view_utxos(),
             })
             .push(Space::with_height(Length::Fixed(5.0)))
@@ -442,7 +442,7 @@ impl SpendState {
             .max_width(850.0)
     }
 
-    fn view_details<'a>(&self) -> Column<'a, Message> {
+    fn view_details<'a>(&self, ctx: &Context) -> Column<'a, Message> {
         let policy_pick_list = Column::new()
             .push(Text::new("Policy").view())
             .push(
@@ -539,6 +539,7 @@ impl SpendState {
                 .push(rule::vertical())
                 .push(
                     FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
+                        .current_mempool_fees(ctx.current_fees.clone())
                         .max_width(400.0),
                 )
                 .spacing(25)
