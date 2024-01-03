@@ -32,6 +32,7 @@ pub use self::wallet::{
     Error as WalletError, SmartVaultsWallet, SmartVaultsWalletStorage, StorageError,
     TransactionDetails,
 };
+use crate::config::ElectrumEndpoint;
 use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, MEMPOOL_TX_FEES_SYNC_INTERVAL};
 
 const TARGET_BLOCKS: [Priority; 3] = [Priority::High, Priority::Medium, Priority::Low];
@@ -172,21 +173,19 @@ impl Manager {
         self.block_height.block_height()
     }
 
-    pub async fn sync_block_height<S>(
+    pub async fn sync_block_height(
         &self,
-        endpoint: S,
+        endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
-    ) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<(), Error> {
         if !self.block_height.is_synced().await {
-            let endpoint: String = endpoint.into();
-
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy).build();
-            let client = ElectrumClient::from_config(&endpoint, config)?;
+            let config = ElectrumConfig::builder()
+                .validate_domain(endpoint.validate_tls())
+                .socks5(proxy)
+                .build();
+            let client = ElectrumClient::from_config(&endpoint.as_non_standard_format(), config)?;
 
             let HeaderNotification { height, .. } = client.block_headers_subscribe()?;
             let height: u32 = height as u32;
@@ -202,21 +201,19 @@ impl Manager {
         Ok(())
     }
 
-    pub async fn sync_mempool_fees<S>(
+    pub async fn sync_mempool_fees(
         &self,
-        endpoint: S,
+        endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
-    ) -> Result<Option<BTreeMap<Priority, FeeRate>>, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<Option<BTreeMap<Priority, FeeRate>>, Error> {
         if !self.mempool_fees.is_synced().await {
-            let endpoint: String = endpoint.into();
-
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config = ElectrumConfig::builder().socks5(proxy).build();
-            let client = ElectrumClient::from_config(&endpoint, config)?;
+            let config = ElectrumConfig::builder()
+                .validate_domain(endpoint.validate_tls())
+                .socks5(proxy)
+                .build();
+            let client = ElectrumClient::from_config(&endpoint.as_non_standard_format(), config)?;
 
             let fees: Vec<f64> = client
                 .batch_estimate_fee(TARGET_BLOCKS.iter().map(|p| p.target_blocks() as usize))?;
@@ -302,15 +299,12 @@ impl Manager {
         Ok(self.wallet(policy_id).await?.get_utxos().await)
     }
 
-    pub async fn sync<S>(
+    pub async fn sync(
         &self,
         policy_id: EventId,
-        endpoint: S,
+        endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
-    ) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<(), Error> {
         Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
     }
 

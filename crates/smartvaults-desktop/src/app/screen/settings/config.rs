@@ -60,7 +60,7 @@ impl State for ConfigState {
             },
             |(electrum, proxy, block_explorer)| {
                 ConfigMessage::Load {
-                    electrum_endpoint: electrum.unwrap_or_default(),
+                    electrum_endpoint: electrum.map(|e| e.to_string()).unwrap_or_default(),
                     proxy: proxy.map(|p| p.to_string()).unwrap_or_default(),
                     block_explorer: block_explorer.map(|u| u.to_string()).unwrap_or_default(),
                 }
@@ -115,7 +115,7 @@ impl State for ConfigState {
                                 Some(Url::parse(&block_explorer)?)
                             };
 
-                            config.set_electrum_endpoint(Some(endpoint)).await;
+                            config.set_electrum_endpoint(Some(endpoint)).await?;
                             config.set_proxy(proxy).await;
                             config.set_block_explorer(block_explorer).await;
                             config.save().await?;

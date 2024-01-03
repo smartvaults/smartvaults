@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 
 use iced::widget::{Column, Row};
 use iced::{Command, Element, Length};
-use smartvaults_sdk::config::Config;
+use smartvaults_sdk::config::{Config, ElectrumEndpoint};
 use smartvaults_sdk::nostr::Url;
 
 use super::view;
@@ -55,17 +55,18 @@ impl State for SettingState {
         Command::perform(
             async move {
                 let config = Config::try_from_file(BASE_PATH.as_path(), network)?;
-                Ok::<(Option<String>, Option<SocketAddr>, Option<Url>), Box<dyn std::error::Error>>(
-                    (
-                        config.electrum_endpoint().await.ok(),
-                        config.proxy().await.ok(),
-                        config.block_explorer().await.ok(),
-                    ),
-                )
+                Ok::<
+                    (Option<ElectrumEndpoint>, Option<SocketAddr>, Option<Url>),
+                    Box<dyn std::error::Error>,
+                >((
+                    config.electrum_endpoint().await.ok(),
+                    config.proxy().await.ok(),
+                    config.block_explorer().await.ok(),
+                ))
             },
             |res| match res {
                 Ok((electrum, proxy, block_explorer)) => SettingMessage::Load {
-                    electrum_endpoint: electrum.unwrap_or_default(),
+                    electrum_endpoint: electrum.map(|e| e.to_string()).unwrap_or_default(),
                     proxy: proxy.map(|p| p.to_string()).unwrap_or_default(),
                     block_explorer: block_explorer.map(|u| u.to_string()).unwrap_or_default(),
                 }
@@ -122,7 +123,7 @@ impl State for SettingState {
                             };
 
                             let config = Config::try_from_file(BASE_PATH.as_path(), network)?;
-                            config.set_electrum_endpoint(Some(endpoint)).await;
+                            config.set_electrum_endpoint(Some(endpoint)).await?;
                             config.set_proxy(proxy).await;
                             config.set_block_explorer(block_explorer).await;
                             config.save().await?;

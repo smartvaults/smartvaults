@@ -214,7 +214,7 @@ async fn run() -> Result<()> {
                 let config = Config::try_from_file(base_path, network)?;
 
                 if let Some(endpoint) = electrum_server {
-                    config.set_electrum_endpoint(Some(endpoint)).await;
+                    config.set_electrum_endpoint(Some(endpoint)).await?;
                 }
 
                 if let Some(proxy) = proxy {
@@ -237,7 +237,7 @@ async fn run() -> Result<()> {
                 let config = Config::try_from_file(base_path, network)?;
 
                 if electrum_server {
-                    config.set_electrum_endpoint::<String>(None).await;
+                    config.set_electrum_endpoint::<String>(None).await?;
                 }
 
                 if proxy {

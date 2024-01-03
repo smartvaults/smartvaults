@@ -26,6 +26,8 @@ use tokio::sync::RwLock;
 
 mod storage;
 
+use crate::config::ElectrumEndpoint;
+
 pub use self::storage::{Error as StorageError, SmartVaultsWalletStorage};
 
 const STOP_GAP: usize = 50;
@@ -294,14 +296,14 @@ impl SmartVaultsWallet {
         wallet.list_unspent().collect()
     }
 
-    pub async fn sync<S>(&self, endpoint: S, proxy: Option<SocketAddr>) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
+    pub async fn sync(
+        &self,
+        endpoint: ElectrumEndpoint,
+        proxy: Option<SocketAddr>,
+    ) -> Result<(), Error> {
         if !self.is_syncing() {
             self.set_syncing(true);
 
-            let endpoint: String = endpoint.into();
             let prev_tip: Option<CheckPoint> = self.latest_checkpoint().await;
             let keychain_spks = self.spks().await;
             let graph: TxGraph<ConfirmationTimeAnchor> = self.graph().await;
@@ -309,11 +311,13 @@ impl SmartVaultsWallet {
             tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
             let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
             let config: ElectrumConfig = ElectrumConfig::builder()
+                .validate_domain(endpoint.validate_tls())
                 .timeout(Some(120))
                 .retry(3)
                 .socks5(proxy)
                 .build();
-            let client: ElectrumClient = ElectrumClient::from_config(&endpoint, config)?;
+            let client: ElectrumClient =
+                ElectrumClient::from_config(&endpoint.as_non_standard_format(), config)?;
 
             let (
                 ElectrumUpdate {

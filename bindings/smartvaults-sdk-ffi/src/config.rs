@@ -24,12 +24,12 @@ impl Config {
         block_on(async move { Ok(self.inner.save().await?) })
     }
 
-    pub fn set_electrum_endpoint(&self, endpoint: String) {
-        block_on(async move { self.inner.set_electrum_endpoint(Some(endpoint)).await })
+    pub fn set_electrum_endpoint(&self, endpoint: String) -> Result<()> {
+        block_on(async move { Ok(self.inner.set_electrum_endpoint(Some(endpoint)).await?) })
     }
 
     pub fn electrum_endpoint(&self) -> Result<String> {
-        block_on(async move { Ok(self.inner.electrum_endpoint().await?) })
+        block_on(async move { Ok(self.inner.electrum_endpoint().await?.to_string()) })
     }
 
     pub fn set_block_explorer(&self, url: String) -> Result<()> {

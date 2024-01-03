@@ -1,10 +1,12 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use core::fmt;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::Arc;
 
 use nostr_sdk::Url;
@@ -26,6 +28,8 @@ pub enum Error {
     Json(#[from] nostr_sdk::serde_json::Error),
     #[error(transparent)]
     Url(#[from] nostr_sdk::url::ParseError),
+    #[error("Invalid electrum endpoint: {0}")]
+    InvalidElectrumUrl(String),
     #[error("electrum endpoint not set")]
     ElectrumEndpointNotSet,
     #[error("proxy not set")]
@@ -34,9 +38,150 @@ pub enum Error {
     BlockExplorerNotSet,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElectrumEndpoint {
+    Tls {
+        host: String,
+        port: u16,
+        validate_tls: bool,
+    },
+    Plaintext {
+        host: String,
+        port: u16,
+    },
+}
+
+impl ElectrumEndpoint {
+    /// Format: `<host>:<port>:<t|s>`
+    ///
+    /// Optionally, `:noverify` suffix to skip TLS validation
+    pub fn as_standard_format(&self) -> String {
+        match self {
+            Self::Tls {
+                host,
+                port,
+                validate_tls: true,
+            } => format!("{host}:{port}:s"),
+            Self::Tls {
+                host,
+                port,
+                validate_tls: false,
+            } => format!("{host}:{port}:s:noverify"),
+            Self::Plaintext { host, port } => format!("{host}:{port}:t"),
+        }
+    }
+
+    /// Format: `<tcp|ssl>://<host>:<port>`
+    pub fn as_non_standard_format(&self) -> String {
+        match self {
+            Self::Tls { host, port, .. } => format!("ssl://{host}:{port}"),
+            Self::Plaintext { host, port } => format!("tcp://{host}:{port}"),
+        }
+    }
+
+    pub fn validate_tls(&self) -> bool {
+        match self {
+            Self::Tls { validate_tls, .. } => *validate_tls,
+            Self::Plaintext { .. } => false,
+        }
+    }
+}
+
+impl fmt::Display for ElectrumEndpoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_standard_format())
+    }
+}
+
+// Parse endpoint with <tcp|ssl>://<host>:<port> format
+//
+// OR
+//
+// Parse the standard <host>:<port>:<t|s> string format.
+//
+// Both formats support an optional non-standard `:noverify` suffix to skip tls validation
+impl FromStr for ElectrumEndpoint {
+    type Err = Error;
+    fn from_str(endpoint: &str) -> Result<Self, Error> {
+        if endpoint.starts_with("ssl://") || endpoint.starts_with("tcp://") {
+            // Remove the protocol part
+            let without_protocol = endpoint
+                .get(6..)
+                .ok_or_else(|| Error::InvalidElectrumUrl(String::from("Missing endpoint")))?;
+
+            // Split
+            let mut splitted = without_protocol.split(':');
+            let host: &str = splitted
+                .next()
+                .ok_or_else(|| Error::InvalidElectrumUrl(String::from("Missing host")))?;
+            let port: u16 = splitted
+                .next()
+                .ok_or_else(|| Error::InvalidElectrumUrl(String::from("Missing port")))?
+                .parse()
+                .map_err(|_| Error::InvalidElectrumUrl(String::from("Invalid port")))?;
+
+            if endpoint.starts_with("ssl://") {
+                Ok(Self::Tls {
+                    host: host.to_string(),
+                    port,
+                    validate_tls: true,
+                })
+            } else {
+                Ok(Self::Plaintext {
+                    host: host.to_string(),
+                    port,
+                })
+            }
+        } else {
+            let mut splitted = endpoint.split(':');
+            let host: &str = splitted
+                .next()
+                .ok_or_else(|| Error::InvalidElectrumUrl(String::from("Missing host")))?;
+            let port: u16 = splitted
+                .next()
+                .ok_or_else(|| Error::InvalidElectrumUrl(String::from("Missing port")))?
+                .parse()
+                .map_err(|_| Error::InvalidElectrumUrl(String::from("Invalid port")))?;
+            let protocol: &str = splitted.next().unwrap_or("t");
+            let validate_tls: bool = splitted.next() != Some("noverify");
+            match protocol {
+                "s" => Ok(Self::Tls {
+                    host: host.to_string(),
+                    port,
+                    validate_tls,
+                }),
+                "t" => Ok(Self::Plaintext {
+                    host: host.to_string(),
+                    port,
+                }),
+                p => Err(Error::InvalidElectrumUrl(format!("Unknown protocol: {p}"))),
+            }
+        }
+    }
+}
+
+impl Serialize for ElectrumEndpoint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_standard_format().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ElectrumEndpoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let endpoint: String = String::deserialize(deserializer)?;
+        Self::from_str(&endpoint).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct BitcoinFile {
-    electrum_server: Option<String>,
+    electrum_server: Option<ElectrumEndpoint>,
     proxy: Option<SocketAddr>,
     block_explorer: Option<Url>,
 }
@@ -48,7 +193,7 @@ struct ConfigFile {
 
 #[derive(Debug, Clone, Default)]
 pub struct Bitcoin {
-    pub electrum_server: Arc<RwLock<Option<String>>>,
+    pub electrum_server: Arc<RwLock<Option<ElectrumEndpoint>>>,
     pub proxy: Arc<RwLock<Option<SocketAddr>>>,
     pub block_explorer: Arc<RwLock<Option<Url>>>,
 }
@@ -96,24 +241,41 @@ impl Config {
 
         let (endpoint, block_explorer) = match network {
             Network::Bitcoin => (
-                "ssl://blockstream.info:700",
+                ElectrumEndpoint::Tls {
+                    host: String::from("blockstream.info"),
+                    port: 700,
+                    validate_tls: true,
+                },
                 Some(Url::parse("https://mempool.space")?),
             ),
             Network::Testnet => (
-                "ssl://blockstream.info:993",
+                ElectrumEndpoint::Tls {
+                    host: String::from("blockstream.info"),
+                    port: 993,
+                    validate_tls: true,
+                },
                 Some(Url::parse("https://mempool.space/testnet")?),
             ),
             Network::Signet => (
-                "tcp://signet-electrumx.wakiyamap.dev:50001",
+                ElectrumEndpoint::Plaintext {
+                    host: String::from("signet-electrumx.wakiyamap.dev"),
+                    port: 50001,
+                },
                 Some(Url::parse("https://mempool.space/signet")?),
             ),
-            _ => ("tcp://localhost:60401", None),
+            _ => (
+                ElectrumEndpoint::Plaintext {
+                    host: String::from("localhost"),
+                    port: 60401,
+                },
+                None,
+            ),
         };
 
         Ok(Self {
             config_file_path,
             bitcoin: Bitcoin {
-                electrum_server: Arc::new(RwLock::new(Some(endpoint.to_string()))),
+                electrum_server: Arc::new(RwLock::new(Some(endpoint))),
                 block_explorer: Arc::new(RwLock::new(block_explorer)),
                 ..Default::default()
             },
@@ -143,15 +305,22 @@ impl Config {
         Ok(())
     }
 
-    pub async fn set_electrum_endpoint<S>(&self, endpoint: Option<S>)
+    pub async fn set_electrum_endpoint<S>(&self, endpoint: Option<S>) -> Result<(), Error>
     where
-        S: Into<String>,
+        S: AsRef<str>,
     {
         let mut e = self.bitcoin.electrum_server.write().await;
-        *e = endpoint.map(|e| e.into());
+        match endpoint {
+            Some(endpoint) => {
+                let endpoint = ElectrumEndpoint::from_str(endpoint.as_ref())?;
+                *e = Some(endpoint);
+            }
+            None => *e = None,
+        }
+        Ok(())
     }
 
-    pub async fn electrum_endpoint(&self) -> Result<String, Error> {
+    pub async fn electrum_endpoint(&self) -> Result<ElectrumEndpoint, Error> {
         let endpoint = self.bitcoin.electrum_server.read().await;
         endpoint.clone().ok_or(Error::ElectrumEndpointNotSet)
     }
@@ -179,5 +348,80 @@ impl Config {
     pub async fn as_pretty_json(&self) -> Result<String, Error> {
         let config_file: ConfigFile = self.to_config_file().await;
         Ok(nostr_sdk::serde_json::to_string_pretty(&config_file)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_electrum_endpoint_parse() {
+        let endpoint = ElectrumEndpoint::from_str("ssl://blockstream.info:700").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Tls {
+                host: String::from("blockstream.info"),
+                port: 700,
+                validate_tls: true
+            }
+        );
+
+        let endpoint = ElectrumEndpoint::from_str("blockstream.info:700:s").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Tls {
+                host: String::from("blockstream.info"),
+                port: 700,
+                validate_tls: true
+            }
+        );
+
+        let endpoint = ElectrumEndpoint::from_str("blockstream.info:993:s:noverify").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Tls {
+                host: String::from("blockstream.info"),
+                port: 993,
+                validate_tls: false
+            }
+        );
+
+        let endpoint = ElectrumEndpoint::from_str("127.0.0.1:50001").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Plaintext {
+                host: String::from("127.0.0.1"),
+                port: 50001
+            }
+        );
+
+        let endpoint = ElectrumEndpoint::from_str("tcp://127.0.0.1:50001").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Plaintext {
+                host: String::from("127.0.0.1"),
+                port: 50001
+            }
+        );
+
+        let endpoint = ElectrumEndpoint::from_str("127.0.0.1:50001:t").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Plaintext {
+                host: String::from("127.0.0.1"),
+                port: 50001
+            }
+        );
+
+        let endpoint = ElectrumEndpoint::from_str("127.0.0.1:50002:s:noverify").unwrap();
+        assert_eq!(
+            endpoint,
+            ElectrumEndpoint::Tls {
+                host: String::from("127.0.0.1"),
+                port: 50002,
+                validate_tls: false
+            }
+        );
     }
 }

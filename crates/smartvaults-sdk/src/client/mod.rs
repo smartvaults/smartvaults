@@ -55,7 +55,7 @@ mod signers;
 mod sync;
 
 pub use self::sync::{EventHandled, Message};
-use crate::config::Config;
+use crate::config::{Config, ElectrumEndpoint};
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
 use crate::storage::{
@@ -285,6 +285,19 @@ impl SmartVaults {
         self.client.connect().await;
         self.sync();
         Ok(())
+    }
+
+    async fn blockchain(&self) -> Result<ElectrumClient, Error> {
+        let endpoint = self.config.electrum_endpoint().await?;
+        let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
+        let config = ElectrumConfig::builder()
+            .validate_domain(endpoint.validate_tls())
+            .socks5(proxy.map(Socks5Config::new))
+            .build();
+        Ok(ElectrumClient::from_config(
+            &endpoint.as_non_standard_format(),
+            config,
+        )?)
     }
 
     /// Get keychain name
@@ -554,16 +567,16 @@ impl SmartVaults {
 
     pub async fn set_electrum_endpoint<S>(&self, endpoint: S) -> Result<(), Error>
     where
-        S: Into<String>,
+        S: AsRef<str>,
     {
         // Set electrum endpoint
-        self.config.set_electrum_endpoint(Some(endpoint)).await;
+        self.config.set_electrum_endpoint(Some(endpoint)).await?;
         // Save config file
         self.config.save().await?;
         Ok(())
     }
 
-    pub async fn electrum_endpoint(&self) -> Result<String, Error> {
+    pub async fn electrum_endpoint(&self) -> Result<ElectrumEndpoint, Error> {
         Ok(self.config.electrum_endpoint().await?)
     }
 
@@ -1091,12 +1104,7 @@ impl SmartVaults {
 
         let fee_rate: BdkFeeRate = match fee_rate {
             FeeRate::Priority(priority) => {
-                let endpoint = self.config.electrum_endpoint().await?;
-                let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
-                let config = ElectrumConfig::builder()
-                    .socks5(proxy.map(Socks5Config::new))
-                    .build();
-                let blockchain = ElectrumClient::from_config(&endpoint, config)?;
+                let blockchain = self.blockchain().await?;
                 let btc_per_kvb: f32 =
                     blockchain.estimate_fee(priority.target_blocks() as usize)? as f32;
                 BdkFeeRate::from_btc_per_kvb(btc_per_kvb)
@@ -1470,12 +1478,7 @@ impl SmartVaults {
 
         // Broadcast
         if let CompletedProposal::Spending { tx, .. } = &completed_proposal {
-            let endpoint = self.config.electrum_endpoint().await?;
-            let proxy: Option<SocketAddr> = self.config.proxy().await.ok();
-            let config = ElectrumConfig::builder()
-                .socks5(proxy.map(Socks5Config::new))
-                .build();
-            let blockchain = ElectrumClient::from_config(&endpoint, config)?;
+            let blockchain = self.blockchain().await?;
             blockchain.transaction_broadcast(tx)?;
 
             // Try insert transactions into wallet (without wait for the next sync)

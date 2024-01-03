@@ -22,7 +22,8 @@ async fn main() {
     let config = client.config();
     config
         .set_electrum_endpoint(Some("tcp://127.0.0.1:50001"))
-        .await;
+        .await
+        .unwrap();
     config
         .set_block_explorer(Some(Url::parse("http://myblockexplorer.local").unwrap()))
         .await;
