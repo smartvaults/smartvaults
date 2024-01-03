@@ -34,6 +34,7 @@ pub struct FeeSelector {
     max_width: Option<f32>,
     on_change: Box<dyn Fn(FeeRate) -> Message>,
     current_mempool_fees: BTreeMap<Priority, BdkFeeRate>,
+    estimated_tx_vsize: Option<usize>,
 }
 
 impl FeeSelector {
@@ -57,6 +58,7 @@ impl FeeSelector {
             max_width: None,
             on_change: Box::new(on_change),
             current_mempool_fees: BTreeMap::new(),
+            estimated_tx_vsize: None,
         }
     }
 
@@ -69,6 +71,11 @@ impl FeeSelector {
 
     pub fn current_mempool_fees(mut self, fees: BTreeMap<Priority, BdkFeeRate>) -> Self {
         self.current_mempool_fees = fees;
+        self
+    }
+
+    pub fn estimate_tx_vsize(mut self, vsize: Option<usize>) -> Self {
+        self.estimated_tx_vsize = vsize;
         self
     }
 }
@@ -164,11 +171,23 @@ impl FeeSelector {
 
                         if let Some(rate) = self.current_mempool_fees.get(&Priority::High) {
                             row = row.push(
-                                Text::new(format!("({:.2} sat/vB)", rate.as_sat_per_vb()))
+                                Text::new(format!(" | {:.2} sat/vB", rate.as_sat_per_vb()))
                                     .small()
                                     .extra_light()
                                     .view(),
                             );
+
+                            if let Some(vsize) = self.estimated_tx_vsize {
+                                row = row.push(
+                                    Text::new(format!(
+                                        " | {:.0} sat",
+                                        rate.as_sat_per_vb() * vsize as f32
+                                    ))
+                                    .small()
+                                    .extra_light()
+                                    .view(),
+                                );
+                            }
                         }
 
                         row
@@ -195,11 +214,23 @@ impl FeeSelector {
 
                         if let Some(rate) = self.current_mempool_fees.get(&Priority::Medium) {
                             row = row.push(
-                                Text::new(format!("({:.2} sat/vB)", rate.as_sat_per_vb()))
+                                Text::new(format!(" | {:.2} sat/vB", rate.as_sat_per_vb()))
                                     .small()
                                     .extra_light()
                                     .view(),
                             );
+
+                            if let Some(vsize) = self.estimated_tx_vsize {
+                                row = row.push(
+                                    Text::new(format!(
+                                        " | {:.0} sat",
+                                        rate.as_sat_per_vb() * vsize as f32
+                                    ))
+                                    .small()
+                                    .extra_light()
+                                    .view(),
+                                );
+                            }
                         }
 
                         row
@@ -226,11 +257,23 @@ impl FeeSelector {
 
                         if let Some(rate) = self.current_mempool_fees.get(&Priority::Low) {
                             row = row.push(
-                                Text::new(format!("({:.2} sat/vB)", rate.as_sat_per_vb()))
+                                Text::new(format!(" | {:.2} sat/vB", rate.as_sat_per_vb()))
                                     .small()
                                     .extra_light()
                                     .view(),
                             );
+
+                            if let Some(vsize) = self.estimated_tx_vsize {
+                                row = row.push(
+                                    Text::new(format!(
+                                        " | {:.0} sat",
+                                        rate.as_sat_per_vb() * vsize as f32
+                                    ))
+                                    .small()
+                                    .extra_light()
+                                    .view(),
+                                );
+                            }
                         }
 
                         row

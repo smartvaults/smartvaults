@@ -58,6 +58,7 @@ pub enum SpendMessage {
     ),
     SelectedUtxosChanged(HashSet<OutPoint>),
     SetSkipFrozenUtxos(bool),
+    EstimatedTxVSize(Option<usize>),
     ToggleCondition(String, usize),
     ErrorChanged(Option<String>),
     SetInternalStage(InternalStage),
@@ -79,6 +80,7 @@ pub struct SpendState {
     policy_path: Option<BTreeMap<String, Vec<usize>>>,
     satisfiable_item: Option<SatisfiableItem>,
     selectable_conditions: Option<Vec<SelectableCondition>>,
+    estimated_tx_vsize: Option<usize>,
     stage: InternalStage,
     loading: bool,
     loaded: bool,
@@ -101,10 +103,68 @@ impl SpendState {
             policy_path: None,
             satisfiable_item: None,
             selectable_conditions: None,
+            estimated_tx_vsize: None,
             stage: InternalStage::default(),
             loading: false,
             loaded: false,
             error: None,
+        }
+    }
+
+    fn _estimate_tx_vsize(
+        &self,
+        ctx: &mut Context,
+        policy_id: EventId,
+        address: Address<NetworkUnchecked>,
+        amount: Amount,
+    ) -> Command<Message> {
+        let client = ctx.client.clone();
+        let selected_utxos: Vec<OutPoint> = self.selected_utxos.iter().cloned().collect();
+        let policy_path = self.policy_path.clone();
+        let skip_frozen_utxos: bool = self.skip_frozen_utxos;
+        Command::perform(
+            async move {
+                client
+                    .estimate_tx_vsize(
+                        policy_id,
+                        address,
+                        amount,
+                        if selected_utxos.is_empty() {
+                            None
+                        } else {
+                            Some(selected_utxos)
+                        },
+                        policy_path,
+                        skip_frozen_utxos,
+                    )
+                    .await
+                    .ok()?
+            },
+            |res| SpendMessage::EstimatedTxVSize(res).into(),
+        )
+    }
+
+    fn estimate_tx_vsize(&self, ctx: &mut Context) -> Command<Message> {
+        match &self.policy {
+            Some(pp) => match Address::from_str(&self.to_address) {
+                Ok(address) => {
+                    if self.send_all {
+                        self._estimate_tx_vsize(ctx, pp.policy_id, address, Amount::Max)
+                    } else {
+                        match self.amount {
+                            Some(amount) => self._estimate_tx_vsize(
+                                ctx,
+                                pp.policy_id,
+                                address,
+                                Amount::Custom(amount),
+                            ),
+                            None => Command::none(),
+                        }
+                    }
+                }
+                Err(_) => Command::none(),
+            },
+            None => Command::none(),
         }
     }
 
@@ -235,9 +295,16 @@ impl State for SpendState {
                     self.utxos = utxos;
                     self.satisfiable_item = Some(item);
                     self.selectable_conditions = conditions;
+                    return self.estimate_tx_vsize(ctx);
                 }
-                SpendMessage::SelectedUtxosChanged(s) => self.selected_utxos = s,
-                SpendMessage::SetSkipFrozenUtxos(val) => self.skip_frozen_utxos = val,
+                SpendMessage::SelectedUtxosChanged(s) => {
+                    self.selected_utxos = s;
+                    return self.estimate_tx_vsize(ctx);
+                }
+                SpendMessage::SetSkipFrozenUtxos(val) => {
+                    self.skip_frozen_utxos = val;
+                    return self.estimate_tx_vsize(ctx);
+                }
                 SpendMessage::ToggleCondition(id, index) => match self.policy_path.as_mut() {
                     Some(policy_path) => match policy_path.get_mut(&id) {
                         Some(v) => {
@@ -261,11 +328,21 @@ impl State for SpendState {
                         self.policy_path = Some(path);
                     }
                 },
-                SpendMessage::AddressChanged(value) => self.to_address = value,
-                SpendMessage::AmountChanged(value) => self.amount = value,
-                SpendMessage::SendAllBtnPressed => self.send_all = !self.send_all,
+                SpendMessage::AddressChanged(value) => {
+                    self.to_address = value;
+                    return self.estimate_tx_vsize(ctx);
+                }
+                SpendMessage::AmountChanged(value) => {
+                    self.amount = value;
+                    return self.estimate_tx_vsize(ctx);
+                }
+                SpendMessage::SendAllBtnPressed => {
+                    self.send_all = !self.send_all;
+                    return self.estimate_tx_vsize(ctx);
+                }
                 SpendMessage::DescriptionChanged(value) => self.description = value,
                 SpendMessage::FeeRateChanged(fee_rate) => self.fee_rate = fee_rate,
+                SpendMessage::EstimatedTxVSize(vsize) => self.estimated_tx_vsize = vsize,
                 SpendMessage::ErrorChanged(error) => {
                     self.loading = false;
                     self.error = error;
@@ -540,6 +617,7 @@ impl SpendState {
                 .push(
                     FeeSelector::new(self.fee_rate, |f| SpendMessage::FeeRateChanged(f).into())
                         .current_mempool_fees(ctx.current_fees.clone())
+                        .estimate_tx_vsize(self.estimated_tx_vsize)
                         .max_width(400.0),
                 )
                 .spacing(25)
