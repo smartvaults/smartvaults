@@ -308,6 +308,22 @@ impl Manager {
         Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
     }
 
+    pub async fn estimate_tx_vsize(
+        &self,
+        policy_id: EventId,
+        address: Address<NetworkUnchecked>,
+        amount: Amount,
+        utxos: Option<Vec<OutPoint>>,
+        frozen_utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+    ) -> Result<Option<usize>, Error> {
+        Ok(self
+            .wallet(policy_id)
+            .await?
+            .estimate_tx_vsize(address, amount, utxos, frozen_utxos, policy_path)
+            .await)
+    }
+
     pub async fn spend<S>(
         &self,
         policy_id: EventId,

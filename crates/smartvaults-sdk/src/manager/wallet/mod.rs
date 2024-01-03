@@ -354,6 +354,25 @@ impl SmartVaultsWallet {
         Ok(())
     }
 
+    pub async fn estimate_tx_vsize(
+        &self,
+        address: Address<NetworkUnchecked>,
+        amount: Amount,
+        utxos: Option<Vec<OutPoint>>,
+        frozen_utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+    ) -> Option<usize> {
+        let mut wallet = self.wallet.write().await;
+        self.policy.estimate_tx_vsize(
+            &mut wallet,
+            address,
+            amount,
+            utxos,
+            frozen_utxos,
+            policy_path,
+        )
+    }
+
     pub async fn spend<S>(
         &self,
         address: Address<NetworkUnchecked>,

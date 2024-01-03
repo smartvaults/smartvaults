@@ -1080,6 +1080,35 @@ impl SmartVaults {
         .await
     }
 
+    pub async fn estimate_tx_vsize(
+        &self,
+        policy_id: EventId,
+        address: Address<NetworkUnchecked>,
+        amount: Amount,
+        utxos: Option<Vec<OutPoint>>,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
+        skip_frozen_utxos: bool,
+    ) -> Result<Option<usize>, Error> {
+        let mut frozen_utxos: Option<Vec<OutPoint>> = None;
+        if !skip_frozen_utxos {
+            let set: HashSet<OutPoint> = self.storage.get_frozen_utxos(&policy_id).await;
+            frozen_utxos = Some(
+                self.manager
+                    .get_utxos(policy_id)
+                    .await?
+                    .into_iter()
+                    .filter(|utxo| set.contains(&utxo.outpoint))
+                    .map(|utxo| utxo.outpoint)
+                    .collect(),
+            );
+        }
+
+        Ok(self
+            .manager
+            .estimate_tx_vsize(policy_id, address, amount, utxos, frozen_utxos, policy_path)
+            .await?)
+    }
+
     /// Make a spending proposal
     pub async fn spend<S>(
         &self,
