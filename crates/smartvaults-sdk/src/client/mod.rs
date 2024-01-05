@@ -731,14 +731,7 @@ impl SmartVaults {
         let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
         if pubkey == shared_key.public_key() {
-            let mut tags: Vec<Tag> = public_keys
-                .into_iter()
-                .map(|public_key| Tag::PublicKey {
-                    public_key,
-                    relay_url: None,
-                    alias: None,
-                })
-                .collect();
+            let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
             tags.push(Tag::event(policy_id));
 
             // Get all events linked to the policy
@@ -787,11 +780,7 @@ impl SmartVaults {
             let mut tags: Vec<Tag> = proposal_event
                 .public_keys()
                 .copied()
-                .map(|public_key| Tag::PublicKey {
-                    public_key,
-                    relay_url: None,
-                    alias: None,
-                })
+                .map(Tag::public_key)
                 .collect();
 
             // Get all events linked to the proposal
@@ -845,11 +834,7 @@ impl SmartVaults {
             let mut tags: Vec<Tag> = proposal_event
                 .public_keys()
                 .copied()
-                .map(|public_key| Tag::PublicKey {
-                    public_key,
-                    relay_url: None,
-                    alias: None,
-                })
+                .map(Tag::public_key)
                 .collect();
 
             tags.push(Tag::event(completed_proposal_id));
@@ -1313,14 +1298,7 @@ impl SmartVaults {
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_key)?;
         let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        let mut tags: Vec<Tag> = public_keys
-            .into_iter()
-            .map(|public_key| Tag::PublicKey {
-                public_key,
-                relay_url: None,
-                alias: None,
-            })
-            .collect();
+        let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
         tags.push(Tag::event(proposal_id));
         tags.push(Tag::event(policy_id));
         tags.push(Tag::Expiration(
@@ -1372,14 +1350,7 @@ impl SmartVaults {
         // Compose the event
         let content = approved_proposal.encrypt_with_keys(&shared_key)?;
         let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
-        let mut tags: Vec<Tag> = public_keys
-            .into_iter()
-            .map(|public_key| Tag::PublicKey {
-                public_key,
-                relay_url: None,
-                alias: None,
-            })
-            .collect();
+        let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
         tags.push(Tag::event(proposal_id));
         tags.push(Tag::event(policy_id));
         tags.push(Tag::Expiration(
@@ -1468,14 +1439,7 @@ impl SmartVaults {
             // Get nostr pubkeys linked to policyit?;
             let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
-            let mut tags: Vec<Tag> = public_keys
-                .into_iter()
-                .map(|public_key| Tag::PublicKey {
-                    public_key,
-                    relay_url: None,
-                    alias: None,
-                })
-                .collect();
+            let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
             tags.push(Tag::event(approval_id));
 
             let event = EventBuilder::new(Kind::EventDeletion, "", tags);

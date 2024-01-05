@@ -54,6 +54,6 @@ mod tests {
 
         let metadata: Metadata = key_agent_metadata.into_metadata();
         let metadata = metadata.name("keyagent").display_name("Key Agent");
-        assert_eq!(metadata.as_json(), String::from("{\"display_name\":\"Key Agent\",\"jurisdiction\":\"British Virgin Islands (BVI)\",\"name\":\"keyagent\"}"))
+        assert_eq!(metadata.as_json(), String::from("{\"name\":\"keyagent\",\"display_name\":\"Key Agent\",\"jurisdiction\":\"British Virgin Islands (BVI)\"}"))
     }
 }
