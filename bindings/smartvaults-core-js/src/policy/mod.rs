@@ -108,15 +108,11 @@ impl JsPolicy {
     /// Construct `Policy` from `PolicyTemplate`
     #[wasm_bindgen(js_name = fromTemplate)]
     pub fn from_template(
-        name: &str,
-        description: &str,
         template: &JsPolicyTemplate,
         network: JsNetwork,
     ) -> Result<JsPolicy> {
         Ok(Self {
             inner: Policy::from_template(
-                name,
-                description,
                 template.deref().clone(),
                 network.into(),
             )
