@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use nostr_sdk::database::DynNostrDatabase;
+use nostr_sdk::database::{DynNostrDatabase, Order};
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{Event, EventId, Filter, Keys, Kind, Tag, Timestamp};
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
@@ -128,7 +128,7 @@ impl SmartVaultsStorage {
         let mut pending = this.pending.write().await;
         for event in this
             .database
-            .query(vec![author_filter, pubkey_filter, smartvaults])
+            .query(vec![author_filter, pubkey_filter, smartvaults], Order::Asc)
             .await?
             .into_iter()
         {
@@ -375,7 +375,10 @@ impl SmartVaultsStorage {
                 {
                     let filter: Filter = coordinate.into();
                     let filter: Filter = filter.until(event.created_at);
-                    let event_ids = self.database.event_ids_by_filters(vec![filter]).await?;
+                    let event_ids = self
+                        .database
+                        .event_ids_by_filters(vec![filter], Order::Desc)
+                        .await?;
                     for event_id in event_ids.into_iter() {
                         self.delete_event(&event_id).await;
                     }

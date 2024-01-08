@@ -3,7 +3,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use nostr_sdk::database::NostrDatabaseExt;
+use nostr_sdk::database::{NostrDatabaseExt, Order};
 use nostr_sdk::nips::nip01::Coordinate;
 use nostr_sdk::secp256k1::XOnlyPublicKey;
 use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile};
@@ -60,7 +60,7 @@ impl SmartVaults {
         let res = self
             .client
             .database()
-            .event_ids_by_filters(vec![filter])
+            .event_ids_by_filters(vec![filter], Order::Desc)
             .await?;
 
         if res.is_empty() {
@@ -129,7 +129,7 @@ impl SmartVaults {
         Ok(self
             .client
             .database()
-            .query(vec![filter])
+            .query(vec![filter], Order::Desc)
             .await?
             .into_iter()
             .filter_map(|event| {
@@ -171,7 +171,13 @@ impl SmartVaults {
         ];
         let mut key_agents: HashMap<XOnlyPublicKey, HashSet<SignerOffering>> = HashMap::new();
 
-        for event in self.client.database().query(filters).await?.into_iter() {
+        for event in self
+            .client
+            .database()
+            .query(filters, Order::Desc)
+            .await?
+            .into_iter()
+        {
             if event.kind == KEY_AGENT_SIGNALING {
                 key_agents.entry(event.pubkey).or_default();
             } else if event.kind == KEY_AGENT_SIGNER_OFFERING_KIND {

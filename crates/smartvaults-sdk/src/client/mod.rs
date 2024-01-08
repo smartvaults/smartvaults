@@ -13,7 +13,7 @@ use async_utility::thread;
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, Socks5Config,
 };
-use nostr_sdk::database::NostrDatabaseExt;
+use nostr_sdk::database::{NostrDatabaseExt, Order};
 use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::relay::pool;
 use nostr_sdk::util::TryIntoUrl;
@@ -739,7 +739,7 @@ impl SmartVaults {
             let event_ids = self
                 .client
                 .database()
-                .event_ids_by_filters(vec![filter])
+                .event_ids_by_filters(vec![filter], Order::Desc)
                 .await?
                 .into_iter()
                 .map(Tag::event);
@@ -1801,7 +1801,11 @@ impl SmartVaults {
 
     pub async fn rebroadcast_all_events(&self) -> Result<(), Error> {
         let pool = self.client.pool();
-        let events: Vec<Event> = self.client.database().query(vec![Filter::new()]).await?;
+        let events: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![Filter::new()], Order::Asc)
+            .await?;
         for event in events.into_iter() {
             pool.send_msg(ClientMessage::new_event(event), None).await?;
         }
@@ -1815,7 +1819,11 @@ impl SmartVaults {
     {
         let url: String = url.into();
         let pool = self.client.pool();
-        let events: Vec<Event> = self.client.database().query(vec![Filter::new()]).await?;
+        let events: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![Filter::new()], Order::Asc)
+            .await?;
         for event in events.into_iter() {
             pool.send_msg_to(&*url, ClientMessage::new_event(event), None)
                 .await?;
@@ -1883,7 +1891,7 @@ impl SmartVaults {
         Ok(self
             .client
             .database()
-            .query(vec![filter])
+            .query(vec![filter], Order::Desc)
             .await?
             .into_iter()
             .map(|e| {
