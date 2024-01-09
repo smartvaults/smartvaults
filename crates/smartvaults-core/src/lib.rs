@@ -54,6 +54,8 @@ mod tests {
     use super::*;
     use crate::constants::SMARTVAULTS_ACCOUNT_INDEX;
     use crate::proposal::ProposalType;
+    #[cfg(feature = "reserves")]
+    use crate::reserves::ProofOfReserves;
 
     const NETWORK: Network = Network::Testnet;
     const MNEMONIC_A: &str =
@@ -208,6 +210,12 @@ mod tests {
             proposal.finalize(vec![approved_a, approved_b], NETWORK)?;
 
         assert_eq!(completed_proposal.get_type(), ProposalType::ProofOfReserve);
+
+        if let CompletedProposal::ProofOfReserve { message, psbt, .. } = completed_proposal {
+            wallet.verify_proof(&psbt, message, None).unwrap();
+        } else {
+            panic!("Unexpected proposal");
+        }
 
         Ok(())
     }
