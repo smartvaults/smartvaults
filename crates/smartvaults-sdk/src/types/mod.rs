@@ -26,7 +26,7 @@ pub struct GetPolicy {
     pub policy_id: EventId,
     pub policy: Policy,
     pub balance: Balance,
-    pub last_sync: Option<Timestamp>,
+    pub last_sync: Timestamp,
 }
 
 impl PartialOrd for GetPolicy {

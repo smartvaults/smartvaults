@@ -679,7 +679,7 @@ impl SmartVaults {
             policy_id,
             policy: self.storage.vault(&policy_id).await?.policy,
             balance: self.manager.get_balance(policy_id).await?,
-            last_sync: Some(Timestamp::now()),
+            last_sync: self.manager.last_sync(policy_id).await?,
         })
     }
 
@@ -862,7 +862,7 @@ impl SmartVaults {
                 policy_id: id,
                 policy: internal.policy,
                 balance: self.manager.get_balance(id).await?,
-                last_sync: internal.last_sync,
+                last_sync: self.manager.last_sync(id).await?,
             });
         }
 
@@ -1034,7 +1034,6 @@ impl SmartVaults {
                 InternalPolicy {
                     policy: policy.clone(),
                     public_keys: nostr_pubkeys,
-                    last_sync: None,
                 },
             )
             .await;

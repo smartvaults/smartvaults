@@ -12,7 +12,6 @@ use smartvaults_protocol::v1::Label;
 pub(crate) struct InternalPolicy {
     pub policy: Policy,
     pub public_keys: Vec<XOnlyPublicKey>,
-    pub last_sync: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

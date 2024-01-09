@@ -128,8 +128,8 @@ impl GetPolicy {
         Arc::new(self.inner.balance.clone().into())
     }
 
-    pub fn last_sync(&self) -> Option<Arc<Timestamp>> {
-        self.inner.last_sync.map(|t| Arc::new(t.into()))
+    pub fn last_sync(&self) -> Arc<Timestamp> {
+        Arc::new(self.inner.last_sync.into())
     }
 }
 

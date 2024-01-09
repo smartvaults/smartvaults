@@ -8,6 +8,7 @@ use std::ops::Add;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
+use async_utility::thread;
 use bdk_electrum::electrum_client::ElectrumApi;
 use bdk_electrum::electrum_client::{
     self, Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
@@ -24,6 +25,7 @@ use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transacti
 use smartvaults_core::{Amount, Policy, Priority, Proposal};
 use smartvaults_sdk_sqlite::Store;
 use thiserror::Error;
+use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 
 pub mod wallet;
@@ -34,6 +36,7 @@ pub use self::wallet::{
 };
 use crate::config::ElectrumEndpoint;
 use crate::constants::{BLOCK_HEIGHT_SYNC_INTERVAL, MEMPOOL_TX_FEES_SYNC_INTERVAL};
+use crate::Message;
 
 const TARGET_BLOCKS: [Priority; 3] = [Priority::High, Priority::Medium, Priority::Low];
 
@@ -142,7 +145,7 @@ impl Manager {
                     SmartVaultsWalletStorage::new(descriptor_hash, this.db.clone());
                 let wallet: Wallet<SmartVaultsWalletStorage> =
                     Wallet::new(&policy.as_descriptor().to_string(), None, db, this.network)?;
-                Ok::<SmartVaultsWallet, Error>(SmartVaultsWallet::new(policy, wallet))
+                Ok::<SmartVaultsWallet, Error>(SmartVaultsWallet::new(policy_id, policy, wallet))
             })
             .await??;
             e.insert(wallet);
@@ -257,6 +260,10 @@ impl Manager {
             .await?)
     }
 
+    pub async fn last_sync(&self, policy_id: EventId) -> Result<Timestamp, Error> {
+        Ok(self.wallet(policy_id).await?.last_sync())
+    }
+
     pub async fn get_balance(&self, policy_id: EventId) -> Result<Balance, Error> {
         Ok(self.wallet(policy_id).await?.get_balance().await)
     }
@@ -297,6 +304,34 @@ impl Manager {
 
     pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
         Ok(self.wallet(policy_id).await?.get_utxos().await)
+    }
+
+    /// Sync all policies with the timechain
+    pub async fn sync_all(
+        &self,
+        endpoint: ElectrumEndpoint,
+        proxy: Option<SocketAddr>,
+        sync_channel: Option<Sender<Message>>,
+    ) {
+        let wallets = self.wallets.read().await;
+        for (id, wallet) in wallets.clone().into_iter() {
+            let endpoint = endpoint.clone();
+            let sync_channel = sync_channel.clone();
+            thread::spawn(async move {
+                match wallet.sync(endpoint, proxy).await {
+                    Ok(_) => {
+                        if let Some(sync_channel) = sync_channel {
+                            let _ = sync_channel.send(Message::WalletSyncCompleted(id));
+                        }
+                    }
+                    Err(WalletError::AlreadySynced) => {}
+                    Err(WalletError::AlreadySyncing) => {
+                        tracing::warn!("Policy {id} is already syncing");
+                    }
+                    Err(e) => tracing::error!("Impossible to sync policy {id}: {e}"),
+                }
+            });
+        }
     }
 
     pub async fn sync(

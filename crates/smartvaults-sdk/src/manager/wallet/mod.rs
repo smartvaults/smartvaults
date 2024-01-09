@@ -5,13 +5,14 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering};
 use std::sync::Arc;
 
 use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::{ElectrumExt, ElectrumUpdate};
+use nostr_sdk::{EventId, Timestamp};
 use smartvaults_core::bdk::chain::local_chain::{CannotConnectError, CheckPoint};
 use smartvaults_core::bdk::chain::{ConfirmationTime, ConfirmationTimeAnchor, TxGraph};
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
@@ -26,9 +27,9 @@ use tokio::sync::RwLock;
 
 mod storage;
 
-use crate::config::ElectrumEndpoint;
-
 pub use self::storage::{Error as StorageError, SmartVaultsWalletStorage};
+use crate::config::ElectrumEndpoint;
+use crate::constants::WALLET_SYNC_INTERVAL;
 
 const STOP_GAP: usize = 50;
 const BATCH_SIZE: usize = 5;
@@ -51,6 +52,8 @@ pub enum Error {
     ImpossibleToReadWallet,
     #[error("not found")]
     NotFound,
+    #[error("already synced")]
+    AlreadySynced,
     #[error("already syncing")]
     AlreadySyncing,
     #[error("impossible to insert tx: {0}")]
@@ -123,17 +126,25 @@ impl TransactionDetails {
 
 #[derive(Debug, Clone)]
 pub struct SmartVaultsWallet {
+    id: EventId,
     policy: Policy,
     wallet: Arc<RwLock<Wallet<SmartVaultsWalletStorage>>>,
     syncing: Arc<AtomicBool>,
+    last_sync: Arc<AtomicU64>,
 }
 
 impl SmartVaultsWallet {
-    pub fn new(policy: Policy, wallet: Wallet<SmartVaultsWalletStorage>) -> Self {
+    pub fn new(
+        policy_id: EventId,
+        policy: Policy,
+        wallet: Wallet<SmartVaultsWalletStorage>,
+    ) -> Self {
         Self {
+            id: policy_id,
             policy,
             wallet: Arc::new(RwLock::new(wallet)),
             syncing: Arc::new(AtomicBool::new(false)),
+            last_sync: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -146,6 +157,18 @@ impl SmartVaultsWallet {
             .syncing
             .fetch_update(AtomicOrdering::SeqCst, AtomicOrdering::SeqCst, |_| {
                 Some(syncing)
+            });
+    }
+
+    pub fn last_sync(&self) -> Timestamp {
+        Timestamp::from(self.last_sync.load(AtomicOrdering::SeqCst))
+    }
+
+    fn update_last_sync(&self) {
+        let _ = self
+            .last_sync
+            .fetch_update(AtomicOrdering::SeqCst, AtomicOrdering::SeqCst, |_| {
+                Some(Timestamp::now().as_u64())
             });
     }
 
@@ -301,49 +324,58 @@ impl SmartVaultsWallet {
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
     ) -> Result<(), Error> {
-        if !self.is_syncing() {
-            self.set_syncing(true);
-
-            let prev_tip: Option<CheckPoint> = self.latest_checkpoint().await;
-            let keychain_spks = self.spks().await;
-            let graph: TxGraph<ConfirmationTimeAnchor> = self.graph().await;
-
-            tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
-            let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
-            let config: ElectrumConfig = ElectrumConfig::builder()
-                .validate_domain(endpoint.validate_tls())
-                .timeout(Some(120))
-                .retry(3)
-                .socks5(proxy)
-                .build();
-            let client: ElectrumClient =
-                ElectrumClient::from_config(&endpoint.as_non_standard_format(), config)?;
-
-            let (
-                ElectrumUpdate {
-                    chain_update,
-                    relevant_txids,
-                },
-                keychain_update,
-            ) = client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
-            let missing: Vec<Txid> = relevant_txids.missing_full_txs(&graph);
-            let graph_update =
-                relevant_txids.into_confirmation_time_tx_graph(&client, None, missing)?;
-
-            let update = Update {
-                last_active_indices: keychain_update,
-                graph: graph_update,
-                chain: Some(chain_update),
-            };
-
-            self.apply_update(update).await?;
-
-            self.set_syncing(false);
-
-            Ok(())
-        } else {
-            Err(Error::AlreadySyncing)
+        let last_sync: Timestamp = self.last_sync();
+        if last_sync + WALLET_SYNC_INTERVAL > Timestamp::now() {
+            return Err(Error::AlreadySynced);
         }
+
+        if self.is_syncing() {
+            return Err(Error::AlreadySyncing);
+        }
+
+        self.set_syncing(true);
+
+        tracing::debug!("Syncing policy {}", self.id);
+
+        let prev_tip: Option<CheckPoint> = self.latest_checkpoint().await;
+        let keychain_spks = self.spks().await;
+        let graph: TxGraph<ConfirmationTimeAnchor> = self.graph().await;
+
+        tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+        let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+        let config: ElectrumConfig = ElectrumConfig::builder()
+            .validate_domain(endpoint.validate_tls())
+            .timeout(Some(120))
+            .retry(3)
+            .socks5(proxy)
+            .build();
+        let client: ElectrumClient =
+            ElectrumClient::from_config(&endpoint.as_non_standard_format(), config)?;
+
+        let (
+            ElectrumUpdate {
+                chain_update,
+                relevant_txids,
+            },
+            keychain_update,
+        ) = client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
+        let missing: Vec<Txid> = relevant_txids.missing_full_txs(&graph);
+        let graph_update =
+            relevant_txids.into_confirmation_time_tx_graph(&client, None, missing)?;
+
+        let update = Update {
+            last_active_indices: keychain_update,
+            graph: graph_update,
+            chain: Some(chain_update),
+        };
+
+        self.apply_update(update).await?;
+        self.update_last_sync();
+        self.set_syncing(false);
+
+        tracing::info!("Policy {} synced", self.id);
+
+        Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]

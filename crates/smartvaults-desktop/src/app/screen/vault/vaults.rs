@@ -6,7 +6,7 @@ use std::time::Duration;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::nostr::{EventId, Timestamp};
 use smartvaults_sdk::types::GetPolicy;
 use smartvaults_sdk::util;
 
@@ -151,7 +151,7 @@ impl State for PoliciesState {
                     last_sync,
                 } in self.policies.iter()
                 {
-                    let balance = if last_sync.is_some() {
+                    let balance = if *last_sync != Timestamp::from(0) {
                         Amount::new(balance.total())
                             .bold()
                             .view()

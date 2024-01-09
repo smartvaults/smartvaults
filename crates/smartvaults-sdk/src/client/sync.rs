@@ -29,9 +29,6 @@ use smartvaults_protocol::v1::constants::{
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
-use crate::constants::WALLET_SYNC_INTERVAL;
-
-use crate::manager::{Error as ManagerError, WalletError};
 use crate::storage::{InternalCompletedProposal, InternalPolicy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -115,40 +112,9 @@ impl SmartVaults {
                 match this.config.electrum_endpoint().await {
                     Ok(endpoint) => {
                         let proxy = this.config.proxy().await.ok();
-                        for (policy_id, InternalPolicy { last_sync, .. }) in
-                            this.storage.vaults().await.into_iter()
-                        {
-                            let last_sync: Timestamp =
-                                last_sync.unwrap_or_else(|| Timestamp::from(0));
-                            if last_sync.add(WALLET_SYNC_INTERVAL) <= Timestamp::now() {
-                                let manager = this.manager.clone();
-                                let storage = this.storage.clone();
-                                let sync_channel = this.sync_channel.clone();
-                                let endpoint = endpoint.clone();
-                                thread::spawn(async move {
-                                    tracing::debug!("Syncing policy {policy_id}");
-                                    match manager.sync(policy_id, endpoint, proxy).await {
-                                        Ok(_) => {
-                                            tracing::info!("Policy {policy_id} synced");
-                                            storage
-                                                .update_last_sync(
-                                                    &policy_id,
-                                                    Some(Timestamp::now()),
-                                                )
-                                                .await;
-                                            let _ = sync_channel
-                                                .send(Message::WalletSyncCompleted(policy_id));
-                                        }
-                                        Err(ManagerError::Wallet(WalletError::AlreadySyncing)) => {
-                                            tracing::warn!("Policy {policy_id} is already syncing")
-                                        }
-                                        Err(e) => tracing::error!(
-                                            "Impossible to sync policy {policy_id}: {e}"
-                                        ),
-                                    }
-                                });
-                            }
-                        }
+                        this.manager
+                            .sync_all(endpoint, proxy, Some(this.sync_channel.clone()))
+                            .await;
                     }
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }

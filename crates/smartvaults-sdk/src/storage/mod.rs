@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use nostr_sdk::database::{DynNostrDatabase, Order};
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{Event, EventId, Filter, Keys, Kind, Tag, Timestamp};
+use nostr_sdk::{Event, EventId, Filter, Keys, Kind, Tag};
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -196,7 +196,6 @@ impl SmartVaultsStorage {
                         e.insert(InternalPolicy {
                             policy,
                             public_keys: nostr_pubkeys,
-                            last_sync: None,
                         });
                         return Ok(Some(EventHandled::Policy(event.id)));
                     }
@@ -459,14 +458,6 @@ impl SmartVaultsStorage {
     pub async fn vault(&self, vault_id: &EventId) -> Result<InternalPolicy, Error> {
         let vaults = self.vaults.read().await;
         vaults.get(vault_id).cloned().ok_or(Error::NotFound)
-    }
-
-    /// Updat last vault sync
-    pub async fn update_last_sync(&self, vault_id: &EventId, last_sync: Option<Timestamp>) {
-        let mut vaults = self.vaults.write().await;
-        if let Some(internal) = vaults.get_mut(vault_id) {
-            internal.last_sync = last_sync;
-        }
     }
 
     pub async fn save_proposal(&self, proposal_id: EventId, internal: InternalProposal) {
