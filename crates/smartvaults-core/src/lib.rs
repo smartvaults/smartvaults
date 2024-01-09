@@ -2,6 +2,10 @@
 // Distributed under the MIT software license
 
 #![forbid(unsafe_code)]
+#![cfg_attr(bench, feature(test))]
+
+#[cfg(bench)]
+extern crate test;
 
 pub use bdk::miniscript;
 use keechain_core::secp256k1::{rand, All, Secp256k1};
@@ -33,7 +37,7 @@ pub static SECP256K1: Lazy<Secp256k1<All>> = Lazy::new(|| {
 });
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::str::FromStr;
 
     use keechain_core::bdk::chain::{BlockId, ConfirmationTime};

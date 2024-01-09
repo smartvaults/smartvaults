@@ -323,9 +323,9 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::test::get_funded_wallet;
+    use crate::tests::get_funded_wallet;
 
     // const PSBT_BASE64: &str = "cHNidP8BAH4BAAAAAmw1RvG4UzfnSafpx62EPTyha6VslP0Er7n3TxjEpeBeAAAAAAD/////FcB9C8LQwqAoYxGcM/YLhUt3XZIQUmFAlaJlBjVmFO8AAAAAAP////8BUMMAAAAAAAAZdqkUn3/QltN+0sDj9/DPySS+70/862iIrAAAAAAAAQEKAAAAAAAAAAABUQEHAAABAR9QwwAAAAAAABYAFOzlJlcQU9qGRUyeBmd56vnRUC5qIgYDKwVYB4vsOGlKhJM9ZZMD4lddrn6RaFkRRUEVv9ZEh+ME7OUmVwAA";
     const MESSAGE: &str = "This belongs to me.";

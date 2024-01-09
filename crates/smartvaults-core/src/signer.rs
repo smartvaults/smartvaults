@@ -1,10 +1,10 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use std::fmt;
+use core::fmt;
 
+use bdk::descriptor::IntoWalletDescriptor;
 use bdk::miniscript::descriptor::Tr;
-use bdk::Wallet;
 use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
 use keechain_core::bips::bip48::ScriptType;
 use keechain_core::bitcoin::Network;
@@ -83,7 +83,9 @@ impl Signer {
     {
         if let DescriptorType::Tr = descriptor.desc_type() {
             // Check network
-            Wallet::new_no_persist(&descriptor.to_string(), None, network)?;
+            descriptor
+                .clone()
+                .into_wallet_descriptor(&SECP256K1, network)?;
 
             // Compose signer
             Ok(Self {

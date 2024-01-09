@@ -14,6 +14,9 @@ release:
 dev-gui: fmt
 	cargo run -p smartvaults-desktop -- --testnet
 
+bench:
+	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-core
+
 init-dev:
 	rustup install nightly-2024-01-11
 	rustup component add rustfmt --toolchain nightly-2024-01-11

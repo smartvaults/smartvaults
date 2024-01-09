@@ -42,7 +42,14 @@ fn targets_filter() -> Targets {
         )
         .with_target("nostr_sqlite", Level::INFO)
         .with_target("nostr_sdk", Level::DEBUG)
-        .with_target("smartvaults_core", Level::DEBUG)
+        .with_target(
+            "smartvaults_core",
+            if trace { Level::TRACE } else { Level::DEBUG },
+        )
+        .with_target(
+            "smartvaults_protocol",
+            if trace { Level::TRACE } else { Level::DEBUG },
+        )
         .with_target(
             "smartvaults_sdk",
             if trace { Level::TRACE } else { Level::DEBUG },

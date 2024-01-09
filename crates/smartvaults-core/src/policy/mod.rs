@@ -1,12 +1,15 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::str::FromStr;
 
 use bdk::chain::{ConfirmationTime, PersistBackend};
-use bdk::descriptor::policy::SatisfiableItem;
-use bdk::descriptor::Policy as SpendingPolicy;
+use bdk::descriptor::policy::{BuildSatisfaction, SatisfiableItem};
+use bdk::descriptor::{ExtractPolicy, IntoWalletDescriptor, Policy as SpendingPolicy};
+use bdk::signer::SignersContainer;
 use bdk::wallet::tx_builder::AddUtxoError;
 use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
@@ -140,12 +143,47 @@ impl<'de> Deserialize<'de> for Policy {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct Policy {
     name: String,
     description: String,
     descriptor: Descriptor<String>,
+    /// Descriptor with secret keys converted to public keys (if any)
+    ///
+    /// Needed for `Policy::spending_policy`
+    descriptor_public_key: Descriptor<DescriptorPublicKey>,
+    /// Signer container
+    ///
+    /// Needed for `Policy::spending_policy`
+    signer: SignersContainer,
+    /// network
     network: Network,
+}
+
+impl PartialEq for Policy {
+    fn eq(&self, other: &Self) -> bool {
+        self.descriptor == other.descriptor && self.network == other.network
+    }
+}
+
+impl Eq for Policy {}
+
+impl PartialOrd for Policy {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Policy {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.descriptor.cmp(&other.descriptor)
+    }
+}
+
+impl Hash for Policy {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.descriptor.hash(state);
+    }
 }
 
 impl Policy {
@@ -159,11 +197,18 @@ impl Policy {
         S: Into<String>,
     {
         if let DescriptorType::Tr = descriptor.desc_type() {
-            Wallet::new_no_persist(&descriptor.to_string(), None, network)?;
+            // Check if descriptor match network
+            let desc: String = descriptor.to_string();
+            let (descriptor_public_key, keymap) =
+                desc.into_wallet_descriptor(&SECP256K1, network)?;
+
+            // Compose policy
             Ok(Self {
                 name: name.into(),
                 description: description.into(),
                 descriptor,
+                signer: SignersContainer::build(keymap, &descriptor_public_key, &SECP256K1),
+                descriptor_public_key,
                 network,
             })
         } else {
@@ -276,9 +321,8 @@ impl Policy {
     }
 
     pub fn spending_policy(&self) -> Result<SpendingPolicy, Error> {
-        let wallet = Wallet::new_no_persist(&self.descriptor.to_string(), None, self.network)?;
-        wallet
-            .policies(KeychainKind::External)?
+        self.descriptor_public_key
+            .extract_policy(&self.signer, BuildSatisfaction::None, &SECP256K1)?
             .ok_or(Error::WalletSpendingPolicyNotFound)
     }
 
@@ -1006,5 +1050,46 @@ mod tests {
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Decaying)
         );
+    }
+}
+
+#[cfg(bench)]
+mod benches {
+    use test::{black_box, Bencher};
+
+    use super::*;
+
+    #[bench]
+    pub fn bench_policy_from_descriptor(bh: &mut Bencher) {
+        let desc = "tr(56f05264c005e2a2f6e261996ed2cd904dfafbc6d75cc07a5a76d46df56e6ff9,thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),s:pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),s:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),snl:after(1698947462)))#2263dhaf";
+        bh.iter(|| {
+            black_box(Policy::from_descriptor("", "", desc, Network::Testnet)).unwrap();
+        });
+    }
+
+    #[bench]
+    pub fn bench_policy_from_miniscript(bh: &mut Bencher) {
+        let desc = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),after(840000),after(940000))";
+        bh.iter(|| {
+            black_box(Policy::from_policy("", "", desc, Network::Testnet)).unwrap();
+        });
+    }
+
+    #[bench]
+    pub fn bench_decaying_template_match(bh: &mut Bencher) {
+        let desc = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),after(840000),after(940000))";
+        let policy = Policy::from_policy("", "", desc, Network::Testnet).unwrap();
+        bh.iter(|| {
+            black_box(policy.template_match()).unwrap();
+        });
+    }
+
+    #[bench]
+    pub fn bench_social_recovery_template_match(bh: &mut Bencher) {
+        let desc = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),older(6)))";
+        let policy = Policy::from_policy("", "", desc, Network::Testnet).unwrap();
+        bh.iter(|| {
+            black_box(policy.template_match()).unwrap();
+        });
     }
 }
