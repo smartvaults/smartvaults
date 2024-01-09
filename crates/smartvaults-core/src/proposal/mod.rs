@@ -4,7 +4,7 @@
 use std::cmp::Ordering;
 use std::fmt;
 
-use keechain_core::bdk::signer::SignerWrapper;
+use keechain_core::bdk::signer::{SignerError, SignerWrapper};
 use keechain_core::bdk::{SignOptions, Wallet};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 use keechain_core::bitcoin::psbt::{
@@ -28,7 +28,7 @@ use crate::SECP256K1;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Bdk(#[from] keechain_core::bdk::Error),
+    BdkSigner(#[from] SignerError),
     #[error(transparent)]
     BdkDescriptor(#[from] keechain_core::bdk::descriptor::DescriptorError),
     #[error(transparent)]

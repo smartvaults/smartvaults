@@ -3,7 +3,8 @@
 
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use smartvaults_core::bdk::chain::{Append, PersistBackend};
-use smartvaults_sdk_sqlite::{Error as DbError, Store, StoreEncryption};
+use smartvaults_core::bdk::wallet::ChangeSet;
+use smartvaults_sdk_sqlite::{Error as DbError, Store};
 use thiserror::Error;
 use tokio::runtime::Handle;
 
@@ -30,14 +31,11 @@ impl SmartVaultsWalletStorage {
     }
 }
 
-impl<K> PersistBackend<K> for SmartVaultsWalletStorage
-where
-    K: Default + Clone + Append + StoreEncryption + Send + 'static,
-{
+impl PersistBackend<ChangeSet> for SmartVaultsWalletStorage {
     type LoadError = Error;
     type WriteError = Error;
 
-    fn write_changes(&mut self, changeset: &K) -> Result<(), Self::WriteError> {
+    fn write_changes(&mut self, changeset: &ChangeSet) -> Result<(), Self::WriteError> {
         if changeset.is_empty() {
             return Ok(());
         }
@@ -45,11 +43,11 @@ where
         let handle = Handle::current();
         let _ = handle.enter();
         futures::executor::block_on(async {
-            match self.db.get_changeset::<K>(self.descriptor_hash).await.ok() {
+            match self.db.get_changeset(self.descriptor_hash).await.ok() {
                 Some(mut keychain_store) => {
                     keychain_store.append(changeset.clone());
                     self.db
-                        .save_changeset(self.descriptor_hash, keychain_store.clone())
+                        .save_changeset(self.descriptor_hash, keychain_store)
                         .await?
                 }
                 None => {
@@ -63,19 +61,19 @@ where
         })
     }
 
-    fn load_from_persistence(&mut self) -> Result<K, Self::LoadError> {
+    fn load_from_persistence(&mut self) -> Result<Option<ChangeSet>, Self::LoadError> {
         let handle = Handle::current();
         let _ = handle.enter();
         futures::executor::block_on(async {
-            match self.db.get_changeset::<K>(self.descriptor_hash).await {
-                Ok(k) => Ok(k),
-                Err(DbError::NotFound(_)) => {
-                    tracing::warn!("Change set not found, using the default one");
-                    Ok(K::default())
-                }
+            match self.db.get_changeset(self.descriptor_hash).await {
+                Ok(k) => match k.network {
+                    Some(..) => Ok(Some(k)),
+                    None => Ok(None),
+                },
+                Err(DbError::NotFound(_)) => Ok(None),
                 Err(e) => {
                     tracing::error!("Impossible to load changeset: {e}");
-                    Ok(K::default())
+                    Ok(None)
                 }
             }
         })

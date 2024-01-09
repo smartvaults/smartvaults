@@ -78,12 +78,6 @@ impl From<smartvaults_sdk::nostr::types::metadata::Error> for SmartVaultsError {
     }
 }
 
-impl From<smartvaults_sdk::core::bdk::Error> for SmartVaultsError {
-    fn from(e: smartvaults_sdk::core::bdk::Error) -> Self {
-        Self::Generic(e.to_string())
-    }
-}
-
 impl From<smartvaults_sdk::core::bitcoin::secp256k1::Error> for SmartVaultsError {
     fn from(e: smartvaults_sdk::core::bitcoin::secp256k1::Error) -> Self {
         Self::Generic(e.to_string())

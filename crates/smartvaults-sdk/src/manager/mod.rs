@@ -17,8 +17,8 @@ use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;
 use nostr_sdk::{EventId, Timestamp};
 use smartvaults_core::bdk::chain::ConfirmationTime;
-use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewError};
-use smartvaults_core::bdk::{FeeRate, LocalUtxo, Wallet};
+use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, NewOrLoadError};
+use smartvaults_core::bdk::{FeeRate, LocalOutput, Wallet};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
@@ -43,7 +43,7 @@ const TARGET_BLOCKS: [Priority; 3] = [Priority::High, Priority::Medium, Priority
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
-    BdkStore(#[from] NewError<StorageError>),
+    BdkStore(#[from] NewOrLoadError<StorageError, StorageError>),
     #[error(transparent)]
     Electrum(#[from] electrum_client::Error),
     #[error(transparent)]
@@ -143,8 +143,12 @@ impl Manager {
                     Sha256Hash::hash(policy.as_descriptor().to_string().as_bytes());
                 let db: SmartVaultsWalletStorage =
                     SmartVaultsWalletStorage::new(descriptor_hash, this.db.clone());
-                let wallet: Wallet<SmartVaultsWalletStorage> =
-                    Wallet::new(&policy.as_descriptor().to_string(), None, db, this.network)?;
+                let wallet: Wallet<SmartVaultsWalletStorage> = Wallet::new_or_load(
+                    &policy.as_descriptor().to_string(),
+                    None,
+                    db,
+                    this.network,
+                )?;
                 Ok::<SmartVaultsWallet, Error>(SmartVaultsWallet::new(policy_id, policy, wallet))
             })
             .await??;
@@ -273,7 +277,7 @@ impl Manager {
         policy_id: EventId,
         index: AddressIndex,
     ) -> Result<AddressInfo, Error> {
-        Ok(self.wallet(policy_id).await?.get_address(index).await)
+        Ok(self.wallet(policy_id).await?.get_address(index).await?)
     }
 
     pub async fn get_addresses(
@@ -302,7 +306,7 @@ impl Manager {
         Ok(self.wallet(policy_id).await?.get_tx(txid).await?)
     }
 
-    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalUtxo>, Error> {
+    pub async fn get_utxos(&self, policy_id: EventId) -> Result<Vec<LocalOutput>, Error> {
         Ok(self.wallet(policy_id).await?.get_utxos().await)
     }
 
@@ -334,6 +338,9 @@ impl Manager {
         }
     }
 
+    /// Execute a timechain sync
+    ///
+    /// If the local chain is empty, execute a full sync.
     pub async fn sync(
         &self,
         policy_id: EventId,
@@ -341,6 +348,20 @@ impl Manager {
         proxy: Option<SocketAddr>,
     ) -> Result<(), Error> {
         Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
+    }
+
+    /// Execute a **full** timechain sync.
+    pub async fn full_sync(
+        &self,
+        policy_id: EventId,
+        endpoint: ElectrumEndpoint,
+        proxy: Option<SocketAddr>,
+    ) -> Result<(), Error> {
+        Ok(self
+            .wallet(policy_id)
+            .await?
+            .full_sync(endpoint, proxy)
+            .await?)
     }
 
     pub async fn estimate_tx_vsize(

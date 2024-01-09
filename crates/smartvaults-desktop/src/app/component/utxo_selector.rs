@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use iced::widget::{component, Column, Component, Row, Space};
 use iced::{Alignment, Element, Length, Renderer};
 use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
-use smartvaults_sdk::core::bdk::LocalUtxo;
+use smartvaults_sdk::core::bdk::LocalOutput;
 use smartvaults_sdk::core::bitcoin::OutPoint;
 use smartvaults_sdk::types::GetUtxo;
 use smartvaults_sdk::util::format;
@@ -91,7 +91,7 @@ impl Component<Message, Renderer> for UtxoSelector {
             frozen,
         } in self.utxos.iter()
         {
-            let LocalUtxo {
+            let LocalOutput {
                 outpoint,
                 txout,
                 confirmation_time,

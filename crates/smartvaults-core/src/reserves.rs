@@ -2,7 +2,7 @@
 // Distributed under the MIT software license
 
 use keechain_core::bdk::chain::{ConfirmationTime, PersistBackend};
-use keechain_core::bdk::wallet::tx_builder::TxOrdering;
+use keechain_core::bdk::wallet::tx_builder::{AddForeignUtxoError, TxOrdering};
 use keechain_core::bdk::wallet::{ChangeSet, Wallet};
 use keechain_core::bitcoin::address::Payload;
 use keechain_core::bitcoin::blockdata::opcodes;
@@ -56,7 +56,9 @@ pub enum ProofError {
     MissingConfirmationInfo,
     /// BDK Error
     #[error(transparent)]
-    Bdk(#[from] keechain_core::bdk::Error),
+    BdkAddForeignUtxo(#[from] AddForeignUtxoError),
+    #[error("{0}")]
+    BdkCreateTx(String),
 }
 
 /// The API for proof of reserves
@@ -122,7 +124,9 @@ where
                 .drain_to(out_script_unspendable)
                 .ordering(TxOrdering::Untouched);
 
-            builder.finish().map_err(ProofError::Bdk)?
+            builder
+                .finish()
+                .map_err(|e| ProofError::BdkCreateTx(format!("{e:?}")))?
         };
 
         Ok(psbt)

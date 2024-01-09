@@ -7,7 +7,7 @@ use std::ops::Deref;
 
 use nostr_sdk::{EventId, Profile, Timestamp};
 use smartvaults_core::bdk::wallet::Balance;
-use smartvaults_core::bdk::LocalUtxo;
+use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
 use smartvaults_core::{
@@ -181,13 +181,13 @@ impl Ord for GetSharedSigner {
 
 #[derive(Debug, Clone)]
 pub struct GetUtxo {
-    pub utxo: LocalUtxo,
+    pub utxo: LocalOutput,
     pub label: Option<String>,
     pub frozen: bool,
 }
 
 impl Deref for GetUtxo {
-    type Target = LocalUtxo;
+    type Target = LocalOutput;
 
     fn deref(&self) -> &Self::Target {
         &self.utxo

@@ -13,10 +13,14 @@ use bdk_electrum::electrum_client::{
 };
 use bdk_electrum::{ElectrumExt, ElectrumUpdate};
 use nostr_sdk::{EventId, Timestamp};
-use smartvaults_core::bdk::chain::local_chain::{CannotConnectError, CheckPoint};
-use smartvaults_core::bdk::chain::{ConfirmationTime, ConfirmationTimeAnchor, TxGraph};
+use smartvaults_core::bdk::chain::keychain::KeychainTxOutIndex;
+use smartvaults_core::bdk::chain::local_chain::{CannotConnectError, CheckPoint, LocalChain};
+use smartvaults_core::bdk::chain::{
+    BlockId, ConfirmationTime, ConfirmationTimeHeightAnchor, TxGraph,
+};
+use smartvaults_core::bdk::wallet::error::CreateTxError;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
-use smartvaults_core::bdk::{FeeRate, KeychainKind, LocalUtxo, Wallet};
+use smartvaults_core::bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Transaction, Txid};
@@ -46,6 +50,8 @@ pub enum Error {
     Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
     CannotConnect(#[from] CannotConnectError),
+    #[error(transparent)]
+    BdkCreateTx(#[from] CreateTxError<StorageError>),
     #[error(transparent)]
     Storage(#[from] StorageError),
     #[error("impossible to read wallet")]
@@ -173,12 +179,21 @@ impl SmartVaultsWallet {
             });
     }
 
-    pub async fn latest_checkpoint(&self) -> Option<CheckPoint> {
-        self.wallet.read().await.latest_checkpoint().clone()
+    pub async fn latest_checkpoint(&self) -> CheckPoint {
+        self.wallet.read().await.latest_checkpoint()
     }
 
-    pub async fn graph(&self) -> TxGraph<ConfirmationTimeAnchor> {
-        self.wallet.read().await.as_ref().clone()
+    pub async fn chain(&self) -> LocalChain {
+        self.wallet.read().await.local_chain().clone()
+    }
+
+    pub async fn is_chain_empty(&self) -> bool {
+        // Check if exists only genesis
+        self.wallet.read().await.local_chain().blocks().len() == 1
+    }
+
+    pub async fn graph(&self) -> TxGraph<ConfirmationTimeHeightAnchor> {
+        self.wallet.read().await.tx_graph().clone()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -194,6 +209,11 @@ impl SmartVaultsWallet {
         keychain: KeychainKind,
     ) -> impl Iterator<Item = (u32, ScriptBuf)> + Clone {
         self.wallet.read().await.spks_of_keychain(keychain)
+    }
+
+    pub async fn spk_index(&self) -> KeychainTxOutIndex<KeychainKind> {
+        let wallet = self.wallet.read().await;
+        wallet.spk_index().clone()
     }
 
     pub async fn insert_tx(
@@ -217,9 +237,9 @@ impl SmartVaultsWallet {
         self.wallet.read().await.get_balance()
     }
 
-    pub async fn get_address(&self, index: AddressIndex) -> AddressInfo {
+    pub async fn get_address(&self, index: AddressIndex) -> Result<AddressInfo, Error> {
         let mut wallet = self.wallet.write().await;
-        wallet.get_address(index)
+        Ok(wallet.try_get_address(index)?)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -228,7 +248,7 @@ impl SmartVaultsWallet {
         let spks = self.spks_of_keychain(KeychainKind::External).await;
 
         // Get last unused address
-        let last_unused = self.get_address(AddressIndex::LastUnused).await;
+        let last_unused = self.get_address(AddressIndex::LastUnused).await?;
 
         // Get network
         let wallet = self.wallet.read().await;
@@ -315,12 +335,13 @@ impl SmartVaultsWallet {
         })
     }
 
-    pub async fn get_utxos(&self) -> Vec<LocalUtxo> {
+    pub async fn get_utxos(&self) -> Vec<LocalOutput> {
         let wallet = self.wallet.read().await;
         wallet.list_unspent().collect()
     }
 
-    pub async fn sync(
+    /// Execute a full timechain sync.
+    pub async fn full_sync(
         &self,
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
@@ -336,11 +357,11 @@ impl SmartVaultsWallet {
 
         self.set_syncing(true);
 
-        tracing::debug!("Syncing policy {}", self.id);
+        tracing::debug!("Syncing policy {} [full]", self.id);
 
-        let prev_tip: Option<CheckPoint> = self.latest_checkpoint().await;
+        let prev_tip: CheckPoint = self.latest_checkpoint().await;
         let keychain_spks = self.spks().await;
-        let graph: TxGraph<ConfirmationTimeAnchor> = self.graph().await;
+        let graph: TxGraph<ConfirmationTimeHeightAnchor> = self.graph().await;
 
         tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
         let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
@@ -359,13 +380,85 @@ impl SmartVaultsWallet {
                 relevant_txids,
             },
             keychain_update,
-        ) = client.scan(prev_tip, keychain_spks, None, None, STOP_GAP, BATCH_SIZE)?;
+        ) = client.full_scan(prev_tip, keychain_spks, STOP_GAP, BATCH_SIZE)?;
         let missing: Vec<Txid> = relevant_txids.missing_full_txs(&graph);
         let graph_update =
             relevant_txids.into_confirmation_time_tx_graph(&client, None, missing)?;
 
         let update = Update {
             last_active_indices: keychain_update,
+            graph: graph_update,
+            chain: Some(chain_update),
+        };
+
+        self.apply_update(update).await?;
+        self.update_last_sync();
+        self.set_syncing(false);
+
+        tracing::info!("Policy {} synced", self.id);
+
+        Ok(())
+    }
+
+    pub async fn sync(
+        &self,
+        endpoint: ElectrumEndpoint,
+        proxy: Option<SocketAddr>,
+    ) -> Result<(), Error> {
+        let last_sync: Timestamp = self.last_sync();
+        if last_sync + WALLET_SYNC_INTERVAL > Timestamp::now() {
+            return Err(Error::AlreadySynced);
+        }
+
+        if self.is_syncing() {
+            return Err(Error::AlreadySyncing);
+        }
+
+        if self.is_chain_empty().await {
+            tracing::warn!("Local chain is empty: executing a full sync");
+            return self.full_sync(endpoint, proxy).await;
+        }
+
+        self.set_syncing(true);
+
+        tracing::debug!("Syncing policy {}", self.id);
+
+        let prev_tip: CheckPoint = self.latest_checkpoint().await;
+        let chain = self.chain().await;
+        let graph: TxGraph<ConfirmationTimeHeightAnchor> = self.graph().await;
+        let spk_index = self.spk_index().await;
+        let chain_tip: BlockId = chain.tip().block_id();
+        let all_spks = spk_index.all_spks().values().cloned();
+        let unconfirmed_txids = graph
+            .list_chain_txs(&chain, chain_tip)
+            .filter(|canonical_tx| !canonical_tx.chain_position.is_confirmed())
+            .map(|canonical_tx| canonical_tx.tx_node.txid);
+        let init_outpoints = spk_index.outpoints().iter().cloned();
+        let outpoints = graph
+            .filter_chain_unspents(&chain, chain_tip, init_outpoints)
+            .map(|(_, utxo)| utxo.outpoint);
+
+        tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
+        let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
+        let config: ElectrumConfig = ElectrumConfig::builder()
+            .validate_domain(endpoint.validate_tls())
+            .timeout(Some(120))
+            .retry(3)
+            .socks5(proxy)
+            .build();
+        let client: ElectrumClient =
+            ElectrumClient::from_config(&endpoint.as_non_standard_format(), config)?;
+
+        let ElectrumUpdate {
+            chain_update,
+            relevant_txids,
+        } = client.sync(prev_tip, all_spks, unconfirmed_txids, outpoints, BATCH_SIZE)?;
+        let missing: Vec<Txid> = relevant_txids.missing_full_txs(&graph);
+        let graph_update =
+            relevant_txids.into_confirmation_time_tx_graph(&client, None, missing)?;
+
+        let update = Update {
+            last_active_indices: BTreeMap::new(),
             graph: graph_update,
             chain: Some(chain_update),
         };

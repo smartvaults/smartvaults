@@ -1,21 +1,18 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use smartvaults_core::bdk::chain::Append;
+use smartvaults_core::bdk::wallet::ChangeSet;
 use smartvaults_core::hashes::sha256::Hash as Sha256Hash;
 
 use super::{Error, Store, StoreEncryption};
 
 impl Store {
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn save_changeset<K>(
+    pub async fn save_changeset(
         &self,
         descriptor_hash: Sha256Hash,
-        changeset: K,
-    ) -> Result<(), Error>
-    where
-        K: Default + Clone + Append + StoreEncryption + Send + 'static,
-    {
+        changeset: ChangeSet,
+    ) -> Result<(), Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -33,10 +30,7 @@ impl Store {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_changeset<K>(&self, descriptor_hash: Sha256Hash) -> Result<K, Error>
-    where
-        K: Default + Clone + Append + StoreEncryption + Send + 'static,
-    {
+    pub async fn get_changeset(&self, descriptor_hash: Sha256Hash) -> Result<ChangeSet, Error> {
         let conn = self.acquire().await?;
         let cipher = self.cipher.clone();
         conn.interact(move |conn| {
@@ -45,7 +39,7 @@ impl Store {
             let mut rows = stmt.query([descriptor_hash.to_string()])?;
             let row = rows.next()?.ok_or(Error::NotFound("changeset".into()))?;
             let data: Vec<u8> = row.get(0)?;
-            Ok(K::decrypt(&cipher, data)?)
+            Ok(ChangeSet::decrypt(&cipher, data)?)
         })
         .await?
     }

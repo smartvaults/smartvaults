@@ -7,8 +7,9 @@ use std::str::FromStr;
 use bdk::chain::{ConfirmationTime, PersistBackend};
 use bdk::descriptor::policy::SatisfiableItem;
 use bdk::descriptor::Policy as SpendingPolicy;
+use bdk::wallet::tx_builder::AddUtxoError;
 use bdk::wallet::ChangeSet;
-use bdk::{FeeRate, KeychainKind, LocalUtxo, Wallet};
+use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 #[cfg(feature = "reserves")]
@@ -36,7 +37,9 @@ use crate::{Amount, Signer, SECP256K1};
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Bdk(#[from] bdk::Error),
+    BdkAddUtxo(#[from] AddUtxoError),
+    #[error("{0}")]
+    BdkCreateTx(String),
     #[error(transparent)]
     BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
     #[error(transparent)]
@@ -66,8 +69,6 @@ pub enum Error {
     NoUtxosSelected,
     #[error("No UTXOs available: {0}")]
     NoUtxosAvailable(String),
-    #[error("Checkpoint not avilable")]
-    CheckpointNotAvailable,
     #[error("Absolute timelock not satisfied")]
     AbsoluteTimelockNotSatisfied,
     #[error("Relative timelock not satisfied")]
@@ -630,7 +631,7 @@ impl Policy {
         D: PersistBackend<ChangeSet>,
         S: Into<String>,
     {
-        let wallet_utxos: HashMap<OutPoint, LocalUtxo> = wallet
+        let wallet_utxos: HashMap<OutPoint, LocalOutput> = wallet
             .list_unspent()
             .map(|utxo| (utxo.outpoint, utxo))
             .collect();
@@ -642,111 +643,110 @@ impl Policy {
             )));
         }
 
-        match wallet.latest_checkpoint() {
-            Some(checkpoint) => {
-                let current_height: u32 = checkpoint.height();
-                let timestamp: u64 = time::timestamp();
+        let checkpoint = wallet.latest_checkpoint();
 
-                if let Some(frozen_utxos) = &frozen_utxos {
-                    if wallet
-                        .list_unspent()
-                        .filter(|utxo| !frozen_utxos.contains(&utxo.outpoint))
-                        .count()
-                        == 0
-                    {
-                        return Err(Error::NoUtxosAvailable(String::from(
-                            "frozen by other proposals",
-                        )));
-                    }
+        let current_height: u32 = checkpoint.height();
+        let timestamp: u64 = time::timestamp();
+
+        if let Some(frozen_utxos) = &frozen_utxos {
+            if wallet
+                .list_unspent()
+                .filter(|utxo| !frozen_utxos.contains(&utxo.outpoint))
+                .count()
+                == 0
+            {
+                return Err(Error::NoUtxosAvailable(String::from(
+                    "frozen by other proposals",
+                )));
+            }
+        }
+
+        // Build the PSBT
+        let psbt = {
+            let mut builder = wallet.build_tx();
+
+            if let Some(frozen_utxos) = frozen_utxos {
+                for unspendable in frozen_utxos.into_iter() {
+                    builder.add_unspendable(unspendable);
                 }
+            }
 
-                // Build the PSBT
-                let psbt = {
-                    let mut builder = wallet.build_tx();
+            if let Some(utxos) = utxos {
+                if utxos.is_empty() {
+                    return Err(Error::NoUtxosSelected);
+                }
+                builder.manually_selected_only();
+                builder.add_utxos(&utxos)?;
+            }
 
-                    if let Some(frozen_utxos) = frozen_utxos {
-                        for unspendable in frozen_utxos.into_iter() {
-                            builder.add_unspendable(unspendable);
-                        }
-                    }
+            if let Some(path) = policy_path {
+                builder.policy_path(path, KeychainKind::External);
+            }
 
-                    if let Some(utxos) = utxos {
-                        if utxos.is_empty() {
-                            return Err(Error::NoUtxosSelected);
-                        }
-                        builder.manually_selected_only();
-                        builder.add_utxos(&utxos)?;
-                    }
+            // TODO: add custom coin selection alorithm (to exclude UTXOs with timelock enabled)
+            builder
+                .fee_rate(fee_rate)
+                .enable_rbf()
+                .current_height(current_height);
+            match amount {
+                Amount::Max => builder
+                    .drain_wallet()
+                    .drain_to(address.payload.script_pubkey()),
+                Amount::Custom(amount) => {
+                    builder.add_recipient(address.payload.script_pubkey(), amount)
+                }
+            };
+            builder
+                .finish()
+                .map_err(|e| Error::BdkCreateTx(format!("{e:?}")))?
+        };
 
-                    if let Some(path) = policy_path {
-                        builder.policy_path(path, KeychainKind::External);
-                    }
+        if self.has_timelock() {
+            // Check if absolute timelock is satisfied
+            if !psbt.unsigned_tx.is_absolute_timelock_satisfied(
+                Height::from_consensus(current_height)?,
+                Time::from_consensus(timestamp as u32)?,
+            ) {
+                return Err(Error::AbsoluteTimelockNotSatisfied);
+            }
 
-                    // TODO: add custom coin selection alorithm (to exclude UTXOs with timelock enabled)
-                    builder
-                        .fee_rate(fee_rate)
-                        .enable_rbf()
-                        .current_height(current_height);
-                    match amount {
-                        Amount::Max => builder
-                            .drain_wallet()
-                            .drain_to(address.payload.script_pubkey()),
-                        Amount::Custom(amount) => {
-                            builder.add_recipient(address.payload.script_pubkey(), amount)
-                        }
-                    };
-                    builder.finish()?
-                };
+            for txin in psbt.unsigned_tx.input.iter() {
+                let sequence: Sequence = txin.sequence;
 
-                if self.has_timelock() {
-                    // Check if absolute timelock is satisfied
-                    if !psbt.unsigned_tx.is_absolute_timelock_satisfied(
-                        Height::from_consensus(current_height)?,
-                        Time::from_consensus(timestamp as u32)?,
-                    ) {
-                        return Err(Error::AbsoluteTimelockNotSatisfied);
-                    }
-
-                    for txin in psbt.unsigned_tx.input.iter() {
-                        let sequence: Sequence = txin.sequence;
-
-                        // Check if relative timelock is satisfied
-                        if sequence.is_height_locked() || sequence.is_time_locked() {
-                            if let Some(utxo) = wallet_utxos.get(&txin.previous_output) {
-                                match utxo.confirmation_time {
-                                    ConfirmationTime::Confirmed { height, .. } => {
-                                        if current_height.saturating_sub(height) < sequence.0 {
-                                            return Err(Error::RelativeTimelockNotSatisfied);
-                                        }
-                                    }
-                                    ConfirmationTime::Unconfirmed { .. } => {
-                                        return Err(Error::RelativeTimelockNotSatisfied);
-                                    }
+                // Check if relative timelock is satisfied
+                if sequence.is_height_locked() || sequence.is_time_locked() {
+                    if let Some(utxo) = wallet_utxos.get(&txin.previous_output) {
+                        match utxo.confirmation_time {
+                            ConfirmationTime::Confirmed { height, .. } => {
+                                if current_height.saturating_sub(height) < sequence.0 {
+                                    return Err(Error::RelativeTimelockNotSatisfied);
                                 }
+                            }
+                            ConfirmationTime::Unconfirmed { .. } => {
+                                return Err(Error::RelativeTimelockNotSatisfied);
                             }
                         }
                     }
                 }
-
-                let amount: u64 = match amount {
-                    Amount::Max => {
-                        let fee: u64 = psbt.fee()?.to_sat();
-                        let (sent, received) = wallet.sent_and_received(&psbt.unsigned_tx);
-                        sent.saturating_sub(received).saturating_sub(fee)
-                    }
-                    Amount::Custom(amount) => amount,
-                };
-
-                Ok(Proposal::spending(
-                    self.descriptor.clone(),
-                    address,
-                    amount,
-                    description,
-                    psbt,
-                ))
             }
-            None => Err(Error::CheckpointNotAvailable),
         }
+
+        let amount: u64 = match amount {
+            Amount::Max => {
+                let fee: u64 = psbt.fee()?.to_sat();
+                let (sent, received) = wallet.sent_and_received(&psbt.unsigned_tx);
+                sent.saturating_sub(received).saturating_sub(fee)
+            }
+            Amount::Custom(amount) => amount,
+        };
+
+        Ok(Proposal::spending(
+            self.descriptor.clone(),
+            address,
+            amount,
+            description,
+            psbt,
+        ))
     }
 
     #[cfg(feature = "reserves")]
@@ -779,7 +779,7 @@ impl Policy {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use keechain_core::bips::bip39::Mnemonic;
     use keechain_core::Seed;
 
