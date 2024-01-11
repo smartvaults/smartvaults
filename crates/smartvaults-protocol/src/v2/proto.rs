@@ -40,11 +40,9 @@ pub mod proposal {
 }
 
 pub mod signer {
-    mod inner {
-        include!(concat!(env!("OUT_DIR"), "/signer.rs"));
-    }
+    include!(concat!(env!("OUT_DIR"), "/signer.rs"));
 
-    pub use self::inner::{
+    pub use self::{
         DescriptorKeyValue as ProtoDescriptor, Purpose as ProtoPurpose,
         SharedSigner as ProtoSharedSigner, Signer as ProtoSigner, SignerType as ProtoSignerType,
     };

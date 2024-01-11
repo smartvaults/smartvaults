@@ -2,10 +2,12 @@ syntax = "proto3";
 
 package wrapper;
 
+import "signer.proto";
 import "vault.proto";
 
 message Wrapper {
   oneof object {
     vault.Vault vault = 1;
+    signer.SharedSigner shared_signer = 2;
   }
 }

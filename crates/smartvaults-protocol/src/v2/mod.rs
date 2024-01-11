@@ -27,4 +27,4 @@ pub use self::proposal::{
 };
 pub use self::signer::{SharedSigner, Signer, SignerIdentifier, SignerType};
 pub use self::vault::{Vault, VaultIdentifier};
-use self::wrapper::Wrapper;
+pub use self::wrapper::Wrapper;
