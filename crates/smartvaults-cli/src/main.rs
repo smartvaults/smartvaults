@@ -172,7 +172,7 @@ async fn run() -> Result<()> {
             let file = File::open(path)?;
             let reader = BufReader::new(file);
 
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 let mut vec: Vec<String> = cli::parser::split(&line)?;
                 vec.insert(0, String::new());
                 println!("{line}");
