@@ -135,7 +135,7 @@ impl SmartVaults {
             .filter_map(|event| {
                 let identifier: &str = event.identifier()?;
                 let signer: GetSigner = signers.get(identifier)?.clone();
-                let offering: SignerOffering = SignerOffering::from_json(event.content).ok()?;
+                let offering: SignerOffering = SignerOffering::from_json(event.content()).ok()?;
                 if offering.network == self.network {
                     Some(GetSignerOffering {
                         id: event.id,
@@ -179,13 +179,13 @@ impl SmartVaults {
             .into_iter()
         {
             if event.kind == KEY_AGENT_SIGNALING {
-                key_agents.entry(event.pubkey).or_default();
+                key_agents.entry(event.author()).or_default();
             } else if event.kind == KEY_AGENT_SIGNER_OFFERING_KIND {
-                if let Ok(signer_offering) = SignerOffering::from_json(event.content) {
+                if let Ok(signer_offering) = SignerOffering::from_json(event.content()) {
                     // Check network
                     if signer_offering.network == self.network {
                         key_agents
-                            .entry(event.pubkey)
+                            .entry(event.author())
                             .and_modify(|set| {
                                 set.insert(signer_offering);
                             })

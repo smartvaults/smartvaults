@@ -172,7 +172,7 @@ impl SmartVaultsStorage {
             let mut shared_keys = self.shared_keys.write().await;
             if let HashMapEntry::Vacant(e) = shared_keys.entry(policy_id) {
                 let content =
-                    nip04::decrypt(&self.keys.secret_key()?, &event.pubkey, &event.content)?;
+                    nip04::decrypt(&self.keys.secret_key()?, event.author_ref(), &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
                 e.insert(shared_key);
@@ -252,7 +252,7 @@ impl SmartVaultsStorage {
                             e.insert(InternalApproval {
                                 proposal_id,
                                 policy_id: *policy_id,
-                                public_key: event.pubkey,
+                                public_key: event.author(),
                                 approval: approved_proposal,
                                 timestamp: event.created_at,
                             });
@@ -306,7 +306,7 @@ impl SmartVaultsStorage {
                 return Ok(Some(EventHandled::Signer(event.id)));
             }
         } else if event.kind == SHARED_SIGNERS_KIND {
-            if event.pubkey == self.keys.public_key() {
+            if event.author() == self.keys.public_key() {
                 let signer_id = event
                     .event_ids()
                     .next()
@@ -322,11 +322,14 @@ impl SmartVaultsStorage {
             } else {
                 let mut shared_signers = self.shared_signers.write().await;
                 if let HashMapEntry::Vacant(e) = shared_signers.entry(event.id) {
-                    let shared_signer: String =
-                        nip04::decrypt(&self.keys.secret_key()?, &event.pubkey, &event.content)?;
+                    let shared_signer: String = nip04::decrypt(
+                        &self.keys.secret_key()?,
+                        event.author_ref(),
+                        &event.content,
+                    )?;
                     let shared_signer: SharedSigner = SharedSigner::from_json(shared_signer)?;
                     e.insert(InternalSharedSigner {
-                        owner_public_key: event.pubkey,
+                        owner_public_key: event.author(),
                         shared_signer,
                     });
                     return Ok(Some(EventHandled::SharedSigner(event.id)));

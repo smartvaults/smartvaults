@@ -302,9 +302,11 @@ impl SmartVaults {
                 .send(Message::EventHandled(EventHandled::Contacts))?;
         } else if event.kind == Kind::Metadata {
             self.sync_channel
-                .send(Message::EventHandled(EventHandled::Metadata(event.pubkey)))?;
+                .send(Message::EventHandled(EventHandled::Metadata(
+                    event.author(),
+                )))?;
         } else if event.kind == Kind::RelayList {
-            if event.pubkey == self.keys().public_key() {
+            if event.author() == self.keys().public_key() {
                 tracing::debug!("Received relay list: {:?}", event.tags);
                 let current_relays: HashSet<Url> = self
                     .db
@@ -336,19 +338,19 @@ impl SmartVaults {
                     .send(Message::EventHandled(EventHandled::RelayList))?;
             }
         } else if event.kind == Kind::NostrConnect
-            && self.db.nostr_connect_session_exists(event.pubkey).await?
+            && self.db.nostr_connect_session_exists(event.author()).await?
         {
             let keys: &Keys = self.keys();
-            let content = nip04::decrypt(&keys.secret_key()?, &event.pubkey, event.content)?;
+            let content = nip04::decrypt(&keys.secret_key()?, event.author_ref(), event.content())?;
             let msg = NIP46Message::from_json(content)?;
             if let Ok(request) = msg.to_request() {
                 match request {
                     NIP46Request::Disconnect => {
-                        self._disconnect_nostr_connect_session(event.pubkey, false)
+                        self._disconnect_nostr_connect_session(event.author(), false)
                             .await?;
                     }
                     NIP46Request::GetPublicKey => {
-                        let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
+                        let uri = self.db.get_nostr_connect_session(event.author()).await?;
                         let msg = msg
                             .generate_response(keys)?
                             .ok_or(Error::CantGenerateNostrConnectResponse)?;
@@ -363,10 +365,10 @@ impl SmartVaults {
                     _ => {
                         if self
                             .db
-                            .is_nostr_connect_session_pre_authorized(event.pubkey)
+                            .is_nostr_connect_session_pre_authorized(event.author())
                             .await
                         {
-                            let uri = self.db.get_nostr_connect_session(event.pubkey).await?;
+                            let uri = self.db.get_nostr_connect_session(event.author()).await?;
                             let keys: &Keys = self.keys();
                             let req_message = msg.clone();
                             let msg = msg
@@ -386,7 +388,7 @@ impl SmartVaults {
                             self.db
                                 .save_nostr_connect_request(
                                     event.id,
-                                    event.pubkey,
+                                    event.author(),
                                     req_message,
                                     event.created_at,
                                     true,
@@ -395,13 +397,13 @@ impl SmartVaults {
                             tracing::info!(
                                 "Auto approved nostr connect request {} for app {}",
                                 event.id,
-                                event.pubkey
+                                event.author()
                             )
                         } else {
                             self.db
                                 .save_nostr_connect_request(
                                     event.id,
-                                    event.pubkey,
+                                    event.author(),
                                     msg,
                                     event.created_at,
                                     false,

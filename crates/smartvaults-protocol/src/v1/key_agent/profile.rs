@@ -22,19 +22,19 @@ impl KeyAgentMetadata {
         let mut metadata = Metadata::new();
 
         if let Some(jurisdiction) = self.jurisdiction {
-            metadata = metadata.custom_field(JURISDICTION, &jurisdiction);
+            metadata = metadata.custom_field(JURISDICTION, jurisdiction);
         }
 
         if let Some(x) = self.x {
-            metadata = metadata.custom_field(X, &x);
+            metadata = metadata.custom_field(X, x);
         }
 
         if let Some(facebook) = self.facebook {
-            metadata = metadata.custom_field(FACEBOOK, &facebook);
+            metadata = metadata.custom_field(FACEBOOK, facebook);
         }
 
         if let Some(linkedin) = self.linkedin {
-            metadata = metadata.custom_field(LINKEDIN, &linkedin);
+            metadata = metadata.custom_field(LINKEDIN, linkedin);
         }
 
         metadata

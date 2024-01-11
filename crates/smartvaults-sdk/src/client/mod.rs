@@ -724,18 +724,19 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_policy_by_id(&self, policy_id: EventId) -> Result<(), Error> {
-        let Event { pubkey, .. } = self.client.database().event_by_id(policy_id).await?;
+        let event = self.client.database().event_by_id(policy_id).await?;
+        let author = event.author();
 
         // Get nostr pubkeys and shared keys
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
         let InternalPolicy { public_keys, .. } = self.storage.vault(&policy_id).await?;
 
-        if pubkey == shared_key.public_key() {
+        if author == shared_key.public_key() {
             let mut tags: Vec<Tag> = public_keys.into_iter().map(Tag::public_key).collect();
             tags.push(Tag::event(policy_id));
 
             // Get all events linked to the policy
-            let filter = Filter::new().event(policy_id).author(pubkey);
+            let filter = Filter::new().event(policy_id).author(author);
             let event_ids = self
                 .client
                 .database()
@@ -775,7 +776,7 @@ impl SmartVaults {
         // Get shared key
         let shared_key: Keys = self.storage.shared_key(policy_id).await?;
 
-        if proposal_event.pubkey == shared_key.public_key() {
+        if proposal_event.author() == shared_key.public_key() {
             // Extract `p` tags from proposal event to notify users about proposal deletion
             let mut tags: Vec<Tag> = proposal_event
                 .public_keys()
@@ -829,7 +830,7 @@ impl SmartVaults {
         // Get shared key
         let shared_key: Keys = self.storage.shared_key(policy_id).await?;
 
-        if proposal_event.pubkey == shared_key.public_key() {
+        if proposal_event.author() == shared_key.public_key() {
             // Extract `p` tags from proposal event to notify users about proposal deletion
             let mut tags: Vec<Tag> = proposal_event
                 .public_keys()
@@ -1430,9 +1431,10 @@ impl SmartVaults {
     // }
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
-        let Event { pubkey, .. } = self.client.database().event_by_id(approval_id).await?;
+        let event = self.client.database().event_by_id(approval_id).await?;
+        let author = event.author();
         let keys: &Keys = self.keys();
-        if pubkey == keys.public_key() {
+        if author == keys.public_key() {
             let InternalApproval { policy_id, .. } = self.storage.approval(&approval_id).await?;
 
             // Get nostr pubkeys linked to policyit?;
@@ -1894,7 +1896,7 @@ impl SmartVaults {
             .await?
             .into_iter()
             .map(|e| {
-                let metadata = Metadata::from_json(e.content).unwrap_or_default();
+                let metadata = Metadata::from_json(e.content()).unwrap_or_default();
                 Profile::new(e.pubkey, metadata)
             })
             .collect())
