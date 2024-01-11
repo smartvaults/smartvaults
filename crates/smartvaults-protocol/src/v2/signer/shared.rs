@@ -13,7 +13,7 @@ use smartvaults_core::CoreSigner;
 use super::SignerIdentifier;
 use crate::v2::core::SchemaVersion;
 use crate::v2::proto::signer::ProtoSharedSigner;
-use crate::v2::{Error, NostrPublicIdentifier, ProtocolEncoding};
+use crate::v2::{Error, NostrPublicIdentifier, ProtocolEncoding, ProtocolEncryption};
 
 /// Shared Signer
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,4 +81,8 @@ impl ProtocolEncoding for SharedSigner {
         let shared_signer: ProtoSharedSigner = ProtoSharedSigner::decode(data)?;
         Self::try_from(shared_signer)
     }
+}
+
+impl ProtocolEncryption for SharedSigner {
+    type Err = Error;
 }
