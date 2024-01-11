@@ -152,7 +152,7 @@ impl Manager {
                     SmartVaultsWalletStorage::new(descriptor_hash, this.db.clone());
                 let wallet: Wallet<SmartVaultsWalletStorage> =
                     Wallet::new_or_load(&desc, None, db, this.network)?;
-                Ok::<SmartVaultsWallet, Error>(SmartVaultsWallet::new(policy_id, policy, wallet))
+                Ok::<SmartVaultsWallet, Error>(SmartVaultsWallet::new(vault_id, policy, wallet))
             })
             .await??;
             e.insert(wallet);
@@ -263,8 +263,8 @@ impl Manager {
         Ok(self.wallet(vault_id).await?.insert_tx(tx, position).await?)
     }
 
-    pub async fn last_sync(&self, policy_id: EventId) -> Result<Timestamp, Error> {
-        Ok(self.wallet(policy_id).await?.last_sync())
+    pub async fn last_sync(&self, vault_id: &VaultIdentifier) -> Result<Timestamp, Error> {
+        Ok(self.wallet(vault_id).await?.last_sync())
     }
 
     pub async fn get_balance(&self, vault_id: &VaultIdentifier) -> Result<Balance, Error> {

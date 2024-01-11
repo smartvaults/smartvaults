@@ -680,7 +680,7 @@ impl SmartVaults {
         Ok(GetPolicy {
             vault: self.storage.vault(vault_id).await?.vault,
             balance: self.manager.get_balance(vault_id).await?,
-            last_sync: self.manager.last_sync(policy_id).await?,
+            last_sync: self.manager.last_sync(vault_id).await?,
         })
     }
 
@@ -786,7 +786,7 @@ impl SmartVaults {
             policies.push(GetPolicy {
                 vault: internal.vault,
                 balance: self.manager.get_balance(&id).await?,
-                last_sync: self.manager.last_sync(id).await?,
+                last_sync: self.manager.last_sync(&id).await?,
             });
         }
 

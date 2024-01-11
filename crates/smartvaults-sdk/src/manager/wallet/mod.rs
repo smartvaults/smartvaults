@@ -26,6 +26,7 @@ use smartvaults_core::bitcoin::psbt::{self, PartiallySignedTransaction};
 use smartvaults_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Transaction, Txid};
 use smartvaults_core::reserves::ProofOfReserves;
 use smartvaults_core::{Destination, Policy, ProofOfReserveProposal, SpendingProposal};
+use smartvaults_protocol::v2::VaultIdentifier;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -135,7 +136,7 @@ impl TransactionDetails {
 
 #[derive(Debug, Clone)]
 pub struct SmartVaultsWallet {
-    id: EventId,
+    id: VaultIdentifier,
     policy: Policy,
     wallet: Arc<RwLock<Wallet<SmartVaultsWalletStorage>>>,
     syncing: Arc<AtomicBool>,
@@ -144,12 +145,12 @@ pub struct SmartVaultsWallet {
 
 impl SmartVaultsWallet {
     pub fn new(
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         policy: Policy,
         wallet: Wallet<SmartVaultsWalletStorage>,
     ) -> Self {
         Self {
-            id: policy_id,
+            id: vault_id,
             policy,
             wallet: Arc::new(RwLock::new(wallet)),
             syncing: Arc::new(AtomicBool::new(false)),

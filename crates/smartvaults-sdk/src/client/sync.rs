@@ -31,6 +31,7 @@ use smartvaults_protocol::v2::{ProposalIdentifier, ProposalType};
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
+use crate::constants::WALLET_SYNC_INTERVAL;
 use crate::storage::InternalVault;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

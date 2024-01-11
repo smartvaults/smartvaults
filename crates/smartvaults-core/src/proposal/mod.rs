@@ -9,6 +9,7 @@ use keechain_core::bitcoin::{Network, PrivateKey};
 use keechain_core::miniscript::Descriptor;
 use keechain_core::psbt::{Error as KPsbtError, PsbtUtility};
 use keechain_core::types::Seed;
+use thiserror::Error;
 
 mod reserves;
 mod spending;
@@ -19,7 +20,7 @@ use crate::SECP256K1;
 #[cfg(feature = "hwi")]
 use crate::{hwi, CoreSigner};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
     BdkSigner(#[from] SignerError),
@@ -65,6 +66,7 @@ pub trait ProposalSigning<T> {
             self.network(),
             &SECP256K1,
         )?;
+
         Ok(psbt)
     }
 

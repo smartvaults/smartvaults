@@ -62,7 +62,6 @@ mod tests {
     use keechain_core::{Purpose, Result, Seed};
 
     use super::*;
-    use crate::proposal::ProposalType;
     #[cfg(feature = "reserves")]
     use crate::reserves::ProofOfReserves;
 

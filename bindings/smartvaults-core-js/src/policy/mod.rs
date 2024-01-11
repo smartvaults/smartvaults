@@ -15,35 +15,6 @@ use self::template::JsPolicyTemplate;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
-#[wasm_bindgen(js_name = SelectableCondition)]
-pub struct JsSelectableCondition {
-    inner: SelectableCondition,
-}
-
-impl From<SelectableCondition> for JsSelectableCondition {
-    fn from(inner: SelectableCondition) -> Self {
-        Self { inner }
-    }
-}
-
-#[wasm_bindgen(js_class = SelectableCondition)]
-impl JsSelectableCondition {
-    #[wasm_bindgen(getter)]
-    pub fn path(&self) -> String {
-        self.inner.path.clone()
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn thresh(&self) -> usize {
-        self.inner.thresh
-    }
-
-    #[wasm_bindgen(getter, js_name = subPaths)]
-    pub fn sub_paths(&self) -> Vec<String> {
-        self.inner.sub_paths.clone()
-    }
-}
-
 #[wasm_bindgen(js_name = Policy)]
 pub struct JsPolicy {
     inner: Policy,
@@ -107,16 +78,10 @@ impl JsPolicy {
 
     /// Construct `Policy` from `PolicyTemplate`
     #[wasm_bindgen(js_name = fromTemplate)]
-    pub fn from_template(
-        template: &JsPolicyTemplate,
-        network: JsNetwork,
-    ) -> Result<JsPolicy> {
+    pub fn from_template(template: &JsPolicyTemplate, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_template(
-                template.deref().clone(),
-                network.into(),
-            )
-            .map_err(into_err)?,
+            inner: Policy::from_template(template.deref().clone(), network.into())
+                .map_err(into_err)?,
         })
     }
 
