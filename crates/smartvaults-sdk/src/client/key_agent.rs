@@ -12,10 +12,11 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::{Destination, FeeRate, Recipient, SpendingProposal};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
 use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents};
-use smartvaults_protocol::v2::{self, PendingProposal, Period, Proposal, Signer, VaultIdentifier};
+use smartvaults_protocol::v2::{
+    self, PendingProposal, Period, Proposal, Signer, Vault, VaultIdentifier,
+};
 
 use super::{Error, SmartVaults};
-use crate::storage::InternalVault;
 use crate::types::{GetProposal, GetSignerOffering, KeyAgent};
 
 impl SmartVaults {
@@ -252,7 +253,7 @@ impl SmartVaults {
         let proposal = Proposal::pending(*vault_id, pending, self.network);
 
         // Get vault
-        let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+        let vault: Vault = self.storage.vault(&vault_id).await?;
 
         // Compose the event
         let event: Event = v2::proposal::build_event(&vault, &proposal)?;

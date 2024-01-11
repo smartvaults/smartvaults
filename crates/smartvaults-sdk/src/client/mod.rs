@@ -26,7 +26,7 @@ use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Transaction, Txid};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
-use smartvaults_core::{Destination, FeeRate, PolicyTemplate, SpendingProposal, SECP256K1};
+use smartvaults_core::{Destination, FeeRate, SpendingProposal, SECP256K1};
 use smartvaults_protocol::v1::{Label, LabelData};
 use smartvaults_protocol::v2::constants::{PROPOSAL_KIND_V2, VAULT_KIND_V2};
 use smartvaults_protocol::v2::{
@@ -41,14 +41,15 @@ mod key_agent;
 mod label;
 mod signers;
 mod sync;
+mod vault;
 
 pub use self::sync::{EventHandled, Message};
 use crate::config::{Config, ElectrumEndpoint};
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
-use crate::storage::{InternalApproval, InternalVault, SmartVaultsStorage};
+use crate::storage::{InternalApproval, SmartVaultsStorage};
 use crate::types::{
-    GetAddress, GetApproval, GetApprovedProposals, GetPolicy, GetProposal, GetTransaction, GetUtxo,
+    GetAddress, GetApproval, GetApprovedProposals, GetProposal, GetTransaction, GetUtxo,
     PolicyBackup,
 };
 use crate::{util, Error};
@@ -257,7 +258,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     async fn init(&self) -> Result<(), Error> {
-        for (vault_id, InternalVault { vault, .. }) in self.storage.vaults().await.into_iter() {
+        for (vault_id, vault) in self.storage.vaults().await.into_iter() {
             let manager = self.manager.clone();
             thread::spawn(async move {
                 if let Err(e) = manager.load_policy(vault_id, vault.policy()).await {
@@ -676,15 +677,6 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<GetPolicy, Error> {
-        Ok(GetPolicy {
-            vault: self.storage.vault(vault_id).await?.vault,
-            balance: self.manager.get_balance(vault_id).await?,
-            last_sync: self.manager.last_sync(vault_id).await?,
-        })
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_proposal_by_id(
         &self,
         proposal_id: &ProposalIdentifier,
@@ -705,7 +697,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
-        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
+        let vault = self.storage.vault(vault_id).await?;
 
         let keys = self.keys();
         let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
@@ -748,7 +740,7 @@ impl SmartVaults {
         let proposal: Proposal = self.storage.proposal(proposal_id).await?;
 
         // Get Vault for shared key
-        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
+        let vault = self.storage.vault(&proposal.vault_id()).await?;
         let shared_key: Keys = Keys::new(vault.shared_key());
 
         let filter: Filter = Filter::new()
@@ -775,24 +767,6 @@ impl SmartVaults {
         } else {
             Err(Error::TryingToDeleteNotOwnedEvent)
         }
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_policies(&self) -> Result<Vec<GetPolicy>, Error> {
-        let items = self.storage.vaults().await;
-        let mut policies: Vec<GetPolicy> = Vec::with_capacity(items.len());
-
-        for (id, internal) in items.into_iter() {
-            policies.push(GetPolicy {
-                vault: internal.vault,
-                balance: self.manager.get_balance(&id).await?,
-                last_sync: self.manager.last_sync(&id).await?,
-            });
-        }
-
-        policies.sort();
-
-        Ok(policies)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -883,59 +857,6 @@ impl SmartVaults {
     // }
     // Ok(users)
     // }
-
-    pub async fn save_vault<S>(
-        &self,
-        name: S,
-        description: S,
-        descriptor: S,
-    ) -> Result<VaultIdentifier, Error>
-    where
-        S: AsRef<str>,
-    {
-        // Generate a shared key
-        let shared_key = Keys::generate();
-        let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;
-
-        // Compose event
-        let keys = self.keys();
-        let event: Event = v2::vault::build_event(keys, &vault)?;
-
-        // Publish event
-        self.client.send_event(event).await?;
-
-        let vault_id: VaultIdentifier = vault.id();
-
-        // Index event
-        self.storage
-            .save_vault(
-                vault_id,
-                InternalVault {
-                    vault: vault.clone(),
-                },
-            )
-            .await;
-
-        // Load policy
-        self.manager.load_policy(vault_id, vault.policy()).await?;
-
-        Ok(vault_id)
-    }
-
-    pub async fn save_vault_from_template<S>(
-        &self,
-        name: S,
-        description: S,
-        template: PolicyTemplate,
-    ) -> Result<VaultIdentifier, Error>
-    where
-        S: Into<String>,
-    {
-        let shared_key = Keys::generate();
-        let vault: Vault = Vault::from_template(template, self.network, shared_key.secret_key()?)?;
-        let descriptor: String = vault.as_descriptor().to_string();
-        self.save_vault(name, description, descriptor).await
-    }
 
     pub async fn estimate_tx_vsize(
         &self,
@@ -1044,7 +965,7 @@ impl SmartVaults {
         let proposal = Proposal::pending(*vault_id, pending, self.network);
 
         // Get vault
-        let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+        let vault = self.storage.vault(&vault_id).await?;
 
         // Compose and send event
         let event: Event = v2::proposal::build_event(&vault, &proposal)?;
@@ -1103,7 +1024,7 @@ impl SmartVaults {
     {
         // Get proposal and policy
         let proposal: Proposal = self.storage.proposal(proposal_id).await?;
-        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
+        let vault = self.storage.vault(&proposal.vault_id()).await?;
 
         // Sign PSBT
         let seed: Seed = self.keechain.read().seed(password)?;
@@ -1266,7 +1187,7 @@ impl SmartVaults {
             mut proposal,
             approvals,
         } = self.storage.approvals_by_proposal_id(proposal_id).await?;
-        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
+        let vault = self.storage.vault(&proposal.vault_id()).await?;
 
         // Finalize proposal
         proposal.finalize(approvals)?;
@@ -1431,7 +1352,8 @@ impl SmartVaults {
         let tx = wallet.get_tx(txid).await?;
 
         let label: Option<String> = if tx.received > tx.sent {
-            let mut label = None;
+            // let mut label = None;
+            let label = None;
             for txout in tx.output.iter() {
                 if wallet.is_mine(&txout.script_pubkey).await {
                     // let shared_key: Keys = self.storage.shared_key(&vault_id).await?;
@@ -1476,7 +1398,7 @@ impl SmartVaults {
         let address: Address<NetworkChecked> =
             self.manager.get_address(vault, index).await?.address;
 
-        let InternalVault { vault, .. } = self.storage.vault(vault).await?;
+        let vault = self.storage.vault(vault).await?;
         let shared_key = Keys::new(vault.shared_key());
         let address = Address::new(self.network, address.payload);
         let identifier: String =
@@ -1555,11 +1477,11 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_total_balance(&self) -> Result<Balance, Error> {
-        let vaults: HashMap<VaultIdentifier, InternalVault> = self.storage.vaults().await;
+        let vaults: HashMap<VaultIdentifier, Vault> = self.storage.vaults().await;
         let mut total_balance: Balance = Balance::default();
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
-        for (vault_id, InternalVault { vault, .. }) in vaults.into_iter() {
+        for (vault_id, vault) in vaults.into_iter() {
             if already_seen.insert(vault.descriptor()) {
                 let balance: Balance = self.manager.get_balance(&vault_id).await?;
                 total_balance = total_balance.add(balance);
@@ -1570,11 +1492,11 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_all_transactions(&self) -> Result<BTreeSet<GetTransaction>, Error> {
-        let vaults: HashMap<VaultIdentifier, InternalVault> = self.storage.vaults().await;
+        let vaults: HashMap<VaultIdentifier, Vault> = self.storage.vaults().await;
         let mut txs: BTreeSet<GetTransaction> = BTreeSet::new();
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
-        for (vault_id, InternalVault { vault, .. }) in vaults.into_iter() {
+        for (vault_id, vault) in vaults.into_iter() {
             if already_seen.insert(vault.descriptor()) {
                 let t = self.get_txs(&vault_id).await?;
                 txs.extend(t);
@@ -1629,7 +1551,7 @@ impl SmartVaults {
         &self,
         vault_id: &VaultIdentifier,
     ) -> Result<PolicyBackup, Error> {
-        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
+        let vault = self.storage.vault(vault_id).await?;
         Ok(PolicyBackup::new(
             "TODO",
             "TODO",

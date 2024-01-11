@@ -40,7 +40,7 @@ async fn main() {
     config.save().await.unwrap();
 
     // Create a new proposal
-    let policies = client.get_policies().await.unwrap();
+    let policies = client.vaults().await.unwrap();
     let proposal = client
         .spend(
             policies.first().unwrap().policy_id,

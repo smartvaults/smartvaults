@@ -11,7 +11,7 @@ use smartvaults_sdk::core::bitcoin::address::NetworkUnchecked;
 use smartvaults_sdk::core::bitcoin::{Address, OutPoint};
 use smartvaults_sdk::core::{Amount, FeeRate, SelectableCondition};
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::types::{GetPolicy, GetProposal, GetUtxo};
+use smartvaults_sdk::types::{GetProposal, GetUtxo, GetVault};
 use smartvaults_sdk::util::format;
 
 use crate::app::component::{Dashboard, FeeSelector, PolicyPickList, PolicyTree, UtxoSelector};
@@ -88,7 +88,7 @@ pub struct SpendState {
 }
 
 impl SpendState {
-    pub fn new(policy: Option<GetPolicy>) -> Self {
+    pub fn new(policy: Option<GetVault>) -> Self {
         Self {
             policy: policy.map(|p| p.into()),
             policies: Vec::new(),
@@ -227,7 +227,7 @@ impl State for SpendState {
         Command::perform(
             async move {
                 client
-                    .get_policies()
+                    .vaults()
                     .await
                     .unwrap()
                     .into_iter()

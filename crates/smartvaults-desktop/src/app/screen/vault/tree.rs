@@ -5,7 +5,7 @@ use iced::widget::Column;
 use iced::{Command, Element};
 use smartvaults_sdk::core::bdk::descriptor::policy::SatisfiableItem;
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::types::GetPolicy;
+use smartvaults_sdk::types::GetVault;
 
 use crate::app::component::{Dashboard, PolicyTree};
 use crate::app::{Context, Message, Stage, State};
@@ -50,7 +50,7 @@ impl State for PolicyTreeState {
         let policy_id = self.policy_id;
         Command::perform(
             async move {
-                let GetPolicy { vault, .. } = client.get_policy_by_id(policy_id).await?;
+                let GetVault { vault, .. } = client.get_vault_by_id(policy_id).await?;
                 let item = vault.satisfiable_item()?.clone();
                 Ok::<SatisfiableItem, Box<dyn std::error::Error>>(item)
             },

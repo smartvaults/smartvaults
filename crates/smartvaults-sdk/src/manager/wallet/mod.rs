@@ -12,7 +12,7 @@ use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::{ElectrumExt, ElectrumUpdate};
-use nostr_sdk::{EventId, Timestamp};
+use nostr_sdk::Timestamp;
 use smartvaults_core::bdk::chain::keychain::KeychainTxOutIndex;
 use smartvaults_core::bdk::chain::local_chain::{CannotConnectError, CheckPoint, LocalChain};
 use smartvaults_core::bdk::chain::{

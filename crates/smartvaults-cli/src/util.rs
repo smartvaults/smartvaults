@@ -18,8 +18,8 @@ use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{EventId, Keys, Profile, PublicKey, Relay, Timestamp, Url};
 use smartvaults_sdk::protocol::v1::{CompletedProposal, Proposal};
 use smartvaults_sdk::types::{
-    GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetSignerOffering,
-    GetTransaction, GetUtxo, NostrConnectRequest,
+    GetAddress, GetCompletedProposal, GetProposal, GetSigner, GetSignerOffering, GetTransaction,
+    GetUtxo, GetVault, NostrConnectRequest,
 };
 use smartvaults_sdk::util::{self, format};
 use termtree::Tree;
@@ -90,16 +90,15 @@ pub fn print_contacts(contacts: BTreeSet<Profile>) {
     table.printstd();
 }
 
-pub fn print_policy(
-    vault: GetPolicy,
-    policy_id: EventId,
+pub fn print_vault(
+    vault: GetVault,
     item: SatisfiableItem,
     address: GetAddress,
     txs: BTreeSet<GetTransaction>,
     utxos: Vec<GetUtxo>,
 ) {
-    println!("{}", "\nPolicy".fg::<BlazeOrange>().underline());
-    println!("- ID: {policy_id}");
+    println!("{}", "\nVault".fg::<BlazeOrange>().underline());
+    println!("- ID: {}", vault.id());
     println!("- Name: {}", &vault.name);
     println!("- Description: {}", vault.description);
 
@@ -312,35 +311,29 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
     si_tree
 }
 
-pub fn print_policies(policies: Vec<GetPolicy>) {
+pub fn print_vaults(vaults: Vec<GetVault>) {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "ID", "Name", "Description"]);
+    table.set_titles(row!["#", "ID", "Name", "Description", "Balance"]);
 
-    for (
-        index,
-        GetPolicy {
-            policy_id, vault, ..
-        },
-    ) in policies.into_iter().enumerate()
-    {
-        table.add_row(row![index + 1, policy_id, vault.name, vault.description]);
+    for (index, GetVault { vault, balance, .. }) in vaults.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            vault.id(),
+            vault.name,
+            vault.description,
+            balance.total()
+        ]);
     }
 
     table.printstd();
 }
 
 pub fn print_proposal(proposal: GetProposal) {
-    let GetProposal {
-        proposal_id,
-        policy_id,
-        proposal,
-        signed,
-        ..
-    } = proposal;
+    let GetProposal { proposal, signed } = proposal;
     println!();
-    println!("- Proposal id: {proposal_id}");
-    println!("- Policy id: {policy_id}");
+    println!("- Proposal ID: {}", proposal.id());
+    println!("- Vault ID: {}", proposal.vault_id());
     match proposal {
         Proposal::Spending {
             to_address,
@@ -380,7 +373,7 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
     table.set_titles(row![
         "#",
         "ID",
-        "Policy ID",
+        "Vault ID",
         "Type",
         "Desc/Msg",
         "Address/Signer",
@@ -388,17 +381,7 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
         "Signed",
     ]);
 
-    for (
-        index,
-        GetProposal {
-            proposal_id,
-            policy_id,
-            proposal,
-            signed,
-            ..
-        },
-    ) in proposals.into_iter().enumerate()
-    {
+    for (index, GetProposal { proposal, signed }) in proposals.into_iter().enumerate() {
         match proposal {
             Proposal::Spending {
                 to_address,
@@ -408,8 +391,8 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
             } => {
                 table.add_row(row![
                     index + 1,
-                    proposal_id,
-                    util::cut_event_id(policy_id),
+                    proposal.id(),
+                    proposal.vault_id(),
                     "spending",
                     description,
                     to_address.assume_checked(),

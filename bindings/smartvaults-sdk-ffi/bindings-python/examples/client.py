@@ -5,20 +5,20 @@ init_desktop_logger("/home/user/.smartvaults", Network.TESTNET)
 
 client = SmartVaults.open("/home/user/.smartvaults", "test", "test", Network.TESTNET)
 
-policies = []
+vaults = []
 
 class SyncNotifications(SyncHandler):
     def handle(self, msg):
         print("Refreshing...")
-        global policies
-        policies = client.get_policies()
+        global vaults
+        vaults = client.vaults()
 
 handle = client.handle_sync(SyncNotifications())
 
 while True:
     time.sleep(5.0)
 
-    for p in policies:
+    for p in vaults:
         print(p.policy().name())
 
     handle.abort()

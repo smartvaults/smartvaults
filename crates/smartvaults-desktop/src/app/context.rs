@@ -9,7 +9,7 @@ use smartvaults_sdk::core::bitcoin::Txid;
 use smartvaults_sdk::core::Priority;
 use smartvaults_sdk::nostr::{EventId, Url};
 use smartvaults_sdk::protocol::v1::{Signer, SignerOffering, Vault};
-use smartvaults_sdk::types::{GetPolicy, GetSigner};
+use smartvaults_sdk::types::{GetSigner, GetVault};
 use smartvaults_sdk::{util, SmartVaults};
 
 pub const AVAILABLE_MODES: [Mode; 2] = [Mode::User, Mode::KeyAgent];
@@ -23,10 +23,10 @@ pub enum Stage {
     RestoreVault,
     Vault(EventId),
     PolicyTree(EventId),
-    Spend(Option<GetPolicy>),
-    Receive(Option<GetPolicy>),
+    Spend(Option<GetVault>),
+    Receive(Option<GetVault>),
     SelfTransfer,
-    NewProof(Option<GetPolicy>),
+    NewProof(Option<GetVault>),
     Activity,
     Proposal(EventId),
     Transaction { policy_id: EventId, txid: Txid },

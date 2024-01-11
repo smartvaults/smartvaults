@@ -5,12 +5,7 @@ use std::cmp::Ordering;
 
 use nostr_sdk::{PublicKey, Timestamp};
 use smartvaults_protocol::v1::Label;
-use smartvaults_protocol::v2::{Approval, Vault, VaultIdentifier};
-
-#[derive(Debug, Clone)]
-pub(crate) struct InternalVault {
-    pub vault: Vault,
-}
+use smartvaults_protocol::v2::{Approval, VaultIdentifier};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InternalApproval {

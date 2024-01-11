@@ -6,7 +6,7 @@ use iced::widget::{Column, PickList, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::protocol::v1::Label;
-use smartvaults_sdk::types::{GetAddress, GetPolicy};
+use smartvaults_sdk::types::{GetAddress, GetVault};
 
 use crate::app::component::{Dashboard, PolicyPickList};
 use crate::app::{Context, Message, State};
@@ -39,7 +39,7 @@ pub struct ReceiveState {
 }
 
 impl ReceiveState {
-    pub fn new(policy: Option<GetPolicy>) -> Self {
+    pub fn new(policy: Option<GetVault>) -> Self {
         Self {
             policy: policy.map(|p| p.into()),
             policies: Vec::new(),
@@ -69,7 +69,7 @@ impl State for ReceiveState {
         Command::perform(
             async move {
                 client
-                    .get_policies()
+                    .vaults()
                     .await
                     .unwrap()
                     .into_iter()

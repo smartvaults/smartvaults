@@ -96,7 +96,7 @@ impl State for SelfTransferState {
         Command::perform(
             async move {
                 client
-                    .get_policies()
+                    .vaults()
                     .await
                     .unwrap()
                     .into_iter()

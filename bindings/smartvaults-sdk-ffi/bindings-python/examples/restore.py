@@ -8,8 +8,8 @@ client = SmartVaults.restore("/home/user/.smartvaults", "name", "test", "mnemoni
 class SyncNotifications(SyncHandler):
     def handle(self, msg):
         print("Refreshing...")
-        policies = client.get_policies()
-        for p in policies:
+        vaults = client.vaults()
+        for p in vaults:
             print(p.policy().name())
 
 handle = client.handle_sync(SyncNotifications())

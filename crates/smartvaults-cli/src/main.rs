@@ -20,7 +20,7 @@ use smartvaults_sdk::core::types::Priority;
 use smartvaults_sdk::core::{Amount, FeeRate, Keychain, Result};
 use smartvaults_sdk::nostr::{EventId, Metadata};
 use smartvaults_sdk::protocol::v1::{CompletedProposal, Label, Signer, SignerOffering};
-use smartvaults_sdk::types::{GetPolicy, GetProposal};
+use smartvaults_sdk::types::{GetProposal, GetVault};
 use smartvaults_sdk::util::format;
 use smartvaults_sdk::{logger, SmartVaults};
 
@@ -508,13 +508,13 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
             GetCommand::Policies => {
-                let policies = client.get_policies().await?;
-                util::print_policies(policies);
+                let vaults = client.vaults().await?;
+                util::print_vaults(vaults);
                 Ok(())
             }
             GetCommand::Policy { policy_id, export } => {
-                // Get policy
-                let vault: GetPolicy = client.get_policy_by_id(policy_id).await?;
+                // Get vault
+                let vault: GetVault = client.get_vault_by_id(policy_id).await?;
 
                 // Print result
                 if export {
@@ -525,7 +525,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     let address = client.get_last_unused_address(policy_id).await?;
                     let txs = client.get_txs(policy_id).await.unwrap_or_default();
                     let utxos = client.get_utxos(policy_id).await.unwrap_or_default();
-                    util::print_policy(vault, policy_id, item, address, txs, utxos);
+                    util::print_vault(vault, item, address, txs, utxos);
                     Ok(())
                 }
             }

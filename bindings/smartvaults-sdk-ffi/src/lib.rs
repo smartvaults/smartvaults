@@ -40,7 +40,7 @@ pub use self::message::{EventHandled, Message};
 pub use self::network::Network;
 pub use self::nip46::{NostrConnectRequest, NostrConnectSession};
 pub use self::policy::{
-    AbsoluteLockTime, DecayingTime, GetPolicy, Locktime, PolicyPath, PolicyPathSelector,
+    AbsoluteLockTime, DecayingTime, GetVault, Locktime, PolicyPath, PolicyPathSelector,
     PolicyPathSigner, PolicyTemplate, PolicyTemplateType, RecoveryTemplate, RelativeLockTime,
     Vault,
 };

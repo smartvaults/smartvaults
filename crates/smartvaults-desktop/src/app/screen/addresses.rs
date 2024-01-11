@@ -10,7 +10,7 @@ use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bitcoin::ScriptBuf;
 use smartvaults_sdk::nostr::EventId;
 use smartvaults_sdk::protocol::v1::Vault;
-use smartvaults_sdk::types::{GetAddress, GetPolicy};
+use smartvaults_sdk::types::{GetAddress, GetVault};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -84,12 +84,12 @@ impl State for AddressesState {
         Command::perform(
             async move {
                 client
-                    .get_policies()
+                    .vaults()
                     .await
                     .unwrap()
                     .into_iter()
                     .map(
-                        |GetPolicy {
+                        |GetVault {
                              policy_id, vault, ..
                          }| PolicyPickList {
                             policy_id,

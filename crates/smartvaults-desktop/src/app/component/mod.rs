@@ -4,7 +4,7 @@
 use std::fmt;
 use std::ops::Deref;
 
-use smartvaults_sdk::types::GetPolicy;
+use smartvaults_sdk::types::GetVault;
 use smartvaults_sdk::util;
 
 mod activity;
@@ -24,7 +24,7 @@ pub use self::utxo_selector::UtxoSelector;
 
 #[derive(Debug, Clone, Eq)]
 pub struct PolicyPickList {
-    inner: GetPolicy,
+    inner: GetVault,
 }
 
 impl PartialEq for PolicyPickList {
@@ -45,15 +45,15 @@ impl fmt::Display for PolicyPickList {
 }
 
 impl Deref for PolicyPickList {
-    type Target = GetPolicy;
+    type Target = GetVault;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl From<GetPolicy> for PolicyPickList {
-    fn from(inner: GetPolicy) -> Self {
+impl From<GetVault> for PolicyPickList {
+    fn from(inner: GetVault) -> Self {
         Self { inner }
     }
 }

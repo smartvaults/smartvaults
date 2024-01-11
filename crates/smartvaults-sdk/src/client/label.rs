@@ -1,20 +1,19 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use nostr_sdk::{Event, EventBuilder, EventId, Keys};
+use nostr_sdk::EventId;
 use smartvaults_protocol::v1::Label;
-use smartvaults_protocol::v2::VaultIdentifier;
+use smartvaults_protocol::v2::{Vault, VaultIdentifier};
 
 use super::{Error, SmartVaults};
-use crate::storage::InternalVault;
 
 impl SmartVaults {
     pub async fn save_label(
         &self,
         vault_id: &VaultIdentifier,
-        label: Label,
+        _label: Label,
     ) -> Result<EventId, Error> {
-        let InternalVault { .. } = self.storage.vault(vault_id).await?;
+        let _vault: Vault = self.storage.vault(vault_id).await?;
 
         // TODO: check if address or UTXO actually belong to the policy
 

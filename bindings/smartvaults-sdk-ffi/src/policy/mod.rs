@@ -106,18 +106,18 @@ impl Vault {
 }
 
 #[derive(Clone, Object)]
-pub struct GetPolicy {
-    inner: types::GetPolicy,
+pub struct GetVault {
+    inner: types::GetVault,
 }
 
-impl From<types::GetPolicy> for GetPolicy {
-    fn from(inner: types::GetPolicy) -> Self {
+impl From<types::GetVault> for GetVault {
+    fn from(inner: types::GetVault) -> Self {
         Self { inner }
     }
 }
 
 #[uniffi::export]
-impl GetPolicy {
+impl GetVault {
     pub fn policy_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.policy_id.into())
     }

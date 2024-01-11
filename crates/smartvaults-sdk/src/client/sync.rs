@@ -26,13 +26,11 @@ use smartvaults_protocol::v1::constants::{
     SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
     SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v2::vault::VaultIdentifier;
-use smartvaults_protocol::v2::{ProposalIdentifier, ProposalType};
+use smartvaults_protocol::v2::{ProposalIdentifier, ProposalType, Vault, VaultIdentifier};
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
 use crate::constants::WALLET_SYNC_INTERVAL;
-use crate::storage::InternalVault;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
@@ -437,7 +435,7 @@ impl SmartVaults {
         } else if let Some(h) = self.storage.handle_event(&event).await? {
             match h {
                 EventHandled::Vault(vault_id) => {
-                    let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+                    let vault: Vault = self.storage.vault(&vault_id).await?;
                     self.manager.load_policy(vault_id, vault.policy()).await?;
                 }
                 EventHandled::Proposal(proposal_id) => {

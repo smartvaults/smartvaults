@@ -3,7 +3,7 @@
 
 use iced::widget::{Column, Container, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::types::GetPolicy;
+use smartvaults_sdk::types::GetVault;
 
 use crate::app::component::{Dashboard, PolicyPickList};
 use crate::app::{Context, Message, Stage, State};
@@ -30,7 +30,7 @@ pub struct NewProofState {
 }
 
 impl NewProofState {
-    pub fn new(policy: Option<GetPolicy>) -> Self {
+    pub fn new(policy: Option<GetVault>) -> Self {
         Self {
             policy: policy.map(|p| p.into()),
             policies: Vec::new(),
@@ -53,7 +53,7 @@ impl State for NewProofState {
         Command::perform(
             async move {
                 client
-                    .get_policies()
+                    .vaults()
                     .await
                     .unwrap()
                     .into_iter()

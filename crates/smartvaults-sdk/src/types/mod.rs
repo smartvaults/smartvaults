@@ -20,25 +20,25 @@ pub use self::backup::PolicyBackup;
 use crate::manager::TransactionDetails;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetPolicy {
+pub struct GetVault {
     pub vault: Vault,
     pub balance: Balance,
     pub last_sync: Timestamp,
 }
 
-impl PartialOrd for GetPolicy {
+impl PartialOrd for GetVault {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for GetPolicy {
+impl Ord for GetVault {
     fn cmp(&self, other: &Self) -> Ordering {
         self.vault.cmp(&other.vault)
     }
 }
 
-impl Deref for GetPolicy {
+impl Deref for GetVault {
     type Target = Vault;
 
     fn deref(&self) -> &Self::Target {

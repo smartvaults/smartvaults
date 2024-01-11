@@ -13,7 +13,7 @@ use smartvaults_protocol::v1::constants::{
     PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
     SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v1::{Encryption, Label, LabelData, LabelKind, VerifiedKeyAgents};
+use smartvaults_protocol::v1::{Label, LabelData, LabelKind, VerifiedKeyAgents};
 use smartvaults_protocol::v2::constants::{
     APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2,
 };
@@ -25,7 +25,7 @@ use tokio::sync::RwLock;
 
 mod model;
 
-pub(crate) use self::model::{InternalApproval, InternalLabel, InternalVault};
+pub(crate) use self::model::{InternalApproval, InternalLabel};
 use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
 
@@ -57,7 +57,7 @@ pub(crate) struct SmartVaultsStorage {
     database: Arc<DynNostrDatabase>,
     vaults_ids: Arc<RwLock<HashMap<EventId, VaultIdentifier>>>,
     vaults_keys: Arc<RwLock<HashMap<PublicKey, Keys>>>,
-    vaults: Arc<RwLock<HashMap<VaultIdentifier, InternalVault>>>,
+    vaults: Arc<RwLock<HashMap<VaultIdentifier, Vault>>>,
     proposals_ids: Arc<RwLock<HashMap<EventId, ProposalIdentifier>>>,
     proposals: Arc<RwLock<HashMap<ProposalIdentifier, Proposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
@@ -171,7 +171,7 @@ impl SmartVaultsStorage {
                 let keys = Keys::new(vault.shared_key());
                 e.insert(vault_id);
                 vaults_keys.insert(keys.public_key(), keys);
-                vaults.insert(vault_id, InternalVault { vault });
+                vaults.insert(vault_id, vault);
                 return Ok(Some(EventHandled::Vault(vault_id)));
             }
         } else if event.kind == PROPOSAL_KIND_V2 {
@@ -210,6 +210,7 @@ impl SmartVaultsStorage {
             let mut vaults_keys = self.vaults_keys.write().await;
             let mut approvals = self.approvals.write().await;
             if let HashMapEntry::Vacant(e) = approvals.entry(event.id) {
+                // Get public key of the shared key used for encrypt the approval
                 if let Some(shared_public_key) = event.public_keys().next() {
                     if let Some(shared_key) = vaults_keys.get(shared_public_key) {
                         let approval = Approval::decrypt_with_keys(shared_key, &event.content)?;
@@ -264,7 +265,7 @@ impl SmartVaultsStorage {
                     return Ok(Some(EventHandled::SharedSigner(event.id)));
                 }
             }
-        } else if event.kind == LABELS_KIND {
+        } /* else if event.kind == LABELS_KIND {
             let mut labels = self.labels.write().await;
             let shared_keys = self.shared_keys.read().await;
             if let Some(policy_id) = event.event_ids().next() {
@@ -288,7 +289,7 @@ impl SmartVaultsStorage {
             } else {
                 tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
-        } else if event.kind == Kind::EventDeletion {
+        } */ else if event.kind == Kind::EventDeletion {
             for event_id in event.event_ids() {
                 if let Ok(true) = self.database.has_event_id_been_deleted(event_id).await {
                     self.delete_event(event_id).await;
@@ -341,9 +342,9 @@ impl SmartVaultsStorage {
         self.delete_shared_signer(event_id).await;
     }
 
-    pub async fn save_vault(&self, vault_id: VaultIdentifier, internal: InternalVault) {
+    pub async fn save_vault(&self, vault_id: VaultIdentifier, vault: Vault) {
         let mut vaults = self.vaults.write().await;
-        vaults.insert(vault_id, internal);
+        vaults.insert(vault_id, vault);
     }
 
     pub async fn delete_vault(&self, vault_id: &VaultIdentifier) -> bool {
@@ -352,17 +353,17 @@ impl SmartVaultsStorage {
     }
 
     /// Get vaults
-    pub async fn vaults(&self) -> HashMap<VaultIdentifier, InternalVault> {
+    pub async fn vaults(&self) -> HashMap<VaultIdentifier, Vault> {
         self.vaults
             .read()
             .await
             .iter()
-            .map(|(id, internal)| (*id, internal.clone()))
+            .map(|(id, vault)| (*id, vault.clone()))
             .collect()
     }
 
     /// Get [`Vault`]
-    pub async fn vault(&self, vault_id: &VaultIdentifier) -> Result<InternalVault, Error> {
+    pub async fn vault(&self, vault_id: &VaultIdentifier) -> Result<Vault, Error> {
         let vaults = self.vaults.read().await;
         vaults.get(vault_id).cloned().ok_or(Error::NotFound)
     }
