@@ -126,6 +126,28 @@ impl TryFrom<ProtoSigner> for Signer {
     }
 }
 
+impl From<&SharedSigner> for ProtoSharedSigner {
+    fn from(signer: &SharedSigner) -> Self {
+        ProtoSharedSigner {
+            fingerprint: signer.fingerprint().to_string(),
+            descriptors: signer
+                .descriptors()
+                .iter()
+                .map(|(purpose, desc)| {
+                    let purpose: ProtoPurpose = purpose.into();
+                    ProtoDescriptor {
+                        purpose: purpose as i32,
+                        descriptor: desc.to_string(),
+                    }
+                })
+                .collect(),
+            network: signer.network().magic().to_bytes().to_vec(),
+            owner: signer.owner().to_string(),
+            receiver: signer.receiver().to_string(),
+        }
+    }
+}
+
 impl TryFrom<ProtoSharedSigner> for SharedSigner {
     type Error = Error;
 
