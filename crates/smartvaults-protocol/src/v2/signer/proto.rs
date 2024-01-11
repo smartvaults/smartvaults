@@ -7,10 +7,13 @@ use std::str::FromStr;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bips::bip48::ScriptType;
 use smartvaults_core::miniscript::DescriptorPublicKey;
+use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{CoreSigner, Purpose};
 
-use super::{Signer, SignerType};
-use crate::v2::proto::signer::{ProtoDescriptor, ProtoPurpose, ProtoSigner, ProtoSignerType};
+use super::{SharedSigner, Signer, SignerType};
+use crate::v2::proto::signer::{
+    ProtoDescriptor, ProtoPurpose, ProtoSharedSigner, ProtoSigner, ProtoSignerType,
+};
 use crate::v2::{Error, NetworkMagic};
 
 impl From<&Purpose> for ProtoPurpose {
@@ -120,5 +123,33 @@ impl TryFrom<ProtoSigner> for Signer {
             core: CoreSigner::new(fingerprint, descriptors, *network)?,
             r#type: SignerType::from(proto_signer_type),
         })
+    }
+}
+
+impl TryFrom<ProtoSharedSigner> for SharedSigner {
+    type Error = Error;
+
+    fn try_from(value: ProtoSharedSigner) -> Result<Self, Self::Error> {
+        let fingerprint: Fingerprint = Fingerprint::from_str(&value.fingerprint)?;
+        let network: NetworkMagic = NetworkMagic::from_slice(&value.network)?;
+
+        let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
+
+        for ProtoDescriptor {
+            purpose,
+            descriptor,
+        } in value.descriptors.into_iter()
+        {
+            let purpose: ProtoPurpose = ProtoPurpose::try_from(purpose)?;
+            let purpose: Purpose = Purpose::from(purpose);
+            let descriptor: DescriptorPublicKey = DescriptorPublicKey::from_str(&descriptor)?;
+            descriptors.insert(purpose, descriptor);
+        }
+
+        Ok(Self::new(
+            XOnlyPublicKey::from_str(&value.owner)?,
+            XOnlyPublicKey::from_str(&value.receiver)?,
+            CoreSigner::new(fingerprint, descriptors, *network)?,
+        ))
     }
 }

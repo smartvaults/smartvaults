@@ -45,8 +45,8 @@ pub mod signer {
     }
 
     pub use self::inner::{
-        DescriptorKeyValue as ProtoDescriptor, Purpose as ProtoPurpose, Signer as ProtoSigner,
-        SignerType as ProtoSignerType,
+        DescriptorKeyValue as ProtoDescriptor, Purpose as ProtoPurpose,
+        SharedSigner as ProtoSharedSigner, Signer as ProtoSigner, SignerType as ProtoSignerType,
     };
 }
 

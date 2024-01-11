@@ -23,6 +23,8 @@ message DescriptorKeyValue {
   string descriptor = 2;
 }
 
+// TODO: create CoreSigner
+
 message Signer {
   string fingerprint = 1;
   repeated DescriptorKeyValue descriptors = 2;
@@ -30,4 +32,12 @@ message Signer {
   SignerType type = 4;
   string name = 5;
   string description = 6;
+}
+
+message SharedSigner {
+  string fingerprint = 1;
+  repeated DescriptorKeyValue descriptors = 2;
+  bytes network = 3;
+  string owner = 4;
+  string receiver = 5;
 }
