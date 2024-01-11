@@ -1,4 +1,4 @@
-cargo-features = ["per-package-target"]
+#cargo-features = ["per-package-target"]
 
 [package]
 name = "smartvaults-core-js"
@@ -6,7 +6,7 @@ version = "0.1.0"
 edition = "2021"
 authors.workspace = true
 publish = false
-forced-target = "wasm32-unknown-unknown"
+#forced-target = "wasm32-unknown-unknown"
 
 [lib]
 crate-type = ["lib", "cdylib"]
