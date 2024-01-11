@@ -1,0 +1,3 @@
+[toolchain]
+default = "nightly-2023-10-24"
+targets = ["wasm32-unknown-unknown"]
