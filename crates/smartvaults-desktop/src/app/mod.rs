@@ -1,11 +1,9 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use smartvaults_sdk::Message as SdkMessage;
-
 use iced::{clipboard, Command, Element, Subscription};
 use smartvaults_sdk::core::bitcoin::Network;
-use smartvaults_sdk::SmartVaults;
+use smartvaults_sdk::{Message as SdkMessage, SmartVaults};
 
 mod component;
 mod context;
@@ -13,11 +11,9 @@ mod message;
 pub mod screen;
 mod sync;
 
-use crate::theme::Theme;
-
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-//use self::screen::AddHWSignerState;
+// use self::screen::AddHWSignerState;
 use self::screen::{
     ActivityState, AddAirGapSignerState, AddColdcardSignerState, AddContactState,
     AddNostrConnectSessionState, AddRelayState, AddSignerState, AddVaultState, AddressesState,
@@ -29,6 +25,7 @@ use self::screen::{
     SignersState, SpendState, TransactionState, VaultState, WipeKeysState,
 };
 use self::sync::SmartVaultsSync;
+use crate::theme::Theme;
 
 pub trait State {
     fn title(&self) -> String;
@@ -71,7 +68,7 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),
         Stage::Signer(signer_id, signer) => SignerState::new(*signer_id, signer.clone()).into(),
         Stage::AddSigner => AddSignerState::new().into(),
-        //Stage::AddHWSigner => AddHWSignerState::new().into(),
+        // Stage::AddHWSigner => AddHWSignerState::new().into(),
         Stage::AddAirGapSigner => AddAirGapSignerState::new().into(),
         Stage::AddColdcardSigner => AddColdcardSignerState::new().into(),
         Stage::ShareSigner(signer_id) => ShareSignerState::new(*signer_id).into(),

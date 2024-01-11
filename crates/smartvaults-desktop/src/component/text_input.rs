@@ -3,9 +3,8 @@
 
 use iced::widget::{Button, Column, Row, TextInput as NativeTextInput};
 
-use crate::constants::DEFAULT_FONT_SIZE;
-
 use super::Text;
+use crate::constants::DEFAULT_FONT_SIZE;
 
 pub struct TextInput<Message> {
     value: String,

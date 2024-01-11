@@ -42,6 +42,7 @@ impl fmt::Display for LabelKind {
 
 impl FromStr for LabelKind {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "address" => Ok(Self::Address),
@@ -62,6 +63,7 @@ pub enum LabelData {
 
 impl FromStr for LabelData {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match Address::from_str(s) {
             Ok(address) => Ok(Self::Address(address)),

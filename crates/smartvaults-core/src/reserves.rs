@@ -323,16 +323,16 @@ mod test {
     use super::*;
     use crate::test::get_funded_wallet;
 
-    //const PSBT_BASE64: &str = "cHNidP8BAH4BAAAAAmw1RvG4UzfnSafpx62EPTyha6VslP0Er7n3TxjEpeBeAAAAAAD/////FcB9C8LQwqAoYxGcM/YLhUt3XZIQUmFAlaJlBjVmFO8AAAAAAP////8BUMMAAAAAAAAZdqkUn3/QltN+0sDj9/DPySS+70/862iIrAAAAAAAAQEKAAAAAAAAAAABUQEHAAABAR9QwwAAAAAAABYAFOzlJlcQU9qGRUyeBmd56vnRUC5qIgYDKwVYB4vsOGlKhJM9ZZMD4lddrn6RaFkRRUEVv9ZEh+ME7OUmVwAA";
+    // const PSBT_BASE64: &str = "cHNidP8BAH4BAAAAAmw1RvG4UzfnSafpx62EPTyha6VslP0Er7n3TxjEpeBeAAAAAAD/////FcB9C8LQwqAoYxGcM/YLhUt3XZIQUmFAlaJlBjVmFO8AAAAAAP////8BUMMAAAAAAAAZdqkUn3/QltN+0sDj9/DPySS+70/862iIrAAAAAAAAQEKAAAAAAAAAAABUQEHAAABAR9QwwAAAAAAABYAFOzlJlcQU9qGRUyeBmd56vnRUC5qIgYDKwVYB4vsOGlKhJM9ZZMD4lddrn6RaFkRRUEVv9ZEh+ME7OUmVwAA";
     const MESSAGE: &str = "This belongs to me.";
     const DESCRIPTOR: &str = "wpkh(cVpPVruEDdmutPzisEsYvtST1usBR3ntr8pXSyt6D2YYqXRyPcFW)";
 
-    /* #[test]
-    fn test_proof() {
-        let mut wallet = get_funded_wallet(DESCRIPTOR).unwrap();
-        let psbt = wallet.create_proof(MESSAGE).unwrap();
-        assert_eq!(psbt.to_string(), PSBT_BASE64);
-    } */
+    // #[test]
+    // fn test_proof() {
+    // let mut wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    // let psbt = wallet.create_proof(MESSAGE).unwrap();
+    // assert_eq!(psbt.to_string(), PSBT_BASE64);
+    // }
 
     #[test]
     #[should_panic(
@@ -359,13 +359,13 @@ mod test {
         psbt
     }
 
-    /* #[test]
-    fn verify_internal() {
-        let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
-        let psbt = get_signed_proof();
-        let spendable = wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
-        assert_eq!(spendable, 50_000);
-    } */
+    // #[test]
+    // fn verify_internal() {
+    // let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    // let psbt = get_signed_proof();
+    // let spendable = wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
+    // assert_eq!(spendable, 50_000);
+    // }
 
     #[test]
     #[should_panic(expected = "NonSpendableInput")]
@@ -377,28 +377,28 @@ mod test {
         assert_eq!(spendable, 50_000);
     }
 
-    /* #[test]
-    fn verify_internal_100() {
-        let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    // #[test]
+    // fn verify_internal_100() {
+    // let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    //
+    // let psbt = get_signed_proof();
+    // let spendable = wallet.verify_proof(&psbt, MESSAGE, Some(100)).unwrap();
+    // assert_eq!(spendable, 50_000);
+    // }
 
-        let psbt = get_signed_proof();
-        let spendable = wallet.verify_proof(&psbt, MESSAGE, Some(100)).unwrap();
-        assert_eq!(spendable, 50_000);
-    } */
-
-    /* #[test]
-    fn verify_external() {
-        let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
-
-        let psbt = get_signed_proof();
-        let unspents = wallet.list_unspent();
-        let outpoints = unspents
-            .map(|utxo| (utxo.outpoint, utxo.txout.clone()))
-            .collect();
-        let spendable = verify_proof(&psbt, MESSAGE, outpoints, Network::Testnet).unwrap();
-
-        assert_eq!(spendable, 50_000);
-    } */
+    // #[test]
+    // fn verify_external() {
+    // let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    //
+    // let psbt = get_signed_proof();
+    // let unspents = wallet.list_unspent();
+    // let outpoints = unspents
+    // .map(|utxo| (utxo.outpoint, utxo.txout.clone()))
+    // .collect();
+    // let spendable = verify_proof(&psbt, MESSAGE, outpoints, Network::Testnet).unwrap();
+    //
+    // assert_eq!(spendable, 50_000);
+    // }
 
     #[test]
     #[should_panic(expected = "ChallengeInputMismatch")]
@@ -445,43 +445,43 @@ mod test {
         wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
     }
 
-    /* #[test]
-    #[should_panic(expected = "UnsupportedSighashType(1)")]
-    fn wrong_sighash_type() {
-        let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    // #[test]
+    // #[should_panic(expected = "UnsupportedSighashType(1)")]
+    // fn wrong_sighash_type() {
+    // let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    //
+    // let mut psbt = get_signed_proof();
+    // psbt.inputs[1].sighash_type = Some(EcdsaSighashType::SinglePlusAnyoneCanPay.into());
+    //
+    // wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
+    // }
 
-        let mut psbt = get_signed_proof();
-        psbt.inputs[1].sighash_type = Some(EcdsaSighashType::SinglePlusAnyoneCanPay.into());
+    // #[test]
+    // #[should_panic(expected = "InvalidOutput")]
+    // fn invalid_output() {
+    // let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    //
+    // let mut psbt = get_signed_proof();
+    //
+    // let pkh = PubkeyHash::from_hash(hash160::Hash::hash(&[0, 1, 2, 3]));
+    // let out_script_unspendable = Address {
+    // payload: Payload::PubkeyHash(pkh),
+    // network: Network::Testnet,
+    // }
+    // .script_pubkey();
+    // psbt.unsigned_tx.output[0].script_pubkey = out_script_unspendable;
+    //
+    // wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
+    // }
 
-        wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
-    } */
-
-    /* #[test]
-    #[should_panic(expected = "InvalidOutput")]
-    fn invalid_output() {
-        let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
-
-        let mut psbt = get_signed_proof();
-
-        let pkh = PubkeyHash::from_hash(hash160::Hash::hash(&[0, 1, 2, 3]));
-        let out_script_unspendable = Address {
-            payload: Payload::PubkeyHash(pkh),
-            network: Network::Testnet,
-        }
-        .script_pubkey();
-        psbt.unsigned_tx.output[0].script_pubkey = out_script_unspendable;
-
-        wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
-    } */
-
-    /* #[test]
-    #[should_panic(expected = "InAndOutValueNotEqual")]
-    fn sum_mismatch() {
-        let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
-
-        let mut psbt = get_signed_proof();
-        psbt.unsigned_tx.output[0].value = 123;
-
-        wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
-    } */
+    // #[test]
+    // #[should_panic(expected = "InAndOutValueNotEqual")]
+    // fn sum_mismatch() {
+    // let wallet = get_funded_wallet(DESCRIPTOR).unwrap();
+    //
+    // let mut psbt = get_signed_proof();
+    // psbt.unsigned_tx.output[0].value = 123;
+    //
+    // wallet.verify_proof(&psbt, MESSAGE, None).unwrap();
+    // }
 }

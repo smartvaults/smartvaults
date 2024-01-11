@@ -151,6 +151,7 @@ pub struct Price {
 
 impl Deref for Price {
     type Target = key_agent::Price;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

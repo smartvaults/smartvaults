@@ -9,9 +9,9 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
 use async_utility::thread;
-use bdk_electrum::electrum_client::ElectrumApi;
 use bdk_electrum::electrum_client::{
-    self, Client as ElectrumClient, Config as ElectrumConfig, HeaderNotification, Socks5Config,
+    self, Client as ElectrumClient, Config as ElectrumConfig, ElectrumApi, HeaderNotification,
+    Socks5Config,
 };
 use nostr_sdk::hashes::sha256::Hash as Sha256Hash;
 use nostr_sdk::hashes::Hash;

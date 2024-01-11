@@ -5,9 +5,7 @@
 #![warn(rustdoc::bare_urls)]
 #![doc = include_str!("../README.md")]
 
-pub use nostr_sdk as nostr;
-pub use smartvaults_core as core;
-pub use smartvaults_protocol as protocol;
+pub use {nostr_sdk as nostr, smartvaults_core as core, smartvaults_protocol as protocol};
 
 pub mod client;
 pub mod config;

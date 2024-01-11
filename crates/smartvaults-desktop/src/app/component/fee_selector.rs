@@ -81,8 +81,8 @@ impl FeeSelector {
 }
 
 impl Component<Message, Renderer> for FeeSelector {
-    type State = ();
     type Event = Event;
+    type State = ();
 
     fn update(&mut self, _state: &mut Self::State, event: Event) -> Option<Message> {
         match event {

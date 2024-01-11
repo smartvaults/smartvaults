@@ -784,17 +784,17 @@ impl SmartVaults {
                 .collect();
 
             // Get all events linked to the proposal
-            /* let filter = Filter::new().event(proposal_id);
-            let events = self.client.get_events_of(vec![filter], timeout).await?; */
+            // let filter = Filter::new().event(proposal_id);
+            // let events = self.client.get_events_of(vec![filter], timeout).await?;
 
             tags.push(Tag::event(proposal_id));
-            /* let mut ids: Vec<EventId> = vec![proposal_id];
-
-            for event in events.into_iter() {
-                if event.kind != COMPLETED_PROPOSAL_KIND {
-                    ids.push(event.id);
-                }
-            } */
+            // let mut ids: Vec<EventId> = vec![proposal_id];
+            //
+            // for event in events.into_iter() {
+            // if event.kind != COMPLETED_PROPOSAL_KIND {
+            // ids.push(event.id);
+            // }
+            // }
 
             let event = EventBuilder::new(Kind::EventDeletion, "", tags).to_event(&shared_key)?;
             self.client.send_event(event).await?;
@@ -1379,55 +1379,55 @@ impl SmartVaults {
         Ok((event_id, approved_proposal))
     }
 
-    /* pub async fn approve_with_hwi_signer(
-        &self,
-        proposal_id: EventId,
-        signer: Signer,
-    ) -> Result<(EventId, ApprovedProposal), Error> {
-        let keys: &Keys = self.keys();
-
-        // Get proposal and policy
-        let GetProposal {
-            policy_id,
-            proposal,
-            ..
-        } = self.get_proposal_by_id(proposal_id)?;
-
-        let approved_proposal = proposal.approve_with_hwi_signer(signer, self.network)?;
-
-        // Get shared keys
-        let shared_keys: Keys = self.db.get_shared_key(policy_id).await?;
-
-        // Compose the event
-        let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
-        let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
-        let mut tags: Vec<Tag> = nostr_pubkeys
-            .into_iter()
-            .map(|p| Tag::PubKey(p, None))
-            .collect();
-        tags.push(Tag::event(proposal_id));
-        tags.push(Tag::event(policy_id));
-        tags.push(Tag::Expiration(
-            Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
-        ));
-
-        let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
-        let timestamp = event.created_at;
-
-        // Publish the event
-        let event_id = self.client.send_event(event).await?;
-
-        // Cache approved proposal
-        self.db.save_approved_proposal(
-            proposal_id,
-            keys.public_key(),
-            event_id,
-            approved_proposal.clone(),
-            timestamp,
-        )?;
-
-        Ok((event_id, approved_proposal))
-    } */
+    // pub async fn approve_with_hwi_signer(
+    // &self,
+    // proposal_id: EventId,
+    // signer: Signer,
+    // ) -> Result<(EventId, ApprovedProposal), Error> {
+    // let keys: &Keys = self.keys();
+    //
+    // Get proposal and policy
+    // let GetProposal {
+    // policy_id,
+    // proposal,
+    // ..
+    // } = self.get_proposal_by_id(proposal_id)?;
+    //
+    // let approved_proposal = proposal.approve_with_hwi_signer(signer, self.network)?;
+    //
+    // Get shared keys
+    // let shared_keys: Keys = self.db.get_shared_key(policy_id).await?;
+    //
+    // Compose the event
+    // let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
+    // let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
+    // let mut tags: Vec<Tag> = nostr_pubkeys
+    // .into_iter()
+    // .map(|p| Tag::PubKey(p, None))
+    // .collect();
+    // tags.push(Tag::event(proposal_id));
+    // tags.push(Tag::event(policy_id));
+    // tags.push(Tag::Expiration(
+    // Timestamp::now().add(APPROVED_PROPOSAL_EXPIRATION),
+    // ));
+    //
+    // let event = EventBuilder::new(APPROVED_PROPOSAL_KIND, content, &tags).to_event(&keys)?;
+    // let timestamp = event.created_at;
+    //
+    // Publish the event
+    // let event_id = self.client.send_event(event).await?;
+    //
+    // Cache approved proposal
+    // self.db.save_approved_proposal(
+    // proposal_id,
+    // keys.public_key(),
+    // event_id,
+    // approved_proposal.clone(),
+    // timestamp,
+    // )?;
+    //
+    // Ok((event_id, approved_proposal))
+    // }
 
     pub async fn revoke_approval(&self, approval_id: EventId) -> Result<(), Error> {
         let Event { pubkey, .. } = self.client.database().event_by_id(approval_id).await?;
@@ -1557,14 +1557,14 @@ impl SmartVaults {
 
         // Send DM msg
         // TODO: send withoud wait for OK
-        /* let sender = self.client.keys().public_key();
-        let mut msg = String::from("New Proof of Reserve request:\n");
-        msg.push_str(&format!("- Message: {message}"));
-        for pubkey in nostr_pubkeys.into_iter() {
-            if sender != pubkey {
-                self.client.send_direct_msg(pubkey, &msg, None).await?;
-            }
-        } */
+        // let sender = self.client.keys().public_key();
+        // let mut msg = String::from("New Proof of Reserve request:\n");
+        // msg.push_str(&format!("- Message: {message}"));
+        // for pubkey in nostr_pubkeys.into_iter() {
+        // if sender != pubkey {
+        // self.client.send_direct_msg(pubkey, &msg, None).await?;
+        // }
+        // }
 
         // Index proposal
         self.storage

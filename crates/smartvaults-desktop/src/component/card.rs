@@ -42,15 +42,15 @@ where
         self
     }
 
-    /* pub fn width(mut self, width: Length) -> Self {
-        self.width = Some(width);
-        self
-    }
-
-    pub fn height(mut self, height: Length) -> Self {
-        self.height = Some(height);
-        self
-    } */
+    // pub fn width(mut self, width: Length) -> Self {
+    // self.width = Some(width);
+    // self
+    // }
+    //
+    // pub fn height(mut self, height: Length) -> Self {
+    // self.height = Some(height);
+    // self
+    // }
 
     pub fn max_width(mut self, width: f32) -> Self {
         self.max_width = width;

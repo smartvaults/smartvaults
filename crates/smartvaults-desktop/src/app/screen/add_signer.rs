@@ -95,15 +95,15 @@ impl State for AddSignerState {
             .padding(20)
             .max_width(400);
 
-        /* {
-            content = content.push(
-                Button::new()
-                    .text("Connect Signing Device")
-                    .on_press(Message::View(Stage::AddHWSigner))
-                    .width(Length::Fill)
-                    .view(),
-            );
-        } */
+        // {
+        // content = content.push(
+        // Button::new()
+        // .text("Connect Signing Device")
+        // .on_press(Message::View(Stage::AddHWSigner))
+        // .width(Length::Fill)
+        // .view(),
+        // );
+        // }
 
         Dashboard::new()
             .loaded(self.loaded)

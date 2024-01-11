@@ -111,6 +111,7 @@ impl Ord for TransactionDetails {
 
 impl Deref for TransactionDetails {
     type Target = Transaction;
+
     fn deref(&self) -> &Self::Target {
         &self.transaction
     }

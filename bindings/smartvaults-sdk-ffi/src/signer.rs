@@ -59,6 +59,7 @@ pub struct Signer {
 
 impl Deref for Signer {
     type Target = signer::Signer;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

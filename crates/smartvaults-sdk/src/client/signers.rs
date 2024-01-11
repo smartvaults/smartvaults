@@ -10,8 +10,7 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
 use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
-use smartvaults_protocol::v1::util::Encryption;
-use smartvaults_protocol::v1::util::Serde;
+use smartvaults_protocol::v1::util::{Encryption, Serde};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalSharedSigner;

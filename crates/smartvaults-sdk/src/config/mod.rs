@@ -102,6 +102,7 @@ impl fmt::Display for ElectrumEndpoint {
 // Both formats support an optional non-standard `:noverify` suffix to skip tls validation
 impl FromStr for ElectrumEndpoint {
     type Err = Error;
+
     fn from_str(endpoint: &str) -> Result<Self, Error> {
         if endpoint.starts_with("ssl://") || endpoint.starts_with("tcp://") {
             // Remove the protocol part

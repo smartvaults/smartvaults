@@ -3,9 +3,8 @@
 
 use iced::advanced::layout::{Limits, Node};
 use iced::advanced::mouse::Cursor;
-use iced::advanced::renderer;
 use iced::advanced::widget::tree::Tree;
-use iced::advanced::{Clipboard, Layout, Shell, Widget};
+use iced::advanced::{renderer, Clipboard, Layout, Shell, Widget};
 use iced::{event, Alignment, Background, Color, Element, Event, Length, Point, Rectangle, Theme};
 
 use crate::theme::color::{BLACK, GREEN, LIGHT_BLUE, ORANGE2, RED, WHITE};
@@ -246,7 +245,7 @@ pub struct Appearance {
 
 /// The appearance of a [`Badge`](crate::native::badge::Badge).
 pub trait StyleSheet {
-    ///Style for the trait to use.
+    /// Style for the trait to use.
     type Style: Default;
     /// The normal appearance of a [`Badge`](crate::native::badge::Badge).
     fn active(&self, style: &Self::Style) -> Appearance;

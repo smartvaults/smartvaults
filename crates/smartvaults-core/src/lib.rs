@@ -45,10 +45,9 @@ mod test {
     use keechain_core::miniscript::DescriptorPublicKey;
     use keechain_core::{Purpose, Result, Seed};
 
+    use super::*;
     use crate::constants::SMARTVAULTS_ACCOUNT_INDEX;
     use crate::proposal::ProposalType;
-
-    use super::*;
 
     const NETWORK: Network = Network::Testnet;
     const MNEMONIC_A: &str =

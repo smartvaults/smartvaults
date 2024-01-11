@@ -10,8 +10,7 @@ use keechain_core::bitcoin::address::NetworkUnchecked;
 use keechain_core::bitcoin::psbt::{
     Error as PsbtError, PartiallySignedTransaction, PsbtParseError,
 };
-use keechain_core::bitcoin::Address;
-use keechain_core::bitcoin::{Network, PrivateKey};
+use keechain_core::bitcoin::{Address, Network, PrivateKey};
 use keechain_core::miniscript::psbt::PsbtExt;
 use keechain_core::miniscript::Descriptor;
 use keechain_core::psbt::{Error as KPsbtError, PsbtUtility};
@@ -254,31 +253,31 @@ impl Proposal {
         }
     }
 
-    /* pub fn approve_with_hwi_signer(
-        &self,
-        signer: Signer,
-        network: Network,
-    ) -> Result<ApprovedProposal, Error> {
-        let client = HWIClient::find_device(
-            None,
-            None,
-            Some(&signer.fingerprint().to_string()),
-            false,
-            network,
-        )?;
-        let base_psbt = self.psbt();
-        let hwi_psbt = client.sign_tx(&base_psbt)?;
-        if hwi_psbt.psbt != base_psbt {
-            match self {
-                Proposal::Spending { .. } => Ok(ApprovedProposal::spending(hwi_psbt.psbt)),
-                Proposal::ProofOfReserve { .. } => {
-                    Ok(ApprovedProposal::proof_of_reserve(hwi_psbt.psbt))
-                }
-            }
-        } else {
-            Err(Error::PsbtNotSigned)
-        }
-    } */
+    // pub fn approve_with_hwi_signer(
+    // &self,
+    // signer: Signer,
+    // network: Network,
+    // ) -> Result<ApprovedProposal, Error> {
+    // let client = HWIClient::find_device(
+    // None,
+    // None,
+    // Some(&signer.fingerprint().to_string()),
+    // false,
+    // network,
+    // )?;
+    // let base_psbt = self.psbt();
+    // let hwi_psbt = client.sign_tx(&base_psbt)?;
+    // if hwi_psbt.psbt != base_psbt {
+    // match self {
+    // Proposal::Spending { .. } => Ok(ApprovedProposal::spending(hwi_psbt.psbt)),
+    // Proposal::ProofOfReserve { .. } => {
+    // Ok(ApprovedProposal::proof_of_reserve(hwi_psbt.psbt))
+    // }
+    // }
+    // } else {
+    // Err(Error::PsbtNotSigned)
+    // }
+    // }
 
     pub fn finalize<I>(
         &self,

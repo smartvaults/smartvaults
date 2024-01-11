@@ -22,6 +22,7 @@ impl From<Policy> for JsPolicy {
 
 impl Deref for JsPolicy {
     type Target = Policy;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

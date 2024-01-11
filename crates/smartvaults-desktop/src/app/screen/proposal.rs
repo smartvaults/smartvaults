@@ -181,7 +181,7 @@ impl State for ProposalState {
                                     async move {
                                         match signer.signer_type() {
                                             SignerType::Hardware => {
-                                                //client.approve_with_hwi_signer(proposal_id, signer).await?;
+                                                // client.approve_with_hwi_signer(proposal_id, signer).await?;
                                             }
                                             SignerType::AirGap => {
                                                 let path = FileDialog::new()
@@ -714,35 +714,35 @@ impl State for ProposalState {
     }
 }
 
-/* impl ProposalState {
-    fn view_chat<'a>(&self) -> Container<'a, Message> {
-        let chat = Column::new().spacing(10);
-        let content = Column::new()
-            .push(Text::new("Chat").bold().bigger().view())
-            .push(rule::horizontal())
-            .push(Scrollable::new(chat).height(Length::Fill))
-            .push(rule::horizontal())
-            .push(
-                Row::new()
-                    .spacing(10)
-                    .push(
-                        TextInput::new("")
-                            .placeholder("Message")
-                            .view()
-                            .width(Length::Fill),
-                    )
-                    .push(Button::new().text("Send").width(Length::Fixed(80.0)).view())
-                    .width(Length::Fill),
-            )
-            .max_width(450.0)
-            .spacing(10)
-            .padding(15)
-            .height(Length::Shrink);
-        Container::new(content)
-            .style(CardStyle::Primary)
-            .height(Length::Shrink)
-    }
-} */
+// impl ProposalState {
+// fn view_chat<'a>(&self) -> Container<'a, Message> {
+// let chat = Column::new().spacing(10);
+// let content = Column::new()
+// .push(Text::new("Chat").bold().bigger().view())
+// .push(rule::horizontal())
+// .push(Scrollable::new(chat).height(Length::Fill))
+// .push(rule::horizontal())
+// .push(
+// Row::new()
+// .spacing(10)
+// .push(
+// TextInput::new("")
+// .placeholder("Message")
+// .view()
+// .width(Length::Fill),
+// )
+// .push(Button::new().text("Send").width(Length::Fixed(80.0)).view())
+// .width(Length::Fill),
+// )
+// .max_width(450.0)
+// .spacing(10)
+// .padding(15)
+// .height(Length::Shrink);
+// Container::new(content)
+// .style(CardStyle::Primary)
+// .height(Length::Shrink)
+// }
+// }
 
 impl From<ProposalState> for Box<dyn State> {
     fn from(s: ProposalState) -> Box<dyn State> {

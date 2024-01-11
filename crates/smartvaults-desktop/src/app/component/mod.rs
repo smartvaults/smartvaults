@@ -46,6 +46,7 @@ impl fmt::Display for PolicyPickList {
 
 impl Deref for PolicyPickList {
     type Target = GetPolicy;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

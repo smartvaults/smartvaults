@@ -39,6 +39,7 @@ pub struct RelativeLockTime {
 
 impl Deref for RelativeLockTime {
     type Target = bitcoin::Sequence;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -61,6 +62,7 @@ pub struct AbsoluteLockTime {
 
 impl Deref for AbsoluteLockTime {
     type Target = absolute::LockTime;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -90,6 +92,7 @@ pub struct Locktime {
 
 impl Deref for Locktime {
     type Target = core::Locktime;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -119,6 +122,7 @@ pub struct DecayingTime {
 
 impl Deref for DecayingTime {
     type Target = core::DecayingTime;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -148,6 +152,7 @@ pub struct RecoveryTemplate {
 
 impl Deref for RecoveryTemplate {
     type Target = core::RecoveryTemplate;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -174,6 +179,7 @@ pub struct PolicyTemplate {
 
 impl Deref for PolicyTemplate {
     type Target = core::PolicyTemplate;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

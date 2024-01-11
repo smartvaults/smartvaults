@@ -4,9 +4,8 @@
 use nostr_sdk::{Event, EventBuilder, EventId, Keys};
 use smartvaults_protocol::v1::{Label, SmartVaultsEventBuilder};
 
-use crate::storage::InternalPolicy;
-
 use super::{Error, SmartVaults};
+use crate::storage::InternalPolicy;
 
 impl SmartVaults {
     pub async fn save_label(&self, policy_id: EventId, label: Label) -> Result<EventId, Error> {

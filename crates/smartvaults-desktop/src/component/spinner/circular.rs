@@ -1,21 +1,17 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use iced::advanced::layout;
-use iced::advanced::renderer;
+use std::f32::consts::PI;
+use std::time::Duration;
+
 use iced::advanced::widget::tree::{self, Tree};
-use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget};
-use iced::event;
-use iced::mouse;
+use iced::advanced::{layout, renderer, Clipboard, Layout, Renderer, Shell, Widget};
 use iced::time::Instant;
 use iced::widget::canvas;
 use iced::window::{self, RedrawRequest};
-use iced::{Background, Color, Element, Event, Length, Rectangle, Size, Vector};
+use iced::{event, mouse, Background, Color, Element, Event, Length, Rectangle, Size, Vector};
 
 use super::easing::{self, Easing};
-
-use std::f32::consts::PI;
-use std::time::Duration;
 
 const MIN_RADIANS: f32 = PI / 8.0;
 const WRAP_RADIANS: f32 = 2.0 * PI - PI / 4.0;

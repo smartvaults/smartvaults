@@ -27,6 +27,7 @@ pub struct Policy {
 
 impl Deref for Policy {
     type Target = policy::Policy;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

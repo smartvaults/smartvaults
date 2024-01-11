@@ -4,7 +4,7 @@
 use smartvaults_sdk::Message as SdkMessage;
 
 use super::context::Mode;
-//use super::screen::AddHWSignerMessage;
+// use super::screen::AddHWSignerMessage;
 use super::screen::{
     ActivityMessage, AddAirGapSignerMessage, AddColdcardSignerMessage, AddContactMessage,
     AddNostrConnectSessionMessage, AddRelayMessage, AddSignerMessage, AddVaultMessage,
@@ -42,7 +42,7 @@ pub enum Message {
     RevokeAllSigners(RevokeAllSignersMessage),
     Signer(SignerMessage),
     AddSigner(AddSignerMessage),
-    //AddHWSigner(AddHWSignerMessage),
+    // AddHWSigner(AddHWSignerMessage),
     AddAirGapSigner(AddAirGapSignerMessage),
     AddColdcardSigner(AddColdcardSignerMessage),
     ShareSigner(ShareSignerMessage),

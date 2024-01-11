@@ -1,8 +1,9 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use super::{AddCommand, Command, SetCommand};
 use clap::Parser;
+
+use super::{AddCommand, Command, SetCommand};
 
 #[derive(Debug, Parser)]
 #[command(name = "")]

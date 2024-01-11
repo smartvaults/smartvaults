@@ -78,8 +78,8 @@ impl<T, Message> Component<Message, Renderer> for NumericInput<T, Message>
 where
     T: Number,
 {
-    type State = ();
     type Event = Event;
+    type State = ();
 
     fn update(&mut self, _state: &mut Self::State, event: Event) -> Option<Message> {
         if let Some(on_input) = &self.on_input {

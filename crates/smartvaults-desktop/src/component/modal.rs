@@ -3,8 +3,7 @@
 
 use iced::advanced::layout::{self, Layout};
 use iced::advanced::widget::{self, Widget};
-use iced::advanced::{self, Clipboard, Shell};
-use iced::advanced::{overlay, renderer};
+use iced::advanced::{self, overlay, renderer, Clipboard, Shell};
 use iced::alignment::Alignment;
 use iced::{
     event, mouse, BorderRadius, Color, Element, Event, Length, Point, Rectangle, Size, Vector,

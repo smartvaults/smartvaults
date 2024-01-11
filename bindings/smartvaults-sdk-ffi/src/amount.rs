@@ -13,6 +13,7 @@ pub struct Amount {
 
 impl Deref for Amount {
     type Target = core::Amount;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

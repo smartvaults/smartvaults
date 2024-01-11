@@ -123,7 +123,7 @@ impl Store {
         app_public_key: XOnlyPublicKey,
     ) -> Result<(), Error> {
         // Delete notifications
-        //self.delete_notification(policy_id)?;
+        // self.delete_notification(policy_id)?;
 
         // Delete session
         let conn = self.acquire().await?;
@@ -250,7 +250,7 @@ impl Store {
 
     pub async fn delete_nostr_connect_request(&self, event_id: EventId) -> Result<(), Error> {
         // Delete notifications
-        //self.delete_notification(policy_id)?;
+        // self.delete_notification(policy_id)?;
 
         // Delete
         let conn = self.acquire().await?;

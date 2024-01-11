@@ -5,10 +5,9 @@ use nostr::{key, util, Keys};
 use smartvaults_core::bdk::wallet::ChangeSet;
 use smartvaults_core::bitcoin::secp256k1::SecretKey;
 use smartvaults_core::crypto::aes;
-use smartvaults_core::secp256k1;
 use smartvaults_core::util::serde::deserialize;
 use smartvaults_core::{
-    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
+    secp256k1, ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
 
 use super::serde::Serde;

@@ -2,9 +2,7 @@
 // Distributed under the MIT software license
 
 use std::fs::File;
-use std::io::Error;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Error, Read, Write};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};

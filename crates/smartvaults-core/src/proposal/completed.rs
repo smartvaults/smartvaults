@@ -6,9 +6,8 @@ use keechain_core::bitcoin::Transaction;
 use keechain_core::miniscript::Descriptor;
 use serde::{Deserialize, Serialize};
 
-use crate::util::{deserialize_psbt, serialize_psbt};
-
 use super::{Period, ProposalType};
+use crate::util::{deserialize_psbt, serialize_psbt};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CompletedProposal {

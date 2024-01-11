@@ -43,6 +43,7 @@ impl fmt::Display for SignerPickLisk {
 
 impl Deref for SignerPickLisk {
     type Target = GetSigner;
+
     fn deref(&self) -> &Self::Target {
         &self.signer
     }

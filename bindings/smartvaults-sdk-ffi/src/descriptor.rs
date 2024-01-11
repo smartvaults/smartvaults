@@ -16,6 +16,7 @@ pub struct Descriptor {
 
 impl Deref for Descriptor {
     type Target = DescriptorPublicKey;
+
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

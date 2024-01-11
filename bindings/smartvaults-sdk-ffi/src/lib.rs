@@ -25,8 +25,6 @@ mod seed;
 mod signer;
 mod transaction;
 
-use self::error::Result;
-
 pub use self::abortable::AbortHandle;
 pub use self::address::{AddressIndex, GetAddress};
 pub use self::amount::Amount;
@@ -34,6 +32,7 @@ pub use self::balance::Balance;
 pub use self::client::{SmartVaults, SyncHandler};
 pub use self::config::Config;
 pub use self::descriptor::Descriptor;
+use self::error::Result;
 pub use self::error::SmartVaultsError;
 pub use self::key_agent::{DeviceType, KeyAgent, Price, SignerOffering, Temperature};
 pub use self::message::{EventHandled, Message};

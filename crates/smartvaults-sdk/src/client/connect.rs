@@ -4,8 +4,7 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use nostr_sdk::nips::nip46::NostrConnectURI;
-use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
+use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI, Request as NIP46Request};
 use nostr_sdk::{ClientMessage, EventBuilder, EventId, Keys, Timestamp, Url};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk_sqlite::model::NostrConnectRequest;

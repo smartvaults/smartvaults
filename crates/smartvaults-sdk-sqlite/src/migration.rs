@@ -61,22 +61,21 @@ pub(crate) async fn run(conn: &Object) -> Result<(), Error> {
                     curr_version = mig_2_to_3(conn)?;
                 }
 
-                /*
-                if curr_version == 3 {
-                    curr_version = mig_3_to_4(conn)?;
-                }
-
-                if curr_version == 4 {
-                    curr_version = mig_4_to_5(conn)?;
-                }
-
-                if curr_version == 5 {
-                    curr_version = mig_5_to_6(conn)?;
-                }
-
-                if curr_version == 6 {
-                    curr_version = mig_6_to_7(conn)?;
-                } */
+                // if curr_version == 3 {
+                // curr_version = mig_3_to_4(conn)?;
+                // }
+                //
+                // if curr_version == 4 {
+                // curr_version = mig_4_to_5(conn)?;
+                // }
+                //
+                // if curr_version == 5 {
+                // curr_version = mig_5_to_6(conn)?;
+                // }
+                //
+                // if curr_version == 6 {
+                // curr_version = mig_6_to_7(conn)?;
+                // }
 
                 if curr_version == DB_VERSION {
                     tracing::info!("All migration scripts completed successfully (v{DB_VERSION})");

@@ -43,6 +43,7 @@ impl Ord for GetPolicy {
 
 impl Deref for GetPolicy {
     type Target = Policy;
+
     fn deref(&self) -> &Self::Target {
         &self.policy
     }
@@ -153,6 +154,7 @@ impl From<(EventId, Signer)> for GetSigner {
 
 impl Deref for GetSigner {
     type Target = Signer;
+
     fn deref(&self) -> &Self::Target {
         &self.signer
     }
@@ -186,6 +188,7 @@ pub struct GetUtxo {
 
 impl Deref for GetUtxo {
     type Target = LocalUtxo;
+
     fn deref(&self) -> &Self::Target {
         &self.utxo
     }
@@ -213,6 +216,7 @@ impl Ord for GetTransaction {
 
 impl Deref for GetTransaction {
     type Target = TransactionDetails;
+
     fn deref(&self) -> &Self::Target {
         &self.tx
     }
@@ -226,6 +230,7 @@ pub struct GetAddress {
 
 impl Deref for GetAddress {
     type Target = Address<NetworkUnchecked>;
+
     fn deref(&self) -> &Self::Target {
         &self.address
     }
@@ -259,6 +264,7 @@ impl Ord for KeyAgent {
 
 impl Deref for KeyAgent {
     type Target = Profile;
+
     fn deref(&self) -> &Self::Target {
         &self.user
     }

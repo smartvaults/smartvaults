@@ -120,29 +120,29 @@ impl Signer {
         )
     }
 
-    /* pub fn from_hwi<S>(
-        name: S,
-        description: Option<S>,
-        device: HWIDevice,
-        account: Option<u32>,
-        network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
-        let client = HWIClient::get_client(&device, false, network)?;
-        let path = bip32::account_extended_path(86, network, account)?;
-        let xpub = client.get_xpub(&path, false)?;
-        let descriptor =
-            descriptors::typed_descriptor(device.fingerprint, xpub.xpub, &path, false)?;
-        Self::new(
-            name,
-            description,
-            device.fingerprint,
-            descriptor,
-            SignerType::Hardware,
-        )
-    } */
+    // pub fn from_hwi<S>(
+    // name: S,
+    // description: Option<S>,
+    // device: HWIDevice,
+    // account: Option<u32>,
+    // network: Network,
+    // ) -> Result<Self, Error>
+    // where
+    // S: Into<String>,
+    // {
+    // let client = HWIClient::get_client(&device, false, network)?;
+    // let path = bip32::account_extended_path(86, network, account)?;
+    // let xpub = client.get_xpub(&path, false)?;
+    // let descriptor =
+    // descriptors::typed_descriptor(device.fingerprint, xpub.xpub, &path, false)?;
+    // Self::new(
+    // name,
+    // description,
+    // device.fingerprint,
+    // descriptor,
+    // SignerType::Hardware,
+    // )
+    // }
 
     pub fn airgap<S>(
         name: S,

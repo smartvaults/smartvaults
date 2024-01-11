@@ -4,8 +4,7 @@
 use iced::advanced::layout::{self, Layout};
 use iced::advanced::renderer;
 use iced::advanced::widget::{self, Widget};
-use iced::mouse;
-use iced::{Color, Element, Length, Rectangle, Size};
+use iced::{mouse, Color, Element, Length, Rectangle, Size};
 use iced_futures::core::widget::Tree;
 
 use crate::theme::color::{BLACK, TRANSPARENT};
@@ -28,9 +27,9 @@ impl Circle {
     }
 }
 
-/* pub fn circle(radius: f32) -> Circle {
-    Circle::new(radius)
-} */
+// pub fn circle(radius: f32) -> Circle {
+// Circle::new(radius)
+// }
 
 impl<Message, Renderer> Widget<Message, Renderer> for Circle
 where

@@ -74,6 +74,7 @@ impl fmt::Display for BasisPoints {
 
 impl Deref for BasisPoints {
     type Target = u64;
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -106,6 +107,7 @@ impl From<u64> for BasisPoints {
 
 impl FromStr for BasisPoints {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(s.parse()?))
     }
@@ -270,6 +272,7 @@ impl fmt::Display for Currency {
 
 impl FromStr for Currency {
     type Err = Error;
+
     fn from_str(currency: &str) -> Result<Self, Self::Err> {
         if currency.len() == 3 {
             let mut chars = currency.chars();
@@ -323,6 +326,7 @@ impl fmt::Display for Price {
 
 impl FromStr for Price {
     type Err = Error;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut split = s.split(' ');
         if let (Some(amount_str), Some(currency)) = (split.next(), split.next()) {

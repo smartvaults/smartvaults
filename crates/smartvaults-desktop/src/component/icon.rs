@@ -50,8 +50,8 @@ impl Icon {
 }
 
 impl<Message> Component<Message, Renderer> for Icon {
-    type State = ();
     type Event = ();
+    type State = ();
 
     fn update(&mut self, _state: &mut Self::State, _event: Self::Event) -> Option<Message> {
         None

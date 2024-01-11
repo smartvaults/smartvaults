@@ -26,14 +26,14 @@ where
     Ok(path)
 }
 
-/* fn cache_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
-where
-    P: AsRef<Path>,
-{
-    let path = network_path(base_path, network)?.join("cache");
-    std::fs::create_dir_all(path.as_path())?;
-    Ok(path)
-} */
+// fn cache_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
+// where
+// P: AsRef<Path>,
+// {
+// let path = network_path(base_path, network)?.join("cache");
+// std::fs::create_dir_all(path.as_path())?;
+// Ok(path)
+// }
 
 pub(crate) fn config_file_path<P>(base_path: P, network: Network) -> Result<PathBuf, Error>
 where

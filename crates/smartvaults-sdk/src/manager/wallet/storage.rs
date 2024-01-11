@@ -34,8 +34,8 @@ impl<K> PersistBackend<K> for SmartVaultsWalletStorage
 where
     K: Default + Clone + Append + StoreEncryption + Send + 'static,
 {
-    type WriteError = Error;
     type LoadError = Error;
+    type WriteError = Error;
 
     fn write_changes(&mut self, changeset: &K) -> Result<(), Self::WriteError> {
         if changeset.is_empty() {

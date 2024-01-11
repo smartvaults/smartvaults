@@ -6,8 +6,7 @@ use std::collections::{BTreeSet, HashSet};
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::nostr::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::nostr::Profile;
+use smartvaults_sdk::nostr::{EventId, Profile};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
