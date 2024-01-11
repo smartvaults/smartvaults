@@ -28,5 +28,8 @@ pub const APPROVAL_KIND_V2: Kind = Kind::ParameterizedReplaceable(39291);
 /// Signer kind
 pub const SIGNER_KIND_V2: Kind = Kind::ParameterizedReplaceable(39294);
 
+/// Shared Signer Kind
+pub const SHARED_SIGNER_KIND_V2: Kind = Kind::ParameterizedReplaceable(39295);
+
 /// Wrapper event expiration
 pub const WRAPPER_EXIPRATION: Duration = Duration::from_secs(60 * 60 * 24 * 7); // 7 days

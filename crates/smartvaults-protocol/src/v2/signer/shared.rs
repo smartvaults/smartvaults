@@ -12,7 +12,7 @@ use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::CoreSigner;
 
 use super::SignerIdentifier;
-use crate::v2::constants::{WRAPPER_EXIPRATION, WRAPPER_KIND};
+use crate::v2::constants::{SHARED_SIGNER_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
 use crate::v2::core::SchemaVersion;
 use crate::v2::proto::signer::ProtoSharedSigner;
 use crate::v2::wrapper::Wrapper;
@@ -114,6 +114,19 @@ pub fn build_invitation_event(shared_signer: &SharedSigner) -> Result<Event, Err
     .to_event(&keys)?)
 }
 
-// pub fn build_event(shared_signer: &SharedSigner) -> Result<Event, Error> {
-// todo!()
-// }
+/// Build [SharedSigner] event (used to accept an invitation)
+///
+/// Must use **own** [`Keys`] (not random or shared key)!
+pub fn build_event(keys: &Keys, shared_signer: &SharedSigner) -> Result<Event, Error> {
+    // Encrypt
+    let encrypted_content: String = shared_signer.encrypt_with_keys(keys)?;
+
+    // Compose and build event
+    let identifier: String = shared_signer.nostr_public_identifier().to_string();
+    Ok(EventBuilder::new(
+        SHARED_SIGNER_KIND_V2,
+        encrypted_content,
+        [Tag::Identifier(identifier)],
+    )
+    .to_event(keys)?)
+}
