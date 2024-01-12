@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cargo fmt --all -- --config format_code_in_doc_comments=true
+cargo +nightly fmt --all -- --config format_code_in_doc_comments=true
 
 buildargs=(
     "-p smartvaults-core"
