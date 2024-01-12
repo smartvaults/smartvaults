@@ -16,9 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Toolchain
-        run: rustup install nightly
+        run: |
+          rustup install nightly-2024-01-11
+          rustup component add rustfmt --toolchain nightly-2024-01-11
       - name: Format
-        run: cargo +nightly fmt --all -- --config format_code_in_doc_comments=true --check
+        run: cargo +nightly-2024-01-11 fmt --all -- --config format_code_in_doc_comments=true --check
 
   build:
     name: Build
