@@ -38,7 +38,7 @@ async fn main() {
         .spend(
             &vault.id(),
             Destination::Single(Recipient {
-                address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap(),
+                address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap().assume_checked(),
                 amount: Amount::from_sat(10_934),
             }),
             "Back to the faucet",
@@ -58,14 +58,11 @@ async fn main() {
     }
 
     // Approve a proposal
-    client
-        .approve("password", proposal.proposal_id)
-        .await
-        .unwrap();
+    client.approve(&proposal.id(), "password").await.unwrap();
     // other approvals ...
 
     // Finalize the proposal
-    client.finalize(proposal.proposal_id).await.unwrap();
+    client.finalize(&proposal.id()).await.unwrap();
 
     // Shutdown the client (for logout)
     client.shutdown().await.unwrap();
