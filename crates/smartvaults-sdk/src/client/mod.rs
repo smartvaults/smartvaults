@@ -529,26 +529,6 @@ impl SmartVaults {
         Ok(self.client.remove_relay(url).await?)
     }
 
-    pub async fn connect_relay<S>(&self, url: S) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
-        let url = Url::parse(&url.into())?;
-        self.db.enable_relay(url.clone()).await?;
-        self.client.connect_relay(url).await?;
-        Ok(())
-    }
-
-    pub async fn disconnect_relay<S>(&self, url: S) -> Result<(), Error>
-    where
-        S: Into<String>,
-    {
-        let url = Url::parse(&url.into())?;
-        self.db.disable_relay(url.clone()).await?;
-        self.client.disconnect_relay(url).await?;
-        Ok(())
-    }
-
     pub async fn relays(&self) -> BTreeMap<Url, Relay> {
         self.client.relays().await.into_iter().collect()
     }
