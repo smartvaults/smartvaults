@@ -19,5 +19,5 @@ of the PR were done in a specific way -->
 #### All Submissions:
 
 * [ ] I've signed all my commits
-* [ ] I followed the [contribution guidelines](../CONTRIBUTING.md)
-* [ ] I ran `cargo fmt` and `cargo clippy` before committing
+* [ ] I followed the [contribution guidelines](https://github.com/smartvaults/smartvaults/blob/master/CONTRIBUTING.md)
+* [ ] I ran `cargo fmt` and `cargo check` before committing

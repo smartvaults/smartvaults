@@ -11,11 +11,29 @@ cli:
 release:
 	cd contrib/release && just release
 
-dev-gui:
-	cargo fmt --all && cargo run -p smartvaults-desktop -- --testnet
+dev-gui: fmt
+	cargo run -p smartvaults-desktop -- --testnet
 
-precommit:
-	@bash .githooks/pre-push
+init-dev:
+	rustup install nightly-2024-01-11
+	rustup component add rustfmt --toolchain nightly-2024-01-11
+
+fmt:
+	cargo +nightly-2024-01-11 fmt --all -- --config format_code_in_doc_comments=true
+
+check: fmt check-crates check-bindings check-docs
+
+check-fmt:
+	cargo +nightly-2024-01-11 fmt --all -- --config format_code_in_doc_comments=true --check
+
+check-bindings:
+	@bash contrib/scripts/check-bindings.sh
+
+check-crates:
+	@bash contrib/scripts/check-crates.sh
+
+check-docs:
+	@bash contrib/scripts/check-docs.sh
 
 clean:
 	cargo clean
