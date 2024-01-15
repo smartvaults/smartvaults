@@ -9,7 +9,6 @@ use keechain_core::bitcoin::Network;
 use keechain_core::descriptors::{self, ToDescriptor};
 use keechain_core::miniscript::DescriptorPublicKey;
 use keechain_core::{ColdcardGenericJson, Purpose, Seed};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[cfg(feature = "hwi")]
@@ -51,7 +50,7 @@ pub enum Error {
     PurposeNotMatch,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CoreSigner {
     fingerprint: Fingerprint,
     descriptors: BTreeMap<Purpose, DescriptorPublicKey>,

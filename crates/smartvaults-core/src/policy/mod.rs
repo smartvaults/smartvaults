@@ -25,7 +25,6 @@ use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::Descriptor;
 use keechain_core::secp256k1::XOnlyPublicKey;
 use keechain_core::util::time;
-use serde::{Deserialize, Serialize};
 
 pub mod template;
 
@@ -88,16 +87,16 @@ pub enum Error {
     SignerNotFound,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+//#[serde(rename_all = "snake_case")]
 pub struct SelectableCondition {
     pub path: String,
     pub thresh: usize,
     pub sub_paths: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+//#[serde(rename_all = "snake_case")]
 pub enum PolicyPathSelector {
     Complete {
         path: BTreeMap<String, Vec<usize>>,
@@ -108,8 +107,8 @@ pub enum PolicyPathSelector {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+//#[serde(rename_all = "snake_case")]
 pub enum PolicyPath {
     Single(PolicyPathSelector),
     Multiple(HashMap<CoreSigner, Option<PolicyPathSelector>>),

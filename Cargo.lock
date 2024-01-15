@@ -4990,8 +4990,6 @@ dependencies = [
  "bitcoinconsensus",
  "keechain-core",
  "once_cell",
- "serde",
- "serde_json",
  "thiserror",
  "tokio",
  "tracing",
