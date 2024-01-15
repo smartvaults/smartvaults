@@ -1,9 +1,11 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use nostr_sdk::{Event, Keys};
+use nostr_sdk::database::Order;
+use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, Tag};
 use smartvaults_core::{Policy, PolicyTemplate};
-use smartvaults_protocol::v2::{self, Vault, VaultIdentifier};
+use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
+use smartvaults_protocol::v2::{self, NostrPublicIdentifier, Vault, VaultIdentifier};
 
 use super::{Error, SmartVaults};
 use crate::types::GetVault;
@@ -86,5 +88,42 @@ impl SmartVaults {
         let vault: Vault = Vault::from_template(template, self.network, shared_key.secret_key()?)?;
         let descriptor: String = vault.as_descriptor().to_string();
         self.save_vault(name, description, descriptor).await
+    }
+
+    #[tracing::instrument(skip_all, level = "trace")]
+    pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
+        let vault = self.storage.vault(vault_id).await?;
+
+        let keys = self.keys();
+        let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
+
+        let filter: Filter = Filter::new()
+            .kind(VAULT_KIND_V2)
+            .author(keys.public_key())
+            .identifier(nostr_public_identifier.to_string())
+            .limit(1);
+        let res: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![filter], Order::Desc)
+            .await?;
+        let vault_event: &Event = res.first().ok_or(Error::NotFound)?;
+
+        let event = self.client.database().event_by_id(vault_event.id).await?;
+        let author = event.author();
+        if author == keys.public_key() {
+            // Delete policy
+            let builder = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(vault_event.id)]);
+            self.client.send_event_builder(builder).await?;
+
+            self.storage.delete_vault(vault_id).await;
+
+            // Unload policy
+            self.manager.unload_policy(*vault_id).await?;
+
+            Ok(())
+        } else {
+            Err(Error::TryingToDeleteNotOwnedEvent)
+        }
     }
 }

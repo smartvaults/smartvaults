@@ -28,10 +28,8 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
 use smartvaults_core::{Destination, FeeRate, SpendingProposal, SECP256K1};
 use smartvaults_protocol::v1::{Label, LabelData};
-use smartvaults_protocol::v2::constants::{PROPOSAL_KIND_V2, VAULT_KIND_V2};
 use smartvaults_protocol::v2::{
-    self, Approval, NostrPublicIdentifier, PendingProposal, Proposal, ProposalIdentifier, Signer,
-    Vault, VaultIdentifier,
+    self, Approval, PendingProposal, Proposal, ProposalIdentifier, Signer, Vault, VaultIdentifier,
 };
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
@@ -39,6 +37,7 @@ use tokio::sync::broadcast::{self, Sender};
 mod connect;
 mod key_agent;
 mod label;
+mod proposal;
 mod signers;
 mod sync;
 mod vault;
@@ -654,147 +653,6 @@ impl SmartVaults {
         let event = EventBuilder::contact_list(contacts);
         self.client.send_event_builder(event).await?;
         Ok(())
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposal_by_id(
-        &self,
-        proposal_id: &ProposalIdentifier,
-    ) -> Result<GetProposal, Error> {
-        let proposal = self.storage.proposal(proposal_id).await?;
-        let approvals = self
-            .storage
-            .approvals()
-            .await
-            .into_iter()
-            .filter(|(_, i)| i.approval.proposal_id() == *proposal_id)
-            .map(|(_, i)| i.approval);
-        Ok(GetProposal {
-            signed: proposal.try_finalize(approvals).is_ok(),
-            proposal,
-        })
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
-        let vault = self.storage.vault(vault_id).await?;
-
-        let keys = self.keys();
-        let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
-
-        let filter: Filter = Filter::new()
-            .kind(VAULT_KIND_V2)
-            .author(keys.public_key())
-            .identifier(nostr_public_identifier.to_string())
-            .limit(1);
-        let res: Vec<Event> = self
-            .client
-            .database()
-            .query(vec![filter], Order::Desc)
-            .await?;
-        let vault_event: &Event = res.first().ok_or(Error::NotFound)?;
-
-        let event = self.client.database().event_by_id(vault_event.id).await?;
-        let author = event.author();
-        if author == keys.public_key() {
-            // Delete policy
-            let builder = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(vault_event.id)]);
-            self.client.send_event_builder(builder).await?;
-
-            self.storage.delete_vault(vault_id).await;
-
-            // Unload policy
-            self.manager.unload_policy(*vault_id).await?;
-
-            Ok(())
-        } else {
-            Err(Error::TryingToDeleteNotOwnedEvent)
-        }
-    }
-
-    pub async fn delete_proposal_by_id(
-        &self,
-        proposal_id: &ProposalIdentifier,
-    ) -> Result<(), Error> {
-        // Get the proposal
-        let proposal: Proposal = self.storage.proposal(proposal_id).await?;
-
-        // Get Vault for shared key
-        let vault = self.storage.vault(&proposal.vault_id()).await?;
-        let shared_key: Keys = Keys::new(vault.shared_key());
-
-        let filter: Filter = Filter::new()
-            .kind(PROPOSAL_KIND_V2)
-            .author(shared_key.public_key())
-            .identifier(proposal_id.to_string())
-            .limit(1);
-        let res: Vec<Event> = self
-            .client
-            .database()
-            .query(vec![filter], Order::Desc)
-            .await?;
-        let proposal_event: &Event = res.first().ok_or(Error::NotFound)?;
-
-        if proposal_event.author() == shared_key.public_key() {
-            let event: Event =
-                EventBuilder::new(Kind::EventDeletion, "", [Tag::event(proposal_event.id)])
-                    .to_event(&shared_key)?;
-            self.client.send_event(event).await?;
-
-            self.storage.delete_proposal(&proposal_id).await;
-
-            Ok(())
-        } else {
-            Err(Error::TryingToDeleteNotOwnedEvent)
-        }
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
-        let proposals = self.storage.proposals().await;
-        let mut list = Vec::with_capacity(proposals.len());
-        for (proposal_id, proposal) in proposals.into_iter() {
-            let approvals = self
-                .storage
-                .approvals()
-                .await
-                .into_values()
-                .filter(|i| i.approval.proposal_id() == proposal_id)
-                .map(|i| i.approval);
-            list.push(GetProposal {
-                signed: proposal.try_finalize(approvals).is_ok(),
-                proposal,
-            });
-        }
-        list.sort();
-        Ok(list)
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposals_by_vault_id(
-        &self,
-        vault_id: VaultIdentifier,
-    ) -> Result<Vec<GetProposal>, Error> {
-        let proposals = self.storage.proposals().await;
-        let mut list = Vec::with_capacity(proposals.len());
-        for (proposal_id, proposal) in proposals
-            .into_iter()
-            .filter(|(_, p)| p.vault_id() == vault_id)
-        {
-            let approvals = self
-                .storage
-                .approvals()
-                .await
-                .into_values()
-                .filter(|i| i.approval.proposal_id() == proposal_id)
-                .map(|i| i.approval);
-            list.push(GetProposal {
-                signed: proposal.try_finalize(approvals).is_ok(),
-                proposal,
-            });
-        }
-        list.sort();
-        Ok(list)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
