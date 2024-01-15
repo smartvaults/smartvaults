@@ -25,6 +25,7 @@ pub struct SharedSigner {
     owner: XOnlyPublicKey,
     receiver: XOnlyPublicKey,
     core: CoreSigner,
+    timestamp: Timestamp,
 }
 
 impl Deref for SharedSigner {
@@ -37,11 +38,17 @@ impl Deref for SharedSigner {
 
 impl SharedSigner {
     /// Compose new Shared Signer
-    pub fn new(owner: XOnlyPublicKey, receiver: XOnlyPublicKey, core: CoreSigner) -> Self {
+    pub fn new(
+        owner: XOnlyPublicKey,
+        receiver: XOnlyPublicKey,
+        core: CoreSigner,
+        timestamp: Timestamp,
+    ) -> Self {
         Self {
             owner,
             receiver,
             core,
+            timestamp,
         }
     }
 
@@ -58,6 +65,13 @@ impl SharedSigner {
     /// The receiver of the shared signer
     pub fn receiver(&self) -> &XOnlyPublicKey {
         &self.receiver
+    }
+
+    /// Timestamp of the shared signer
+    ///
+    /// Needed to allow to replace an already shared signer with a new version
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
     }
 
     /// Generate deterministic Nostr Public Identifier

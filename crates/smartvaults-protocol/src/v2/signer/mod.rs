@@ -8,7 +8,7 @@ use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 use std::collections::BTreeMap;
 
-use nostr::{Event, EventBuilder, Keys, Tag};
+use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
@@ -165,12 +165,12 @@ impl Signer {
 
     /// Get Shared Signer
     pub fn as_shared(&self, owner: XOnlyPublicKey, receiver: XOnlyPublicKey) -> SharedSigner {
-        SharedSigner::new(owner, receiver, self.core.clone())
+        SharedSigner::new(owner, receiver, self.core.clone(), Timestamp::now())
     }
 
     /// Consume [`Signer`] and get Shared Signer
     pub fn to_shared(self, owner: XOnlyPublicKey, receiver: XOnlyPublicKey) -> SharedSigner {
-        SharedSigner::new(owner, receiver, self.core)
+        SharedSigner::new(owner, receiver, self.core, Timestamp::now())
     }
 }
 

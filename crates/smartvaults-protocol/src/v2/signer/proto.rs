@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use nostr::Timestamp;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bips::bip48::ScriptType;
 use smartvaults_core::miniscript::DescriptorPublicKey;
@@ -144,6 +145,7 @@ impl From<&SharedSigner> for ProtoSharedSigner {
             network: signer.network().magic().to_bytes().to_vec(),
             owner: signer.owner().to_string(),
             receiver: signer.receiver().to_string(),
+            timestamp: signer.timestamp().as_u64(),
         }
     }
 }
@@ -172,6 +174,7 @@ impl TryFrom<ProtoSharedSigner> for SharedSigner {
             XOnlyPublicKey::from_str(&value.owner)?,
             XOnlyPublicKey::from_str(&value.receiver)?,
             CoreSigner::new(fingerprint, descriptors, *network)?,
+            Timestamp::from(value.timestamp),
         ))
     }
 }

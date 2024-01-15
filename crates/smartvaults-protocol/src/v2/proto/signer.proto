@@ -40,4 +40,5 @@ message SharedSigner {
   bytes network = 3;
   string owner = 4;
   string receiver = 5;
+  fixed64 timestamp = 6;
 }
