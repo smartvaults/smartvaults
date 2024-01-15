@@ -14,13 +14,15 @@ use smartvaults_core::util::hex;
 use smartvaults_core::{miniscript, policy, proposal, secp256k1};
 use thiserror::Error;
 
-use super::core::SchemaError;
+use super::message::ProtocolMessageError;
 use super::network;
 
 /// Protocol V2 Error
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
+    ProtocolMessage(#[from] ProtocolMessageError),
     #[error(transparent)]
     BitcoinConsensus(#[from] consensus::encode::Error),
     #[error(transparent)]
@@ -45,8 +47,6 @@ pub enum Error {
     Miniscript(#[from] miniscript::Error),
     #[error(transparent)]
     NIP44(#[from] nip44::Error),
-    #[error(transparent)]
-    Schema(#[from] SchemaError),
     #[error(transparent)]
     CoreSigner(#[from] CoreSignerError),
     #[error(transparent)]

@@ -21,7 +21,7 @@ mod proto;
 pub use self::id::VaultIdentifier;
 pub use self::metadata::VaultMetadata;
 use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
-use super::core::{ProtocolEncoding, ProtocolEncryption, SchemaVersion};
+use super::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
 use super::proto::vault::ProtoVault;
 use super::{Error, NostrPublicIdentifier, Wrapper};
 
@@ -123,9 +123,13 @@ impl Vault {
 impl ProtocolEncoding for Vault {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+    fn protocol_network(&self) -> Network {
+        self.network()
+    }
+
+    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let vault: ProtoVault = self.into();
-        (SchemaVersion::ProtoBuf, vault.encode_to_vec())
+        (EncodingVersion::ProtoBuf, vault.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

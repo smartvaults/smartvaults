@@ -6,8 +6,9 @@
 //! The Wrapper is used to send data without leaking metadata to the public
 
 use prost::Message;
+use smartvaults_core::bitcoin::Network;
 
-use super::core::SchemaVersion;
+use super::message::EncodingVersion;
 use super::proto::wrapper::{ProtoWrapper, ProtoWrapperObject};
 use super::{Error, ProtocolEncoding, ProtocolEncryption, SharedSigner, Vault};
 
@@ -28,7 +29,14 @@ pub enum Wrapper {
 impl ProtocolEncoding for Wrapper {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+    fn protocol_network(&self) -> Network {
+        match self {
+            Self::VaultInvite { vault } => vault.network(),
+            Self::SharedSignerInvite { shared_signer } => shared_signer.network(),
+        }
+    }
+
+    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let wrapper: ProtoWrapper = ProtoWrapper {
             object: Some(match self {
                 Self::VaultInvite { vault } => ProtoWrapperObject::Vault(vault.into()),
@@ -37,7 +45,7 @@ impl ProtocolEncoding for Wrapper {
                 }
             }),
         };
-        (SchemaVersion::ProtoBuf, wrapper.encode_to_vec())
+        (EncodingVersion::ProtoBuf, wrapper.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

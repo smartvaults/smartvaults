@@ -7,13 +7,14 @@ use core::ops::Deref;
 
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
+use smartvaults_core::bitcoin::Network;
 use smartvaults_core::crypto::hash;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::CoreSigner;
 
 use super::SignerIdentifier;
 use crate::v2::constants::{SHARED_SIGNER_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
-use crate::v2::core::SchemaVersion;
+use crate::v2::message::EncodingVersion;
 use crate::v2::proto::signer::ProtoSharedSigner;
 use crate::v2::wrapper::Wrapper;
 use crate::v2::{Error, NostrPublicIdentifier, ProtocolEncoding, ProtocolEncryption};
@@ -75,9 +76,13 @@ impl SharedSigner {
 impl ProtocolEncoding for SharedSigner {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (SchemaVersion, Vec<u8>) {
+    fn protocol_network(&self) -> Network {
+        self.network()
+    }
+
+    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let shared_signer: ProtoSharedSigner = self.into();
-        (SchemaVersion::ProtoBuf, shared_signer.encode_to_vec())
+        (EncodingVersion::ProtoBuf, shared_signer.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
