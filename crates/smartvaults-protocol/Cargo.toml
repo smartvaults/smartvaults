@@ -10,6 +10,10 @@ license.workspace = true
 readme = "README.md"
 keywords.workspace = true
 
+[features]
+default = []
+hwi = ["smartvaults-core/hwi"]
+
 [dependencies]
 smartvaults-core = { path = "../smartvaults-core", default-features = false }
 nostr = { workspace = true, features = ["std", "nip04", "nip44"] }

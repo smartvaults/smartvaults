@@ -12,6 +12,8 @@ use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
+#[cfg(feature = "hwi")]
+use smartvaults_core::hwi::BoxedHWI;
 use smartvaults_core::miniscript::DescriptorPublicKey;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
@@ -117,6 +119,13 @@ impl Signer {
     pub fn from_coldcard(coldcard: ColdcardGenericJson, network: Network) -> Result<Self, Error> {
         let core: CoreSigner = CoreSigner::from_coldcard(coldcard, network)?;
         Ok(Self::new(core, SignerType::AirGap))
+    }
+
+    /// Compose [Signer] from USB `Hardware Wallet`
+    #[cfg(feature = "hwi")]
+    pub async fn from_hwi(device: BoxedHWI, network: Network) -> Result<Self, Error> {
+        let core: CoreSigner = CoreSigner::from_hwi(device, network).await?;
+        Ok(Self::new(core, SignerType::Hardware))
     }
 
     /// Generate unique deterministic identifier
