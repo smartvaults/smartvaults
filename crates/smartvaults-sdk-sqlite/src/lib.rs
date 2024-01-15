@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+#![forbid(unsafe_code)]
+
 mod encryption;
 mod error;
 mod migration;

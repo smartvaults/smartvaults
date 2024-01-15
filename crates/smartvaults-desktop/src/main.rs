@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+#![forbid(unsafe_code)]
 #![allow(clippy::new_without_default)]
 #![windows_subsystem = "windows"]
 

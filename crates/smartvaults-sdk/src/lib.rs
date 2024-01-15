@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+#![forbid(unsafe_code)]
 //#![warn(missing_docs)]
 #![warn(rustdoc::bare_urls)]
 #![doc = include_str!("../README.md")]

@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+#![forbid(unsafe_code)]
+
 pub use bdk::miniscript;
 use keechain_core::secp256k1::{rand, All, Secp256k1};
 pub use keechain_core::*;
