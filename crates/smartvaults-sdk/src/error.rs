@@ -98,10 +98,10 @@ pub enum Error {
     SignerNotFound,
     #[error("signer ID not found")]
     SignerIdNotFound,
+    #[error("shared signer ID not found")]
+    SharedSignerIdNotFound,
     #[error("public key not found")]
     PublicKeyNotFound,
-    #[error("signer already shared")]
-    SignerAlreadyShared,
     #[error("signer descriptor already exists")]
     SignerDescriptorAlreadyExists,
     #[error("nostr connect request already approved")]

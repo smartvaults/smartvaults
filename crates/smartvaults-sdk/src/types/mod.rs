@@ -11,7 +11,9 @@ use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
 use smartvaults_protocol::v1::SignerOffering;
-use smartvaults_protocol::v2::{Approval, Proposal, SharedSigner, Signer, Vault, VaultIdentifier};
+use smartvaults_protocol::v2::{
+    Approval, NostrPublicIdentifier, Proposal, SharedSigner, Signer, Vault, VaultIdentifier,
+};
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;
@@ -64,6 +66,14 @@ impl Ord for GetProposal {
     }
 }
 
+impl Deref for GetProposal {
+    type Target = Proposal;
+
+    fn deref(&self) -> &Self::Target {
+        &self.proposal
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetApproval {
     pub approval_id: EventId,
@@ -95,7 +105,7 @@ pub struct GetApprovedProposals {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSharedSigner {
-    pub shared_signer_id: EventId,
+    pub shared_signer_id: NostrPublicIdentifier,
     pub owner: Profile,
     pub shared_signer: SharedSigner,
 }
