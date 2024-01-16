@@ -3,6 +3,7 @@
 
 //! Proposals
 
+use core::fmt;
 use std::cmp::Ordering;
 
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
@@ -43,6 +44,16 @@ pub enum ProposalType {
     ProofOfReserve,
     /// Key Agent Payment
     KeyAgentPayment,
+}
+
+impl fmt::Display for ProposalType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Spending => write!(f, "Spending"),
+            Self::ProofOfReserve => write!(f, "Proof of Reserve"),
+            Self::KeyAgentPayment => write!(f, "Key Agent Payment"),
+        }
+    }
 }
 
 /// Proposal
