@@ -48,8 +48,7 @@ use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
 use crate::storage::{InternalApproval, SmartVaultsStorage};
 use crate::types::{
-    GetAddress, GetApproval, GetApprovedProposals, GetProposal, GetTransaction, GetUtxo,
-    PolicyBackup,
+    GetAddress, GetApproval, GetApprovedProposals, GetTransaction, GetUtxo, PolicyBackup,
 };
 use crate::{util, Error};
 
@@ -780,7 +779,7 @@ impl SmartVaults {
         utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
         skip_frozen_utxos: bool,
-    ) -> Result<GetProposal, Error>
+    ) -> Result<Proposal, Error>
     where
         S: Into<String>,
     {
@@ -814,10 +813,7 @@ impl SmartVaults {
             .save_proposal(proposal.id(), proposal.clone())
             .await;
 
-        Ok(GetProposal {
-            proposal,
-            signed: false,
-        })
+        Ok(proposal)
     }
 
     // /// Spend to another [`Policy`]
@@ -1019,7 +1015,7 @@ impl SmartVaults {
     // }
 
     /// Finalize [`Proposal`]
-    pub async fn finalize(&self, proposal_id: &ProposalIdentifier) -> Result<(), Error> {
+    pub async fn finalize(&self, proposal_id: &ProposalIdentifier) -> Result<Proposal, Error> {
         // Get Proposal, Approvals and vault
         let GetApprovedProposals {
             mut proposal,
@@ -1066,9 +1062,11 @@ impl SmartVaults {
         self.client.send_event(event).await?;
 
         // Index proposal
-        self.storage.save_proposal(*proposal_id, proposal).await;
+        self.storage
+            .save_proposal(*proposal_id, proposal.clone())
+            .await;
 
-        Ok(())
+        Ok(proposal)
     }
 
     // pub async fn new_proof_proposal<S>(
