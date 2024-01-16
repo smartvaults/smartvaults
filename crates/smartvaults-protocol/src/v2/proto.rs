@@ -61,5 +61,8 @@ pub mod wrapper {
     include!(concat!(env!("OUT_DIR"), "/wrapper.rs"));
 
     pub use self::wrapper::Object as ProtoWrapperObject;
-    pub use self::Wrapper as ProtoWrapper;
+    pub use self::{
+        SharedSignerInvite as ProtoSharedSignerInvite, VaultInvite as ProtoVaultInvite,
+        Wrapper as ProtoWrapper,
+    };
 }

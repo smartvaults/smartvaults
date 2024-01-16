@@ -7,9 +7,12 @@
 
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
+use smartvaults_core::secp256k1::XOnlyPublicKey;
+
+mod proto;
 
 use super::message::EncodingVersion;
-use super::proto::wrapper::{ProtoWrapper, ProtoWrapperObject};
+use super::proto::wrapper::ProtoWrapper;
 use super::{Error, ProtocolEncoding, ProtocolEncryption, SharedSigner, Vault};
 
 /// Smart Vaults Wrapper
@@ -18,11 +21,15 @@ pub enum Wrapper {
     VaultInvite {
         /// Vault
         vault: Vault,
+        /// Invite sender
+        sender: Option<XOnlyPublicKey>,
     },
     /// Shared Signer invite
     SharedSignerInvite {
         /// Shared Signer
         shared_signer: SharedSigner,
+        /// Invite sender
+        sender: Option<XOnlyPublicKey>,
     },
 }
 
@@ -31,36 +38,19 @@ impl ProtocolEncoding for Wrapper {
 
     fn protocol_network(&self) -> Network {
         match self {
-            Self::VaultInvite { vault } => vault.network(),
-            Self::SharedSignerInvite { shared_signer } => shared_signer.network(),
+            Self::VaultInvite { vault, .. } => vault.network(),
+            Self::SharedSignerInvite { shared_signer, .. } => shared_signer.network(),
         }
     }
 
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
-        let wrapper: ProtoWrapper = ProtoWrapper {
-            object: Some(match self {
-                Self::VaultInvite { vault } => ProtoWrapperObject::Vault(vault.into()),
-                Self::SharedSignerInvite { shared_signer } => {
-                    ProtoWrapperObject::SharedSigner(shared_signer.into())
-                }
-            }),
-        };
+        let wrapper: ProtoWrapper = self.into();
         (EncodingVersion::ProtoBuf, wrapper.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
         let wrapper: ProtoWrapper = ProtoWrapper::decode(data)?;
-        match wrapper.object {
-            Some(obj) => match obj {
-                ProtoWrapperObject::Vault(vault) => Ok(Self::VaultInvite {
-                    vault: Vault::try_from(vault)?,
-                }),
-                ProtoWrapperObject::SharedSigner(shared_signer) => Ok(Self::SharedSignerInvite {
-                    shared_signer: SharedSigner::try_from(shared_signer)?,
-                }),
-            },
-            None => Err(Error::NotFound(String::from("protobuf wrapper obj"))),
-        }
+        Self::try_from(wrapper)
     }
 }
 

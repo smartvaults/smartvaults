@@ -143,10 +143,15 @@ impl ProtocolEncryption for Vault {
 }
 
 /// Build [`Vault`] invitation [`Event`]
-pub fn build_invitation_event(vault: &Vault, receiver: XOnlyPublicKey) -> Result<Event, Error> {
+pub fn build_invitation_event(
+    vault: &Vault,
+    receiver: XOnlyPublicKey,
+    sender: Option<XOnlyPublicKey>,
+) -> Result<Event, Error> {
     // Compose wrapper
     let wrapper: Wrapper = Wrapper::VaultInvite {
         vault: vault.clone(),
+        sender,
     };
 
     // Encrypt

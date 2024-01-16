@@ -5,9 +5,19 @@ package wrapper;
 import "signer.proto";
 import "vault.proto";
 
+message VaultInvite {
+  vault.Vault vault = 1;
+  optional string sender = 2;
+}
+
+message SharedSignerInvite {
+  signer.SharedSigner shared_signer = 1;
+  optional string sender = 2;
+}
+
 message Wrapper {
   oneof object {
-    vault.Vault vault = 1;
-    signer.SharedSigner shared_signer = 2;
+    VaultInvite vault_invite = 1;
+    SharedSignerInvite shared_signer_invite = 2;
   }
 }

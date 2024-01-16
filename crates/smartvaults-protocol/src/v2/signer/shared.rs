@@ -110,10 +110,14 @@ impl ProtocolEncryption for SharedSigner {
 }
 
 /// Build [SharedSigner] invitation [`Event`]
-pub fn build_invitation_event(shared_signer: &SharedSigner) -> Result<Event, Error> {
+pub fn build_invitation_event(
+    shared_signer: &SharedSigner,
+    sender: Option<XOnlyPublicKey>,
+) -> Result<Event, Error> {
     // Compose wrapper
     let wrapper: Wrapper = Wrapper::SharedSignerInvite {
         shared_signer: shared_signer.clone(),
+        sender,
     };
 
     // Encrypt
