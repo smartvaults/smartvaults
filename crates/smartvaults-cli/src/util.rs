@@ -15,11 +15,11 @@ use smartvaults_sdk::core::bitcoin::bip32::ExtendedPubKey;
 use smartvaults_sdk::core::bitcoin::{Network, ScriptBuf};
 use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
-use smartvaults_sdk::nostr::{EventId, Keys, Profile, PublicKey, Relay, Timestamp, Url};
-use smartvaults_sdk::protocol::v1::{CompletedProposal, Proposal};
+use smartvaults_sdk::nostr::{Keys, Profile, PublicKey, Relay, Timestamp, Url};
+use smartvaults_sdk::protocol::v2::Signer;
 use smartvaults_sdk::types::{
-    GetAddress, GetCompletedProposal, GetProposal, GetSigner, GetSignerOffering, GetTransaction,
-    GetUtxo, GetVault, NostrConnectRequest,
+    GetAddress, GetProposal, GetSignerOffering, GetTransaction, GetUtxo, GetVault,
+    NostrConnectRequest,
 };
 use smartvaults_sdk::util::{self, format};
 use termtree::Tree;
@@ -99,8 +99,8 @@ pub fn print_vault(
 ) {
     println!("{}", "\nVault".fg::<BlazeOrange>().underline());
     println!("- ID: {}", vault.id());
-    println!("- Name: {}", &vault.name);
-    println!("- Description: {}", vault.description);
+    println!("- Name: {}", &vault.metadata.name);
+    println!("- Description: {}", vault.metadata.description);
 
     let mut tree: Tree<String> = Tree::new("- Descriptor".to_string());
     tree.push(add_node(&item));
@@ -311,17 +311,29 @@ fn add_node(item: &SatisfiableItem) -> Tree<String> {
     si_tree
 }
 
-pub fn print_vaults(vaults: Vec<GetVault>) {
+pub fn print_vaults<I>(vaults: I)
+where
+    I: IntoIterator<Item = GetVault>,
+{
     let mut table = Table::new();
 
     table.set_titles(row!["#", "ID", "Name", "Description", "Balance"]);
 
-    for (index, GetVault { vault, balance, .. }) in vaults.into_iter().enumerate() {
+    for (
+        index,
+        GetVault {
+            vault,
+            metadata,
+            balance,
+            ..
+        },
+    ) in vaults.into_iter().enumerate()
+    {
         table.add_row(row![
             index + 1,
             vault.id(),
-            vault.name,
-            vault.description,
+            metadata.name,
+            metadata.description,
             balance.total()
         ]);
     }
@@ -330,44 +342,48 @@ pub fn print_vaults(vaults: Vec<GetVault>) {
 }
 
 pub fn print_proposal(proposal: GetProposal) {
-    let GetProposal { proposal, signed } = proposal;
+    let GetProposal { proposal, .. } = proposal;
     println!();
     println!("- Proposal ID: {}", proposal.id());
     println!("- Vault ID: {}", proposal.vault_id());
-    match proposal {
-        Proposal::Spending {
-            to_address,
-            amount,
-            description,
-            ..
-        } => {
-            println!("- Type: spending");
-            println!("- Description: {description}");
-            println!("- To address: {}", to_address.assume_checked());
-            println!("- Amount: {amount}");
-            println!("- Signed: {signed}");
-        }
-        Proposal::KeyAgentPayment {
-            signer_descriptor,
-            amount,
-            description,
-            ..
-        } => {
-            println!("- Type: key-agent-payment");
-            println!("- Description: {description}");
-            println!("- Signer: {signer_descriptor}");
-            println!("- Amount: {amount}");
-            println!("- Signed: {signed}");
-        }
-        Proposal::ProofOfReserve { message, .. } => {
-            println!("- Type: proof-of-reserve");
-            println!("- Message: {message}");
-        }
-    }
+    println!("- Type: {}", proposal.r#type());
+    // match proposal {
+    // Proposal::Spending {
+    // to_address,
+    // amount,
+    // description,
+    // ..
+    // } => {
+    // println!("- Type: spending");
+    // println!("- Description: {description}");
+    // println!("- To address: {}", to_address.assume_checked());
+    // println!("- Amount: {amount}");
+    // println!("- Signed: {signed}");
+    // }
+    // Proposal::KeyAgentPayment {
+    // signer_descriptor,
+    // amount,
+    // description,
+    // ..
+    // } => {
+    // println!("- Type: key-agent-payment");
+    // println!("- Description: {description}");
+    // println!("- Signer: {signer_descriptor}");
+    // println!("- Amount: {amount}");
+    // println!("- Signed: {signed}");
+    // }
+    // Proposal::ProofOfReserve { message, .. } => {
+    // println!("- Type: proof-of-reserve");
+    // println!("- Message: {message}");
+    // }
+    // }
     println!();
 }
 
-pub fn print_proposals(proposals: Vec<GetProposal>) {
+pub fn print_proposals<I>(_proposals: I)
+where
+    I: IntoIterator<Item = GetProposal>,
+{
     let mut table = Table::new();
 
     table.set_titles(row![
@@ -375,134 +391,81 @@ pub fn print_proposals(proposals: Vec<GetProposal>) {
         "ID",
         "Vault ID",
         "Type",
-        "Desc/Msg",
-        "Address/Signer",
+        "Status",
+        "Description",
+        "Address",
         "Amount",
-        "Signed",
     ]);
 
-    for (index, GetProposal { proposal, signed }) in proposals.into_iter().enumerate() {
-        match proposal {
-            Proposal::Spending {
-                to_address,
-                amount,
-                description,
-                ..
-            } => {
-                table.add_row(row![
-                    index + 1,
-                    proposal.id(),
-                    proposal.vault_id(),
-                    "spending",
-                    description,
-                    to_address.assume_checked(),
-                    format!("{} sat", format::number(amount)),
-                    signed
-                ]);
-            }
-            Proposal::KeyAgentPayment {
-                signer_descriptor,
-                amount,
-                description,
-                ..
-            } => {
-                table.add_row(row![
-                    index + 1,
-                    proposal_id,
-                    util::cut_event_id(policy_id),
-                    "key-agent-payment",
-                    description,
-                    signer_descriptor,
-                    format!("{} sat", format::number(amount)),
-                    signed
-                ]);
-            }
-            Proposal::ProofOfReserve { message, .. } => {
-                table.add_row(row![
-                    index + 1,
-                    proposal_id,
-                    util::cut_event_id(policy_id),
-                    "proof-of-reserve",
-                    message,
-                    "-",
-                    "-",
-                    signed,
-                ]);
-            }
-        }
-    }
+    // for (index, GetProposal { proposal, signed }) in proposals.into_iter().enumerate() {
+    // match proposal {
+    // Proposal::Spending {
+    // to_address,
+    // amount,
+    // description,
+    // ..
+    // } => {
+    // table.add_row(row![
+    // index + 1,
+    // proposal.id(),
+    // proposal.vault_id(),
+    // "spending",
+    // description,
+    // to_address.assume_checked(),
+    // format!("{} sat", format::number(amount)),
+    // signed
+    // ]);
+    // }
+    // Proposal::KeyAgentPayment {
+    // signer_descriptor,
+    // amount,
+    // description,
+    // ..
+    // } => {
+    // table.add_row(row![
+    // index + 1,
+    // proposal_id,
+    // util::cut_event_id(policy_id),
+    // "key-agent-payment",
+    // description,
+    // signer_descriptor,
+    // format!("{} sat", format::number(amount)),
+    // signed
+    // ]);
+    // }
+    // Proposal::ProofOfReserve { message, .. } => {
+    // table.add_row(row![
+    // index + 1,
+    // proposal_id,
+    // util::cut_event_id(policy_id),
+    // "proof-of-reserve",
+    // message,
+    // "-",
+    // "-",
+    // signed,
+    // ]);
+    // }
+    // }
+    // }
 
     table.printstd();
 }
 
-pub fn print_completed_proposals(proposals: Vec<GetCompletedProposal>) {
+pub fn print_signers<I>(signers: I)
+where
+    I: IntoIterator<Item = Signer>,
+{
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "ID", "Policy ID", "Type", "Txid", "Description"]);
+    table.set_titles(row!["#", "ID", "Name", "Fingerprint", "Type"]);
 
-    for (
-        index,
-        GetCompletedProposal {
-            policy_id,
-            completed_proposal_id,
-            proposal,
-            ..
-        },
-    ) in proposals.into_iter().enumerate()
-    {
-        match proposal {
-            CompletedProposal::Spending {
-                tx, description, ..
-            } => {
-                table.add_row(row![
-                    index + 1,
-                    completed_proposal_id,
-                    util::cut_event_id(policy_id),
-                    "spending",
-                    tx.txid(),
-                    description,
-                ]);
-            }
-            CompletedProposal::KeyAgentPayment {
-                tx, description, ..
-            } => {
-                table.add_row(row![
-                    index + 1,
-                    completed_proposal_id,
-                    util::cut_event_id(policy_id),
-                    "key-agent-payment",
-                    tx.txid(),
-                    description,
-                ]);
-            }
-            CompletedProposal::ProofOfReserve { message, .. } => {
-                table.add_row(row![
-                    index + 1,
-                    completed_proposal_id,
-                    util::cut_event_id(policy_id),
-                    "proof-of-reserve",
-                    "-",
-                    message,
-                ]);
-            }
-        }
-    }
-
-    table.printstd();
-}
-
-pub fn print_signers(signers: Vec<GetSigner>) {
-    let mut table = Table::new();
-
-    table.set_titles(row!["#", "ID", "Name", "Fingerprint", "Type",]);
-
-    for (index, GetSigner { signer_id, signer }) in signers.into_iter().enumerate() {
+    for (index, signer) in signers.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
-            signer_id,
+            signer.id(),
             signer.name(),
             signer.fingerprint(),
-            signer.signer_type(),
+            signer.r#type(),
         ]);
     }
 

@@ -7,13 +7,12 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use smartvaults_sdk::core::bips::bip32::Fingerprint;
 use smartvaults_sdk::core::bitcoin::address::NetworkUnchecked;
 use smartvaults_sdk::core::bitcoin::Address;
-use smartvaults_sdk::core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_sdk::nostr::prelude::NostrConnectURI;
 use smartvaults_sdk::nostr::{EventId, PublicKey, Url};
 use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, LabelData, Price, Temperature};
+use smartvaults_sdk::protocol::v2::{ProposalIdentifier, SignerIdentifier, VaultIdentifier};
 
 pub mod batch;
 pub mod io;
@@ -133,13 +132,13 @@ pub enum Command {
     Inspect,
     /// Create a spending proposal
     Spend {
-        /// Policy id
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         /// To address
         #[arg(required = true)]
-        to_address: Address<NetworkUnchecked>,
-        /// Amount in sat
+        address: Address<NetworkUnchecked>,
+        /// Amount in SAT
         #[arg(required = true)]
         amount: u64,
         /// Description
@@ -151,12 +150,12 @@ pub enum Command {
     },
     /// Create a spending proposal (send all funds)
     SpendAll {
-        /// Policy id
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         /// To address
         #[arg(required = true)]
-        to_address: Address<NetworkUnchecked>,
+        address: Address<NetworkUnchecked>,
         /// Description
         #[arg(required = true)]
         description: String,
@@ -166,15 +165,15 @@ pub enum Command {
     },
     /// Approve a spending proposal
     Approve {
-        /// Proposal id
+        /// Proposal ID
         #[arg(required = true)]
-        proposal_id: EventId,
+        proposal_id: ProposalIdentifier,
     },
     /// Finalize proposal
     Finalize {
-        /// Proposal id
+        /// Proposal ID
         #[arg(required = true)]
-        proposal_id: EventId,
+        proposal_id: ProposalIdentifier,
     },
     /// Proof of Reserve commands
     #[command(arg_required_else_help = true)]
@@ -240,18 +239,18 @@ pub enum Command {
 pub enum ProofCommand {
     /// New Proof Of Reserve
     New {
-        /// Policy id
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         /// Message
         #[arg(required = true)]
         message: String,
     },
     /// Verify Proof Of Reserve
     Verify {
-        /// Proposal id
+        /// Proposal ID
         #[arg(required = true)]
-        proposal_id: EventId,
+        proposal_id: ProposalIdentifier,
     },
 }
 
@@ -308,7 +307,7 @@ pub enum KeyAgentCommand {
     Signer {
         /// Signer ID
         #[arg(required = true)]
-        signer_id: EventId,
+        signer_id: SignerIdentifier,
         /// Temperature
         #[arg(required = true)]
         temperature: Temperature,
@@ -348,40 +347,32 @@ pub enum AddCommand {
         #[arg(required = true)]
         public_key: PublicKey,
     },
-    /// Add policy
-    Policy {
-        /// Policy name
+    /// Add vault
+    Vault {
+        /// Vault name
         #[arg(required = true)]
         name: String,
-        /// Policy description
+        /// Vault description
         #[arg(required = true)]
         description: String,
-        /// Policy descriptor
+        /// Vault descriptor
         #[arg(required = true)]
         descriptor: String,
-        /// Nostr pubkeys
-        nostr_pubkeys: Vec<PublicKey>,
     },
-    /// Add SmartVaults Signer
+    /// Add Smart Vaults Signer
     SmartVaultsSigner {
         /// Share with contacts
         #[arg(long)]
         share_with_contacts: bool,
     },
-    /// Add AirGapped Signer
-    Signer {
+    /// Add Coldcard Signer
+    ColdcardSigner {
         /// Signer name
         #[arg(required = true)]
         name: String,
-        /// Signer fingerprint (master fingerprint)
+        /// Coldcard export JSON path
         #[arg(required = true)]
-        fingerprint: Fingerprint,
-        /// Signer name
-        #[arg(required = true)]
-        descriptor: Descriptor<DescriptorPublicKey>,
-        /// Share with contacts
-        #[arg(long)]
-        share_with_contacts: bool,
+        path: PathBuf,
     },
 }
 
@@ -389,28 +380,31 @@ pub enum AddCommand {
 pub enum GetCommand {
     /// Get contacts list
     Contacts,
-    /// Get policies list
-    Policies,
-    /// Get policy by id
-    Policy {
-        /// Policy id
+    /// Get vaults list
+    Vaults,
+    /// Get vault by ID
+    Vault {
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         /// Export descriptor
         #[arg(long)]
         export: bool,
     },
     /// Get proposals list
     Proposals {
-        /// Get completed proposals
+        /// Get all proposals (both prending and completed)
+        #[arg(long)]
+        all: bool,
+        /// Get only completed proposals
         #[arg(long)]
         completed: bool,
     },
-    /// Get proposal by id
+    /// Get proposal by ID
     Proposal {
-        /// Proposal id
+        /// Proposal ID
         #[arg(required = true)]
-        proposal_id: EventId,
+        proposal_id: ProposalIdentifier,
     },
     /// Get signers
     Signers,
@@ -418,9 +412,9 @@ pub enum GetCommand {
     Relays,
     /// Get addresses
     Addresses {
-        /// Policy id
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
     },
 }
 
@@ -443,9 +437,9 @@ pub enum SetCommand {
     },
     /// Set label
     Label {
-        /// Policy id
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         /// Address, UTXO, ...
         #[arg(required = true)]
         data: LabelData,
@@ -461,7 +455,7 @@ pub enum ShareCommand {
     Signer {
         /// Signer ID
         #[arg(required = true)]
-        signer_id: EventId,
+        signer_id: SignerIdentifier,
         /// Public Key of the user with whom to share the signer
         #[arg(required = true)]
         public_key: PublicKey,
@@ -476,39 +470,36 @@ pub enum DeleteCommand {
         #[arg(required = true)]
         url: Url,
     },
-    /// Delete policy by id
-    Policy {
-        /// Policy id
+    /// Delete vault by ID
+    Vault {
+        /// Vault ID
         #[arg(required = true)]
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
     },
-    /// Delete proposal by id
+    /// Delete proposal by ID
     Proposal {
-        /// Proposal id
+        /// Proposal ID
         #[arg(required = true)]
-        proposal_id: EventId,
-        /// Is a completed proposals
-        #[arg(long)]
-        completed: bool,
+        proposal_id: ProposalIdentifier,
     },
-    /// Delete approval by id
-    Approval {
-        /// Approval id
-        #[arg(required = true)]
-        approval_id: EventId,
-    },
-    /// Delete signer by id
+    // /// Delete approval by ID
+    // Approval {
+    // Approval ID
+    // #[arg(required = true)]
+    // approval_id: EventId,
+    // },
+    /// Delete signer by ID
     Signer {
-        /// Signer id
+        /// Signer ID
         #[arg(required = true)]
-        signer_id: EventId,
+        signer_id: SignerIdentifier,
     },
-    /// Revoke shared signer by id
-    SharedSigner {
-        /// Signer id
-        #[arg(required = true)]
-        shared_signer_id: EventId,
-    },
+    // /// Revoke shared signer by ID
+    // SharedSigner {
+    // Signer ID
+    // #[arg(required = true)]
+    // shared_signer_id: SignerIdentifier,
+    // },
     /// Clear cache
     Cache,
 }
