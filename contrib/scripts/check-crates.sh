@@ -12,6 +12,7 @@ buildargs=(
     "-p smartvaults-protocol --features hwi"
     "-p smartvaults-protocol --target wasm32-unknown-unknown"
     "-p smartvaults-sdk"
+    "-p smartvaults-sdk --features hwi"
     "-p smartvaults-cli"
     "-p smartvaults-desktop"
 )

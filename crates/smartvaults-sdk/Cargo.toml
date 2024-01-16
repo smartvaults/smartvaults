@@ -12,6 +12,7 @@ keywords.workspace = true
 
 [features]
 default = []
+hwi = ["smartvaults-core/hwi", "smartvaults-protocol/hwi"]
 blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
