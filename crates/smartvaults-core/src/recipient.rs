@@ -18,3 +18,14 @@ pub enum Destination {
     Single(Recipient),
     Multiple(Vec<Recipient>),
 }
+
+impl Destination {
+    pub fn single(address: Address, amount: Amount) -> Self {
+        Self::Single(Recipient { address, amount })
+    }
+
+    /// Drain all funds to [Address]
+    pub fn drain(address: Address) -> Self {
+        Self::Drain(address)
+    }
+}
