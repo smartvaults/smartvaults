@@ -403,11 +403,6 @@ impl SmartVaultsStorage {
             .collect()
     }
 
-    pub async fn approval(&self, approval_id: &EventId) -> Result<InternalApproval, Error> {
-        let approvals = self.approvals.read().await;
-        approvals.get(approval_id).cloned().ok_or(Error::NotFound)
-    }
-
     /// Approvals by proposal ID
     pub async fn approvals_by_proposal_id(
         &self,
