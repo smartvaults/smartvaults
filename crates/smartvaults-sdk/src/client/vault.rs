@@ -5,6 +5,7 @@ use nostr_sdk::database::Order;
 use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, Tag};
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
+use smartvaults_protocol::v2::vault::VaultMetadata;
 use smartvaults_protocol::v2::{self, NostrPublicIdentifier, Vault, VaultIdentifier};
 
 use super::{Error, SmartVaults};
@@ -20,6 +21,7 @@ impl SmartVaults {
         for (id, vault) in items.into_iter() {
             vaults.push(GetVault {
                 vault,
+                metadata: VaultMetadata::default(),
                 balance: self.manager.get_balance(&id).await?,
                 last_sync: self.manager.last_sync(&id).await?,
             });
@@ -35,6 +37,7 @@ impl SmartVaults {
     pub async fn get_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<GetVault, Error> {
         Ok(GetVault {
             vault: self.storage.vault(vault_id).await?,
+            metadata: VaultMetadata::default(),
             balance: self.manager.get_balance(vault_id).await?,
             last_sync: self.manager.last_sync(vault_id).await?,
         })

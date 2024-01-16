@@ -11,6 +11,7 @@ use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
 use smartvaults_protocol::v1::SignerOffering;
+use smartvaults_protocol::v2::vault::VaultMetadata;
 use smartvaults_protocol::v2::{
     Approval, NostrPublicIdentifier, Proposal, SharedSigner, Signer, Vault, VaultIdentifier,
 };
@@ -24,6 +25,7 @@ use crate::manager::TransactionDetails;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetVault {
     pub vault: Vault,
+    pub metadata: VaultMetadata,
     pub balance: Balance,
     pub last_sync: Timestamp,
 }
