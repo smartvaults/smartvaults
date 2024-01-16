@@ -11,6 +11,9 @@ cli:
 release:
 	cd contrib/release && just release
 
+dev-cli: fmt
+	cargo build -p smartvaults-cli
+
 dev-gui: fmt
 	cargo run -p smartvaults-desktop -- --testnet
 
