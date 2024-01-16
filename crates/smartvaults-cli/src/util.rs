@@ -346,6 +346,7 @@ pub fn print_proposal(proposal: GetProposal) {
     println!();
     println!("- Proposal ID: {}", proposal.id());
     println!("- Vault ID: {}", proposal.vault_id());
+    println!("- Status: {}", proposal.status());
     println!("- Type: {}", proposal.r#type());
     // match proposal {
     // Proposal::Spending {

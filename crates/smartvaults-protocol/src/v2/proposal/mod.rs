@@ -347,6 +347,15 @@ pub enum ProposalStatus {
     Completed(CompletedProposal),
 }
 
+impl fmt::Display for ProposalStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Pending(..) => write!(f, "Pending"),
+            Self::Completed(..) => write!(f, "Completed"),
+        }
+    }
+}
+
 /// Pending proposal
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PendingProposal {
