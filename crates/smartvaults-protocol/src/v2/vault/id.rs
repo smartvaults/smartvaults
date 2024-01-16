@@ -5,6 +5,7 @@
 
 use core::fmt;
 use core::ops::Deref;
+use core::str::FromStr;
 
 use smartvaults_core::crypto::hash;
 use smartvaults_core::hashes::sha256::Hash as Sha256Hash;
@@ -44,5 +45,13 @@ impl VaultIdentifier {
     /// Compose vault identifier from bytes
     pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
         Ok(Self(Sha256Hash::from_slice(slice)?))
+    }
+}
+
+impl FromStr for VaultIdentifier {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Sha256Hash::from_str(s)?))
     }
 }

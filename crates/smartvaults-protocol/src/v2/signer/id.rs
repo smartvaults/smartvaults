@@ -5,6 +5,7 @@
 
 use core::fmt;
 use core::ops::Deref;
+use core::str::FromStr;
 
 use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
@@ -43,5 +44,13 @@ impl SignerIdentifier {
     /// Compose vault identifier from bytes
     pub fn from_slice(slice: &[u8]) -> Result<Self, Error> {
         Ok(Self(Sha256Hash::from_slice(slice)?))
+    }
+}
+
+impl FromStr for SignerIdentifier {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Sha256Hash::from_str(s)?))
     }
 }
