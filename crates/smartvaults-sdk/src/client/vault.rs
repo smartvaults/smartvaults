@@ -1,8 +1,11 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+use std::ops::Deref;
+
 use nostr_sdk::database::Order;
-use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, Tag};
+use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, NostrDatabaseExt, Profile, Tag};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
@@ -108,6 +111,35 @@ impl SmartVaults {
         self.client.send_event(event).await?;
 
         Ok(())
+    }
+
+    /// Get members of [Vault]
+    pub async fn get_members_of_vault(
+        &self,
+        vault_id: &VaultIdentifier,
+    ) -> Result<BTreeSet<Profile>, Error> {
+        // Get vault and shared signers
+        let vault: Vault = self.storage.vault(vault_id).await?;
+        let shared_signers = self.storage.shared_signers().await;
+
+        // Search used signers using the shared signers
+        let result = vault.search_used_signers(shared_signers.values().map(|s| s.deref().clone()));
+
+        // Compose output
+        let mut users: BTreeSet<Profile> = BTreeSet::new();
+        for shared_signer in shared_signers
+            .into_values()
+            .filter(|s| result.contains(s.deref()))
+        {
+            let profile: Profile = self
+                .client
+                .database()
+                .profile(*shared_signer.owner())
+                .await?;
+            users.insert(profile);
+        }
+
+        Ok(users)
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
