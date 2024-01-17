@@ -1065,13 +1065,13 @@ mod tests {
         let fing1 = Fingerprint::from_str("165200fa").unwrap();
         let mut desc1 = BTreeMap::new();
         desc1.insert(Purpose::BIP86, DescriptorPublicKey::from_str("[165200fa/86'/1'/0']tpubDDMDcGB9jV7K5vj64NhwWwDC6rrjTF9H1qtzbgK9Daw8S9aF7ueoqtGhwmWoG8ugdkufaiux21EmZU7ymim1cTZWvuy8gPNbxCVDCR7ponD/0/*").unwrap());
-        let signer1 = CoreSigner::new(fing1, desc1, NETWORK).unwrap();
+        let signer1 = CoreSigner::airgap(fing1, desc1, NETWORK).unwrap();
 
         // Signer 2
         let fing2 = Fingerprint::from_str("bd5efadb").unwrap();
         let mut desc2 = BTreeMap::new();
         desc2.insert(Purpose::BIP86, DescriptorPublicKey::from_str("[bd5efadb/86'/1'/784923']tpubDDFdQjA7WGJaD5DcuZL2rKzcYNpA6p3E8TpoV2isBSfvrUBf2XhBxm7qxxAURFK5tBA5i4YEJG1gLZiaXt9P96vVRdYGgGjvHyk5BfCG9cV/0/*").unwrap());
-        let signer2 = CoreSigner::new(fing2, desc2, NETWORK).unwrap();
+        let signer2 = CoreSigner::airgap(fing2, desc2, NETWORK).unwrap();
 
         // Policy
         let policy = Policy::from_descriptor(COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
@@ -1125,6 +1125,44 @@ mod tests {
         } else {
             panic!("Unexpected policy path");
         }
+    }
+
+    #[test]
+    fn test_search_used_signers() {
+        // Internal key
+        let mnemonic = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )
+        .unwrap();
+        let seed_a = Seed::from_mnemonic(mnemonic);
+        let signer_a = CoreSigner::from_seed(&seed_a, Some(784923), Network::Testnet).unwrap();
+
+        // Other path
+        let mnemonic = Mnemonic::from_str(
+            "involve camp enter man minimum milk minimum news hockey divert window mind",
+        )
+        .unwrap();
+        let seed_b = Seed::from_mnemonic(mnemonic);
+        let signer_b = CoreSigner::from_seed(&seed_b, Some(784923), Network::Testnet).unwrap();
+
+        // Seen not linked to descriptor
+        let mnemonic = Mnemonic::from_str(
+            "message scissors typical gravity patrol lunch about bacon person focus cry uncover",
+        )
+        .unwrap();
+        let seed_c = Seed::from_mnemonic(mnemonic);
+        let signer_c = CoreSigner::from_seed(&seed_c, Some(784923), Network::Testnet).unwrap();
+
+        // Common policy
+        let desc = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
+        let policy = Policy::from_descriptor(desc, Network::Testnet).unwrap();
+
+        let result =
+            policy.search_used_signers([signer_a.clone(), signer_b.clone(), signer_c.clone()]);
+        dbg!(&result);
+        assert!(result.contains(&signer_a));
+        assert!(result.contains(&signer_b));
+        assert!(!result.contains(&signer_c));
     }
 
     #[test]
