@@ -12,6 +12,7 @@ use keechain_core::miniscript::DescriptorPublicKey;
 use keechain_core::{ColdcardGenericJson, Purpose, Seed};
 use thiserror::Error;
 
+use crate::constants::SMARTVAULTS_ACCOUNT_INDEX;
 #[cfg(feature = "hwi")]
 use crate::hwi::BoxedHWI;
 use crate::SECP256K1;
@@ -111,8 +112,16 @@ impl CoreSigner {
     pub fn from_seed(seed: &Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
         let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
 
+        let mut purposes: Vec<Purpose> = PURPOSES.to_vec();
+
+        // Check if the account index match the `SMARTVAULTS_ACCOUNT_INDEX` const,
+        // to include the BIP86 descriptor to avoid issues with old vaults
+        if Some(SMARTVAULTS_ACCOUNT_INDEX) == account {
+            purposes.push(Purpose::BIP86);
+        }
+
         // Derive descriptors
-        for purpose in PURPOSES.into_iter() {
+        for purpose in purposes.into_iter() {
             let descriptor = seed.to_descriptor(purpose, account, false, network, &SECP256K1)?;
             descriptors.insert(purpose, descriptor);
         }
