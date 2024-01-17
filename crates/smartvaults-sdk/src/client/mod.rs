@@ -111,7 +111,6 @@ impl SmartVaults {
         let nostr_db_path = util::dir::nostr_db(base_path, keys.public_key(), network)?;
         let nostr_db = SQLiteDatabase::open(nostr_db_path).await?;
         let opts = Options::new()
-            .wait_for_connection(false)
             .wait_for_send(true)
             .wait_for_subscription(false)
             .skip_disconnected_relays(true)
@@ -431,7 +430,7 @@ impl SmartVaults {
             };
             let filters: Vec<Filter> = self.sync_filters(last_sync).await;
             relay.subscribe(filters, None).await?;
-            relay.connect(false).await;
+            relay.connect(None).await;
 
             if save_to_relay_list {
                 let this = self.clone();
@@ -585,7 +584,7 @@ impl SmartVaults {
     }
 
     pub async fn set_metadata(&self, metadata: &Metadata) -> Result<(), Error> {
-        let builder = EventBuilder::set_metadata(metadata);
+        let builder = EventBuilder::metadata(metadata);
         self.client.send_event_builder(builder).await?;
         Ok(())
     }
@@ -639,7 +638,7 @@ impl SmartVaults {
                 .map(|p| Contact::new::<String>(p, None, None))
                 .collect();
             contacts.push(Contact::new::<String>(public_key, None, None));
-            let event = EventBuilder::set_contact_list(contacts);
+            let event = EventBuilder::contact_list(contacts);
             self.client.send_event_builder(event).await?;
 
             // Request contact metadata
@@ -668,7 +667,7 @@ impl SmartVaults {
             .filter(|p| p != &public_key)
             .map(|p| Contact::new::<String>(p, None, None))
             .collect();
-        let event = EventBuilder::set_contact_list(contacts);
+        let event = EventBuilder::contact_list(contacts);
         self.client.send_event_builder(event).await?;
         Ok(())
     }
@@ -1019,7 +1018,7 @@ impl SmartVaults {
             // TODO: use send_batch_event method from nostr-sdk
             self.client
                 .pool()
-                .send_msg(ClientMessage::new_event(event), None)
+                .send_msg(ClientMessage::event(event), None)
                 .await?;
             tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
@@ -1808,7 +1807,7 @@ impl SmartVaults {
             .query(vec![Filter::new()], Order::Asc)
             .await?;
         for event in events.into_iter() {
-            pool.send_msg(ClientMessage::new_event(event), None).await?;
+            pool.send_msg(ClientMessage::event(event), None).await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1826,7 +1825,7 @@ impl SmartVaults {
             .query(vec![Filter::new()], Order::Asc)
             .await?;
         for event in events.into_iter() {
-            pool.send_msg_to(&*url, ClientMessage::new_event(event), None)
+            pool.send_msg_to(&*url, ClientMessage::event(event), None)
                 .await?;
         }
         // TODO: save last rebroadcast timestamp
@@ -1855,7 +1854,7 @@ impl SmartVaults {
             // TODO: use send_batch_event method from nostr-sdk
             self.client
                 .pool()
-                .send_msg(ClientMessage::new_event(event), None)
+                .send_msg(ClientMessage::event(event), None)
                 .await?;
             tracing::info!("Published shared key for {public_key} at event {event_id}");
         }

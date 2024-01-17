@@ -359,7 +359,7 @@ impl SmartVaults {
                         // TODO: use send_event?
                         self.client
                             .pool()
-                            .send_msg_to(uri.relay_url, ClientMessage::new_event(nip46_event), None)
+                            .send_msg_to(uri.relay_url, ClientMessage::event(nip46_event), None)
                             .await?;
                     }
                     _ => {
@@ -379,11 +379,7 @@ impl SmartVaults {
                                     .to_event(keys)?;
                             self.client
                                 .pool()
-                                .send_msg_to(
-                                    uri.relay_url,
-                                    ClientMessage::new_event(nip46_event),
-                                    None,
-                                )
+                                .send_msg_to(uri.relay_url, ClientMessage::event(nip46_event), None)
                                 .await?;
                             self.db
                                 .save_nostr_connect_request(

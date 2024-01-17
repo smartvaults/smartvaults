@@ -18,7 +18,7 @@ impl SmartVaults {
         // Try to add relay and check if it's already added
         if self.client.add_relay(&relay_url).await? {
             let relay = self.client.relay(&relay_url).await?;
-            relay.connect(true).await;
+            relay.connect(Some(Duration::from_secs(30))).await;
 
             let last_sync: Timestamp = match self.db.get_last_relay_sync(relay_url.clone()).await {
                 Ok(ts) => ts,
@@ -65,7 +65,7 @@ impl SmartVaults {
         } else {
             self.client
                 .pool()
-                .send_msg_to(uri.relay_url, ClientMessage::new_event(nip46_event), None)
+                .send_msg_to(uri.relay_url, ClientMessage::event(nip46_event), None)
                 .await?;
         }
         self.db.delete_nostr_connect_session(app_public_key).await?;

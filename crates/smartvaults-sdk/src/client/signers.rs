@@ -175,7 +175,7 @@ impl SmartVaults {
                 // TODO: use send_batch_event method from nostr-sdk
                 self.client
                     .pool()
-                    .send_msg(ClientMessage::new_event(event), None)
+                    .send_msg(ClientMessage::event(event), None)
                     .await?;
 
                 self.storage
