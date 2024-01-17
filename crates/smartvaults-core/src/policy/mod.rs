@@ -40,6 +40,8 @@ use crate::proposal::ProofOfReserveProposal;
 use crate::proposal::SpendingProposal;
 #[cfg(feature = "reserves")]
 use crate::reserves::ProofOfReserves;
+#[cfg(feature = "hwi")]
+use crate::signer::SignerType;
 use crate::util::Unspendable;
 use crate::{CoreSigner, Destination, Recipient, SECP256K1};
 
@@ -366,22 +368,22 @@ impl Policy {
     }
 
     /// Search used signers in this [`Policy`]
-    pub fn search_used_signers<I>(&self, signers: I) -> Result<Vec<CoreSigner>, Error>
+    pub fn search_used_signers<I>(&self, signers: I) -> HashSet<CoreSigner>
     where
         I: IntoIterator<Item = CoreSigner>,
     {
         let descriptor: String = self.descriptor.to_string();
-        let mut list: Vec<CoreSigner> = Vec::new();
+        let mut set: HashSet<CoreSigner> = HashSet::new();
         for signer in signers.into_iter() {
             for desc in signer.descriptors().values() {
                 let signer_descriptor: String = desc.to_string();
-                if descriptor.contains(&signer_descriptor) && !list.contains(&signer) {
-                    list.push(signer);
-                    break; // Signer added, exit from loop
+                if descriptor.contains(&signer_descriptor) && !set.contains(&signer) {
+                    set.insert(signer);
+                    break; // Signer added, exit from descriptors loop
                 }
             }
         }
-        Ok(list)
+        set
     }
 
     /// Search and map the selectable conditions for the passed [Signer]
@@ -526,7 +528,7 @@ impl Policy {
     where
         I: IntoIterator<Item = CoreSigner>,
     {
-        let used_signers: Vec<CoreSigner> = self.search_used_signers(signers)?;
+        let used_signers: HashSet<CoreSigner> = self.search_used_signers(signers);
 
         let mut map: HashMap<CoreSigner, Option<PolicyPathSelector>> =
             HashMap::with_capacity(used_signers.len());
@@ -811,8 +813,11 @@ impl Policy {
         I: IntoIterator<Item = CoreSigner>,
         S: AsRef<str>,
     {
-        let signers: Vec<CoreSigner> = self.search_used_signers(signers)?;
-        let signer: &CoreSigner = signers.first().ok_or(Error::SignerNotFound)?;
+        let signers = signers
+            .into_iter()
+            .filter(|s| s.r#type() == SignerType::Hardware);
+        let signers: HashSet<CoreSigner> = self.search_used_signers(signers);
+        let signer: &CoreSigner = signers.iter().next().ok_or(Error::SignerNotFound)?;
         let device = hwi::find_device(signer.fingerprint(), self.network).await?;
         device
             .register_wallet(name.as_ref(), &self.descriptor.to_string())
