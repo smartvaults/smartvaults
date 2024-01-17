@@ -9,9 +9,9 @@ use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bips::bip48::ScriptType;
 use smartvaults_core::miniscript::DescriptorPublicKey;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
-use smartvaults_core::{CoreSigner, Purpose};
+use smartvaults_core::{CoreSigner, Purpose, SignerType};
 
-use super::{SharedSigner, Signer, SignerType};
+use super::{SharedSigner, Signer};
 use crate::v2::proto::signer::{
     ProtoDescriptor, ProtoPurpose, ProtoSharedSigner, ProtoSigner, ProtoSignerType,
 };
@@ -59,6 +59,7 @@ impl From<SignerType> for ProtoSignerType {
             SignerType::Seed => Self::Seed,
             SignerType::Hardware => Self::Hardware,
             SignerType::AirGap => Self::Airgap,
+            SignerType::Unknown => Self::Unknown,
         }
     }
 }
@@ -69,13 +70,14 @@ impl From<ProtoSignerType> for SignerType {
             ProtoSignerType::Seed => Self::Seed,
             ProtoSignerType::Hardware => Self::Hardware,
             ProtoSignerType::Airgap => Self::AirGap,
+            ProtoSignerType::Unknown => Self::Unknown,
         }
     }
 }
 
 impl From<&Signer> for ProtoSigner {
     fn from(signer: &Signer) -> Self {
-        let signer_type: ProtoSignerType = signer.r#type.into();
+        let signer_type: ProtoSignerType = signer.r#type().into();
         ProtoSigner {
             fingerprint: signer.fingerprint().to_string(),
             descriptors: signer
@@ -121,8 +123,12 @@ impl TryFrom<ProtoSigner> for Signer {
         Ok(Self {
             name: value.name,
             description: value.description,
-            core: CoreSigner::new(fingerprint, descriptors, *network)?,
-            r#type: SignerType::from(proto_signer_type),
+            core: CoreSigner::new(
+                fingerprint,
+                descriptors,
+                SignerType::from(proto_signer_type),
+                *network,
+            )?,
         })
     }
 }
@@ -173,7 +179,7 @@ impl TryFrom<ProtoSharedSigner> for SharedSigner {
         Ok(Self::new(
             XOnlyPublicKey::from_str(&value.owner)?,
             XOnlyPublicKey::from_str(&value.receiver)?,
-            CoreSigner::new(fingerprint, descriptors, *network)?,
+            CoreSigner::unknown(fingerprint, descriptors, *network)?,
             Timestamp::from(value.timestamp),
         ))
     }

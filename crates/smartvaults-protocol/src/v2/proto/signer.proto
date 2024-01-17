@@ -6,6 +6,7 @@ enum SignerType {
   SEED = 0;
   HARDWARE = 1;
   AIRGAP = 2;
+  UNKNOWN = 3;
 }
 
 enum Purpose {

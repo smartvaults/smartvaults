@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use core::fmt;
 use std::collections::BTreeMap;
 
 use keechain_core::bips::bip32::{self, Bip32, ChildNumber, DerivationPath, Fingerprint};
@@ -50,24 +51,53 @@ pub enum Error {
     PurposeNotMatch,
 }
 
+/// Signer Type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SignerType {
+    /// Seed
+    Seed,
+    /// Signing Device (aka Hardware Wallet) that can be used
+    /// with USB, Bluetooth or other that provides a direct connection with the wallet.
+    Hardware,
+    /// Signing Device that can be used without ever being connected
+    /// to online devices, via microSD or camera.
+    AirGap,
+    /// Unknown signer type
+    Unknown,
+}
+
+impl fmt::Display for SignerType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SignerType::Seed => write!(f, "Seed"),
+            SignerType::Hardware => write!(f, "Hardware"),
+            SignerType::AirGap => write!(f, "AirGap"),
+            SignerType::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+// TODO: custom impl PartialEq, Eq, PartialOrd, Ord, Hash? Checking only fingerprint and network?
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CoreSigner {
     fingerprint: Fingerprint,
     descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+    r#type: SignerType,
     network: Network,
-    // TODO: keep type?
 }
 
 impl CoreSigner {
     pub fn new(
         fingerprint: Fingerprint,
         descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+        r#type: SignerType,
         network: Network,
     ) -> Result<Self, Error> {
         // Compose signer
         let mut signer = Self {
             fingerprint,
             descriptors: BTreeMap::new(),
+            r#type,
             network,
         };
 
@@ -77,7 +107,7 @@ impl CoreSigner {
         Ok(signer)
     }
 
-    /// Compose [`Signer`] from [`Seed`]
+    /// Compose [CoreSigner] from [Seed]
     pub fn from_seed(seed: &Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
         let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
 
@@ -87,10 +117,24 @@ impl CoreSigner {
             descriptors.insert(purpose, descriptor);
         }
 
-        Self::new(seed.fingerprint(network, &SECP256K1)?, descriptors, network)
+        Self::new(
+            seed.fingerprint(network, &SECP256K1)?,
+            descriptors,
+            SignerType::Seed,
+            network,
+        )
     }
 
-    /// Compose [`Signer`] from Coldcard generic JSON (`coldcard-export.json`)
+    /// Compose [CoreSigner] from custom airgap device
+    pub fn airgap(
+        fingerprint: Fingerprint,
+        descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+        network: Network,
+    ) -> Result<Self, Error> {
+        Self::new(fingerprint, descriptors, SignerType::AirGap, network)
+    }
+
+    /// Compose [CoreSigner] from Coldcard generic JSON (`coldcard-export.json`)
     pub fn from_coldcard(coldcard: ColdcardGenericJson, network: Network) -> Result<Self, Error> {
         let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
 
@@ -100,7 +144,7 @@ impl CoreSigner {
             descriptors.insert(purpose, descriptor);
         }
 
-        Self::new(coldcard.fingerprint(), descriptors, network)
+        Self::airgap(coldcard.fingerprint(), descriptors, network)
     }
 
     #[cfg(feature = "hwi")]
@@ -116,11 +160,25 @@ impl CoreSigner {
             descriptors.insert(purpose, descriptor);
         }
 
-        Self::new(root_fingerprint, descriptors, network)
+        Self::new(root_fingerprint, descriptors, SignerType::Hardware, network)
+    }
+
+    /// Compose [CoreSigner] with unknown type
+    pub fn unknown(
+        fingerprint: Fingerprint,
+        descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+        network: Network,
+    ) -> Result<Self, Error> {
+        Self::new(fingerprint, descriptors, SignerType::Unknown, network)
     }
 
     pub fn fingerprint(&self) -> Fingerprint {
         self.fingerprint
+    }
+
+    /// Get [CoreSigner] type
+    pub fn r#type(&self) -> SignerType {
+        self.r#type
     }
 
     pub fn network(&self) -> Network {

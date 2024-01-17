@@ -3,7 +3,6 @@
 
 //! Signer
 
-use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 use std::collections::BTreeMap;
@@ -30,36 +29,12 @@ use super::NostrPublicIdentifier;
 use crate::v2::proto::signer::ProtoSigner;
 use crate::v2::Error;
 
-/// Signer Type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum SignerType {
-    /// Seed
-    Seed,
-    /// Signing Device (aka Hardware Wallet) that can be used
-    /// with USB, Bluetooth or other that provides a direct connection with the wallet.
-    Hardware,
-    /// Signing Device that can be used without ever being connected
-    /// to online devices, via microSD or camera.
-    AirGap,
-}
-
-impl fmt::Display for SignerType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            SignerType::Seed => write!(f, "Seed"),
-            SignerType::Hardware => write!(f, "Hardware"),
-            SignerType::AirGap => write!(f, "AirGap"),
-        }
-    }
-}
-
 /// Signer
 #[derive(Debug, Clone, PartialOrd, Ord)]
 pub struct Signer {
     name: String,
     description: String,
     core: CoreSigner,
-    r#type: SignerType,
 }
 
 impl PartialEq for Signer {
@@ -85,19 +60,18 @@ impl Deref for Signer {
 }
 
 impl Signer {
-    fn new(core: CoreSigner, r#type: SignerType) -> Self {
+    fn new(core: CoreSigner) -> Self {
         Self {
             name: String::new(),
             description: String::new(),
             core,
-            r#type,
         }
     }
 
     /// Compose [`Signer`] from [`Seed`]
     pub fn from_seed(seed: &Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
         let core: CoreSigner = CoreSigner::from_seed(seed, account, network)?;
-        Ok(Self::new(core, SignerType::Seed))
+        Ok(Self::new(core))
     }
 
     /// Compose Smart Vaults signer (custom account index)
@@ -111,21 +85,21 @@ impl Signer {
         descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
         network: Network,
     ) -> Result<Self, Error> {
-        let core: CoreSigner = CoreSigner::new(fingerprint, descriptors, network)?;
-        Ok(Self::new(core, SignerType::AirGap))
+        let core: CoreSigner = CoreSigner::airgap(fingerprint, descriptors, network)?;
+        Ok(Self::new(core))
     }
 
     /// Compose [`Signer`] from Coldcard generic JSON (`coldcard-export.json`)
     pub fn from_coldcard(coldcard: ColdcardGenericJson, network: Network) -> Result<Self, Error> {
         let core: CoreSigner = CoreSigner::from_coldcard(coldcard, network)?;
-        Ok(Self::new(core, SignerType::AirGap))
+        Ok(Self::new(core))
     }
 
     /// Compose [Signer] from USB `Hardware Wallet`
     #[cfg(feature = "hwi")]
     pub async fn from_hwi(device: BoxedHWI, network: Network) -> Result<Self, Error> {
         let core: CoreSigner = CoreSigner::from_hwi(device, network).await?;
-        Ok(Self::new(core, SignerType::Hardware))
+        Ok(Self::new(core))
     }
 
     /// Generate unique deterministic identifier
@@ -144,11 +118,6 @@ impl Signer {
     /// Get [`Signer`] description
     pub fn description(&self) -> String {
         self.description.clone()
-    }
-
-    /// Get [`Signer`] type
-    pub fn r#type(&self) -> SignerType {
-        self.r#type
     }
 
     /// Change signer name

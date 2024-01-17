@@ -33,7 +33,7 @@ pub use self::proposal::{ProofOfReserveProposal, ProposalSigning, SpendingPropos
 pub use self::recipient::{Destination, Recipient};
 #[cfg(feature = "reserves")]
 pub use self::reserves::ProofOfReserves;
-pub use self::signer::CoreSigner;
+pub use self::signer::{CoreSigner, SignerType};
 pub use self::types::{FeeRate, Priority};
 
 pub static SECP256K1: Lazy<Secp256k1<All>> = Lazy::new(|| {
