@@ -14,6 +14,7 @@ use keechain_core::secp256k1::{rand, All, Secp256k1};
 pub use keechain_core::*;
 use once_cell::sync::Lazy;
 
+pub mod constants;
 #[cfg(feature = "hwi")]
 pub mod hwi;
 pub mod policy;

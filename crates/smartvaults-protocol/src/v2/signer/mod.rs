@@ -11,6 +11,7 @@ use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
+use smartvaults_core::constants::SMARTVAULTS_ACCOUNT_INDEX;
 #[cfg(feature = "hwi")]
 use smartvaults_core::hwi::BoxedHWI;
 use smartvaults_core::miniscript::DescriptorPublicKey;
@@ -23,7 +24,7 @@ pub mod shared;
 
 pub use self::id::SignerIdentifier;
 pub use self::shared::SharedSigner;
-use super::constants::{SIGNER_KIND_V2, SMARTVAULTS_ACCOUNT_INDEX};
+use super::constants::SIGNER_KIND_V2;
 use super::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
 use super::NostrPublicIdentifier;
 use crate::v2::proto::signer::ProtoSigner;

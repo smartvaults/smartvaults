@@ -7,14 +7,13 @@ use serde::{Deserialize, Serialize};
 use smartvaults_core::bdk::Wallet;
 use smartvaults_core::bips::bip32::{self, Bip32, Fingerprint};
 use smartvaults_core::bitcoin::Network;
+use smartvaults_core::constants::SMARTVAULTS_ACCOUNT_INDEX;
 use smartvaults_core::crypto::hash;
 use smartvaults_core::descriptors::{self, ToDescriptor};
 use smartvaults_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
 use smartvaults_core::{Purpose, Seed, SECP256K1};
 use thiserror::Error;
-
-use crate::v1::constants::SMARTVAULTS_ACCOUNT_INDEX;
 
 #[derive(Debug, Error)]
 pub enum Error {

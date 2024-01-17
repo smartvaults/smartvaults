@@ -17,9 +17,6 @@ pub static SMARTVAULTS_TESTNET_PUBLIC_KEY: Lazy<PublicKey> = Lazy::new(|| {
         .expect("Invalid public key")
 });
 
-// Derivation paths
-pub const SMARTVAULTS_ACCOUNT_INDEX: u32 = 784923;
-
 // Kinds
 pub const SHARED_KEY_KIND: Kind = Kind::Custom(9288);
 pub const POLICY_KIND: Kind = Kind::Custom(9289);
