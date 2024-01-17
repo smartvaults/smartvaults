@@ -3,6 +3,7 @@
 
 use nostr_sdk::database::Order;
 use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, Tag};
+use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
 use smartvaults_protocol::v2::vault::VaultMetadata;
@@ -59,11 +60,9 @@ impl SmartVaults {
         let shared_key = Keys::generate();
         let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;
 
-        // Compose event
+        // Compose and publish event
         let keys = self.keys();
         let event: Event = v2::vault::build_event(keys, &vault)?;
-
-        // Publish event
         self.client.send_event(event).await?;
 
         let vault_id: VaultIdentifier = vault.id();
@@ -93,9 +92,27 @@ impl SmartVaults {
         self.save_vault(name, description, descriptor).await
     }
 
+    // TODO: add edit_vault_metadata
+
+    /// Invite an user to a [Vault]
+    pub async fn invite_to_vault(
+        &self,
+        vault_id: &VaultIdentifier,
+        receiver: XOnlyPublicKey,
+    ) -> Result<(), Error> {
+        let vault: Vault = self.storage.vault(vault_id).await?;
+
+        // Compose and publish event
+        let public_key: XOnlyPublicKey = self.keys.public_key();
+        let event: Event = v2::vault::build_invitation_event(&vault, receiver, Some(public_key))?;
+        self.client.send_event(event).await?;
+
+        Ok(())
+    }
+
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
-        let vault = self.storage.vault(vault_id).await?;
+        let vault: Vault = self.storage.vault(vault_id).await?;
 
         let keys = self.keys();
         let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
