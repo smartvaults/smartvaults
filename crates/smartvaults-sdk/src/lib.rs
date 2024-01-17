@@ -23,6 +23,6 @@ pub use self::client::{EventHandled, Message, SmartVaults};
 pub use self::error::Error;
 pub use self::types::PolicyBackup;
 
-pub fn git_hash_version() -> &'static str {
-    env!("GIT_HASH")
+pub fn git_hash_version() -> Option<String> {
+    std::env::var("GIT_HASH").ok()
 }

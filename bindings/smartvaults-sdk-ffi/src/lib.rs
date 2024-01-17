@@ -63,8 +63,8 @@ impl SmartVaultsLibrary {
         Self
     }
 
-    pub fn git_hash_version(&self) -> String {
-        smartvaults_sdk::git_hash_version().to_string()
+    pub fn git_hash_version(&self) -> Option<String> {
+        smartvaults_sdk::git_hash_version()
     }
 }
 

@@ -87,10 +87,12 @@ impl Sidebar {
         let version = Text::new(format!(
             "v{} ({})",
             env!("CARGO_PKG_VERSION"),
-            smartvaults_sdk::git_hash_version()
-                .chars()
-                .take(8)
-                .collect::<String>(),
+            match smartvaults_sdk::git_hash_version() {
+                Some(git_hash) => {
+                    git_hash.chars().take(8).collect::<String>()
+                }
+                None => String::from("unknown"),
+            }
         ))
         .smaller()
         .view();
