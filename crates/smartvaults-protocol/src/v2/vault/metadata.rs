@@ -9,7 +9,7 @@ use smartvaults_core::bitcoin::Network;
 use super::VaultIdentifier;
 use crate::v2::message::EncodingVersion;
 use crate::v2::proto::vault::ProtoVaultMetadata;
-use crate::v2::{Error, ProtocolEncoding};
+use crate::v2::{Error, ProtocolEncoding, ProtocolEncryption};
 
 /// Vault metadata
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -76,4 +76,8 @@ impl ProtocolEncoding for VaultMetadata {
         let vault: ProtoVaultMetadata = ProtoVaultMetadata::decode(data)?;
         Self::try_from(vault)
     }
+}
+
+impl ProtocolEncryption for VaultMetadata {
+    type Err = Error;
 }
