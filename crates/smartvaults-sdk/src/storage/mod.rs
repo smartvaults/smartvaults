@@ -3,16 +3,15 @@
 
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry as HashMapEntry;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
 use nostr_sdk::prelude::*;
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND,
-    PROPOSAL_KIND, SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND,
-    SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
+    KEY_AGENT_VERIFIED, SHARED_SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
+    SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Label, LabelData, LabelKind, VerifiedKeyAgents};
 use smartvaults_protocol::v2::constants::{
@@ -67,11 +66,15 @@ pub(crate) struct SmartVaultsStorage {
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
     frozed_utxos: Arc<RwLock<HashMap<VaultIdentifier, HashSet<OutPoint>>>>,
     verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
-    pending: Arc<RwLock<BTreeSet<Event>>>,
 }
 
 impl SmartVaultsStorage {
     /// Build storage from Nostr Database
+    ///
+    /// ### Steps
+    /// 1. Get all `vaults`
+    /// 2. Get all events authored by vaults shared keys
+    /// 3. Get other events
     #[tracing::instrument(skip_all)]
     pub async fn build(
         keys: Keys,
@@ -92,75 +95,63 @@ impl SmartVaultsStorage {
             labels: Arc::new(RwLock::new(HashMap::new())),
             frozed_utxos: Arc::new(RwLock::new(HashMap::new())),
             verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
-            pending: Arc::new(RwLock::new(BTreeSet::new())),
         };
 
-        let author_filter: Filter = Filter::new().author(this.keys.public_key()).kinds([
-            SHARED_KEY_KIND,
-            POLICY_KIND,
-            PROPOSAL_KIND,
-            APPROVED_PROPOSAL_KIND,
-            COMPLETED_PROPOSAL_KIND,
-            SIGNERS_KIND,
-            SHARED_SIGNERS_KIND,
-            LABELS_KIND,
-        ]);
-        let pubkey_filter: Filter = Filter::new().pubkey(this.keys.public_key()).kinds([
-            SHARED_KEY_KIND,
-            POLICY_KIND,
-            PROPOSAL_KIND,
-            APPROVED_PROPOSAL_KIND,
-            COMPLETED_PROPOSAL_KIND,
-            SIGNERS_KIND,
-            SHARED_SIGNERS_KIND,
-            LABELS_KIND,
-        ]);
+        // Step 1: get all vaults
+        let step1: Filter = Filter::new()
+            .author(this.keys.public_key())
+            .kind(VAULT_KIND_V2);
+        for event in this
+            .database
+            .query(vec![step1], Order::Asc)
+            .await?
+            .into_iter()
+        {
+            if let Err(e) = this.handle_event(&event).await {
+                tracing::error!("Impossible to handle vault event: {e}");
+            }
+        }
+
+        // Step 2: get events authored by vaults
+        let vault_keys = this.vaults_keys.read().await;
+        let vaults_pubkeys = vault_keys.clone().into_keys();
+        drop(vault_keys);
+        let step2: Filter = Filter::new().authors(vaults_pubkeys);
+        for event in this
+            .database
+            .query(vec![step2], Order::Asc)
+            .await?
+            .into_iter()
+        {
+            if let Err(e) = this.handle_event(&event).await {
+                tracing::error!("Impossible to handle vault event: {e}");
+            }
+        }
+
+        // Step 3: get other events
         let smartvaults: Filter = Filter::new()
             .author(match network {
                 Network::Bitcoin => *SMARTVAULTS_MAINNET_PUBLIC_KEY,
                 _ => *SMARTVAULTS_TESTNET_PUBLIC_KEY,
             })
             .kind(KEY_AGENT_VERIFIED);
-
-        let mut pending = this.pending.write().await;
         for event in this
             .database
-            .query(vec![author_filter, pubkey_filter, smartvaults], Order::Asc)
+            .query(vec![smartvaults], Order::Asc)
             .await?
             .into_iter()
         {
-            if let Err(e) = this.internal_handle_event(&mut pending, &event).await {
+            if let Err(e) = this.handle_event(&event).await {
                 tracing::error!("Impossible to handle event: {e}");
             }
         }
-
-        // Clone to avoid lock in handle event
-        for event in pending.clone().into_iter() {
-            if let Err(e) = this.internal_handle_event(&mut pending, &event).await {
-                tracing::error!("Impossible to handle event: {e}");
-            }
-        }
-
-        drop(pending);
 
         Ok(this)
     }
 
     pub(crate) async fn handle_event(&self, event: &Event) -> Result<Option<EventHandled>, Error> {
-        let mut pending = self.pending.write().await;
-        self.internal_handle_event(&mut pending, event).await
-    }
-
-    async fn internal_handle_event(
-        &self,
-        pending: &mut BTreeSet<Event>,
-        event: &Event,
-    ) -> Result<Option<EventHandled>, Error> {
-        if pending.contains(event) {
-            pending.remove(event);
-        }
-
         if event.kind == VAULT_KIND_V2 {
+            // TODO: remove vaults_ids?
             let mut vaults_ids = self.vaults_ids.write().await;
             let mut vaults_keys = self.vaults_keys.write().await;
             let mut vaults = self.vaults.write().await;
@@ -201,8 +192,6 @@ impl SmartVaultsStorage {
                     proposals.insert(proposal_id, proposal);
 
                     return Ok(Some(EventHandled::Proposal(proposal_id)));
-                } else {
-                    pending.insert(event.clone());
                 }
             }
         } else if event.kind == APPROVAL_KIND_V2 {
@@ -224,8 +213,6 @@ impl SmartVaultsStorage {
                             vault_id,
                             proposal_id,
                         }));
-                    } else {
-                        pending.insert(event.clone());
                     }
                 } else {
                     tracing::error!(
@@ -319,10 +306,6 @@ impl SmartVaultsStorage {
         Ok(None)
     }
 
-    pub async fn pending_events(&self) -> BTreeSet<Event> {
-        self.pending.read().await.clone()
-    }
-
     /// Delete event without know the kind
     pub async fn delete_event(&self, event_id: &EventId) {
         if self.delete_approval(event_id).await {
@@ -339,7 +322,22 @@ impl SmartVaultsStorage {
 
     pub async fn delete_vault(&self, vault_id: &VaultIdentifier) -> bool {
         let mut vaults = self.vaults.write().await;
-        vaults.remove(vault_id).is_some()
+
+        // Delete vault
+        match vaults.remove(vault_id) {
+            Some(vault) => {
+                // Delete vault key
+                let mut vaults_keys = self.vaults_keys.write().await;
+                let keys = Keys::new(vault.shared_key());
+                vaults_keys.remove(&keys.public_key());
+                drop(vaults_keys);
+
+                // Delete other things related to vault?
+
+                true
+            }
+            None => false,
+        }
     }
 
     /// Get vaults

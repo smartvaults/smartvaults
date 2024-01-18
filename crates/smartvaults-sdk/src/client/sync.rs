@@ -132,21 +132,6 @@ impl SmartVaults {
         })?)
     }
 
-    fn handle_pending_events(&self) -> Result<AbortHandle, Error> {
-        let this = self.clone();
-        Ok(thread::abortable(async move {
-            loop {
-                for event in this.storage.pending_events().await.into_iter() {
-                    let event_id = event.id;
-                    if let Err(e) = this.handle_event(event).await {
-                        tracing::error!("Impossible to handle pending event {event_id}: {e}");
-                    }
-                }
-                thread::sleep(Duration::from_secs(30)).await;
-            }
-        })?)
-    }
-
     pub fn sync_notifications(&self) -> Receiver<Message> {
         self.sync_channel.subscribe()
     }
@@ -219,12 +204,9 @@ impl SmartVaults {
             let this = self.clone();
             thread::spawn(async move {
                 // Sync timechain
-                let block_height_syncer: AbortHandle = this.block_height_syncer()?;
-                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer()?;
-                let policies_syncer: AbortHandle = this.policies_syncer()?;
-
-                // Pending events handler
-                let pending_event_handler = this.handle_pending_events()?;
+                let block_height_syncer: AbortHandle = this.block_height_syncer();
+                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer();
+                let policies_syncer: AbortHandle = this.policies_syncer();
 
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp =
@@ -277,7 +259,6 @@ impl SmartVaults {
                                 block_height_syncer.abort();
                                 mempool_fees_syncer.abort();
                                 policies_syncer.abort();
-                                pending_event_handler.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
