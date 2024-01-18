@@ -3,10 +3,12 @@
 
 //! Vault metadata
 
+use nostr::{Event, EventBuilder, Keys};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 
-use super::VaultIdentifier;
+use super::{Vault, VaultIdentifier};
+use crate::v2::constants::VAULT_METADATA_KIND_V2;
 use crate::v2::message::EncodingVersion;
 use crate::v2::proto::vault::ProtoVaultMetadata;
 use crate::v2::{Error, ProtocolEncoding, ProtocolEncryption};
@@ -80,4 +82,16 @@ impl ProtocolEncoding for VaultMetadata {
 
 impl ProtocolEncryption for VaultMetadata {
     type Err = Error;
+}
+
+/// Build [VaultMetadata] event
+pub fn build_event(vault: &Vault, metadata: &VaultMetadata) -> Result<Event, Error> {
+    // Keys
+    let keys: Keys = Keys::new(vault.shared_key());
+
+    // Encrypt
+    let encrypted_content: String = metadata.encrypt_with_keys(&keys)?;
+
+    // Compose and build event
+    Ok(EventBuilder::new(VAULT_METADATA_KIND_V2, encrypted_content, []).to_event(&keys)?)
 }
