@@ -19,6 +19,11 @@ message VaultV1 {
 }
 
 message VaultMetadata {
-  string name = 1;
-  string description = 2;
+  // Fields needed to identify the vault
+  VaultIdentifier vault_id = 1;
+  bytes network = 2;
+
+  // Metadata
+  string name = 3;
+  string description = 4;
 }

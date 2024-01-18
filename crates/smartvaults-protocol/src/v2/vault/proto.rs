@@ -8,8 +8,10 @@ use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::SecretKey;
 use smartvaults_core::Policy;
 
-use super::{Vault, VaultIdentifier, Version};
-use crate::v2::proto::vault::{ProtoVault, ProtoVaultIdentifier, ProtoVaultObject, ProtoVaultV1};
+use super::{Vault, VaultIdentifier, VaultMetadata, Version};
+use crate::v2::proto::vault::{
+    ProtoVault, ProtoVaultIdentifier, ProtoVaultMetadata, ProtoVaultObject, ProtoVaultV1,
+};
 use crate::v2::{Error, NetworkMagic};
 
 impl From<&VaultIdentifier> for ProtoVaultIdentifier {
@@ -30,7 +32,7 @@ impl From<VaultIdentifier> for ProtoVaultIdentifier {
 
 impl From<&Vault> for ProtoVault {
     fn from(vault: &Vault) -> Self {
-        ProtoVault {
+        Self {
             object: Some(ProtoVaultObject::V1(ProtoVaultV1 {
                 descriptor: vault.as_descriptor().to_string(),
                 network: vault.network().magic().to_bytes().to_vec(),
@@ -59,6 +61,17 @@ impl TryFrom<ProtoVault> for Vault {
                 }
             },
             None => Err(Error::NotFound(String::from("protobuf vault obj"))),
+        }
+    }
+}
+
+impl From<VaultMetadata> for ProtoVaultMetadata {
+    fn from(metadata: VaultMetadata) -> Self {
+        Self {
+            vault_id: Some(metadata.vault_id().into()),
+            network: metadata.network().magic().to_bytes().to_vec(),
+            name: metadata.name,
+            description: metadata.description,
         }
     }
 }
