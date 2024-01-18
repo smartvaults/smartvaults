@@ -3,9 +3,13 @@
 
 //! Vault metadata
 
+use prost::Message;
 use smartvaults_core::bitcoin::Network;
 
 use super::VaultIdentifier;
+use crate::v2::message::EncodingVersion;
+use crate::v2::proto::vault::ProtoVaultMetadata;
+use crate::v2::{Error, ProtocolEncoding};
 
 /// Vault metadata
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -53,5 +57,23 @@ impl VaultMetadata {
         S: Into<String>,
     {
         self.description = description.into();
+    }
+}
+
+impl ProtocolEncoding for VaultMetadata {
+    type Err = Error;
+
+    fn protocol_network(&self) -> Network {
+        self.network
+    }
+
+    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+        let vault: ProtoVaultMetadata = self.into();
+        (EncodingVersion::ProtoBuf, vault.encode_to_vec())
+    }
+
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoVaultMetadata = ProtoVaultMetadata::decode(data)?;
+        Self::try_from(vault)
     }
 }

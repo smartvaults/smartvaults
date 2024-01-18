@@ -66,13 +66,13 @@ impl TryFrom<ProtoVault> for Vault {
     }
 }
 
-impl From<VaultMetadata> for ProtoVaultMetadata {
-    fn from(metadata: VaultMetadata) -> Self {
+impl From<&VaultMetadata> for ProtoVaultMetadata {
+    fn from(metadata: &VaultMetadata) -> Self {
         Self {
             vault_id: Some(metadata.vault_id().into()),
             network: metadata.network().magic().to_bytes().to_vec(),
-            name: metadata.name,
-            description: metadata.description,
+            name: metadata.name.clone(),
+            description: metadata.description.clone(),
         }
     }
 }
