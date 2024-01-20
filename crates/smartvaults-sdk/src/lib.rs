@@ -24,5 +24,5 @@ pub use self::error::Error;
 pub use self::types::PolicyBackup;
 
 pub fn git_hash_version() -> Option<String> {
-    std::env::var("GIT_HASH").ok()
+    option_env!("GIT_HASH").map(|v| v.to_string())
 }
