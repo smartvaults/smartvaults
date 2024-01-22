@@ -25,7 +25,7 @@ pub enum Error {
     #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),
     #[error(transparent)]
-    Url(#[from] nostr_sdk::url::ParseError),
+    Url(#[from] nostr_sdk::types::url::ParseError),
     #[error(transparent)]
     Client(#[from] nostr_sdk::client::Error),
     #[error(transparent)]

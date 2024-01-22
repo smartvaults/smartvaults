@@ -27,7 +27,7 @@ pub enum Error {
     #[error(transparent)]
     Json(#[from] nostr_sdk::serde_json::Error),
     #[error(transparent)]
-    Url(#[from] nostr_sdk::url::ParseError),
+    Url(#[from] nostr_sdk::types::url::ParseError),
     #[error("Invalid electrum endpoint: {0}")]
     InvalidElectrumUrl(String),
     #[error("electrum endpoint not set")]

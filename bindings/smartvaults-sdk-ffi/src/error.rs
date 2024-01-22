@@ -48,8 +48,8 @@ impl From<smartvaults_sdk::config::Error> for SmartVaultsError {
     }
 }
 
-impl From<smartvaults_sdk::nostr::url::ParseError> for SmartVaultsError {
-    fn from(e: smartvaults_sdk::nostr::url::ParseError) -> Self {
+impl From<smartvaults_sdk::nostr::types::url::ParseError> for SmartVaultsError {
+    fn from(e: smartvaults_sdk::nostr::types::url::ParseError) -> Self {
         Self::Generic(e.to_string())
     }
 }
