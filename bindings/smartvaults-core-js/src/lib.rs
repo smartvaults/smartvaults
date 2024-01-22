@@ -5,6 +5,7 @@
 #![allow(non_snake_case)]
 #![allow(clippy::new_without_default)]
 
+#[cfg(feature = "console_error_panic_hook")]
 use wasm_bindgen::prelude::*;
 
 pub mod error;
@@ -16,6 +17,7 @@ pub mod policy;
 /// Right now, it does the following:
 ///
 /// * Redirect Rust panics to JavaScript console.
+#[cfg(feature = "console_error_panic_hook")]
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
