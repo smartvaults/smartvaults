@@ -35,7 +35,7 @@ impl Vault {
     where
         N: Into<String>,
         D: Into<String>,
-        P: Into<String>,
+        P: AsRef<str>,
     {
         let policy: Policy = Policy::from_desc_or_miniscript(descriptor, network)?;
         Ok(Self {

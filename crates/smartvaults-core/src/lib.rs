@@ -214,13 +214,10 @@ mod tests {
         let approved_a: PartiallySignedTransaction = proposal.approve(&seed_a, Vec::new())?;
         let approved_b: PartiallySignedTransaction = proposal.approve(&seed_b, Vec::new())?;
 
-        proposal.finalize(vec![approved_a, approved_b])?;
-
-        if let CompletedProposal::ProofOfReserve { message, psbt, .. } = completed_proposal {
-            wallet.verify_proof(&psbt, message, None).unwrap();
-        } else {
-            panic!("Unexpected proposal");
-        }
+        let proof = proposal.finalize(vec![approved_a, approved_b])?;
+        wallet
+            .verify_proof(&proof.psbt, proof.message, None)
+            .unwrap();
 
         Ok(())
     }

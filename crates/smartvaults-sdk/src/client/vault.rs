@@ -57,8 +57,6 @@ impl SmartVaults {
         S: Into<String>,
         D: AsRef<str>,
     {
-        let descriptor: String = descriptor.into();
-
         // Generate a shared key
         let shared_key = Keys::generate();
         let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;

@@ -65,7 +65,7 @@ impl Vault {
     /// Construct from descriptor or uncompiled policy
     pub fn new<S>(descriptor: S, network: Network, shared_key: SecretKey) -> Result<Self, Error>
     where
-        S: Into<String>,
+        S: AsRef<str>,
     {
         Ok(Self {
             version: Version::default(),
