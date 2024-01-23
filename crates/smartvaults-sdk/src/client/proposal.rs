@@ -7,6 +7,7 @@ use smartvaults_protocol::v2::constants::PROPOSAL_KIND_V2;
 use smartvaults_protocol::v2::{Proposal, ProposalIdentifier, VaultIdentifier};
 
 use super::{Error, SmartVaults};
+use crate::storage::InternalVault;
 use crate::types::GetProposal;
 
 impl SmartVaults {
@@ -37,7 +38,7 @@ impl SmartVaults {
         let proposal: Proposal = self.storage.proposal(proposal_id).await?;
 
         // Get Vault for shared key
-        let vault = self.storage.vault(&proposal.vault_id()).await?;
+        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
         let shared_key: Keys = Keys::new(vault.shared_key());
 
         let filter: Filter = Filter::new()

@@ -3,9 +3,10 @@
 
 use nostr_sdk::EventId;
 use smartvaults_protocol::v1::Label;
-use smartvaults_protocol::v2::{Vault, VaultIdentifier};
+use smartvaults_protocol::v2::VaultIdentifier;
 
 use super::{Error, SmartVaults};
+use crate::storage::InternalVault;
 
 impl SmartVaults {
     pub async fn save_label(
@@ -13,7 +14,7 @@ impl SmartVaults {
         vault_id: &VaultIdentifier,
         _label: Label,
     ) -> Result<EventId, Error> {
-        let _vault: Vault = self.storage.vault(vault_id).await?;
+        let InternalVault { .. } = self.storage.vault(vault_id).await?;
 
         // TODO: check if address or UTXO actually belong to the policy
 

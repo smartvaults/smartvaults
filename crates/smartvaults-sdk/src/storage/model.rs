@@ -2,10 +2,25 @@
 // Distributed under the MIT software license
 
 use std::cmp::Ordering;
+use std::ops::Deref;
 
 use nostr_sdk::{PublicKey, Timestamp};
 use smartvaults_protocol::v1::Label;
-use smartvaults_protocol::v2::{Approval, VaultIdentifier};
+use smartvaults_protocol::v2::{Approval, Vault, VaultIdentifier, VaultMetadata};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InternalVault {
+    pub vault: Vault,
+    pub metadata: VaultMetadata,
+}
+
+impl Deref for InternalVault {
+    type Target = Vault;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vault
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InternalApproval {

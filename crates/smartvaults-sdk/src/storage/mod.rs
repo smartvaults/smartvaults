@@ -15,17 +15,17 @@ use smartvaults_protocol::v1::constants::{
 };
 use smartvaults_protocol::v1::{Label, LabelData, LabelKind, VerifiedKeyAgents};
 use smartvaults_protocol::v2::constants::{
-    APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2,
+    APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2, VAULT_METADATA_KIND_V2,
 };
 use smartvaults_protocol::v2::{
     Approval, NostrPublicIdentifier, Proposal, ProposalIdentifier, ProtocolEncryption,
-    SharedSigner, Signer, SignerIdentifier, Vault, VaultIdentifier,
+    SharedSigner, Signer, SignerIdentifier, Vault, VaultIdentifier, VaultMetadata,
 };
 use tokio::sync::RwLock;
 
 mod model;
 
-pub(crate) use self::model::{InternalApproval, InternalLabel};
+pub(crate) use self::model::{InternalApproval, InternalLabel, InternalVault};
 use crate::types::GetApprovedProposals;
 use crate::{Error, EventHandled};
 
@@ -55,9 +55,10 @@ impl Ord for WrappedEvent {
 pub(crate) struct SmartVaultsStorage {
     keys: Keys,
     database: Arc<DynNostrDatabase>,
+    network: Network,
     vaults_ids: Arc<RwLock<HashMap<EventId, VaultIdentifier>>>,
     vaults_keys: Arc<RwLock<HashMap<PublicKey, Keys>>>,
-    vaults: Arc<RwLock<HashMap<VaultIdentifier, Vault>>>,
+    vaults: Arc<RwLock<HashMap<VaultIdentifier, InternalVault>>>,
     proposals_ids: Arc<RwLock<HashMap<EventId, ProposalIdentifier>>>,
     proposals: Arc<RwLock<HashMap<ProposalIdentifier, Proposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
@@ -84,6 +85,7 @@ impl SmartVaultsStorage {
         let this: Self = Self {
             keys,
             database,
+            network,
             vaults_ids: Arc::new(RwLock::new(HashMap::new())),
             vaults_keys: Arc::new(RwLock::new(HashMap::new())),
             vaults: Arc::new(RwLock::new(HashMap::new())),
@@ -159,10 +161,25 @@ impl SmartVaultsStorage {
                 let vault: Vault = Vault::decrypt_with_keys(&self.keys, &event.content)?;
                 let vault_id = vault.id();
                 let keys = Keys::new(vault.shared_key());
+                let internal = InternalVault {
+                    vault,
+                    metadata: VaultMetadata::new(vault_id, self.network)
+                };
                 e.insert(vault_id);
                 vaults_keys.insert(keys.public_key(), keys);
-                vaults.insert(vault_id, vault);
+                vaults.insert(vault_id, internal);
                 return Ok(Some(EventHandled::Vault(vault_id)));
+            }
+        } else if event.kind == VAULT_METADATA_KIND_V2 {
+            let vaults_keys = self.vaults_keys.read().await;
+            let mut vaults = self.vaults.write().await;
+            if let Some(shared_key) = vaults_keys.get(&event.pubkey) {
+                let metadata: VaultMetadata = VaultMetadata::decrypt_with_keys(shared_key, &event.content)?;
+                let vault_id = metadata.vault_id();
+                if let Some(vault) = vaults.get_mut(&vault_id) {
+                    vault.metadata = metadata;
+                    return Ok(Some(EventHandled::VaultMetadata(vault_id)));
+                }
             }
         } else if event.kind == PROPOSAL_KIND_V2 {
             let vaults_keys = self.vaults_keys.read().await;
@@ -315,9 +332,16 @@ impl SmartVaultsStorage {
         // TODO: delete proposal, signer, ...
     }
 
+    /// Save [Vault] without [VaultMetadata]
     pub async fn save_vault(&self, vault_id: VaultIdentifier, vault: Vault) {
         let mut vaults = self.vaults.write().await;
-        vaults.insert(vault_id, vault);
+        vaults.insert(
+            vault_id,
+            InternalVault {
+                vault,
+                metadata: VaultMetadata::new(vault_id, self.network),
+            },
+        );
     }
 
     pub async fn delete_vault(&self, vault_id: &VaultIdentifier) -> bool {
@@ -325,10 +349,10 @@ impl SmartVaultsStorage {
 
         // Delete vault
         match vaults.remove(vault_id) {
-            Some(vault) => {
+            Some(internal) => {
                 // Delete vault key
                 let mut vaults_keys = self.vaults_keys.write().await;
-                let keys = Keys::new(vault.shared_key());
+                let keys = Keys::new(internal.vault.shared_key());
                 vaults_keys.remove(&keys.public_key());
                 drop(vaults_keys);
 
@@ -341,17 +365,17 @@ impl SmartVaultsStorage {
     }
 
     /// Get vaults
-    pub async fn vaults(&self) -> HashMap<VaultIdentifier, Vault> {
+    pub async fn vaults(&self) -> HashMap<VaultIdentifier, InternalVault> {
         self.vaults
             .read()
             .await
             .iter()
-            .map(|(id, vault)| (*id, vault.clone()))
+            .map(|(id, internal)| (*id, internal.clone()))
             .collect()
     }
 
     /// Get [`Vault`]
-    pub async fn vault(&self, vault_id: &VaultIdentifier) -> Result<Vault, Error> {
+    pub async fn vault(&self, vault_id: &VaultIdentifier) -> Result<InternalVault, Error> {
         let vaults = self.vaults.read().await;
         vaults.get(vault_id).cloned().ok_or(Error::NotFound)
     }

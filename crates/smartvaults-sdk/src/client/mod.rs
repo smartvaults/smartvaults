@@ -29,7 +29,7 @@ use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
 use smartvaults_core::{Destination, FeeRate, SpendingProposal, SECP256K1};
 use smartvaults_protocol::v1::{Label, LabelData};
 use smartvaults_protocol::v2::{
-    self, Approval, PendingProposal, Proposal, ProposalIdentifier, Signer, Vault, VaultIdentifier,
+    self, Approval, PendingProposal, Proposal, ProposalIdentifier, Signer, VaultIdentifier,
 };
 use smartvaults_sdk_sqlite::Store;
 use tokio::sync::broadcast::{self, Sender};
@@ -46,7 +46,7 @@ pub use self::sync::{EventHandled, Message};
 use crate::config::{Config, ElectrumEndpoint};
 use crate::constants::{MAINNET_RELAYS, SEND_TIMEOUT, TESTNET_RELAYS};
 use crate::manager::{Manager, SmartVaultsWallet, TransactionDetails};
-use crate::storage::{InternalApproval, SmartVaultsStorage};
+use crate::storage::{InternalApproval, InternalVault, SmartVaultsStorage};
 use crate::types::{
     GetAddress, GetApproval, GetApprovedProposals, GetTransaction, GetUtxo, PolicyBackup,
 };
@@ -1313,7 +1313,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_total_balance(&self) -> Result<Balance, Error> {
-        let vaults: HashMap<VaultIdentifier, Vault> = self.storage.vaults().await;
+        let vaults: HashMap<VaultIdentifier, InternalVault> = self.storage.vaults().await;
         let mut total_balance: Balance = Balance::default();
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
@@ -1328,7 +1328,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_all_transactions(&self) -> Result<BTreeSet<GetTransaction>, Error> {
-        let vaults: HashMap<VaultIdentifier, Vault> = self.storage.vaults().await;
+        let vaults: HashMap<VaultIdentifier, InternalVault> = self.storage.vaults().await;
         let mut txs: BTreeSet<GetTransaction> = BTreeSet::new();
         #[allow(clippy::mutable_key_type)]
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());

@@ -9,10 +9,10 @@ use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, NostrDatabaseExt, Profi
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
-use smartvaults_protocol::v2::vault::VaultMetadata;
 use smartvaults_protocol::v2::{self, NostrPublicIdentifier, Vault, VaultIdentifier};
 
 use super::{Error, SmartVaults};
+use crate::storage::InternalVault;
 use crate::types::GetVault;
 
 impl SmartVaults {
@@ -22,10 +22,10 @@ impl SmartVaults {
         let items = self.storage.vaults().await;
         let mut vaults: Vec<GetVault> = Vec::with_capacity(items.len());
 
-        for (id, vault) in items.into_iter() {
+        for (id, InternalVault { vault, metadata }) in items.into_iter() {
             vaults.push(GetVault {
                 vault,
-                metadata: VaultMetadata::default(),
+                metadata,
                 balance: self.manager.get_balance(&id).await?,
                 last_sync: self.manager.last_sync(&id).await?,
             });
@@ -39,9 +39,10 @@ impl SmartVaults {
     /// Get vault by [VaultIdentifier]
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<GetVault, Error> {
+        let InternalVault { vault, metadata } = self.storage.vault(vault_id).await?;
         Ok(GetVault {
-            vault: self.storage.vault(vault_id).await?,
-            metadata: VaultMetadata::default(),
+            vault,
+            metadata,
             balance: self.manager.get_balance(vault_id).await?,
             last_sync: self.manager.last_sync(vault_id).await?,
         })
@@ -101,7 +102,7 @@ impl SmartVaults {
         vault_id: &VaultIdentifier,
         receiver: XOnlyPublicKey,
     ) -> Result<(), Error> {
-        let vault: Vault = self.storage.vault(vault_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
 
         // Compose and publish event
         let public_key: XOnlyPublicKey = self.keys.public_key();
@@ -117,7 +118,7 @@ impl SmartVaults {
         vault_id: &VaultIdentifier,
     ) -> Result<BTreeSet<Profile>, Error> {
         // Get vault and shared signers
-        let vault: Vault = self.storage.vault(vault_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
         let shared_signers = self.storage.shared_signers().await;
 
         // Search used signers using the shared signers
@@ -142,7 +143,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
-        let vault: Vault = self.storage.vault(vault_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
 
         let keys = self.keys();
         let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
