@@ -16,7 +16,7 @@ blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
 
 [dependencies]
 async-utility = "0.1"
-bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "9efaead8f16a5a0bed18cea514cd94d6a9a0a582" }
+bdk_electrum = { git = "https://github.com/yukibtc/bdk", rev = "285ff46a49fe53e1f7996b83335442e2febcdeae" }
 smartvaults-core = { path = "../smartvaults-core", features = ["reserves"] }
 smartvaults-protocol = { path = "../smartvaults-protocol" }
 smartvaults-sdk-sqlite = { path = "../smartvaults-sdk-sqlite" }

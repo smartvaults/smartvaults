@@ -200,15 +200,7 @@ impl SmartVaultsWallet {
     pub async fn spks(
         &self,
     ) -> BTreeMap<KeychainKind, impl Iterator<Item = (u32, ScriptBuf)> + Clone> {
-        self.wallet.read().await.spks_of_all_keychains()
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn spks_of_keychain(
-        &self,
-        keychain: KeychainKind,
-    ) -> impl Iterator<Item = (u32, ScriptBuf)> + Clone {
-        self.wallet.read().await.spks_of_keychain(keychain)
+        self.wallet.read().await.all_unbounded_spk_iters()
     }
 
     pub async fn spk_index(&self) -> KeychainTxOutIndex<KeychainKind> {
@@ -244,15 +236,13 @@ impl SmartVaultsWallet {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_addresses(&self) -> Result<Vec<Address<NetworkUnchecked>>, Error> {
-        // Get spks
-        let spks = self.spks_of_keychain(KeychainKind::External).await;
-
         // Get last unused address
         let last_unused = self.get_address(AddressIndex::LastUnused).await?;
 
-        // Get network
+        // Get network and spks
         let wallet = self.wallet.read().await;
         let network = wallet.network();
+        let spks = wallet.unbounded_spk_iter(KeychainKind::External);
         drop(wallet);
 
         let mut addresses: Vec<Address<NetworkUnchecked>> = Vec::new();
@@ -428,7 +418,9 @@ impl SmartVaultsWallet {
         let graph: TxGraph<ConfirmationTimeHeightAnchor> = self.graph().await;
         let spk_index = self.spk_index().await;
         let chain_tip: BlockId = chain.tip().block_id();
-        let all_spks = spk_index.all_spks().values().cloned();
+        let all_spks = spk_index
+            .revealed_keychain_spks(&KeychainKind::External)
+            .map(|(_, s)| s.to_owned());
         let unconfirmed_txids = graph
             .list_chain_txs(&chain, chain_tip)
             .filter(|canonical_tx| !canonical_tx.chain_position.is_confirmed())
