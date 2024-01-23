@@ -344,6 +344,14 @@ impl SmartVaultsStorage {
         );
     }
 
+    /// Save [Vault] without [VaultMetadata]
+    pub async fn edit_vault_metadata(&self, vault_id: &VaultIdentifier, metadata: VaultMetadata) {
+        let mut vaults = self.vaults.write().await;
+        if let Some(vault) = vaults.get_mut(vault_id) {
+            vault.metadata = metadata;
+        }
+    }
+
     pub async fn delete_vault(&self, vault_id: &VaultIdentifier) -> bool {
         let mut vaults = self.vaults.write().await;
 

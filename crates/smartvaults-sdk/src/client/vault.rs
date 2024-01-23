@@ -94,7 +94,35 @@ impl SmartVaults {
         self.save_vault(name, description, descriptor).await
     }
 
-    // TODO: add edit_vault_metadata
+    /// Edit [Vault] metadata
+    ///
+    /// Args set to `None` aren't updated.
+    pub async fn edit_vault_metadata(
+        &self,
+        vault_id: &VaultIdentifier,
+        name: Option<String>,
+        description: Option<String>,
+    ) -> Result<(), Error> {
+        let InternalVault {
+            vault,
+            mut metadata,
+        } = self.storage.vault(vault_id).await?;
+
+        if let Some(name) = name {
+            metadata.name = name;
+        }
+
+        if let Some(description) = description {
+            metadata.description = description;
+        }
+
+        let event: Event = v2::vault::metadata::build_event(&vault, &metadata)?;
+        self.client.send_event(event).await?;
+
+        self.storage.edit_vault_metadata(vault_id, metadata).await;
+
+        Ok(())
+    }
 
     /// Invite an user to a [Vault]
     pub async fn invite_to_vault(
