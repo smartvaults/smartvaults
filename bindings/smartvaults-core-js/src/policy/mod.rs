@@ -38,9 +38,9 @@ impl From<JsPolicy> for Policy {
 impl JsPolicy {
     #[wasm_bindgen(js_name = fromDescriptor)]
     pub fn from_descriptor(
-        name: String,
-        description: String,
-        descriptor: String,
+        name: &str,
+        description: &str,
+        descriptor: &str,
         network: JsNetwork,
     ) -> Result<JsPolicy> {
         Ok(Self {
@@ -51,9 +51,9 @@ impl JsPolicy {
 
     #[wasm_bindgen(js_name = fromMiniscript)]
     pub fn from_miniscript(
-        name: String,
-        description: String,
-        policy: String,
+        name: &str,
+        description: &str,
+        policy: &str,
         network: JsNetwork,
     ) -> Result<JsPolicy> {
         Ok(Self {
@@ -64,9 +64,9 @@ impl JsPolicy {
 
     #[wasm_bindgen(js_name = fromDescOrMiniscript)]
     pub fn from_desc_or_miniscript(
-        name: String,
-        description: String,
-        desc_or_miniscript: String,
+        name: &str,
+        description: &str,
+        desc_or_miniscript: &str,
         network: JsNetwork,
     ) -> Result<JsPolicy> {
         Ok(Self {
