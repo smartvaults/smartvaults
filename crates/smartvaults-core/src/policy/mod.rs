@@ -216,29 +216,31 @@ impl Policy {
         }
     }
 
-    pub fn from_descriptor<S>(
+    pub fn from_descriptor<S, D>(
         name: S,
         description: S,
-        descriptor: S,
+        descriptor: D,
         network: Network,
     ) -> Result<Self, Error>
     where
         S: Into<String>,
+        D: AsRef<str>,
     {
-        let descriptor: Descriptor<String> = Descriptor::from_str(&descriptor.into())?;
+        let descriptor: Descriptor<String> = Descriptor::from_str(descriptor.as_ref())?;
         Self::new(name, description, descriptor, network)
     }
 
-    pub fn from_policy<S>(
+    pub fn from_policy<S, P>(
         name: S,
         description: S,
-        policy: S,
+        policy: P,
         network: Network,
     ) -> Result<Self, Error>
     where
         S: Into<String>,
+        P: AsRef<str>,
     {
-        let policy: Concrete<String> = Concrete::<String>::from_str(&policy.into())?;
+        let policy: Concrete<String> = Concrete::<String>::from_str(policy.as_ref())?;
         let unspendable_pk: XOnlyPublicKey = XOnlyPublicKey::unspendable(&SECP256K1);
         let descriptor: Descriptor<String> = policy.compile_tr(Some(unspendable_pk.to_string()))?;
         Self::new(name, description, descriptor, network)
@@ -251,13 +253,13 @@ impl Policy {
         network: Network,
     ) -> Result<Self, Error>
     where
-        N: Into<String>,
-        D: Into<String>,
-        P: Into<String>,
+        N: AsRef<str>,
+        D: AsRef<str>,
+        P: AsRef<str>,
     {
-        let name: &str = &name.into();
-        let description: &str = &description.into();
-        let desc_or_policy: &str = &desc_or_policy.into();
+        let name: &str = name.as_ref();
+        let description: &str = description.as_ref();
+        let desc_or_policy: &str = desc_or_policy.as_ref();
         match Self::from_descriptor(name, description, desc_or_policy, network) {
             Ok(policy) => Ok(policy),
             Err(desc_e) => match Self::from_policy(name, description, desc_or_policy, network) {

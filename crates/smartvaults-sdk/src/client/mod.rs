@@ -992,10 +992,8 @@ impl SmartVaults {
         nostr_pubkeys: Vec<XOnlyPublicKey>,
     ) -> Result<EventId, Error>
     where
-        S: Into<String>,
+        S: AsRef<str>,
     {
-        let descriptor = descriptor.into();
-
         if nostr_pubkeys.is_empty() {
             return Err(Error::NotEnoughPublicKeys);
         }
