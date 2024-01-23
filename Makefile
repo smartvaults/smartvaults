@@ -22,6 +22,7 @@ udev:
 
 bench:
 	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-core
+	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-protocol
 
 init-dev:
 	rustup install nightly-2024-01-11
@@ -43,9 +44,6 @@ check-crates:
 
 check-docs:
 	@bash contrib/scripts/check-docs.sh
-
-bench:
-	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-protocol
 
 clean:
 	cargo clean
