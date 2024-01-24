@@ -76,6 +76,8 @@ impl SmartVaults {
         // Load policy
         self.manager.load_policy(vault_id, policy).await?;
 
+        self.set_resubscribe_vaults(true);
+
         Ok(vault_id)
     }
 
@@ -199,6 +201,9 @@ impl SmartVaults {
 
             // Unload policy
             self.manager.unload_policy(*vault_id).await?;
+
+            // Update subscription filters
+            self.set_resubscribe_vaults(true);
 
             Ok(())
         } else {

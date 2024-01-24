@@ -38,7 +38,9 @@ async fn main() {
         .spend(
             &vault.id(),
             Destination::Single(Recipient {
-                address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap().assume_checked(),
+                address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")
+                    .unwrap()
+                    .assume_checked(),
                 amount: Amount::from_sat(10_934),
             }),
             "Back to the faucet",

@@ -163,7 +163,7 @@ impl SmartVaultsStorage {
                 let keys = Keys::new(vault.shared_key());
                 let internal = InternalVault {
                     vault,
-                    metadata: VaultMetadata::new(vault_id, self.network)
+                    metadata: VaultMetadata::new(vault_id, self.network),
                 };
                 e.insert(vault_id);
                 vaults_keys.insert(keys.public_key(), keys);
@@ -174,7 +174,8 @@ impl SmartVaultsStorage {
             let vaults_keys = self.vaults_keys.read().await;
             let mut vaults = self.vaults.write().await;
             if let Some(shared_key) = vaults_keys.get(&event.pubkey) {
-                let metadata: VaultMetadata = VaultMetadata::decrypt_with_keys(shared_key, &event.content)?;
+                let metadata: VaultMetadata =
+                    VaultMetadata::decrypt_with_keys(shared_key, &event.content)?;
                 let vault_id = metadata.vault_id();
                 if let Some(vault) = vaults.get_mut(&vault_id) {
                     vault.metadata = metadata;
@@ -252,16 +253,21 @@ impl SmartVaultsStorage {
                 let mut shared_signers = self.shared_signers.write().await;
                 let shared_signer_id = event.identifier().ok_or(Error::SharedSignerIdNotFound)?;
                 let id = NostrPublicIdentifier::from_str(shared_signer_id)?;
-                let shared_signer: SharedSigner = SharedSigner::decrypt_with_keys(self.keys, event.content())?;
-                shared_signers.entry(id).and_modify(|s| {
-                    // Update only if newer timestamp
-                    if s.timestamp() < shared_signer.timestamp() {
-                        *s = shared_signer.clone();
-                    }
-                }).or_insert(shared_signer);
+                let shared_signer: SharedSigner =
+                    SharedSigner::decrypt_with_keys(self.keys, event.content())?;
+                shared_signers
+                    .entry(id)
+                    .and_modify(|s| {
+                        // Update only if newer timestamp
+                        if s.timestamp() < shared_signer.timestamp() {
+                            *s = shared_signer.clone();
+                        }
+                    })
+                    .or_insert(shared_signer);
                 return Ok(Some(EventHandled::SharedSigner(event.id)));
             }
-        } /* else if event.kind == LABELS_KIND {
+        }
+        /* else if event.kind == LABELS_KIND {
             let mut labels = self.labels.write().await;
             let shared_keys = self.shared_keys.read().await;
             if let Some(policy_id) = event.event_ids().next() {
@@ -285,7 +291,8 @@ impl SmartVaultsStorage {
             } else {
                 tracing::error!("Impossible to find policy id in proposal {}", event.id);
             }
-        } */ else if event.kind == Kind::EventDeletion {
+        } */
+        else if event.kind == Kind::EventDeletion {
             for event_id in event.event_ids() {
                 if let Ok(true) = self.database.has_event_id_been_deleted(event_id).await {
                     self.delete_event(event_id).await;

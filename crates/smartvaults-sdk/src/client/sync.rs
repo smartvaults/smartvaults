@@ -10,12 +10,7 @@ use async_utility::thread;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
-use nostr_sdk::nips::{nip04, nip65};
-use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
-    NegentropyOptions, PublicKey, RelayMessage, RelayPoolNotification, RelaySendOptions, Result,
-    Timestamp, Url,
-};
+use nostr_sdk::prelude::*;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
 use smartvaults_core::bitcoin::Network;
@@ -132,19 +127,62 @@ impl SmartVaults {
         })?)
     }
 
+    fn vaults_authored_filter_resubscribe(&self) -> Result<AbortHandle, Error> {
+        let this = self.clone();
+        Ok(thread::abortable(async move {
+            loop {
+                if this.resubscribe_vaults.load(Ordering::SeqCst) {
+                    // TODO: use more efficient way
+                    let filters: Vec<Filter> = this.sync_vaults_filter(Timestamp::from(0)).await;
+                    this.client
+                        .req_events_of(filters, Some(Duration::from_secs(360)))
+                        .await;
+
+                    // Resubscribe to vaults authored filter
+                    let filters: Vec<Filter> = this.sync_vaults_filter(Timestamp::now()).await;
+                    for (relay_url, relay) in this.client.relays().await {
+                        if let Err(e) = relay
+                            .subscribe_with_internal_id(
+                                InternalSubscriptionId::from("smartvaults-vaults-authored"),
+                                filters.clone(),
+                                RelaySendOptions::new(),
+                            )
+                            .await
+                        {
+                            tracing::error!(
+                                "Impossible to subscribe to {relay_url} [vaults-authored]: {e}"
+                            );
+                        }
+                    }
+
+                    this.set_resubscribe_vaults(false);
+                }
+
+                thread::sleep(Duration::from_secs(10)).await;
+            }
+        })?)
+    }
+
+    /// Update vault-authored subscription filters
+    pub(crate) fn set_resubscribe_vaults(&self, value: bool) {
+        let _ = self
+            .resubscribe_vaults
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(value));
+    }
+
     pub fn sync_notifications(&self) -> Receiver<Message> {
         self.sync_channel.subscribe()
     }
 
     /// Get [Filter] for everything authored by vaults shared key
-    pub(crate) async fn sync_vaults_filter(&self, since: Timestamp) -> Filter {
+    pub(crate) async fn sync_vaults_filter(&self, since: Timestamp) -> Vec<Filter> {
         let vaults = self.storage.vaults().await;
         let public_keys = vaults.into_values().map(|i| {
             let secret_key = i.shared_key();
             let keys = Keys::new(secret_key);
             keys.public_key()
         });
-        Filter::new().authors(public_keys).since(since)
+        vec![Filter::new().authors(public_keys).since(since)]
     }
 
     pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
@@ -156,8 +194,6 @@ impl SmartVaults {
         // Pubkey filter include invites, nostr connect, ...
         let pubkey_filter: Filter = Filter::new().pubkey(public_key).since(since);
 
-        let vaults_authored_filter: Filter = self.sync_vaults_filter(since).await;
-
         let key_agents: Filter = Filter::new()
             .kinds([KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND])
             .since(since);
@@ -168,13 +204,7 @@ impl SmartVaults {
             })
             .kind(KEY_AGENT_VERIFIED);
 
-        let mut filters: Vec<Filter> = vec![
-            author_filter,
-            pubkey_filter,
-            vaults_authored_filter,
-            key_agents,
-            smartvaults,
-        ];
+        let mut filters: Vec<Filter> = vec![author_filter, pubkey_filter, key_agents, smartvaults];
 
         let contacts: Vec<XOnlyPublicKey> = self
             .client
@@ -199,9 +229,11 @@ impl SmartVaults {
             let this = self.clone();
             thread::spawn(async move {
                 // Sync timechain
-                let block_height_syncer: AbortHandle = this.block_height_syncer();
-                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer();
-                let policies_syncer: AbortHandle = this.policies_syncer();
+                let block_height_syncer: AbortHandle = this.block_height_syncer()?;
+                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer()?;
+                let policies_syncer: AbortHandle = this.policies_syncer()?;
+                let vaults_authored_filter: AbortHandle =
+                    this.vaults_authored_filter_resubscribe()?;
 
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp =
@@ -212,9 +244,33 @@ impl SmartVaults {
                                 Timestamp::from(0)
                             }
                         };
+
+                    // Subscribe to default filters
                     let filters: Vec<Filter> = this.sync_filters(last_sync).await;
-                    if let Err(e) = relay.subscribe(filters, RelaySendOptions::new()).await {
-                        tracing::error!("Impossible to subscribe to {relay_url}: {e}");
+                    if let Err(e) = relay
+                        .subscribe_with_internal_id(
+                            InternalSubscriptionId::from("smartvaults-default"),
+                            filters,
+                            RelaySendOptions::new(),
+                        )
+                        .await
+                    {
+                        tracing::error!("Impossible to subscribe to {relay_url} [default]: {e}");
+                    }
+
+                    // Subscribe to vaults authored filters
+                    let filters: Vec<Filter> = this.sync_vaults_filter(last_sync).await;
+                    if let Err(e) = relay
+                        .subscribe_with_internal_id(
+                            InternalSubscriptionId::from("smartvaults-vaults-authored"),
+                            filters,
+                            RelaySendOptions::new(),
+                        )
+                        .await
+                    {
+                        tracing::error!(
+                            "Impossible to subscribe to {relay_url} [vaults-authored]: {e}"
+                        );
                     }
                 }
 
@@ -254,6 +310,7 @@ impl SmartVaults {
                                 block_height_syncer.abort();
                                 mempool_fees_syncer.abort();
                                 policies_syncer.abort();
+                                vaults_authored_filter.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
@@ -413,6 +470,9 @@ impl SmartVaults {
                 EventHandled::Vault(vault_id) => {
                     let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
                     self.manager.load_policy(vault_id, vault.policy()).await?;
+
+                    // Resubscribe to vaults authored filter
+                    self.set_resubscribe_vaults(true);
                 }
                 EventHandled::Proposal(proposal_id) => {
                     let proposal = self.storage.proposal(&proposal_id).await?;

@@ -64,6 +64,7 @@ pub struct SmartVaults {
     storage: SmartVaultsStorage,
     db: Store,
     syncing: Arc<AtomicBool>,
+    resubscribe_vaults: Arc<AtomicBool>,
     sync_channel: Sender<Message>,
     default_signer: Signer,
 }
@@ -120,6 +121,7 @@ impl SmartVaults {
             storage,
             db,
             syncing: Arc::new(AtomicBool::new(false)),
+            resubscribe_vaults: Arc::new(AtomicBool::new(false)),
             sync_channel: sender,
             default_signer: Signer::smartvaults(&seed, network)?,
         };
