@@ -546,13 +546,13 @@ impl SmartVaultsStorage {
             .collect()
     }
 
-    pub async fn save_label<S>(&self, identifier: S, vault_id: VaultIdentifier, label: Label)
-    where
-        S: Into<String>,
-    {
-        let mut labels = self.labels.write().await;
-        labels.insert(identifier.into(), InternalLabel { vault_id, label });
-    }
+    // pub async fn save_label<S>(&self, identifier: S, vault_id: VaultIdentifier, label: Label)
+    // where
+    // S: Into<String>,
+    // {
+    // let mut labels = self.labels.write().await;
+    // labels.insert(identifier.into(), InternalLabel { vault_id, label });
+    // }
 
     pub async fn get_addresses_labels(
         &self,
