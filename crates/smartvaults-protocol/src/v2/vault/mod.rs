@@ -4,6 +4,7 @@
 //! Vault v2
 
 use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
@@ -34,12 +35,22 @@ pub enum Version {
 }
 
 /// Vault
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// **Note: `eq`, `ord` and `hash` are implemented by checking only the [`Policy`].**
+#[derive(Debug, Clone)]
 pub struct Vault {
     version: Version,
     policy: Policy,
     shared_key: SecretKey,
 }
+
+impl PartialEq for Vault {
+    fn eq(&self, other: &Self) -> bool {
+        self.policy == other.policy
+    }
+}
+
+impl Eq for Vault {}
 
 impl PartialOrd for Vault {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -50,6 +61,12 @@ impl PartialOrd for Vault {
 impl Ord for Vault {
     fn cmp(&self, other: &Self) -> Ordering {
         other.policy.cmp(&self.policy)
+    }
+}
+
+impl Hash for Vault {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.policy.hash(state);
     }
 }
 
