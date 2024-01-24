@@ -21,10 +21,8 @@ use smartvaults_core::bdk::FeeRate;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::Priority;
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNALING,
-    KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
-    SMARTVAULTS_TESTNET_PUBLIC_KEY,
+    KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED,
+    SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v2::{ProposalIdentifier, ProposalType, VaultIdentifier};
 use tokio::sync::broadcast::Receiver;
@@ -138,38 +136,28 @@ impl SmartVaults {
         self.sync_channel.subscribe()
     }
 
+    /// Get [Filter] for everything authored by vaults shared key
+    pub(crate) async fn sync_vaults_filter(&self, since: Timestamp) -> Filter {
+        let vaults = self.storage.vaults().await;
+        let public_keys = vaults.into_values().map(|i| {
+            let secret_key = i.shared_key();
+            let keys = Keys::new(secret_key);
+            keys.public_key()
+        });
+        Filter::new().authors(public_keys).since(since)
+    }
+
     pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
-        let base_filter = Filter::new().kinds([
-            POLICY_KIND,
-            PROPOSAL_KIND,
-            APPROVED_PROPOSAL_KIND,
-            COMPLETED_PROPOSAL_KIND,
-            SHARED_KEY_KIND,
-            SIGNERS_KIND,
-            SHARED_SIGNERS_KIND,
-            LABELS_KIND,
-            Kind::EventDeletion,
-        ]);
+        let public_key: XOnlyPublicKey = self.keys.public_key();
 
-        let keys: &Keys = self.keys();
-        let public_key: PublicKey = keys.public_key();
-        let contacts: Vec<PublicKey> = self
-            .client
-            .database()
-            .contacts_public_keys(public_key)
-            .await
-            .unwrap_or_default();
+        // Author filter include vaults, metadata, contacts, relay list, ...
+        let author_filter: Filter = Filter::new().author(public_key).since(since);
 
-        let author_filter: Filter = base_filter.clone().author(public_key).since(since);
-        let pubkey_filter: Filter = base_filter.pubkey(public_key).since(since);
-        let nostr_connect_filter = Filter::new()
-            .pubkey(public_key)
-            .kind(Kind::NostrConnect)
-            .since(since);
-        let other_filters: Filter = Filter::new()
-            .author(public_key)
-            .kinds([Kind::Metadata, Kind::ContactList, Kind::RelayList])
-            .since(since);
+        // Pubkey filter include invites, nostr connect, ...
+        let pubkey_filter: Filter = Filter::new().pubkey(public_key).since(since);
+
+        let vaults_authored_filter: Filter = self.sync_vaults_filter(since).await;
+
         let key_agents: Filter = Filter::new()
             .kinds([KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND])
             .since(since);
@@ -180,15 +168,20 @@ impl SmartVaults {
             })
             .kind(KEY_AGENT_VERIFIED);
 
-        let mut filters = vec![
+        let mut filters: Vec<Filter> = vec![
             author_filter,
             pubkey_filter,
-            nostr_connect_filter,
-            other_filters,
+            vaults_authored_filter,
             key_agents,
             smartvaults,
         ];
 
+        let contacts: Vec<XOnlyPublicKey> = self
+            .client
+            .database()
+            .contacts_public_keys(public_key)
+            .await
+            .unwrap_or_default();
         if !contacts.is_empty() {
             filters.push(Filter::new().authors(contacts).since(since));
         }
