@@ -16,9 +16,12 @@ use crate::v2::{EncodingVersion, Error, ProtocolEncoding, ProtocolEncryption, Wr
 /// Vault invite
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VaultInvite {
-    vault: Vault,
-    sender: Option<XOnlyPublicKey>,
-    message: String,
+    /// Vault
+    pub vault: Vault,
+    /// Invite sender
+    pub sender: Option<XOnlyPublicKey>,
+    /// Invite message
+    pub message: String,
 }
 
 impl VaultInvite {

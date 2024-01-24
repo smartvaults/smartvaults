@@ -52,6 +52,37 @@ impl SmartVaults {
         })
     }
 
+    async fn internal_save_vault(
+        &self,
+        vault: Vault,
+        metadata: Option<VaultMetadata>,
+    ) -> Result<VaultIdentifier, Error> {
+        let vault_id: VaultIdentifier = vault.id();
+
+        // Compose and publish events
+        let keys = self.keys();
+        let mut events: Vec<Event> = Vec::with_capacity(1 + usize::from(metadata.is_some()));
+        events.push(v2::vault::build_event(keys, &vault)?);
+        if let Some(metadata) = metadata {
+            events.push(v2::vault::metadata::build_event(&vault, &metadata)?);
+        }
+        self.client
+            .batch_event(events, RelaySendOptions::new())
+            .await?;
+
+        // Load policy
+        let policy: Policy = vault.policy();
+        self.manager.load_policy(vault_id, policy).await?;
+
+        // Index event
+        self.storage.save_vault(vault_id, vault).await;
+
+        // Mark for re-subscription
+        self.set_resubscribe_vaults(true);
+
+        Ok(vault_id)
+    }
+
     pub async fn save_vault<S, D>(
         &self,
         name: S,
@@ -72,25 +103,8 @@ impl SmartVaults {
         metadata.change_name(name);
         metadata.change_description(description);
 
-        // Compose and publish events
-        let keys = self.keys();
-        let vault_event: Event = v2::vault::build_event(keys, &vault)?;
-        let metadata_event: Event = v2::vault::metadata::build_event(&vault, &metadata)?;
-        self.client
-            .batch_event(vec![vault_event, metadata_event], RelaySendOptions::new())
-            .await?;
-
-        let policy: Policy = vault.policy();
-
-        // Index event
-        self.storage.save_vault(vault_id, vault).await;
-
-        // Load policy
-        self.manager.load_policy(vault_id, policy).await?;
-
-        self.set_resubscribe_vaults(true);
-
-        Ok(vault_id)
+        // Save vault
+        self.internal_save_vault(vault, Some(metadata)).await
     }
 
     pub async fn save_vault_from_template<S>(
@@ -159,6 +173,13 @@ impl SmartVaults {
         let event: Event = v2::vault::invite::build_event(invite, receiver)?;
         self.client.send_event(event).await?;
 
+        Ok(())
+    }
+
+    /// Accept a vault invite
+    pub async fn accept_vault_invite(&self, invite: VaultInvite) -> Result<(), Error> {
+        self.internal_save_vault(invite.vault, None).await?;
+        // TODO: delete invite
         Ok(())
     }
 
