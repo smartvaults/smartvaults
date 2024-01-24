@@ -266,33 +266,7 @@ impl SmartVaultsStorage {
                     .or_insert(shared_signer);
                 return Ok(Some(EventHandled::SharedSigner(event.id)));
             }
-        }
-        /* else if event.kind == LABELS_KIND {
-            let mut labels = self.labels.write().await;
-            let shared_keys = self.shared_keys.read().await;
-            if let Some(policy_id) = event.event_ids().next() {
-                if let Some(identifier) = event.identifier() {
-                    if let Some(shared_key) = shared_keys.get(policy_id) {
-                        let label = Label::decrypt_with_keys(shared_key, &event.content)?;
-                        labels.insert(
-                            identifier.to_string(),
-                            InternalLabel {
-                                vault_id: *vault_id,
-                                label,
-                            },
-                        );
-                        return Ok(Some(EventHandled::Label));
-                    } else {
-                        pending.insert(event.clone());
-                    }
-                } else {
-                    tracing::error!("Label identifier not found in event {}", event.id);
-                }
-            } else {
-                tracing::error!("Impossible to find policy id in proposal {}", event.id);
-            }
-        } */
-        else if event.kind == Kind::EventDeletion {
+        } else if event.kind == Kind::EventDeletion {
             for event_id in event.event_ids() {
                 if let Ok(true) = self.database.has_event_id_been_deleted(event_id).await {
                     self.delete_event(event_id).await;
@@ -327,14 +301,38 @@ impl SmartVaultsStorage {
             return Ok(Some(EventHandled::VerifiedKeyAgents));
         }
 
+        // else if event.kind == LABELS_KIND {
+        // let mut labels = self.labels.write().await;
+        // let shared_keys = self.shared_keys.read().await;
+        // if let Some(policy_id) = event.event_ids().next() {
+        // if let Some(identifier) = event.identifier() {
+        // if let Some(shared_key) = shared_keys.get(policy_id) {
+        // let label = Label::decrypt_with_keys(shared_key, &event.content)?;
+        // labels.insert(
+        // identifier.to_string(),
+        // InternalLabel {
+        // vault_id: *vault_id,
+        // label,
+        // },
+        // );
+        // return Ok(Some(EventHandled::Label));
+        // } else {
+        // pending.insert(event.clone());
+        // }
+        // } else {
+        // tracing::error!("Label identifier not found in event {}", event.id);
+        // }
+        // } else {
+        // tracing::error!("Impossible to find policy id in proposal {}", event.id);
+        // }
+        // }
+
         Ok(None)
     }
 
     /// Delete event without know the kind
     pub async fn delete_event(&self, event_id: &EventId) {
-        if self.delete_approval(event_id).await {
-            return;
-        }
+        self.delete_approval(event_id).await;
 
         // TODO: delete proposal, signer, ...
     }

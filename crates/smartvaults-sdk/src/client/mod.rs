@@ -804,7 +804,7 @@ impl SmartVaults {
         let proposal = Proposal::pending(*vault_id, pending, self.network);
 
         // Get vault
-        let vault = self.storage.vault(&vault_id).await?;
+        let vault = self.storage.vault(vault_id).await?;
 
         // Compose and send event
         let event: Event = v2::proposal::build_event(&vault, &proposal)?;
@@ -869,7 +869,7 @@ impl SmartVaults {
 
         // Compose the event
         let keys: &Keys = self.keys();
-        let event = v2::approval::build_event(&vault, &approval, &keys)?;
+        let event = v2::approval::build_event(&vault, &approval, keys)?;
         let timestamp = event.created_at;
 
         // Publish the event

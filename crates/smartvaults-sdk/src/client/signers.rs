@@ -16,7 +16,7 @@ use crate::types::{GetAllSigners, GetSharedSigner};
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<Signer, Error> {
-        Ok(self.storage.signer(&signer_id).await?)
+        Ok(self.storage.signer(signer_id).await?)
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<(), Error> {
@@ -39,7 +39,7 @@ impl SmartVaults {
         let event = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(signer_event.id)]);
         self.client.send_event_builder(event).await?;
 
-        self.storage.delete_signer(&signer_id).await;
+        self.storage.delete_signer(signer_id).await;
 
         Ok(())
     }

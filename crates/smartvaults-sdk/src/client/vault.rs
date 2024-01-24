@@ -188,7 +188,7 @@ impl SmartVaults {
         let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
 
         let keys = self.keys();
-        let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(&keys);
+        let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(keys);
 
         let filter: Filter = Filter::new()
             .kind(VAULT_KIND_V2)

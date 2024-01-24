@@ -59,7 +59,7 @@ impl SmartVaults {
                     .to_event(&shared_key)?;
             self.client.send_event(event).await?;
 
-            self.storage.delete_proposal(&proposal_id).await;
+            self.storage.delete_proposal(proposal_id).await;
 
             Ok(())
         } else {
