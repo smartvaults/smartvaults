@@ -5,11 +5,15 @@ use std::collections::BTreeSet;
 use std::ops::Deref;
 
 use nostr_sdk::database::Order;
-use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, NostrDatabaseExt, Profile, Tag};
+use nostr_sdk::{
+    Event, EventBuilder, Filter, Keys, Kind, NostrDatabaseExt, Profile, RelaySendOptions, Tag,
+};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
-use smartvaults_protocol::v2::{self, NostrPublicIdentifier, Vault, VaultIdentifier};
+use smartvaults_protocol::v2::{
+    self, NostrPublicIdentifier, Vault, VaultIdentifier, VaultMetadata,
+};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalVault;
@@ -50,8 +54,8 @@ impl SmartVaults {
 
     pub async fn save_vault<S, D>(
         &self,
-        _name: S,
-        _description: S,
+        name: S,
+        description: S,
         descriptor: D,
     ) -> Result<VaultIdentifier, Error>
     where
@@ -61,13 +65,21 @@ impl SmartVaults {
         // Generate a shared key
         let shared_key = Keys::generate();
         let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;
-
-        // Compose and publish event
-        let keys = self.keys();
-        let event: Event = v2::vault::build_event(keys, &vault)?;
-        self.client.send_event(event).await?;
-
         let vault_id: VaultIdentifier = vault.id();
+
+        // Add metadata
+        let mut metadata = VaultMetadata::new(vault_id, self.network);
+        metadata.change_name(name);
+        metadata.change_description(description);
+
+        // Compose and publish events
+        let keys = self.keys();
+        let vault_event: Event = v2::vault::build_event(keys, &vault)?;
+        let metadata_event: Event = v2::vault::metadata::build_event(&vault, &metadata)?;
+        self.client
+            .batch_event(vec![vault_event, metadata_event], RelaySendOptions::new())
+            .await?;
+
         let policy: Policy = vault.policy();
 
         // Index event
