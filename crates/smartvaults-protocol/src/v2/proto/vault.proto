@@ -27,3 +27,9 @@ message VaultMetadata {
   string name = 3;
   string description = 4;
 }
+
+message VaultInvite {
+  vault.Vault vault = 1;
+  optional string sender = 2;
+  string message = 3;
+}

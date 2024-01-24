@@ -12,7 +12,7 @@ use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
 use smartvaults_protocol::v2::{
-    self, NostrPublicIdentifier, Vault, VaultIdentifier, VaultMetadata,
+    self, NostrPublicIdentifier, Vault, VaultIdentifier, VaultInvite, VaultMetadata,
 };
 
 use super::{Error, SmartVaults};
@@ -139,16 +139,24 @@ impl SmartVaults {
     }
 
     /// Invite an user to a [Vault]
-    pub async fn invite_to_vault(
+    pub async fn invite_to_vault<S>(
         &self,
         vault_id: &VaultIdentifier,
         receiver: XOnlyPublicKey,
-    ) -> Result<(), Error> {
+        message: S,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        // Get vailt
         let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
 
+        // Compose invite
+        let sender: XOnlyPublicKey = self.keys.public_key();
+        let invite: VaultInvite = VaultInvite::new(vault, Some(sender), message);
+
         // Compose and publish event
-        let public_key: XOnlyPublicKey = self.keys.public_key();
-        let event: Event = v2::vault::build_invitation_event(&vault, receiver, Some(public_key))?;
+        let event: Event = v2::vault::invite::build_event(invite, receiver)?;
         self.client.send_event(event).await?;
 
         Ok(())

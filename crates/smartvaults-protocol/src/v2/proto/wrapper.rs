@@ -4,7 +4,4 @@
 include!(concat!(env!("OUT_DIR"), "/wrapper.rs"));
 
 pub use self::wrapper::Object as ProtoWrapperObject;
-pub use self::{
-    SharedSignerInvite as ProtoSharedSignerInvite, VaultInvite as ProtoVaultInvite,
-    Wrapper as ProtoWrapper,
-};
+pub use self::{SharedSignerInvite as ProtoSharedSignerInvite, Wrapper as ProtoWrapper};

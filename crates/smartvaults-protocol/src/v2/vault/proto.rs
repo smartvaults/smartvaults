@@ -6,12 +6,13 @@ use core::str::FromStr;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::secp256k1::SecretKey;
+use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::Policy;
 
-use super::{Vault, VaultIdentifier, VaultMetadata, Version};
+use super::{Vault, VaultIdentifier, VaultInvite, VaultMetadata, Version};
 use crate::v2::proto::vault::{
-    ProtoVault, ProtoVaultIdentifier, ProtoVaultMetadata, ProtoVaultObject, ProtoVaultV1,
+    ProtoVault, ProtoVaultIdentifier, ProtoVaultInvite, ProtoVaultMetadata, ProtoVaultObject,
+    ProtoVaultV1,
 };
 use crate::v2::{Error, NetworkMagic};
 
@@ -90,5 +91,29 @@ impl TryFrom<ProtoVaultMetadata> for VaultMetadata {
         m.change_name(metadata.name);
         m.change_description(metadata.description);
         Ok(m)
+    }
+}
+
+impl From<&VaultInvite> for ProtoVaultInvite {
+    fn from(invite: &VaultInvite) -> Self {
+        Self {
+            vault: Some(invite.vault().into()),
+            sender: invite.sender().map(|p| p.to_string()),
+            message: invite.message().to_string(),
+        }
+    }
+}
+
+impl TryFrom<ProtoVaultInvite> for VaultInvite {
+    type Error = Error;
+
+    fn try_from(invite: ProtoVaultInvite) -> Result<Self, Self::Error> {
+        let vault: ProtoVault = invite.vault.ok_or(Error::NotFound(String::from("vault")))?;
+        let vault: Vault = Vault::try_from(vault)?;
+        let sender: Option<XOnlyPublicKey> = match invite.sender {
+            Some(public_key) => Some(XOnlyPublicKey::from_str(&public_key)?),
+            None => None,
+        };
+        Ok(Self::new(vault, sender, invite.message))
     }
 }

@@ -13,17 +13,13 @@ mod proto;
 
 use super::message::EncodingVersion;
 use super::proto::wrapper::ProtoWrapper;
-use super::{Error, ProtocolEncoding, ProtocolEncryption, SharedSigner, Vault};
+use super::vault::VaultInvite;
+use super::{Error, ProtocolEncoding, ProtocolEncryption, SharedSigner};
 
 /// Smart Vaults Wrapper
 pub enum Wrapper {
     /// Vault invite
-    VaultInvite {
-        /// Vault
-        vault: Vault,
-        /// Invite sender
-        sender: Option<XOnlyPublicKey>,
-    },
+    VaultInvite(VaultInvite),
     /// Shared Signer invite
     SharedSignerInvite {
         /// Shared Signer
@@ -38,7 +34,7 @@ impl ProtocolEncoding for Wrapper {
 
     fn protocol_network(&self) -> Network {
         match self {
-            Self::VaultInvite { vault, .. } => vault.network(),
+            Self::VaultInvite(invite) => invite.protocol_network(),
             Self::SharedSignerInvite { shared_signer, .. } => shared_signer.network(),
         }
     }

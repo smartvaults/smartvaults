@@ -5,6 +5,6 @@ include!(concat!(env!("OUT_DIR"), "/vault.rs"));
 
 pub use self::vault::Object as ProtoVaultObject;
 pub use self::{
-    Vault as ProtoVault, VaultIdentifier as ProtoVaultIdentifier,
+    Vault as ProtoVault, VaultIdentifier as ProtoVaultIdentifier, VaultInvite as ProtoVaultInvite,
     VaultMetadata as ProtoVaultMetadata, VaultV1 as ProtoVaultV1,
 };

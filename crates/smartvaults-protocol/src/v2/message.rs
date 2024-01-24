@@ -64,6 +64,7 @@ impl TryFrom<u8> for ProtocolVersion {
     }
 }
 
+/// Protocol Encoding Version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
 pub enum EncodingVersion {

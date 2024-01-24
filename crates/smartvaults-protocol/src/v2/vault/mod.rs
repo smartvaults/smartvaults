@@ -7,24 +7,26 @@ use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 
-use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
+use nostr::{Event, EventBuilder, Keys, Tag};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::crypto::hash;
 use smartvaults_core::policy::Policy;
-use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
+use smartvaults_core::secp256k1::SecretKey;
 use smartvaults_core::PolicyTemplate;
 
 pub mod id;
+pub mod invite;
 pub mod metadata;
 mod proto;
 
 pub use self::id::VaultIdentifier;
+pub use self::invite::VaultInvite;
 pub use self::metadata::VaultMetadata;
-use super::constants::{VAULT_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
+use super::constants::VAULT_KIND_V2;
 use super::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
 use super::proto::vault::ProtoVault;
-use super::{Error, NostrPublicIdentifier, Wrapper};
+use super::{Error, NostrPublicIdentifier};
 
 /// Vault version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -159,35 +161,7 @@ impl ProtocolEncryption for Vault {
     type Err = Error;
 }
 
-/// Build [`Vault`] invitation [`Event`]
-pub fn build_invitation_event(
-    vault: &Vault,
-    receiver: XOnlyPublicKey,
-    sender: Option<XOnlyPublicKey>,
-) -> Result<Event, Error> {
-    // Compose wrapper
-    let wrapper: Wrapper = Wrapper::VaultInvite {
-        vault: vault.clone(),
-        sender,
-    };
-
-    // Encrypt
-    let keys = Keys::generate();
-    let encrypted_content: String = wrapper.encrypt(&keys.secret_key()?, &receiver)?;
-
-    // Compose and sign event
-    Ok(EventBuilder::new(
-        WRAPPER_KIND,
-        encrypted_content,
-        [
-            Tag::public_key(receiver),
-            Tag::Expiration(Timestamp::now() + WRAPPER_EXIPRATION),
-        ],
-    )
-    .to_event(&keys)?)
-}
-
-/// Build [`Vault`] event (used to accept an invitation)
+/// Build [`Vault`] event
 ///
 /// Must use **own** [`Keys`] (not random or shared key)!
 pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {

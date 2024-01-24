@@ -6,21 +6,14 @@ use core::str::FromStr;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 use super::Wrapper;
-use crate::v2::proto::wrapper::{
-    ProtoSharedSignerInvite, ProtoVaultInvite, ProtoWrapper, ProtoWrapperObject,
-};
-use crate::v2::{Error, SharedSigner, Vault};
+use crate::v2::proto::wrapper::{ProtoSharedSignerInvite, ProtoWrapper, ProtoWrapperObject};
+use crate::v2::{Error, SharedSigner, VaultInvite};
 
 impl From<&Wrapper> for ProtoWrapper {
     fn from(wrapper: &Wrapper) -> Self {
         ProtoWrapper {
             object: Some(match wrapper {
-                Wrapper::VaultInvite { vault, sender } => {
-                    ProtoWrapperObject::VaultInvite(ProtoVaultInvite {
-                        vault: Some(vault.into()),
-                        sender: sender.map(|p| p.to_string()),
-                    })
-                }
+                Wrapper::VaultInvite(invite) => ProtoWrapperObject::VaultInvite(invite.into()),
                 Wrapper::SharedSignerInvite {
                     shared_signer,
                     sender,
@@ -40,14 +33,7 @@ impl TryFrom<ProtoWrapper> for Wrapper {
         match wrapper.object {
             Some(obj) => match obj {
                 ProtoWrapperObject::VaultInvite(v) => {
-                    let vault = v.vault.ok_or(Error::NotFound(String::from("vault")))?;
-                    Ok(Self::VaultInvite {
-                        vault: Vault::try_from(vault)?,
-                        sender: match v.sender {
-                            Some(public_key) => Some(XOnlyPublicKey::from_str(&public_key)?),
-                            None => None,
-                        },
-                    })
+                    Ok(Self::VaultInvite(VaultInvite::try_from(v)?))
                 }
                 ProtoWrapperObject::SharedSignerInvite(s) => {
                     let shared_signer = s
