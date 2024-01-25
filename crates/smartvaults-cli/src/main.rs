@@ -372,6 +372,17 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 println!("Vault saved: {vault_id}");
                 Ok(())
             }
+            VaultCommand::Invite {
+                vault_id,
+                public_key,
+                message,
+            } => {
+                client
+                    .invite_to_vault(&vault_id, public_key, message.unwrap_or_default())
+                    .await?;
+                println!("Invite sent!");
+                Ok(())
+            }
             VaultCommand::Metadata {
                 vault_id,
                 name,

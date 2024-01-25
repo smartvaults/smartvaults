@@ -255,6 +255,17 @@ pub enum VaultCommand {
         #[arg(required = true)]
         descriptor: String,
     },
+    /// Invite user to vault
+    Invite {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+        // User public key (hex)
+        #[arg(required = true)]
+        public_key: XOnlyPublicKey, // TODO: support both hex and bech32
+        /// Optional message
+        message: Option<String>,
+    },
     /// Update vault metadata
     Metadata {
         /// Vault ID
