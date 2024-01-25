@@ -13,6 +13,10 @@ license = "MIT"
 keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
+nostr = { git = "https://github.com/rust-nostr/nostr", rev = "751d6d0b35672111f336a8da45e132cf76d3ae30", default-features = false }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "751d6d0b35672111f336a8da45e132cf76d3ae30", default-features = false }
+nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "751d6d0b35672111f336a8da45e132cf76d3ae30" }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "751d6d0b35672111f336a8da45e132cf76d3ae30" }
 once_cell = "1.19"
 serde = "1.0"
 thiserror = "1.0"
