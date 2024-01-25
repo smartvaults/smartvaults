@@ -31,4 +31,5 @@ message VaultInvite {
   vault.Vault vault = 1;
   optional string sender = 2;
   string message = 3;
+  fixed64 timestamp = 4;
 }

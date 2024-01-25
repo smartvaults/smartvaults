@@ -25,6 +25,8 @@ pub struct VaultInvite {
     pub sender: Option<XOnlyPublicKey>,
     /// Invite message
     pub message: String,
+    /// Invite timestamp
+    pub timestamp: Timestamp,
 }
 
 impl PartialEq for VaultInvite {
@@ -63,6 +65,7 @@ impl VaultInvite {
             vault,
             sender,
             message: message.into(),
+            timestamp: Timestamp::now(),
         }
     }
 
@@ -79,6 +82,11 @@ impl VaultInvite {
     /// Get message
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    /// Get timestamp
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
     }
 }
 

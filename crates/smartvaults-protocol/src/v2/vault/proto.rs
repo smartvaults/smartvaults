@@ -3,6 +3,7 @@
 
 use core::str::FromStr;
 
+use nostr::Timestamp;
 use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -97,6 +98,7 @@ impl From<&VaultInvite> for ProtoVaultInvite {
             vault: Some(invite.vault().into()),
             sender: invite.sender().map(|p| p.to_string()),
             message: invite.message().to_string(),
+            timestamp: invite.timestamp.as_u64(),
         }
     }
 }
@@ -111,6 +113,11 @@ impl TryFrom<ProtoVaultInvite> for VaultInvite {
             Some(public_key) => Some(XOnlyPublicKey::from_str(&public_key)?),
             None => None,
         };
-        Ok(Self::new(vault, sender, invite.message))
+        Ok(Self {
+            vault,
+            sender,
+            message: invite.message,
+            timestamp: Timestamp::from(invite.timestamp),
+        })
     }
 }
