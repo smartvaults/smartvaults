@@ -317,7 +317,14 @@ where
 {
     let mut table = Table::new();
 
-    table.set_titles(row!["#", "ID", "Name", "Description", "Balance"]);
+    table.set_titles(row![
+        "#",
+        "ID",
+        "Public key",
+        "Name",
+        "Description",
+        "Balance"
+    ]);
 
     for (
         index,
@@ -329,9 +336,11 @@ where
         },
     ) in vaults.into_iter().enumerate()
     {
+        let shared_key = Keys::new(vault.shared_key());
         table.add_row(row![
             index + 1,
             vault.id(),
+            shared_key.public_key(),
             metadata.name,
             metadata.description,
             balance.total()
