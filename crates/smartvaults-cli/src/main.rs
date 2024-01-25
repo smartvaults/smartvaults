@@ -10,7 +10,6 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{AddCommand, ConfigCommand, ConnectCommand, KeyAgentCommand, SetCommand};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use smartvaults_sdk::config::Config;
@@ -29,8 +28,9 @@ mod util;
 
 use crate::cli::batch::BatchCommand;
 use crate::cli::{
-    io, Cli, CliCommand, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand,
-    ShareCommand,
+    io, AddCommand, Cli, CliCommand, Command, ConfigCommand, ConnectCommand, DeleteCommand,
+    GetCommand, KeyAgentCommand, ProofCommand, SetCommand, SettingCommand, ShareCommand,
+    VaultCommand,
 };
 
 fn base_path() -> Result<PathBuf> {
@@ -362,10 +362,50 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
 
             Ok(())
         }
-        Command::Rebroadcast => {
-            client.rebroadcast_all_events().await?;
-            Ok(())
-        }
+        Command::Vault { command } => match command {
+            VaultCommand::Add {
+                name,
+                description,
+                descriptor,
+            } => {
+                let vault_id = client.save_vault(name, description, descriptor).await?;
+                println!("Vault saved: {vault_id}");
+                Ok(())
+            }
+            VaultCommand::Metadata {
+                vault_id,
+                name,
+                description,
+            } => {
+                client
+                    .edit_vault_metadata(&vault_id, name, description)
+                    .await?;
+                Ok(())
+            }
+            VaultCommand::Get { vault_id, export } => {
+                // Get vault
+                let vault: GetVault = client.get_vault_by_id(&vault_id).await?;
+
+                // Print result
+                if export {
+                    println!("\n{}\n", vault.as_descriptor());
+                    Ok(())
+                } else {
+                    let item = vault.satisfiable_item()?.clone();
+                    let address = client.get_last_unused_address(&vault_id).await?;
+                    let txs = client.get_txs(&vault_id).await.unwrap_or_default();
+                    let utxos = client.get_utxos(&vault_id).await.unwrap_or_default();
+                    util::print_vault(vault, item, address, txs, utxos);
+                    Ok(())
+                }
+            }
+            VaultCommand::List => {
+                let vaults = client.vaults().await?;
+                util::print_vaults(vaults);
+                Ok(())
+            }
+            VaultCommand::Delete { vault_id } => Ok(client.delete_vault_by_id(&vault_id).await?),
+        },
         Command::Proof { command } => match command {
             ProofCommand::New { .. } => {
                 // let (proposal_id, ..) = client.new_proof_proposal(policy_id, message).await?;
@@ -472,15 +512,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client.add_contact(public_key).await?;
                 Ok(())
             }
-            AddCommand::Vault {
-                name,
-                description,
-                descriptor,
-            } => {
-                let vault_id = client.save_vault(name, description, descriptor).await?;
-                println!("Vault saved: {vault_id}");
-                Ok(())
-            }
             AddCommand::SmartVaultsSigner {
                 share_with_contacts,
             } => {
@@ -506,28 +537,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 let contacts = client.get_contacts().await?;
                 util::print_contacts(contacts);
                 Ok(())
-            }
-            GetCommand::Vaults => {
-                let vaults = client.vaults().await?;
-                util::print_vaults(vaults);
-                Ok(())
-            }
-            GetCommand::Vault { vault_id, export } => {
-                // Get vault
-                let vault: GetVault = client.get_vault_by_id(&vault_id).await?;
-
-                // Print result
-                if export {
-                    println!("\n{}\n", vault.as_descriptor());
-                    Ok(())
-                } else {
-                    let item = vault.satisfiable_item()?.clone();
-                    let address = client.get_last_unused_address(&vault_id).await?;
-                    let txs = client.get_txs(&vault_id).await.unwrap_or_default();
-                    let utxos = client.get_utxos(&vault_id).await.unwrap_or_default();
-                    util::print_vault(vault, item, address, txs, utxos);
-                    Ok(())
-                }
             }
             GetCommand::Proposals { all, completed } => {
                 if all {
@@ -582,16 +591,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
 
                 Ok(())
             }
-            SetCommand::VaultMetadata {
-                vault_id,
-                name,
-                description,
-            } => {
-                client
-                    .edit_vault_metadata(&vault_id, name, description)
-                    .await?;
-                Ok(())
-            }
             SetCommand::Label {
                 vault_id,
                 data,
@@ -622,7 +621,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client.remove_relay(url).await?;
                 Ok(())
             }
-            DeleteCommand::Vault { vault_id } => Ok(client.delete_vault_by_id(&vault_id).await?),
             DeleteCommand::Proposal { proposal_id } => {
                 Ok(client.delete_proposal_by_id(&proposal_id).await?)
             }
@@ -638,6 +636,10 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
             // }
             DeleteCommand::Cache => Ok(client.clear_cache().await?),
         },
+        Command::Rebroadcast => {
+            client.rebroadcast_all_events().await?;
+            Ok(())
+        }
         Command::Setting { command } => match command {
             SettingCommand::Rename { new_name } => Ok(client.rename(new_name)?),
             SettingCommand::ChangePassword => Ok(client.change_password(

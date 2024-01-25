@@ -175,6 +175,12 @@ pub enum Command {
         #[arg(required = true)]
         proposal_id: ProposalIdentifier,
     },
+    /// Vault commands
+    #[command(arg_required_else_help = true)]
+    Vault {
+        #[command(subcommand)]
+        command: VaultCommand,
+    },
     /// Proof of Reserve commands
     #[command(arg_required_else_help = true)]
     Proof {
@@ -233,6 +239,51 @@ pub enum Command {
     Rebroadcast,
     /// Exit
     Exit,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum VaultCommand {
+    /// Add vault
+    Add {
+        /// Vault name
+        #[arg(required = true)]
+        name: String,
+        /// Vault description
+        #[arg(required = true)]
+        description: String,
+        /// Vault descriptor
+        #[arg(required = true)]
+        descriptor: String,
+    },
+    /// Update vault metadata
+    Metadata {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+        // Vault name
+        #[arg(short, long)]
+        name: Option<String>,
+        /// Vault description
+        #[arg(short, long)]
+        description: Option<String>,
+    },
+    /// Get Vault
+    Get {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+        /// Export descriptor
+        #[arg(long)]
+        export: bool,
+    },
+    /// Get list of vaults
+    List,
+    /// Delete vault
+    Delete {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -347,18 +398,6 @@ pub enum AddCommand {
         #[arg(required = true)]
         public_key: PublicKey,
     },
-    /// Add vault
-    Vault {
-        /// Vault name
-        #[arg(required = true)]
-        name: String,
-        /// Vault description
-        #[arg(required = true)]
-        description: String,
-        /// Vault descriptor
-        #[arg(required = true)]
-        descriptor: String,
-    },
     /// Add Smart Vaults Signer
     SmartVaultsSigner {
         /// Share with contacts
@@ -380,17 +419,6 @@ pub enum AddCommand {
 pub enum GetCommand {
     /// Get contacts list
     Contacts,
-    /// Get vaults list
-    Vaults,
-    /// Get vault by ID
-    Vault {
-        /// Vault ID
-        #[arg(required = true)]
-        vault_id: VaultIdentifier,
-        /// Export descriptor
-        #[arg(long)]
-        export: bool,
-    },
     /// Get proposals list
     Proposals {
         /// Get all proposals (both prending and completed)
@@ -435,18 +463,6 @@ pub enum SetCommand {
         #[arg(long)]
         empty: bool,
     },
-    /// Set vault metadata
-    VaultMetadata {
-        /// Vault ID
-        #[arg(required = true)]
-        vault_id: VaultIdentifier,
-        // Vault name
-        #[arg(short, long)]
-        name: Option<String>,
-        /// Vault description
-        #[arg(short, long)]
-        description: Option<String>,
-    },
     /// Set label
     Label {
         /// Vault ID
@@ -481,12 +497,6 @@ pub enum DeleteCommand {
         /// Url
         #[arg(required = true)]
         url: Url,
-    },
-    /// Delete vault by ID
-    Vault {
-        /// Vault ID
-        #[arg(required = true)]
-        vault_id: VaultIdentifier,
     },
     /// Delete proposal by ID
     Proposal {
