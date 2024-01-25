@@ -16,10 +16,12 @@ use smartvaults_protocol::v1::constants::{
 use smartvaults_protocol::v1::{Label, LabelData, LabelKind, VerifiedKeyAgents};
 use smartvaults_protocol::v2::constants::{
     APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2, VAULT_METADATA_KIND_V2,
+    WRAPPER_KIND,
 };
 use smartvaults_protocol::v2::{
     Approval, NostrPublicIdentifier, Proposal, ProposalIdentifier, ProtocolEncryption,
-    SharedSigner, Signer, SignerIdentifier, Vault, VaultIdentifier, VaultMetadata,
+    SharedSigner, Signer, SignerIdentifier, Vault, VaultIdentifier, VaultInvite, VaultMetadata,
+    Wrapper,
 };
 use tokio::sync::RwLock;
 
@@ -58,6 +60,7 @@ pub(crate) struct SmartVaultsStorage {
     vaults_ids: Arc<RwLock<HashMap<EventId, VaultIdentifier>>>,
     vaults_keys: Arc<RwLock<HashMap<PublicKey, Keys>>>,
     vaults: Arc<RwLock<HashMap<VaultIdentifier, InternalVault>>>,
+    vault_invites: Arc<RwLock<HashMap<VaultIdentifier, VaultInvite>>>,
     proposals_ids: Arc<RwLock<HashMap<EventId, ProposalIdentifier>>>,
     proposals: Arc<RwLock<HashMap<ProposalIdentifier, Proposal>>>,
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
@@ -87,6 +90,7 @@ impl SmartVaultsStorage {
             vaults_ids: Arc::new(RwLock::new(HashMap::new())),
             vaults_keys: Arc::new(RwLock::new(HashMap::new())),
             vaults: Arc::new(RwLock::new(HashMap::new())),
+            vault_invites: Arc::new(RwLock::new(HashMap::new())),
             proposals_ids: Arc::new(RwLock::new(HashMap::new())),
             proposals: Arc::new(RwLock::new(HashMap::new())),
             approvals: Arc::new(RwLock::new(HashMap::new())),
@@ -129,6 +133,7 @@ impl SmartVaultsStorage {
         }
 
         // Step 3: get other events
+        let pubkey_filter: Filter = Filter::new().pubkey(this.keys.public_key());
         let smartvaults: Filter = Filter::new()
             .author(match network {
                 Network::Bitcoin => *SMARTVAULTS_MAINNET_PUBLIC_KEY,
@@ -137,7 +142,7 @@ impl SmartVaultsStorage {
             .kind(KEY_AGENT_VERIFIED);
         for event in this
             .database
-            .query(vec![smartvaults], Order::Asc)
+            .query(vec![pubkey_filter, smartvaults], Order::Asc)
             .await?
             .into_iter()
         {
@@ -295,6 +300,18 @@ impl SmartVaultsStorage {
             let mut verified_key_agents = self.verified_key_agents.write().await;
             *verified_key_agents = new_verified_agents;
             return Ok(Some(EventHandled::VerifiedKeyAgents));
+        } else if event.kind == WRAPPER_KIND {
+            match Wrapper::decrypt_with_keys(&self.keys, event.content())? {
+                Wrapper::VaultInvite(invite) => {
+                    let vaults = self.vaults.read().await;
+                    let mut vault_invites = self.vault_invites.write().await;
+                    let vault_id = invite.vault.id();
+                    if !vaults.contains_key(&vault_id) && !vault_invites.contains_key(&vault_id) {
+                        vault_invites.insert(vault_id, invite);
+                    }
+                }
+                _ => todo!(),
+            }
         }
 
         // else if event.kind == LABELS_KIND {
@@ -392,6 +409,16 @@ impl SmartVaultsStorage {
     pub async fn vault(&self, vault_id: &VaultIdentifier) -> Result<InternalVault, Error> {
         let vaults = self.vaults.read().await;
         vaults.get(vault_id).cloned().ok_or(Error::NotFound)
+    }
+
+    /// Get vault invites
+    pub async fn vault_invites(&self) -> HashMap<VaultIdentifier, VaultInvite> {
+        self.vault_invites
+            .read()
+            .await
+            .iter()
+            .map(|(id, invite)| (*id, invite.clone()))
+            .collect()
     }
 
     pub async fn save_proposal(&self, proposal_id: ProposalIdentifier, proposal: Proposal) {

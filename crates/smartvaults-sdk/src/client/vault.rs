@@ -59,6 +59,8 @@ impl SmartVaults {
     ) -> Result<VaultIdentifier, Error> {
         let vault_id: VaultIdentifier = vault.id();
 
+        // TODO: check if vault already exists
+
         // Compose and publish events
         let keys = self.keys();
         let mut events: Vec<Event> = Vec::with_capacity(1 + usize::from(metadata.is_some()));
@@ -174,6 +176,14 @@ impl SmartVaults {
         self.client.send_event(event).await?;
 
         Ok(())
+    }
+
+    /// Get vault invites
+    pub async fn vault_invites(&self) -> Result<Vec<VaultInvite>, Error> {
+        let invites = self.storage.vault_invites().await;
+        let mut invites: Vec<VaultInvite> = invites.into_values().collect();
+        invites.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        Ok(invites)
     }
 
     /// Accept a vault invite

@@ -7,7 +7,7 @@ use core::time::Duration;
 
 use nostr::Kind;
 
-/// Wrapper Kind (used for vault invitation, approvals, shared signers, ...)
+/// Wrapper Kind
 pub const WRAPPER_KIND: Kind = Kind::Custom(8288);
 
 /// Vault kind
