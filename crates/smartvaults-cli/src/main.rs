@@ -383,6 +383,11 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 println!("Invite sent!");
                 Ok(())
             }
+            VaultCommand::Invites => {
+                let invites = client.vault_invites().await?;
+                util::print_vaults_invites(invites);
+                Ok(())
+            }
             VaultCommand::Metadata {
                 vault_id,
                 name,

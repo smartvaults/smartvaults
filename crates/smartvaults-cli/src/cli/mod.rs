@@ -266,6 +266,8 @@ pub enum VaultCommand {
         /// Optional message
         message: Option<String>,
     },
+    /// Get vault invites
+    Invites,
     /// Update vault metadata
     Metadata {
         /// Vault ID

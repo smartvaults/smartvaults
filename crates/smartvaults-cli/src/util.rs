@@ -16,7 +16,7 @@ use smartvaults_sdk::core::bitcoin::{Network, ScriptBuf};
 use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{Keys, Profile, PublicKey, Relay, Timestamp, Url};
-use smartvaults_sdk::protocol::v2::Signer;
+use smartvaults_sdk::protocol::v2::{Signer, VaultInvite};
 use smartvaults_sdk::types::{
     GetAddress, GetProposal, GetSignerOffering, GetTransaction, GetUtxo, GetVault,
     NostrConnectRequest,
@@ -335,6 +335,28 @@ where
             metadata.name,
             metadata.description,
             balance.total()
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_vaults_invites<I>(invites: I)
+where
+    I: IntoIterator<Item = VaultInvite>,
+{
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "Vault ID", "Sender", "Message"]);
+
+    for (index, invite) in invites.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            invite.vault.id(),
+            invite
+                .sender()
+                .map_or_else(|| String::from("-"), |p| p.to_string()),
+            invite.message
         ]);
     }
 
