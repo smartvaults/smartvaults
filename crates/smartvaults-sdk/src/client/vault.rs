@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 use std::ops::Deref;
+use std::time::Duration;
 
 use nostr_sdk::database::Order;
 use nostr_sdk::{
@@ -74,10 +75,17 @@ impl SmartVaults {
 
         // Load policy
         let policy: Policy = vault.policy();
+        let shared_key = Keys::new(vault.shared_key());
         self.manager.load_policy(vault_id, policy).await?;
 
         // Index event
         self.storage.save_vault(vault_id, vault, metadata).await;
+
+        // Request events authored by the vault
+        let filter = Filter::new().author(shared_key.public_key());
+        self.client
+            .req_events_of(vec![filter], Some(Duration::from_secs(60)))
+            .await;
 
         // Mark for re-subscription
         self.set_resubscribe_vaults(true);
