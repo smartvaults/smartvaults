@@ -136,7 +136,7 @@ where
     where
         T: AsRef<[u8]>,
     {
-        let payload: String = nip44::decrypt(secret_key, public_key, payload)?;
+        let payload: Vec<u8> = nip44::decrypt_to_bytes(secret_key, public_key, payload)?;
         Ok(Self::decode(payload)?)
     }
 

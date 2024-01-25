@@ -158,13 +158,13 @@ impl SmartVaultsStorage {
             if let HashMapEntry::Vacant(e) = vaults_ids.entry(event.id) {
                 let vault: Vault = Vault::decrypt_with_keys(&self.keys, &event.content)?;
                 let vault_id = vault.id();
-                let keys = Keys::new(vault.shared_key());
+                let shared_key = Keys::new(vault.shared_key());
                 let internal = InternalVault {
                     vault,
                     metadata: VaultMetadata::new(vault_id),
                 };
                 e.insert(vault_id);
-                vaults_keys.insert(keys.public_key(), keys);
+                vaults_keys.insert(shared_key.public_key(), shared_key);
                 vaults.insert(vault_id, internal);
                 return Ok(Some(EventHandled::Vault(vault_id)));
             }
@@ -269,8 +269,6 @@ impl SmartVaultsStorage {
                 if let Ok(true) = self.database.has_event_id_been_deleted(event_id).await {
                     self.delete_event(event_id).await;
                     return Ok(Some(EventHandled::EventDeletion));
-                } else {
-                    tracing::error!("Event {event_id} not deleted");
                 }
             }
 
@@ -336,13 +334,18 @@ impl SmartVaultsStorage {
     }
 
     /// Save [Vault] without [VaultMetadata]
-    pub async fn save_vault(&self, vault_id: VaultIdentifier, vault: Vault) {
+    pub async fn save_vault(
+        &self,
+        vault_id: VaultIdentifier,
+        vault: Vault,
+        metadata: Option<VaultMetadata>,
+    ) {
         let mut vaults = self.vaults.write().await;
         vaults.insert(
             vault_id,
             InternalVault {
                 vault,
-                metadata: VaultMetadata::new(vault_id),
+                metadata: metadata.unwrap_or_else(|| VaultMetadata::new(vault_id)),
             },
         );
     }

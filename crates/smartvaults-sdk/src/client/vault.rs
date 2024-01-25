@@ -63,8 +63,8 @@ impl SmartVaults {
         let keys = self.keys();
         let mut events: Vec<Event> = Vec::with_capacity(1 + usize::from(metadata.is_some()));
         events.push(v2::vault::build_event(keys, &vault)?);
-        if let Some(metadata) = metadata {
-            events.push(v2::vault::metadata::build_event(&vault, &metadata)?);
+        if let Some(metadata) = &metadata {
+            events.push(v2::vault::metadata::build_event(&vault, metadata)?);
         }
         self.client
             .batch_event(events, RelaySendOptions::new())
@@ -75,7 +75,7 @@ impl SmartVaults {
         self.manager.load_policy(vault_id, policy).await?;
 
         // Index event
-        self.storage.save_vault(vault_id, vault).await;
+        self.storage.save_vault(vault_id, vault, metadata).await;
 
         // Mark for re-subscription
         self.set_resubscribe_vaults(true);

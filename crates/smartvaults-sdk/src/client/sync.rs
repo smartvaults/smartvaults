@@ -132,19 +132,22 @@ impl SmartVaults {
         Ok(thread::abortable(async move {
             loop {
                 if this.resubscribe_vaults.load(Ordering::SeqCst) {
-                    // TODO: use more efficient way
-                    let filters: Vec<Filter> = this.sync_vaults_filter(Timestamp::from(0)).await;
-                    this.client
-                        .req_events_of(filters, Some(Duration::from_secs(360)))
-                        .await;
-
                     // Resubscribe to vaults authored filter
-                    let filters: Vec<Filter> = this.sync_vaults_filter(Timestamp::now()).await;
                     for (relay_url, relay) in this.client.relays().await {
+                        let last_sync: Timestamp =
+                            match this.db.get_last_relay_sync(relay_url.clone()).await {
+                                Ok(ts) => ts,
+                                Err(e) => {
+                                    tracing::error!("Impossible to get last relay sync: {e}");
+                                    Timestamp::from(0)
+                                }
+                            };
+
+                        let filters: Vec<Filter> = this.sync_vaults_filter(last_sync).await;
                         if let Err(e) = relay
                             .subscribe_with_internal_id(
                                 InternalSubscriptionId::from("smartvaults-vaults-authored"),
-                                filters.clone(),
+                                filters,
                                 RelaySendOptions::new(),
                             )
                             .await
@@ -517,7 +520,7 @@ impl SmartVaults {
                 }
                 _ => (),
             };
-            self.sync_channel.send(Message::EventHandled(h))?;
+            let _ = self.sync_channel.send(Message::EventHandled(h));
         }
 
         Ok(())

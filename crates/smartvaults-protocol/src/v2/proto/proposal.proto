@@ -75,7 +75,7 @@ message ProposalStatus {
     }
 
     message ProofOfReserve {
-      string descriptor = 1;
+      string descriptor = 1; // TODO: remove?
       string message = 2;
       string psbt = 3;
     }
