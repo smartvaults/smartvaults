@@ -3,6 +3,9 @@
 
 //! Vault Invite
 
+use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
+
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
@@ -14,7 +17,7 @@ use crate::v2::proto::vault::ProtoVaultInvite;
 use crate::v2::{Error, Wrapper};
 
 /// Vault invite
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone)]
 pub struct VaultInvite {
     /// Vault
     pub vault: Vault,
@@ -22,6 +25,32 @@ pub struct VaultInvite {
     pub sender: Option<XOnlyPublicKey>,
     /// Invite message
     pub message: String,
+}
+
+impl PartialEq for VaultInvite {
+    fn eq(&self, other: &Self) -> bool {
+        self.vault == other.vault
+    }
+}
+
+impl Eq for VaultInvite {}
+
+impl PartialOrd for VaultInvite {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for VaultInvite {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.vault.cmp(&other.vault)
+    }
+}
+
+impl Hash for VaultInvite {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.vault.hash(state);
+    }
 }
 
 impl VaultInvite {
