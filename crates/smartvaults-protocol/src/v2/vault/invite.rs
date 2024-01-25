@@ -5,13 +5,13 @@
 
 use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
 use prost::Message;
-use smartvaults_core::bitcoin::Network;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 use super::Vault;
 use crate::v2::constants::{WRAPPER_EXIPRATION, WRAPPER_KIND};
+use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::vault::ProtoVaultInvite;
-use crate::v2::{EncodingVersion, Error, ProtocolEncoding, ProtocolEncryption, Wrapper};
+use crate::v2::{Error, Wrapper};
 
 /// Vault invite
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -55,10 +55,6 @@ impl VaultInvite {
 
 impl ProtocolEncoding for VaultInvite {
     type Err = Error;
-
-    fn protocol_network(&self) -> Network {
-        self.vault.network()
-    }
 
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let vault: ProtoVaultInvite = self.into();

@@ -11,8 +11,8 @@ use smartvaults_core::bitcoin::Network;
 mod proto;
 
 use super::constants::{APPROVAL_KIND_V2, WRAPPER_EXIPRATION};
-use super::{ProposalIdentifier, ProtocolEncoding, ProtocolEncryption, Vault, VaultIdentifier};
-use crate::v2::message::EncodingVersion;
+use super::{ProposalIdentifier, Vault, VaultIdentifier};
+use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::approval::ProtoApproval;
 use crate::v2::Error;
 
@@ -93,10 +93,6 @@ impl Approval {
 
 impl ProtocolEncoding for Approval {
     type Err = Error;
-
-    fn protocol_network(&self) -> Network {
-        self.network
-    }
 
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let proposal: ProtoApproval = self.into();

@@ -156,10 +156,6 @@ impl Signer {
 impl ProtocolEncoding for Signer {
     type Err = Error;
 
-    fn protocol_network(&self) -> Network {
-        self.network()
-    }
-
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let proposal: ProtoSigner = self.into();
         (EncodingVersion::ProtoBuf, proposal.encode_to_vec())

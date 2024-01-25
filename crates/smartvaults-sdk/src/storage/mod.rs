@@ -55,7 +55,6 @@ impl Ord for WrappedEvent {
 pub(crate) struct SmartVaultsStorage {
     keys: Keys,
     database: Arc<DynNostrDatabase>,
-    network: Network,
     vaults_ids: Arc<RwLock<HashMap<EventId, VaultIdentifier>>>,
     vaults_keys: Arc<RwLock<HashMap<PublicKey, Keys>>>,
     vaults: Arc<RwLock<HashMap<VaultIdentifier, InternalVault>>>,
@@ -85,7 +84,6 @@ impl SmartVaultsStorage {
         let this: Self = Self {
             keys,
             database,
-            network,
             vaults_ids: Arc::new(RwLock::new(HashMap::new())),
             vaults_keys: Arc::new(RwLock::new(HashMap::new())),
             vaults: Arc::new(RwLock::new(HashMap::new())),
@@ -163,7 +161,7 @@ impl SmartVaultsStorage {
                 let keys = Keys::new(vault.shared_key());
                 let internal = InternalVault {
                     vault,
-                    metadata: VaultMetadata::new(vault_id, self.network),
+                    metadata: VaultMetadata::new(vault_id),
                 };
                 e.insert(vault_id);
                 vaults_keys.insert(keys.public_key(), keys);
@@ -344,7 +342,7 @@ impl SmartVaultsStorage {
             vault_id,
             InternalVault {
                 vault,
-                metadata: VaultMetadata::new(vault_id, self.network),
+                metadata: VaultMetadata::new(vault_id),
             },
         );
     }

@@ -429,10 +429,6 @@ pub enum CompletedProposal {
 impl ProtocolEncoding for Proposal {
     type Err = Error;
 
-    fn protocol_network(&self) -> Network {
-        self.network
-    }
-
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let proposal: ProtoProposal = self.into();
         (EncodingVersion::ProtoBuf, proposal.encode_to_vec())

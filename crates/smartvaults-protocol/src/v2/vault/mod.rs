@@ -142,10 +142,6 @@ impl Vault {
 impl ProtocolEncoding for Vault {
     type Err = Error;
 
-    fn protocol_network(&self) -> Network {
-        self.network()
-    }
-
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let vault: ProtoVault = self.into();
         (EncodingVersion::ProtoBuf, vault.encode_to_vec())

@@ -3,7 +3,6 @@
 
 use core::str::FromStr;
 
-use smartvaults_core::bitcoin::Network;
 use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
@@ -71,7 +70,6 @@ impl From<&VaultMetadata> for ProtoVaultMetadata {
     fn from(metadata: &VaultMetadata) -> Self {
         Self {
             vault_id: Some(metadata.vault_id().into()),
-            network: metadata.network().magic().to_bytes().to_vec(),
             name: metadata.name.clone(),
             description: metadata.description.clone(),
         }
@@ -86,8 +84,7 @@ impl TryFrom<ProtoVaultMetadata> for VaultMetadata {
             .vault_id
             .ok_or(Error::NotFound(String::from("vault identifier")))?;
         let vault_id: VaultIdentifier = VaultIdentifier::from_slice(&vault_id.id)?;
-        let network: Network = NetworkMagic::from_slice(&metadata.network)?.into();
-        let mut m = VaultMetadata::new(vault_id, network);
+        let mut m = VaultMetadata::new(vault_id);
         m.change_name(metadata.name);
         m.change_description(metadata.description);
         Ok(m)

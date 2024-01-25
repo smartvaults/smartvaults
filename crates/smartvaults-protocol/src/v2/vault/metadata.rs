@@ -5,19 +5,17 @@
 
 use nostr::{Event, EventBuilder, Keys};
 use prost::Message;
-use smartvaults_core::bitcoin::Network;
 
 use super::{Vault, VaultIdentifier};
 use crate::v2::constants::VAULT_METADATA_KIND_V2;
-use crate::v2::message::EncodingVersion;
+use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::vault::ProtoVaultMetadata;
-use crate::v2::{Error, ProtocolEncoding, ProtocolEncryption};
+use crate::v2::Error;
 
 /// Vault metadata
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VaultMetadata {
     vault_id: VaultIdentifier,
-    network: Network,
     /// Name
     pub name: String,
     /// Description
@@ -26,10 +24,9 @@ pub struct VaultMetadata {
 
 impl VaultMetadata {
     /// New empty vault metadata
-    pub fn new(vault_id: VaultIdentifier, network: Network) -> Self {
+    pub fn new(vault_id: VaultIdentifier) -> Self {
         Self {
             vault_id,
-            network,
             name: String::new(),
             description: String::new(),
         }
@@ -38,11 +35,6 @@ impl VaultMetadata {
     /// Vault Identifier
     pub fn vault_id(&self) -> VaultIdentifier {
         self.vault_id
-    }
-
-    /// Network
-    pub fn network(&self) -> Network {
-        self.network
     }
 
     /// Change vault metadata name
@@ -64,10 +56,6 @@ impl VaultMetadata {
 
 impl ProtocolEncoding for VaultMetadata {
     type Err = Error;
-
-    fn protocol_network(&self) -> Network {
-        self.network
-    }
 
     fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
         let vault: ProtoVaultMetadata = self.into();

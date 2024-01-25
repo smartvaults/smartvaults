@@ -18,7 +18,7 @@ pub mod wrapper;
 
 pub use self::approval::{Approval, ApprovalType};
 pub use self::error::Error;
-pub use self::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+pub use self::message::{ProtocolEncoding, ProtocolEncryption};
 pub use self::network::NetworkMagic;
 pub use self::nostr_public_id::NostrPublicIdentifier;
 pub use self::proposal::{

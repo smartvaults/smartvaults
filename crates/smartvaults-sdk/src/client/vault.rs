@@ -99,7 +99,7 @@ impl SmartVaults {
         let vault_id: VaultIdentifier = vault.id();
 
         // Add metadata
-        let mut metadata = VaultMetadata::new(vault_id, self.network);
+        let mut metadata = VaultMetadata::new(vault_id);
         metadata.change_name(name);
         metadata.change_description(description);
 
