@@ -12,7 +12,7 @@ mod proto;
 
 use super::constants::{APPROVAL_KIND_V2, WRAPPER_EXIPRATION};
 use super::{ProposalIdentifier, Vault, VaultIdentifier};
-use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::approval::ProtoApproval;
 use crate::v2::Error;
 
@@ -94,9 +94,9 @@ impl Approval {
 impl ProtocolEncoding for Approval {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let proposal: ProtoApproval = self.into();
-        (EncodingVersion::ProtoBuf, proposal.encode_to_vec())
+        (MessageVersion::ProtoBuf, proposal.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

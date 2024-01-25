@@ -25,7 +25,7 @@ pub mod shared;
 pub use self::id::SignerIdentifier;
 pub use self::shared::SharedSigner;
 use super::constants::SIGNER_KIND_V2;
-use super::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use super::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use super::NostrPublicIdentifier;
 use crate::v2::proto::signer::ProtoSigner;
 use crate::v2::Error;
@@ -156,9 +156,9 @@ impl Signer {
 impl ProtocolEncoding for Signer {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let proposal: ProtoSigner = self.into();
-        (EncodingVersion::ProtoBuf, proposal.encode_to_vec())
+        (MessageVersion::ProtoBuf, proposal.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

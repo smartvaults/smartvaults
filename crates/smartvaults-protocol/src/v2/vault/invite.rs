@@ -9,7 +9,7 @@ use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 use super::Vault;
 use crate::v2::constants::{WRAPPER_EXIPRATION, WRAPPER_KIND};
-use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::vault::ProtoVaultInvite;
 use crate::v2::{Error, Wrapper};
 
@@ -56,9 +56,9 @@ impl VaultInvite {
 impl ProtocolEncoding for VaultInvite {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let vault: ProtoVaultInvite = self.into();
-        (EncodingVersion::ProtoBuf, vault.encode_to_vec())
+        (MessageVersion::ProtoBuf, vault.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

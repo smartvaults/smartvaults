@@ -24,7 +24,7 @@ pub use self::id::VaultIdentifier;
 pub use self::invite::VaultInvite;
 pub use self::metadata::VaultMetadata;
 use super::constants::VAULT_KIND_V2;
-use super::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use super::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use super::proto::vault::ProtoVault;
 use super::{Error, NostrPublicIdentifier};
 
@@ -142,9 +142,9 @@ impl Vault {
 impl ProtocolEncoding for Vault {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let vault: ProtoVault = self.into();
-        (EncodingVersion::ProtoBuf, vault.encode_to_vec())
+        (MessageVersion::ProtoBuf, vault.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

@@ -13,7 +13,7 @@ use smartvaults_core::CoreSigner;
 
 use super::SignerIdentifier;
 use crate::v2::constants::{SHARED_SIGNER_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
-use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::signer::ProtoSharedSigner;
 use crate::v2::wrapper::Wrapper;
 use crate::v2::{Error, NostrPublicIdentifier};
@@ -89,9 +89,9 @@ impl SharedSigner {
 impl ProtocolEncoding for SharedSigner {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let shared_signer: ProtoSharedSigner = self.into();
-        (EncodingVersion::ProtoBuf, shared_signer.encode_to_vec())
+        (MessageVersion::ProtoBuf, shared_signer.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

@@ -13,7 +13,7 @@ mod proto;
 use super::proto::wrapper::ProtoWrapper;
 use super::vault::VaultInvite;
 use super::{Error, SharedSigner};
-use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 
 /// Smart Vaults Wrapper
 pub enum Wrapper {
@@ -31,9 +31,9 @@ pub enum Wrapper {
 impl ProtocolEncoding for Wrapper {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let wrapper: ProtoWrapper = self.into();
-        (EncodingVersion::ProtoBuf, wrapper.encode_to_vec())
+        (MessageVersion::ProtoBuf, wrapper.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

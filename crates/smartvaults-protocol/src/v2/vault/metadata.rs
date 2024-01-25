@@ -8,7 +8,7 @@ use prost::Message;
 
 use super::{Vault, VaultIdentifier};
 use crate::v2::constants::VAULT_METADATA_KIND_V2;
-use crate::v2::message::{EncodingVersion, ProtocolEncoding, ProtocolEncryption};
+use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::vault::ProtoVaultMetadata;
 use crate::v2::Error;
 
@@ -57,9 +57,9 @@ impl VaultMetadata {
 impl ProtocolEncoding for VaultMetadata {
     type Err = Error;
 
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>) {
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
         let vault: ProtoVaultMetadata = self.into();
-        (EncodingVersion::ProtoBuf, vault.encode_to_vec())
+        (MessageVersion::ProtoBuf, vault.encode_to_vec())
     }
 
     fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {

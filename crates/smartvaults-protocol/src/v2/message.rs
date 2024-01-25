@@ -4,7 +4,7 @@
 //! Smart Vaults Protocol Message
 //!
 //! ```notrust
-//! Encoding version (Protobuf, JSON, ...)        Encoded object
+//! Message version (Protobuf, JSON, ...)        Encoded object
 //!    |                                                 |
 //! |----||--------------------------------------------------------------|
 //! [0x01, 0x01, 0x00, 0xB4, 0xAA, 0x19 0xF4, 0x39, 0x00, 0x12, 0x21, ...]
@@ -18,9 +18,9 @@ use thiserror::Error;
 /// Protocol Message Error
 #[derive(Debug, Error)]
 pub enum ProtocolMessageError {
-    /// Unknown encoding version
-    #[error("unknown encoding version: {0}")]
-    UnknownEncodingVersion(u8),
+    /// Unknown message version
+    #[error("unknown message version: {0}")]
+    UnknownMessageVersion(u8),
     /// Invalid protocol schema
     #[error("invalid protocol message")]
     InvalidProtocolMessage,
@@ -29,26 +29,26 @@ pub enum ProtocolMessageError {
 /// Protocol Encoding Version
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
-pub enum EncodingVersion {
+pub enum MessageVersion {
     /// Protocol Buffers
     #[default]
     ProtoBuf = 0x01,
 }
 
-impl EncodingVersion {
-    /// Get [EncodingVersion] as `u8`
+impl MessageVersion {
+    /// Get [MessageVersion] as `u8`
     pub fn as_u8(&self) -> u8 {
         *self as u8
     }
 }
 
-impl TryFrom<u8> for EncodingVersion {
+impl TryFrom<u8> for MessageVersion {
     type Error = ProtocolMessageError;
 
     fn try_from(version: u8) -> Result<Self, Self::Error> {
         match version {
             0x01 => Ok(Self::ProtoBuf),
-            v => Err(ProtocolMessageError::UnknownEncodingVersion(v)),
+            v => Err(ProtocolMessageError::UnknownMessageVersion(v)),
         }
     }
 }
@@ -56,7 +56,7 @@ impl TryFrom<u8> for EncodingVersion {
 /// Smart Vaults Protocol Message
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ProtocolMessage<'a> {
-    version: EncodingVersion,
+    version: MessageVersion,
     data: &'a [u8],
 }
 
@@ -71,7 +71,7 @@ impl<'a> ProtocolMessage<'a> {
     fn decode(payload: &'a [u8]) -> Result<Self, ProtocolMessageError> {
         // Check if payload is >= 3 (encoding version + at least 2 byte of data)
         if payload.len() >= 3 {
-            let version: EncodingVersion = EncodingVersion::try_from(payload[0])?;
+            let version: MessageVersion = MessageVersion::try_from(payload[0])?;
             Ok(ProtocolMessage {
                 version,
                 data: &payload[1..],
@@ -89,7 +89,7 @@ pub trait ProtocolEncoding: Sized {
 
     /// Encode protocol message
     fn encode(&self) -> Vec<u8> {
-        let (version, data): (EncodingVersion, Vec<u8>) = self.pre_encoding();
+        let (version, data): (MessageVersion, Vec<u8>) = self.pre_encoding();
         let message: ProtocolMessage = ProtocolMessage {
             version,
             data: &data,
@@ -98,7 +98,7 @@ pub trait ProtocolEncoding: Sized {
     }
 
     /// Pre-encoding of protocol message
-    fn pre_encoding(&self) -> (EncodingVersion, Vec<u8>);
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>);
 
     /// Decode `payload`
     fn decode<T>(payload: T) -> Result<Self, Self::Err>
@@ -109,7 +109,7 @@ pub trait ProtocolEncoding: Sized {
         let ProtocolMessage { version, data } = ProtocolMessage::decode(payload.as_ref())?;
 
         match version {
-            EncodingVersion::ProtoBuf => Self::decode_protobuf(data),
+            MessageVersion::ProtoBuf => Self::decode_protobuf(data),
         }
     }
 
