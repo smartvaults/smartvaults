@@ -268,6 +268,12 @@ pub enum VaultCommand {
     },
     /// Get vault invites
     Invites,
+    /// Accept vault invite
+    AcceptInvite {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+    },
     /// Update vault metadata
     Metadata {
         /// Vault ID

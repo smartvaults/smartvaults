@@ -388,6 +388,11 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 util::print_vaults_invites(invites);
                 Ok(())
             }
+            VaultCommand::AcceptInvite { vault_id } => {
+                client.accept_vault_invite(&vault_id).await?;
+                println!("Vault invite accepted!");
+                Ok(())
+            }
             VaultCommand::Metadata {
                 vault_id,
                 name,
