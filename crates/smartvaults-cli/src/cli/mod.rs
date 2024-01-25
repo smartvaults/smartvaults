@@ -435,6 +435,18 @@ pub enum SetCommand {
         #[arg(long)]
         empty: bool,
     },
+    /// Set vault metadata
+    VaultMetadata {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+        // Vault name
+        #[arg(short, long)]
+        name: Option<String>,
+        /// Vault description
+        #[arg(short, long)]
+        description: Option<String>,
+    },
     /// Set label
     Label {
         /// Vault ID

@@ -582,6 +582,16 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
 
                 Ok(())
             }
+            SetCommand::VaultMetadata {
+                vault_id,
+                name,
+                description,
+            } => {
+                client
+                    .edit_vault_metadata(&vault_id, name, description)
+                    .await?;
+                Ok(())
+            }
             SetCommand::Label {
                 vault_id,
                 data,
