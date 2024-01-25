@@ -421,6 +421,18 @@ impl SmartVaultsStorage {
             .collect()
     }
 
+    /// Get [VaultInvite]
+    pub async fn vault_invite(&self, vault_id: &VaultIdentifier) -> Result<VaultInvite, Error> {
+        let vault_invites = self.vault_invites.read().await;
+        vault_invites.get(vault_id).cloned().ok_or(Error::NotFound)
+    }
+
+    /// Delete [VaultInvite]
+    pub async fn delete_vault_invite(&self, vault_id: &VaultIdentifier) -> bool {
+        let mut vault_invites = self.vault_invites.write().await;
+        vault_invites.remove(vault_id).is_some()
+    }
+
     pub async fn save_proposal(&self, proposal_id: ProposalIdentifier, proposal: Proposal) {
         let mut proposals = self.proposals.write().await;
         proposals.insert(proposal_id, proposal);

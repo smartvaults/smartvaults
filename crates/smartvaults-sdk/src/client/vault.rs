@@ -187,10 +187,16 @@ impl SmartVaults {
     }
 
     /// Accept a vault invite
-    pub async fn accept_vault_invite(&self, invite: VaultInvite) -> Result<(), Error> {
+    pub async fn accept_vault_invite(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
+        let invite: VaultInvite = self.storage.vault_invite(vault_id).await?;
         self.internal_save_vault(invite.vault, None).await?;
-        // TODO: delete invite
+        self.storage.delete_vault_invite(vault_id).await;
         Ok(())
+    }
+
+    /// Delete a vault invite
+    pub async fn delete_vault_invite(&self, vault_id: &VaultIdentifier) -> bool {
+        self.storage.delete_vault_invite(vault_id).await
     }
 
     /// Get members of [Vault]
