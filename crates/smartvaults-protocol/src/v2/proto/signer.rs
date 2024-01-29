@@ -5,5 +5,6 @@ include!(concat!(env!("OUT_DIR"), "/signer.rs"));
 
 pub use self::{
     DescriptorKeyValue as ProtoDescriptor, Purpose as ProtoPurpose,
-    SharedSigner as ProtoSharedSigner, Signer as ProtoSigner, SignerType as ProtoSignerType,
+    SharedSigner as ProtoSharedSigner, SharedSignerInvite as ProtoSharedSignerInvite,
+    Signer as ProtoSigner, SignerType as ProtoSignerType,
 };

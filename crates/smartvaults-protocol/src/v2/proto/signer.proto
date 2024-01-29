@@ -43,3 +43,10 @@ message SharedSigner {
   string receiver = 5;
   fixed64 timestamp = 6;
 }
+
+message SharedSignerInvite {
+  signer.SharedSigner shared_signer = 1;
+  optional string sender = 2;
+  string message = 3;
+  fixed64 timestamp = 4;
+}

@@ -11,11 +11,13 @@ use smartvaults_core::crypto::hash;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::CoreSigner;
 
+pub mod invite;
+
+pub use self::invite::SharedSignerInvite;
 use super::SignerIdentifier;
-use crate::v2::constants::{SHARED_SIGNER_KIND_V2, WRAPPER_EXIPRATION, WRAPPER_KIND};
+use crate::v2::constants::SHARED_SIGNER_KIND_V2;
 use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use crate::v2::proto::signer::ProtoSharedSigner;
-use crate::v2::wrapper::Wrapper;
 use crate::v2::{Error, NostrPublicIdentifier};
 
 /// Shared Signer
@@ -102,34 +104,6 @@ impl ProtocolEncoding for SharedSigner {
 
 impl ProtocolEncryption for SharedSigner {
     type Err = Error;
-}
-
-/// Build [SharedSigner] invitation [`Event`]
-pub fn build_invitation_event(
-    shared_signer: &SharedSigner,
-    sender: Option<XOnlyPublicKey>,
-) -> Result<Event, Error> {
-    // Compose wrapper
-    let wrapper: Wrapper = Wrapper::SharedSignerInvite {
-        shared_signer: shared_signer.clone(),
-        sender,
-    };
-
-    // Encrypt
-    let keys = Keys::generate();
-    let encrypted_content: String =
-        wrapper.encrypt(&keys.secret_key()?, &shared_signer.receiver)?;
-
-    // Compose and sign event
-    Ok(EventBuilder::new(
-        WRAPPER_KIND,
-        encrypted_content,
-        [
-            Tag::public_key(shared_signer.receiver),
-            Tag::Expiration(Timestamp::now() + WRAPPER_EXIPRATION),
-        ],
-    )
-    .to_event(&keys)?)
 }
 
 /// Build [SharedSigner] event (used to accept an invitation)

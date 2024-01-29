@@ -11,9 +11,10 @@ use smartvaults_core::miniscript::DescriptorPublicKey;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{CoreSigner, Purpose, SignerType};
 
-use super::{SharedSigner, Signer};
+use super::{SharedSigner, SharedSignerInvite, Signer};
 use crate::v2::proto::signer::{
-    ProtoDescriptor, ProtoPurpose, ProtoSharedSigner, ProtoSigner, ProtoSignerType,
+    ProtoDescriptor, ProtoPurpose, ProtoSharedSigner, ProtoSharedSignerInvite, ProtoSigner,
+    ProtoSignerType,
 };
 use crate::v2::{Error, NetworkMagic};
 
@@ -182,5 +183,37 @@ impl TryFrom<ProtoSharedSigner> for SharedSigner {
             CoreSigner::unknown(fingerprint, descriptors, *network)?,
             Timestamp::from(value.timestamp),
         ))
+    }
+}
+
+impl From<&SharedSignerInvite> for ProtoSharedSignerInvite {
+    fn from(invite: &SharedSignerInvite) -> Self {
+        Self {
+            shared_signer: Some(invite.shared_signer().into()),
+            sender: invite.sender().map(|p| p.to_string()),
+            message: invite.message().to_string(),
+            timestamp: invite.timestamp.as_u64(),
+        }
+    }
+}
+
+impl TryFrom<ProtoSharedSignerInvite> for SharedSignerInvite {
+    type Error = Error;
+
+    fn try_from(invite: ProtoSharedSignerInvite) -> Result<Self, Self::Error> {
+        let shared_signer: ProtoSharedSigner = invite
+            .shared_signer
+            .ok_or(Error::NotFound(String::from("shared signer")))?;
+        let shared_signer: SharedSigner = SharedSigner::try_from(shared_signer)?;
+        let sender: Option<XOnlyPublicKey> = match invite.sender {
+            Some(public_key) => Some(XOnlyPublicKey::from_str(&public_key)?),
+            None => None,
+        };
+        Ok(Self {
+            shared_signer,
+            sender,
+            message: invite.message,
+            timestamp: Timestamp::from(invite.timestamp),
+        })
     }
 }

@@ -6,26 +6,22 @@
 //! The Wrapper is used to send data without leaking metadata to the public
 
 use prost::Message;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 mod proto;
 
 use super::proto::wrapper::ProtoWrapper;
+use super::signer::shared::invite::SharedSignerInvite;
 use super::vault::VaultInvite;
-use super::{Error, SharedSigner};
+use super::Error;
 use crate::v2::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 
 /// Smart Vaults Wrapper
 pub enum Wrapper {
     /// Vault invite
     VaultInvite(VaultInvite),
+    // VaultInviteAccepted
     /// Shared Signer invite
-    SharedSignerInvite {
-        /// Shared Signer
-        shared_signer: SharedSigner,
-        /// Invite sender
-        sender: Option<XOnlyPublicKey>,
-    },
+    SharedSignerInvite(SharedSignerInvite),
 }
 
 impl ProtocolEncoding for Wrapper {

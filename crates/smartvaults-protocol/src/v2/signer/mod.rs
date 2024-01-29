@@ -23,7 +23,7 @@ mod proto;
 pub mod shared;
 
 pub use self::id::SignerIdentifier;
-pub use self::shared::SharedSigner;
+pub use self::shared::{SharedSigner, SharedSignerInvite};
 use super::constants::SIGNER_KIND_V2;
 use super::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
 use super::NostrPublicIdentifier;
