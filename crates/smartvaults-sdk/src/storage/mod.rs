@@ -309,6 +309,7 @@ impl SmartVaultsStorage {
                     let vault_id = invite.vault.id();
                     if !vaults.contains_key(&vault_id) && !vault_invites.contains_key(&vault_id) {
                         vault_invites.insert(vault_id, invite);
+                        return Ok(Some(EventHandled::VaultInvite(vault_id)));
                     }
                 }
                 _ => todo!(),

@@ -31,6 +31,7 @@ pub enum EventHandled {
     SharedKey(EventId),
     Vault(VaultIdentifier),
     VaultMetadata(VaultIdentifier),
+    VaultInvite(VaultIdentifier),
     Proposal(ProposalIdentifier),
     Approval {
         vault_id: VaultIdentifier,
