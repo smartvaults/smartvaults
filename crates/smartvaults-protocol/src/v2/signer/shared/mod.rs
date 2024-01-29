@@ -75,6 +75,15 @@ impl SharedSigner {
         self.timestamp
     }
 
+    /// Consume [SharedSigner] and create invite
+    pub fn to_invite<S>(self, message: S) -> SharedSignerInvite
+    where
+        S: Into<String>,
+    {
+        let sender: XOnlyPublicKey = self.owner;
+        SharedSignerInvite::new(self, Some(sender), message)
+    }
+
     /// Generate deterministic Nostr Public Identifier
     pub fn nostr_public_identifier(&self) -> NostrPublicIdentifier {
         let unhashed: String = format!(
