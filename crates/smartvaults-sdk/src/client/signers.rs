@@ -7,7 +7,7 @@ use nostr_sdk::prelude::*;
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_protocol::v2::constants::{SHARED_SIGNER_KIND_V2, SIGNER_KIND_V2};
 use smartvaults_protocol::v2::{
-    self, NostrPublicIdentifier, SharedSigner, Signer, SignerIdentifier,
+    self, NostrPublicIdentifier, SharedSigner, SharedSignerInvite, Signer, SignerIdentifier,
 };
 
 use super::{Error, SmartVaults};
@@ -98,21 +98,30 @@ impl SmartVaults {
         Err(Error::SignerNotFound)
     }
 
-    pub async fn share_signer(
+    /// Create shared signer and send invite to receiver
+    pub async fn share_signer<S>(
         &self,
         signer_id: &SignerIdentifier,
         receiver: PublicKey,
-    ) -> Result<EventId, Error> {
-        let keys: &Keys = self.keys();
+        message: S,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        // Get signer
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
-        let _shared_signer: SharedSigner = signer.to_shared(keys.public_key(), receiver);
 
-        todo!();
+        // Build shared signer
+        let shared_signer: SharedSigner = signer.to_shared(self.keys.public_key(), receiver);
 
-        // self.storage
-        // .save_my_shared_signer(signer_id, event_id, public_key)
-        // .await;
-        // Ok(event_id)
+        // Compose invite
+        let invite: SharedSignerInvite = shared_signer.to_invite(message);
+
+        // Compose and publish event
+        let event: Event = v2::signer::shared::invite::build_event(invite, receiver)?;
+        self.client.send_event(event).await?;
+
+        Ok(())
     }
 
     pub async fn delete_shared_signer(

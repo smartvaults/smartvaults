@@ -544,7 +544,9 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 let signer_id = client.save_smartvaults_signer().await?;
                 if share_with_contacts {
                     for user in client.get_contacts().await? {
-                        client.share_signer(&signer_id, user.public_key()).await?;
+                        client
+                            .share_signer(&signer_id, user.public_key(), "")
+                            .await?;
                     }
                 }
                 Ok(())
@@ -633,12 +635,11 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 signer_id,
                 public_key,
             } => {
-                let shared_signer_id = client.share_signer(&signer_id, public_key).await?;
+                client.share_signer(&signer_id, public_key, "").await?;
                 println!(
-                    "Signer {signer_id} shared with {}",
+                    "Shared signerigner invite sent to {}",
                     smartvaults_sdk::util::cut_public_key(public_key)
                 );
-                println!("Shared Signer ID: {shared_signer_id}");
                 Ok(())
             }
         },
