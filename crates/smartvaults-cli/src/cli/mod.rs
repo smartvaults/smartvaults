@@ -163,7 +163,7 @@ pub enum Command {
         #[clap(short, long, default_value_t = 6)]
         target_blocks: u8,
     },
-    /// Approve a spending proposal
+    /// Approve proposal
     Approve {
         /// Proposal ID
         #[arg(required = true)]
@@ -299,6 +299,12 @@ pub enum VaultCommand {
     List,
     /// Delete vault
     Delete {
+        /// Vault ID
+        #[arg(required = true)]
+        vault_id: VaultIdentifier,
+    },
+    /// Get members of vaults
+    Members {
         /// Vault ID
         #[arg(required = true)]
         vault_id: VaultIdentifier,

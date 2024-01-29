@@ -426,6 +426,11 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
             VaultCommand::Delete { vault_id } => Ok(client.delete_vault_by_id(&vault_id).await?),
+            VaultCommand::Members { vault_id } => {
+                let members = client.get_members_of_vault(&vault_id).await?;
+                util::print_profiles(members);
+                Ok(())
+            }
         },
         Command::Proof { command } => match command {
             ProofCommand::New { .. } => {
@@ -556,7 +561,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
         Command::Get { command } => match command {
             GetCommand::Contacts => {
                 let contacts = client.get_contacts().await?;
-                util::print_contacts(contacts);
+                util::print_profiles(contacts);
                 Ok(())
             }
             GetCommand::Proposals { all, completed } => {

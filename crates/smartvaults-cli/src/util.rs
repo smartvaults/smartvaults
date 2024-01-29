@@ -65,7 +65,7 @@ pub fn print_secrets(keychain: Keychain, network: Network) -> Result<()> {
     Ok(())
 }
 
-pub fn print_contacts(contacts: BTreeSet<Profile>) {
+pub fn print_profiles(profiles: BTreeSet<Profile>) {
     let mut table = Table::new();
 
     table.set_titles(row![
@@ -76,7 +76,7 @@ pub fn print_contacts(contacts: BTreeSet<Profile>) {
         "NIP-05",
     ]);
 
-    for (index, user) in contacts.into_iter().enumerate() {
+    for (index, user) in profiles.into_iter().enumerate() {
         let metadata = user.metadata();
         table.add_row(row![
             index + 1,
