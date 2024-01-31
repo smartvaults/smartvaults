@@ -10,13 +10,12 @@ use std::sync::Arc;
 use nostr_sdk::prelude::*;
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_protocol::v1::constants::{
-    KEY_AGENT_VERIFIED, SHARED_SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
-    SMARTVAULTS_TESTNET_PUBLIC_KEY,
+    KEY_AGENT_VERIFIED, SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
 use smartvaults_protocol::v1::{Label, LabelData, LabelKind, VerifiedKeyAgents};
 use smartvaults_protocol::v2::constants::{
-    APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2, VAULT_METADATA_KIND_V2,
-    WRAPPER_KIND,
+    APPROVAL_KIND_V2, PROPOSAL_KIND_V2, SHARED_SIGNER_KIND_V2, SIGNER_KIND_V2, VAULT_KIND_V2,
+    VAULT_METADATA_KIND_V2, WRAPPER_KIND,
 };
 use smartvaults_protocol::v2::{
     Approval, NostrPublicIdentifier, Proposal, ProposalIdentifier, ProtocolEncryption,
@@ -135,6 +134,7 @@ impl SmartVaultsStorage {
         }
 
         // Step 3: get other events
+        let author_filter: Filter = Filter::new().author(this.keys.public_key());
         let pubkey_filter: Filter = Filter::new().pubkey(this.keys.public_key());
         let smartvaults: Filter = Filter::new()
             .author(match network {
@@ -144,7 +144,7 @@ impl SmartVaultsStorage {
             .kind(KEY_AGENT_VERIFIED);
         for event in this
             .database
-            .query(vec![pubkey_filter, smartvaults], Order::Asc)
+            .query(vec![author_filter, pubkey_filter, smartvaults], Order::Asc)
             .await?
             .into_iter()
         {
@@ -252,7 +252,7 @@ impl SmartVaultsStorage {
                 e.insert(signer);
             }
             return Ok(Some(EventHandled::Signer(event.id)));
-        } else if event.kind == SHARED_SIGNERS_KIND {
+        } else if event.kind == SHARED_SIGNER_KIND_V2 {
             if event.author() == self.keys.public_key() {
                 // TODO: add private encrypted list of signers shared with who and when
             } else {
