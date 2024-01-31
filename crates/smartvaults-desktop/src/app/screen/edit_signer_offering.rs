@@ -136,7 +136,7 @@ impl State for EditSignerOfferingState {
                     .map(|s| (s.signer.signer_id, s.offering))
                     .collect();
                 client
-                    .get_signers()
+                    .signers()
                     .await
                     .into_iter()
                     .map(|p| {

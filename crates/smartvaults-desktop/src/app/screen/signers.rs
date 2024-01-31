@@ -50,7 +50,7 @@ impl State for SignersState {
         let mode = ctx.mode;
         Command::perform(
             async move {
-                let signers = client.get_signers().await;
+                let signers = client.signers().await;
                 let shared_signers = match mode {
                     Mode::User => client.get_shared_signers().await.unwrap(),
                     Mode::KeyAgent => Vec::new(),

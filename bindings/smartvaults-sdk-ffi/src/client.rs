@@ -580,10 +580,10 @@ impl SmartVaults {
         block_on(async move { Ok(Arc::new(self.inner.save_smartvaults_signer().await?.into())) })
     }
 
-    pub fn get_signers(&self) -> Vec<Arc<GetSigner>> {
+    pub fn signers(&self) -> Vec<Arc<GetSigner>> {
         block_on(async move {
             self.inner
-                .get_signers()
+                .signers()
                 .await
                 .into_iter()
                 .map(|s| Arc::new(s.into()))

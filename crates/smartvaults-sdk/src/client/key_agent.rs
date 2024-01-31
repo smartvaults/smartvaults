@@ -111,7 +111,7 @@ impl SmartVaults {
 
         // Get signers
         let signers: HashMap<String, Signer> = self
-            .get_signers()
+            .signers()
             .await
             .into_iter()
             .map(|signer| (signer.nostr_public_identifier().to_string(), signer))

@@ -24,7 +24,7 @@ async fn main() {
     // Save default Smart Vaults signer (only the first time)
     let signer_id = client.save_smartvaults_signer().await.unwrap();
 
-    // Get signer by id (or use client.get_signers to get all your signers)
+    // Get signer by id (or use client.signers to get all your signers)
     let signer = client.get_signer_by_id(&signer_id).await.unwrap();
     let template = PolicyTemplate::hold(
         signer

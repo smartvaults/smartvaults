@@ -69,7 +69,7 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signers(&self) -> BTreeSet<Signer> {
+    pub async fn signers(&self) -> BTreeSet<Signer> {
         self.storage.signers().await.into_values().collect()
     }
 
