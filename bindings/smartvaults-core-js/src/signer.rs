@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use smartvaults_core::bips::bip48::ScriptType;
 use smartvaults_core::bitcoin::bip32::Fingerprint;
+use smartvaults_core::miniscript::DescriptorPublicKey;
 use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, SignerType};
 use wasm_bindgen::prelude::*;
 
@@ -14,6 +15,7 @@ use crate::descriptor::JsDescriptorPublicKey;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
+#[derive(Clone, Copy)]
 #[wasm_bindgen(js_name = Purpose)]
 pub enum JsPurpose {
     /// BIP44 - P2PKH
@@ -62,6 +64,26 @@ impl From<JsPurpose> for Purpose {
             JsPurpose::BIP49 => Self::BIP49,
             JsPurpose::BIP84 => Self::BIP84,
             JsPurpose::BIP86 => Self::BIP86,
+        }
+    }
+}
+
+impl From<Purpose> for JsPurpose {
+    fn from(value: Purpose) -> Self {
+        match value {
+            Purpose::BIP44 => Self::BIP44,
+            Purpose::BIP48 {
+                script: ScriptType::P2SHWSH,
+            } => Self::BIP48_1,
+            Purpose::BIP48 {
+                script: ScriptType::P2WSH,
+            } => Self::BIP48_2,
+            Purpose::BIP48 {
+                script: ScriptType::P2TR,
+            } => Self::BIP48_3,
+            Purpose::BIP49 => Self::BIP49,
+            Purpose::BIP84 => Self::BIP84,
+            Purpose::BIP86 => Self::BIP86,
         }
     }
 }
@@ -125,6 +147,22 @@ impl JsColdcardGenericJson {
     }
 }
 
+#[wasm_bindgen(js_name = SignerDescriptor)]
+pub struct JsSignerDescriptor {
+    pub purpose: JsPurpose,
+    #[wasm_bindgen(getter_with_clone)]
+    pub descriptor: JsDescriptorPublicKey,
+}
+
+impl From<(Purpose, DescriptorPublicKey)> for JsSignerDescriptor {
+    fn from((purpose, desc): (Purpose, DescriptorPublicKey)) -> Self {
+        Self {
+            purpose: purpose.into(),
+            descriptor: desc.into(),
+        }
+    }
+}
+
 #[wasm_bindgen(js_name = CoreSigner)]
 pub struct JsCoreSigner {
     inner: CoreSigner,
@@ -183,6 +221,10 @@ impl JsCoreSigner {
         })
     }
 
+    pub fn fingerprint(&self) -> String {
+        self.inner.fingerprint().to_string()
+    }
+
     #[wasm_bindgen(js_name = signerType)]
     pub fn signer_type(&self) -> JsSignerType {
         self.inner.r#type().into()
@@ -190,6 +232,19 @@ impl JsCoreSigner {
 
     pub fn network(&self) -> JsNetwork {
         self.inner.network().into()
+    }
+
+    pub fn descriptors(&self) -> Vec<JsSignerDescriptor> {
+        self.inner
+            .descriptors()
+            .clone()
+            .into_iter()
+            .map(|d| d.into())
+            .collect()
+    }
+
+    pub fn descriptor(&self, purpose: JsPurpose) -> Option<JsDescriptorPublicKey> {
+        self.inner.descriptor(purpose.into()).map(|d| d.into())
     }
 
     #[wasm_bindgen(js_name = addDescriptor)]

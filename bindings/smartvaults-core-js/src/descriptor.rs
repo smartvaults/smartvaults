@@ -42,6 +42,7 @@ impl JsDescriptor {
     }
 }
 
+#[derive(Clone)]
 #[wasm_bindgen(js_name = DescriptorPublicKey)]
 pub struct JsDescriptorPublicKey {
     inner: DescriptorPublicKey,
@@ -52,6 +53,12 @@ impl Deref for JsDescriptorPublicKey {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl From<DescriptorPublicKey> for JsDescriptorPublicKey {
+    fn from(inner: DescriptorPublicKey) -> Self {
+        Self { inner }
     }
 }
 
