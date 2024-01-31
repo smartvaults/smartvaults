@@ -130,6 +130,14 @@ pub struct JsCoreSigner {
     inner: CoreSigner,
 }
 
+impl Deref for JsCoreSigner {
+    type Target = CoreSigner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 #[wasm_bindgen(js_class = CoreSigner)]
 impl JsCoreSigner {
     /// Create new **empty** signer (without descriptors)

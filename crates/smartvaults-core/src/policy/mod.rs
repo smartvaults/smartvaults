@@ -90,7 +90,6 @@ pub enum Error {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-//#[serde(rename_all = "snake_case")]
 pub struct SelectableCondition {
     pub path: String,
     pub thresh: usize,
@@ -98,15 +97,42 @@ pub struct SelectableCondition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-//#[serde(rename_all = "snake_case")]
 pub enum PolicyPathSelector {
     Complete {
+        /// Key: path, Value: sub paths indexes
         path: BTreeMap<String, Vec<usize>>,
     },
     Partial {
         selected_path: BTreeMap<String, Vec<usize>>,
         missing_to_select: BTreeMap<String, Vec<String>>,
     },
+}
+
+impl PolicyPathSelector {
+    pub fn is_complete(&self) -> bool {
+        matches!(self, Self::Complete { .. })
+    }
+
+    pub fn is_partial(&self) -> bool {
+        matches!(self, Self::Partial { .. })
+    }
+
+    pub fn selected_path(&self) -> &BTreeMap<String, Vec<usize>> {
+        match self {
+            PolicyPathSelector::Complete { path } => path,
+            PolicyPathSelector::Partial { selected_path, .. } => selected_path,
+        }
+    }
+
+    /// Missing paths to select
+    pub fn missing_to_select(&self) -> Option<&BTreeMap<String, Vec<String>>> {
+        match self {
+            PolicyPathSelector::Complete { .. } => None,
+            PolicyPathSelector::Partial {
+                missing_to_select, ..
+            } => Some(missing_to_select),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

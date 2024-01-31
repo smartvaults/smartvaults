@@ -5,7 +5,7 @@ use core::ops::Deref;
 use core::str::FromStr;
 
 use smartvaults_core::bitcoin::bip32::Fingerprint;
-use smartvaults_core::policy::Policy;
+use smartvaults_core::policy::{Policy, PolicyPathSelector};
 use smartvaults_core::SelectableCondition;
 use wasm_bindgen::prelude::*;
 
@@ -15,6 +15,83 @@ use self::template::{JsPolicyTemplate, JsPolicyTemplateType};
 use crate::descriptor::JsDescriptor;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
+use crate::signer::JsCoreSigner;
+
+#[wasm_bindgen(js_name = PolicyPathSelectedItem)]
+pub struct JsPolicyPathSelectedItem {
+    #[wasm_bindgen(getter_with_clone)]
+    pub path: String,
+    /// Sub paths indexes
+    #[wasm_bindgen(getter_with_clone)]
+    pub indexes: Vec<usize>,
+}
+
+impl From<(String, Vec<usize>)> for JsPolicyPathSelectedItem {
+    fn from((path, indexes): (String, Vec<usize>)) -> Self {
+        Self { path, indexes }
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPathMissingToSelectedItem)]
+pub struct JsPolicyPathMissingToSelectedItem {
+    #[wasm_bindgen(getter_with_clone)]
+    pub path: String,
+    #[wasm_bindgen(getter_with_clone)]
+    pub sub_paths: Vec<String>,
+}
+
+impl From<(String, Vec<String>)> for JsPolicyPathMissingToSelectedItem {
+    fn from((path, sub_paths): (String, Vec<String>)) -> Self {
+        Self { path, sub_paths }
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPathSelector)]
+pub struct JsPolicyPathSelector {
+    inner: PolicyPathSelector,
+}
+
+impl From<PolicyPathSelector> for JsPolicyPathSelector {
+    fn from(inner: PolicyPathSelector) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = PolicyPathSelector)]
+impl JsPolicyPathSelector {
+    #[wasm_bindgen(js_name = isComplete)]
+    pub fn is_complete(&self) -> bool {
+        self.inner.is_complete()
+    }
+
+    #[wasm_bindgen(js_name = isPartial)]
+    pub fn is_partial(&self) -> bool {
+        self.inner.is_partial()
+    }
+
+    /// Selected path
+    #[wasm_bindgen(js_name = selectedPath)]
+    pub fn selected_path(&self) -> Vec<JsPolicyPathSelectedItem> {
+        self.inner
+            .selected_path()
+            .clone()
+            .into_iter()
+            .map(|i| i.into())
+            .collect()
+    }
+
+    /// Missing paths to select
+    #[wasm_bindgen(js_name = missingToSelect)]
+    pub fn missing_to_select(&self) -> Vec<JsPolicyPathMissingToSelectedItem> {
+        self.inner
+            .missing_to_select()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|i| i.into())
+            .collect()
+    }
+}
 
 #[wasm_bindgen(js_name = Policy)]
 pub struct JsPolicy {
@@ -143,7 +220,17 @@ impl JsPolicy {
 
     // TODO: add search_used_signers
 
-    // TODO: add get_policy_path_from_signer
+    #[wasm_bindgen(js_name = getPolicyPathFromSigner)]
+    pub fn get_policy_path_from_signer(
+        &self,
+        signer: &JsCoreSigner,
+    ) -> Result<Option<JsPolicyPathSelector>> {
+        Ok(self
+            .inner
+            .get_policy_path_from_signer(signer.deref())
+            .map_err(into_err)?
+            .map(|s| s.into()))
+    }
 
     // TODO: add get_policy_paths_from_signers
 
