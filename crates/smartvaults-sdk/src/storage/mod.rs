@@ -253,25 +253,21 @@ impl SmartVaultsStorage {
             }
             return Ok(Some(EventHandled::Signer(event.id)));
         } else if event.kind == SHARED_SIGNER_KIND_V2 {
-            if event.author() == self.keys.public_key() {
-                // TODO: add private encrypted list of signers shared with who and when
-            } else {
-                let mut shared_signers = self.shared_signers.write().await;
-                let shared_signer_id = event.identifier().ok_or(Error::SharedSignerIdNotFound)?;
-                let id = NostrPublicIdentifier::from_str(shared_signer_id)?;
-                let shared_signer: SharedSigner =
-                    SharedSigner::decrypt_with_keys(self.keys, event.content())?;
-                shared_signers
-                    .entry(id)
-                    .and_modify(|s| {
-                        // Update only if newer timestamp
-                        if s.timestamp() < shared_signer.timestamp() {
-                            *s = shared_signer.clone();
-                        }
-                    })
-                    .or_insert(shared_signer);
-                return Ok(Some(EventHandled::SharedSigner(event.id)));
-            }
+            let mut shared_signers = self.shared_signers.write().await;
+            let shared_signer_id = event.identifier().ok_or(Error::SharedSignerIdNotFound)?;
+            let id = NostrPublicIdentifier::from_str(shared_signer_id)?;
+            let shared_signer: SharedSigner =
+                SharedSigner::decrypt_with_keys(self.keys, event.content())?;
+            shared_signers
+                .entry(id)
+                .and_modify(|s| {
+                    // Update only if newer timestamp
+                    if s.timestamp() < shared_signer.timestamp() {
+                        *s = shared_signer.clone();
+                    }
+                })
+                .or_insert(shared_signer);
+            return Ok(Some(EventHandled::SharedSigner(event.id)));
         } else if event.kind == Kind::EventDeletion {
             for event_id in event.event_ids() {
                 if let Ok(true) = self.database.has_event_id_been_deleted(event_id).await {
