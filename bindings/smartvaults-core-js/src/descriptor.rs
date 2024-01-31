@@ -75,4 +75,9 @@ impl JsDescriptorPublicKey {
             inner: DescriptorPublicKey::from_str(s).map_err(into_err)?,
         })
     }
+
+    #[wasm_bindgen(js_name = asString)]
+    pub fn as_string(&self) -> String {
+        self.inner.to_string()
+    }
 }
