@@ -19,7 +19,9 @@ use smartvaults_protocol::v1::constants::{
     KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED,
     SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
 };
-use smartvaults_protocol::v2::{ProposalIdentifier, ProposalType, VaultIdentifier};
+use smartvaults_protocol::v2::{
+    NostrPublicIdentifier, ProposalIdentifier, ProposalType, VaultIdentifier,
+};
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
@@ -39,8 +41,8 @@ pub enum EventHandled {
     },
     CompletedProposal(EventId),
     Signer(EventId),
-    MySharedSigner(EventId),
     SharedSigner(EventId),
+    SharedSignerInvite(NostrPublicIdentifier),
     Contacts,
     Metadata(PublicKey),
     NostrConnectRequest(EventId),

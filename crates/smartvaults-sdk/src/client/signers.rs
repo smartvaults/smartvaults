@@ -90,7 +90,7 @@ impl SmartVaults {
         Err(Error::SignerNotFound)
     }
 
-    /// Create shared signer and send invite to receiver
+    /// Create shared signer and **send invite** to receiver
     pub async fn share_signer<S>(
         &self,
         signer_id: &SignerIdentifier,
@@ -114,6 +114,44 @@ impl SmartVaults {
         self.client.send_event(event).await?;
 
         Ok(())
+    }
+
+    /// Get shared signer invites
+    pub async fn shared_signer_invites(&self) -> Result<Vec<SharedSignerInvite>, Error> {
+        let invites = self.storage.shared_signer_invites().await;
+        let mut invites: Vec<SharedSignerInvite> = invites.into_values().collect();
+        invites.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        Ok(invites)
+    }
+
+    /// Accept a shared signer invite
+    pub async fn accept_shared_signer_invite(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> Result<(), Error> {
+        // Get invite
+        let invite: SharedSignerInvite =
+            self.storage.shared_signer_invite(shared_signer_id).await?;
+
+        // Compose and publish event
+        let event: Event = v2::signer::shared::build_event(&self.keys, invite.shared_signer())?;
+        self.client.send_event(event).await?;
+
+        // Delete invite
+        self.storage
+            .delete_shared_signer_invite(shared_signer_id)
+            .await;
+        Ok(())
+    }
+
+    /// Delete a vault invite
+    pub async fn delete_shared_signer_invite(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> bool {
+        self.storage
+            .delete_shared_signer_invite(shared_signer_id)
+            .await
     }
 
     pub async fn delete_shared_signer(

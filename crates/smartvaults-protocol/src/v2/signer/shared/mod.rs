@@ -115,7 +115,7 @@ impl ProtocolEncryption for SharedSigner {
     type Err = Error;
 }
 
-/// Build [SharedSigner] event (used to accept an invitation)
+/// Build [SharedSigner] event
 ///
 /// Must use **own** [`Keys`] (not random or shared key)!
 pub fn build_event(keys: &Keys, shared_signer: &SharedSigner) -> Result<Event, Error> {

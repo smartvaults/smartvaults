@@ -20,8 +20,8 @@ use smartvaults_protocol::v2::constants::{
 };
 use smartvaults_protocol::v2::{
     Approval, NostrPublicIdentifier, Proposal, ProposalIdentifier, ProtocolEncryption,
-    SharedSigner, Signer, SignerIdentifier, Vault, VaultIdentifier, VaultInvite, VaultMetadata,
-    Wrapper,
+    SharedSigner, SharedSignerInvite, Signer, SignerIdentifier, Vault, VaultIdentifier,
+    VaultInvite, VaultMetadata, Wrapper,
 };
 use tokio::sync::RwLock;
 
@@ -66,6 +66,7 @@ pub(crate) struct SmartVaultsStorage {
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     signers: Arc<RwLock<HashMap<SignerIdentifier, Signer>>>,
     shared_signers: Arc<RwLock<HashMap<NostrPublicIdentifier, SharedSigner>>>,
+    shared_signer_invites: Arc<RwLock<HashMap<NostrPublicIdentifier, SharedSignerInvite>>>,
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
     frozed_utxos: Arc<RwLock<HashMap<VaultIdentifier, HashSet<OutPoint>>>>,
     verified_key_agents: Arc<RwLock<VerifiedKeyAgents>>,
@@ -96,6 +97,7 @@ impl SmartVaultsStorage {
             approvals: Arc::new(RwLock::new(HashMap::new())),
             signers: Arc::new(RwLock::new(HashMap::new())),
             shared_signers: Arc::new(RwLock::new(HashMap::new())),
+            shared_signer_invites: Arc::new(RwLock::new(HashMap::new())),
             labels: Arc::new(RwLock::new(HashMap::new())),
             frozed_utxos: Arc::new(RwLock::new(HashMap::new())),
             verified_key_agents: Arc::new(RwLock::new(VerifiedKeyAgents::empty(network))),
@@ -313,7 +315,17 @@ impl SmartVaultsStorage {
                         return Ok(Some(EventHandled::VaultInvite(vault_id)));
                     }
                 }
-                _ => todo!(),
+                Wrapper::SharedSignerInvite(invite) => {
+                    let shared_signers = self.shared_signers.read().await;
+                    let mut shared_signer_invites = self.shared_signer_invites.write().await;
+                    let shared_signer_id = invite.shared_signer.nostr_public_identifier(); // TODO: add/use SharedSignerIdentifier?
+                    if !shared_signers.contains_key(&shared_signer_id)
+                        && !shared_signer_invites.contains_key(&shared_signer_id)
+                    {
+                        shared_signer_invites.insert(shared_signer_id, invite);
+                        return Ok(Some(EventHandled::SharedSignerInvite(shared_signer_id)));
+                    }
+                }
             }
         }
 
@@ -571,6 +583,39 @@ impl SmartVaultsStorage {
             .iter()
             .map(|(id, shared_signer)| (*id, shared_signer.clone()))
             .collect()
+    }
+
+    /// Get shared signer invites
+    pub async fn shared_signer_invites(
+        &self,
+    ) -> HashMap<NostrPublicIdentifier, SharedSignerInvite> {
+        self.shared_signer_invites
+            .read()
+            .await
+            .iter()
+            .map(|(id, invite)| (*id, invite.clone()))
+            .collect()
+    }
+
+    /// Get [SharedSignerInvite]
+    pub async fn shared_signer_invite(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> Result<SharedSignerInvite, Error> {
+        let shared_signer_invites = self.shared_signer_invites.read().await;
+        shared_signer_invites
+            .get(shared_signer_id)
+            .cloned()
+            .ok_or(Error::NotFound)
+    }
+
+    /// Delete [SharedSignerInvite]
+    pub async fn delete_shared_signer_invite(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> bool {
+        let mut shared_signer_invites = self.shared_signer_invites.write().await;
+        shared_signer_invites.remove(shared_signer_id).is_some()
     }
 
     pub async fn get_shared_signers_public_keys(&self) -> HashSet<PublicKey> {
