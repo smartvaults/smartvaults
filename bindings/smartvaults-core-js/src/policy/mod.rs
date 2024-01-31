@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::*;
 
 pub mod template;
 
-use self::template::JsPolicyTemplate;
+use self::template::{JsPolicyTemplate, JsPolicyTemplateType};
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
@@ -141,4 +141,18 @@ impl JsPolicy {
     }
 
     // TODO: add search_used_signers
+
+    // TODO: add get_policy_path_from_signer
+
+    // TODO: add get_policy_paths_from_signers
+
+    /// Check if `Policy` match match any template
+    #[wasm_bindgen(js_name = templateMatch)]
+    pub fn template_match(&self) -> Result<Option<JsPolicyTemplateType>> {
+        Ok(self
+            .inner
+            .template_match()
+            .map_err(into_err)?
+            .map(|t| t.into()))
+    }
 }
