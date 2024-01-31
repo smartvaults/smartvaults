@@ -181,12 +181,6 @@ impl Deref for GetAddress {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct GetAllSigners {
-    pub my: Vec<Signer>,
-    pub contacts: Vec<GetSharedSigner>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyAgent {
     pub user: Profile,

@@ -580,8 +580,6 @@ impl SmartVaults {
         block_on(async move { Ok(Arc::new(self.inner.save_smartvaults_signer().await?.into())) })
     }
 
-    // TODO: add get_all_signers
-
     pub fn get_signers(&self) -> Vec<Arc<GetSigner>> {
         block_on(async move {
             self.inner

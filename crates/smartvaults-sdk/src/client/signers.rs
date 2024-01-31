@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use nostr_sdk::prelude::*;
 use smartvaults_core::miniscript::Descriptor;
@@ -11,7 +11,7 @@ use smartvaults_protocol::v2::{
 };
 
 use super::{Error, SmartVaults};
-use crate::types::{GetAllSigners, GetSharedSigner};
+use crate::types::GetSharedSigner;
 
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
@@ -66,19 +66,9 @@ impl SmartVaults {
         self.save_signer(self.default_signer.clone()).await
     }
 
-    /// Get all own signers and contacts shared signers
-    pub async fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
-        Ok(GetAllSigners {
-            my: self.get_signers().await,
-            contacts: self.get_shared_signers().await?,
-        })
-    }
-
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signers(&self) -> Vec<Signer> {
-        let mut list: Vec<Signer> = self.storage.signers().await.into_values().collect();
-        list.sort();
-        list
+    pub async fn get_signers(&self) -> BTreeSet<Signer> {
+        self.storage.signers().await.into_values().collect()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
