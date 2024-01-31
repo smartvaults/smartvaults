@@ -4,12 +4,13 @@
 use std::cmp::Ordering;
 use std::ops::Deref;
 
-use nostr_sdk::{PublicKey, Timestamp};
+use nostr_sdk::{EventId, PublicKey, Timestamp};
 use smartvaults_protocol::v1::Label;
 use smartvaults_protocol::v2::{Approval, Vault, VaultIdentifier, VaultMetadata};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InternalVault {
+    pub event_id: EventId,
     pub vault: Vault,
     pub metadata: VaultMetadata,
 }

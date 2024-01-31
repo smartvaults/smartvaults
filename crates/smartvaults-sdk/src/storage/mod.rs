@@ -165,6 +165,7 @@ impl SmartVaultsStorage {
                 let vault_id = vault.compute_id();
                 let shared_key = Keys::new(vault.shared_key());
                 let internal = InternalVault {
+                    event_id: event.id,
                     vault,
                     metadata: VaultMetadata::new(vault_id),
                 };
@@ -355,6 +356,7 @@ impl SmartVaultsStorage {
     /// Save [Vault] without [VaultMetadata]
     pub async fn save_vault(
         &self,
+        event_id: EventId,
         vault_id: VaultIdentifier,
         vault: Vault,
         metadata: Option<VaultMetadata>,
@@ -363,6 +365,7 @@ impl SmartVaultsStorage {
         vaults.insert(
             vault_id,
             InternalVault {
+                event_id,
                 vault,
                 metadata: metadata.unwrap_or_else(|| VaultMetadata::new(vault_id)),
             },

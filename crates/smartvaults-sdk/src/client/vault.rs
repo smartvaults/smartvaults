@@ -5,16 +5,13 @@ use std::collections::BTreeSet;
 use std::ops::Deref;
 use std::time::Duration;
 
-use nostr_sdk::database::Order;
 use nostr_sdk::{
-    Event, EventBuilder, Filter, Keys, Kind, NostrDatabaseExt, Profile, RelaySendOptions, Tag,
+    Event, EventBuilder, EventId, Filter, Keys, Kind, NostrDatabaseExt, Profile, RelaySendOptions,
+    Tag,
 };
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, PolicyTemplate};
-use smartvaults_protocol::v2::constants::VAULT_KIND_V2;
-use smartvaults_protocol::v2::{
-    self, NostrPublicIdentifier, Vault, VaultIdentifier, VaultInvite, VaultMetadata,
-};
+use smartvaults_protocol::v2::{self, Vault, VaultIdentifier, VaultInvite, VaultMetadata};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalVault;
@@ -27,7 +24,13 @@ impl SmartVaults {
         let items = self.storage.vaults().await;
         let mut vaults: Vec<GetVault> = Vec::with_capacity(items.len());
 
-        for (id, InternalVault { vault, metadata }) in items.into_iter() {
+        for (
+            id,
+            InternalVault {
+                vault, metadata, ..
+            },
+        ) in items.into_iter()
+        {
             vaults.push(GetVault {
                 vault,
                 metadata,
@@ -44,7 +47,9 @@ impl SmartVaults {
     /// Get vault by [VaultIdentifier]
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<GetVault, Error> {
-        let InternalVault { vault, metadata } = self.storage.vault(vault_id).await?;
+        let InternalVault {
+            vault, metadata, ..
+        } = self.storage.vault(vault_id).await?;
         Ok(GetVault {
             vault,
             metadata,
@@ -64,8 +69,10 @@ impl SmartVaults {
 
         // Compose and publish events
         let keys = self.keys();
+        let vault_event: Event = v2::vault::build_event(keys, &vault)?;
+        let event_id: EventId = vault_event.id;
         let mut events: Vec<Event> = Vec::with_capacity(1 + usize::from(metadata.is_some()));
-        events.push(v2::vault::build_event(keys, &vault)?);
+        events.push(vault_event);
         if let Some(metadata) = &metadata {
             events.push(v2::vault::metadata::build_event(&vault, metadata)?);
         }
@@ -79,7 +86,9 @@ impl SmartVaults {
         self.manager.load_policy(vault_id, policy).await?;
 
         // Index event
-        self.storage.save_vault(vault_id, vault, metadata).await;
+        self.storage
+            .save_vault(event_id, vault_id, vault, metadata)
+            .await;
 
         // Request events authored by the vault
         let filter = Filter::new().author(shared_key.public_key());
@@ -144,6 +153,7 @@ impl SmartVaults {
         let InternalVault {
             vault,
             mut metadata,
+            ..
         } = self.storage.vault(vault_id).await?;
 
         if let Some(name) = name {
@@ -238,28 +248,14 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn delete_vault_by_id(&self, vault_id: &VaultIdentifier) -> Result<(), Error> {
-        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
+        let InternalVault { event_id, .. } = self.storage.vault(vault_id).await?;
 
-        let keys = self.keys();
-        let nostr_public_identifier: NostrPublicIdentifier = vault.nostr_public_identifier(keys);
-
-        let filter: Filter = Filter::new()
-            .kind(VAULT_KIND_V2)
-            .author(keys.public_key())
-            .identifier(nostr_public_identifier.to_string())
-            .limit(1);
-        let res: Vec<Event> = self
-            .client
-            .database()
-            .query(vec![filter], Order::Desc)
-            .await?;
-        let vault_event: &Event = res.first().ok_or(Error::NotFound)?;
-
-        let event = self.client.database().event_by_id(vault_event.id).await?;
+        let event: Event = self.client.database().event_by_id(event_id).await?;
         let author = event.author();
+        let keys = self.keys();
         if author == keys.public_key() {
             // Delete policy
-            let builder = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(vault_event.id)]);
+            let builder = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(event_id)]);
             self.client.send_event_builder(builder).await?;
 
             self.storage.delete_vault(vault_id).await;
