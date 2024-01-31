@@ -1,6 +1,6 @@
 reorder_imports = true
 reorder_modules = true
-normalize_comments = true
+normalize_comments = false
 imports_granularity = "Module"
 reorder_impl_items = true
 group_imports = "StdExternalCrate"
