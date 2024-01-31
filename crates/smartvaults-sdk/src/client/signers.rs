@@ -52,14 +52,16 @@ impl SmartVaults {
         self.client.send_event(event).await?;
 
         // Index signer
-        let id: SignerIdentifier = signer.id();
+        let id: SignerIdentifier = signer.compute_id();
         self.storage.save_signer(id, signer).await;
 
         Ok(id)
     }
 
     pub async fn smartvaults_signer_exists(&self) -> bool {
-        self.storage.signer_exists(&self.default_signer.id()).await
+        self.storage
+            .signer_exists(&self.default_signer.compute_id())
+            .await
     }
 
     pub async fn save_smartvaults_signer(&self) -> Result<SignerIdentifier, Error> {

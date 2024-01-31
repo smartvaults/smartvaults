@@ -162,7 +162,7 @@ impl SmartVaultsStorage {
             let mut vaults = self.vaults.write().await;
             if let HashMapEntry::Vacant(e) = vaults_ids.entry(event.id) {
                 let vault: Vault = Vault::decrypt_with_keys(&self.keys, &event.content)?;
-                let vault_id = vault.id();
+                let vault_id = vault.compute_id();
                 let shared_key = Keys::new(vault.shared_key());
                 let internal = InternalVault {
                     vault,
@@ -194,7 +194,7 @@ impl SmartVaultsStorage {
                     // Decrypt proposal
                     let proposal: Proposal =
                         Proposal::decrypt_with_keys(shared_key, &event.content)?;
-                    let proposal_id = proposal.id();
+                    let proposal_id = proposal.compute_id();
 
                     // Froze UTXOs
                     if let Some(psbt) = proposal.psbt() {
@@ -245,7 +245,7 @@ impl SmartVaultsStorage {
         } else if event.kind == SIGNER_KIND_V2 {
             let mut signers = self.signers.write().await;
             let signer = Signer::decrypt_with_keys(&self.keys, &event.content)?;
-            if let HashMapEntry::Vacant(e) = signers.entry(signer.id()) {
+            if let HashMapEntry::Vacant(e) = signers.entry(signer.compute_id()) {
                 e.insert(signer);
             }
             return Ok(Some(EventHandled::Signer(event.id)));
@@ -306,7 +306,7 @@ impl SmartVaultsStorage {
                 Wrapper::VaultInvite(invite) => {
                     let vaults = self.vaults.read().await;
                     let mut vault_invites = self.vault_invites.write().await;
-                    let vault_id = invite.vault.id();
+                    let vault_id = invite.vault.compute_id();
                     if !vaults.contains_key(&vault_id) && !vault_invites.contains_key(&vault_id) {
                         vault_invites.insert(vault_id, invite);
                         return Ok(Some(EventHandled::VaultInvite(vault_id)));

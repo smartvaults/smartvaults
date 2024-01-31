@@ -283,7 +283,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     false,
                 )
                 .await?;
-            println!("Spending proposal {} sent", proposal.id());
+            println!("Spending proposal {} sent", proposal.compute_id());
             Ok(())
         }
         Command::SpendAll {
@@ -304,7 +304,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     false,
                 )
                 .await?;
-            println!("Spending proposal {} sent", proposal.id());
+            println!("Spending proposal {} sent", proposal.compute_id());
             Ok(())
         }
         Command::Approve { proposal_id } => {

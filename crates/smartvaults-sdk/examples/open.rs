@@ -36,7 +36,7 @@ async fn main() {
     // Create a new proposal
     let proposal = client
         .spend(
-            &vault.id(),
+            &vault.compute_id(),
             Destination::Single(Recipient {
                 address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")
                     .unwrap()
@@ -60,11 +60,14 @@ async fn main() {
     }
 
     // Approve a proposal
-    client.approve(&proposal.id(), "password").await.unwrap();
+    client
+        .approve(&proposal.compute_id(), "password")
+        .await
+        .unwrap();
     // other approvals ...
 
     // Finalize the proposal
-    client.finalize(&proposal.id()).await.unwrap();
+    client.finalize(&proposal.compute_id()).await.unwrap();
 
     // Shutdown the client (for logout)
     client.shutdown().await.unwrap();

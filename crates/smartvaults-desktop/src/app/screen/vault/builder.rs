@@ -410,7 +410,7 @@ fn view_signer_selector<'a>(state: &PolicyBuilderState, index: usize) -> Column<
 
     if let Some(user) = &state.profile {
         for signer in state.signers.iter() {
-            let signer_id = signer.id();
+            let signer_id = signer.compute_id();
             if let Ok(descriptor) = signer.descriptor_public_key() {
                 let row = Row::new()
                     .push(

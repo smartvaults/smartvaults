@@ -106,8 +106,8 @@ impl Vault {
         })
     }
 
-    /// Deterministic identifier
-    pub fn id(&self) -> VaultIdentifier {
+    /// Compute unique deterministic identifier
+    pub fn compute_id(&self) -> VaultIdentifier {
         VaultIdentifier::from(self.policy.as_descriptor())
     }
 

@@ -98,7 +98,7 @@ pub fn print_vault(
     utxos: Vec<GetUtxo>,
 ) {
     println!("{}", "\nVault".fg::<BlazeOrange>().underline());
-    println!("- ID: {}", vault.id());
+    println!("- ID: {}", vault.compute_id());
     println!("- Name: {}", &vault.metadata.name);
     println!("- Description: {}", vault.metadata.description);
 
@@ -339,7 +339,7 @@ where
         let shared_key = Keys::new(vault.shared_key());
         table.add_row(row![
             index + 1,
-            vault.id(),
+            vault.compute_id(),
             shared_key.public_key(),
             metadata.name,
             metadata.description,
@@ -361,7 +361,7 @@ where
     for (index, invite) in invites.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
-            invite.vault.id(),
+            invite.vault.compute_id(),
             invite
                 .sender()
                 .map_or_else(|| String::from("-"), |p| p.to_string()),
@@ -375,7 +375,7 @@ where
 pub fn print_proposal(proposal: GetProposal) {
     let GetProposal { proposal, .. } = proposal;
     println!();
-    println!("- Proposal ID: {}", proposal.id());
+    println!("- Proposal ID: {}", proposal.compute_id());
     println!("- Vault ID: {}", proposal.vault_id());
     println!("- Status: {}", proposal.status());
     println!("- Type: {}", proposal.r#type());
@@ -494,7 +494,7 @@ where
     for (index, signer) in signers.into_iter().enumerate() {
         table.add_row(row![
             index + 1,
-            signer.id(),
+            signer.compute_id(),
             signer.name(),
             signer.fingerprint(),
             signer.r#type(),

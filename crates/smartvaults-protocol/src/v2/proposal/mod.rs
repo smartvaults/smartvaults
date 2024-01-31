@@ -88,11 +88,11 @@ impl Proposal {
         }
     }
 
-    /// Generate unique deterministic identifier
+    /// Compute unique deterministic identifier
     ///
     /// WARNING: the deterministic identifier it's generated using the TXID
-    /// so if the TX inside the PSBT change, the deterministic identifer will be different.
-    pub fn id(&self) -> ProposalIdentifier {
+    /// so if the TX inside the PSBT change, the deterministic identifer will be different!
+    pub fn compute_id(&self) -> ProposalIdentifier {
         ProposalIdentifier::from((self.network, self.tx()))
     }
 
@@ -245,7 +245,7 @@ impl Proposal {
 
             Ok(Approval::new(
                 self.vault_id,
-                self.id(),
+                self.compute_id(),
                 psbt,
                 r#type,
                 self.network,
@@ -453,6 +453,6 @@ pub fn build_event(vault: &Vault, proposal: &Proposal) -> Result<Event, Error> {
     let encrypted_content: String = proposal.encrypt_with_keys(&keys)?;
 
     // Compose and build event
-    let identifier = Tag::Identifier(proposal.id().to_string());
+    let identifier = Tag::Identifier(proposal.compute_id().to_string());
     Ok(EventBuilder::new(PROPOSAL_KIND_V2, encrypted_content, [identifier]).to_event(&keys)?)
 }

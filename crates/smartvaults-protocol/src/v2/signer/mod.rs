@@ -103,11 +103,11 @@ impl Signer {
         Ok(Self::new(core))
     }
 
-    /// Generate unique deterministic identifier
+    /// Compute unique deterministic identifier
     ///
     /// WARNING: the deterministic identifier it's generated using the `fingerprint`
-    /// so if it change, the deterministic identifer will be different.
-    pub fn id(&self) -> SignerIdentifier {
+    /// so if it change, the deterministic identifer will be different!
+    pub fn compute_id(&self) -> SignerIdentifier {
         SignerIdentifier::from((self.network(), self.fingerprint()))
     }
 
@@ -139,7 +139,7 @@ impl Signer {
 
     /// Generate deterministic Nostr Public Identifier
     pub fn nostr_public_identifier(&self) -> NostrPublicIdentifier {
-        NostrPublicIdentifier::from(*self.id())
+        NostrPublicIdentifier::from(*self.compute_id())
     }
 
     /// Get Shared Signer

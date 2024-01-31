@@ -58,7 +58,7 @@ impl SmartVaults {
         vault: Vault,
         metadata: Option<VaultMetadata>,
     ) -> Result<VaultIdentifier, Error> {
-        let vault_id: VaultIdentifier = vault.id();
+        let vault_id: VaultIdentifier = vault.compute_id();
 
         // TODO: check if vault already exists
 
@@ -106,7 +106,7 @@ impl SmartVaults {
         // Generate a shared key
         let shared_key = Keys::generate();
         let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;
-        let vault_id: VaultIdentifier = vault.id();
+        let vault_id: VaultIdentifier = vault.compute_id();
 
         // Add metadata
         let mut metadata = VaultMetadata::new(vault_id);

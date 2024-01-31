@@ -260,7 +260,7 @@ impl SmartVaults {
 
         // Index proposal
         self.storage
-            .save_proposal(proposal.id(), proposal.clone())
+            .save_proposal(proposal.compute_id(), proposal.clone())
             .await;
 
         Ok(GetProposal {
