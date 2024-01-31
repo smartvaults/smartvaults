@@ -166,6 +166,10 @@ impl CoreSigner {
     pub fn from_coldcard(coldcard: &ColdcardGenericJson, network: Network) -> Result<Self, Error> {
         let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
 
+        if coldcard.network() != network {
+            return Err(Error::NetworkNotMatch);
+        }
+
         // Derive descriptors
         for purpose in PURPOSES.into_iter() {
             let descriptor = coldcard.descriptor(purpose)?;

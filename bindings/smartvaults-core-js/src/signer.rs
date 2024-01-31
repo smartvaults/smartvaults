@@ -162,8 +162,13 @@ impl JsCoreSigner {
     ) -> Result<JsCoreSigner> {
         let fingerprint = Fingerprint::from_str(fingerprint).map_err(into_err)?;
         Ok(Self {
-            inner: CoreSigner::new(fingerprint, BTreeMap::new(), signer_type.into(), network.into())
-                .map_err(into_err)?,
+            inner: CoreSigner::new(
+                fingerprint,
+                BTreeMap::new(),
+                signer_type.into(),
+                network.into(),
+            )
+            .map_err(into_err)?,
         })
     }
 
