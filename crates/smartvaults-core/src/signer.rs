@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use core::fmt;
+use core::hash::{Hash, Hasher};
 use std::collections::BTreeMap;
 
 use keechain_core::bips::bip32::{self, Bip32, ChildNumber, DerivationPath, Fingerprint};
@@ -79,12 +80,30 @@ impl fmt::Display for SignerType {
 }
 
 // TODO: custom impl PartialEq, Eq, PartialOrd, Ord, Hash? Checking only fingerprint and network?
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialOrd, Ord)]
 pub struct CoreSigner {
     fingerprint: Fingerprint,
     descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
     r#type: SignerType,
     network: Network,
+}
+
+impl PartialEq for CoreSigner {
+    fn eq(&self, other: &Self) -> bool {
+        self.fingerprint == other.fingerprint
+            && self.descriptors == other.descriptors
+            && self.network == other.network
+    }
+}
+
+impl Eq for CoreSigner {}
+
+impl Hash for CoreSigner {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.fingerprint.hash(state);
+        self.descriptors.hash(state);
+        self.network.hash(state);
+    }
 }
 
 impl CoreSigner {
