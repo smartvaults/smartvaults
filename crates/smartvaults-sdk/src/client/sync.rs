@@ -12,8 +12,8 @@ use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyOptions,
-    RelayMessage, RelayPoolNotification, Result, Timestamp, Url,
+    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
+    NegentropyOptions, RelayMessage, RelayPoolNotification, Result, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
@@ -283,7 +283,7 @@ impl SmartVaults {
             // Negentropy reconciliation
             let this = self.clone();
             thread::spawn(async move {
-                let opts = NegentropyOptions::new().bidirectional(false);
+                let opts = NegentropyOptions::new().direction(NegentropyDirection::Both);
                 for filter in this.sync_filters(Timestamp::from(0)).await.into_iter() {
                     this.client.reconcile(filter, opts).await.unwrap();
                 }
