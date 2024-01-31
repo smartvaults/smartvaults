@@ -68,7 +68,7 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposals(&self) -> Result<Vec<GetProposal>, Error> {
+    pub async fn proposals(&self) -> Result<Vec<GetProposal>, Error> {
         let proposals = self.storage.proposals().await;
         let mut list = Vec::with_capacity(proposals.len());
         for (proposal_id, proposal) in proposals.into_iter() {
@@ -89,7 +89,7 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_proposals_by_vault_id(
+    pub async fn proposals_by_vault_id(
         &self,
         vault_id: VaultIdentifier,
     ) -> Result<Vec<GetProposal>, Error> {

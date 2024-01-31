@@ -621,7 +621,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     // util::print_completed_proposals(proposals);
                 } else if completed {
                 } else {
-                    let proposals = client.get_proposals().await?;
+                    let proposals = client.proposals().await?;
                     util::print_proposals(proposals);
                 }
                 Ok(())

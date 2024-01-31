@@ -355,19 +355,16 @@ impl SmartVaults {
         })
     }
 
-    pub fn get_proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
+    pub fn proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
         block_on(async move {
-            let proposals = self.inner.get_proposals().await?;
+            let proposals = self.inner.proposals().await?;
             Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
         })
     }
 
-    pub fn get_proposals_by_policy_id(
-        &self,
-        policy_id: Arc<EventId>,
-    ) -> Result<Vec<Arc<GetProposal>>> {
+    pub fn proposals_by_policy_id(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<GetProposal>>> {
         block_on(async move {
-            let proposals = self.inner.get_proposals_by_policy_id(**policy_id).await?;
+            let proposals = self.inner.proposals_by_policy_id(**policy_id).await?;
             Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
         })
     }

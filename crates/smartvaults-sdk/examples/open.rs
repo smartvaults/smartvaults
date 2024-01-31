@@ -54,7 +54,7 @@ async fn main() {
     println!("New proposal: {proposal:#?}");
 
     // Get proposals
-    let proposals = client.get_proposals().await.unwrap();
+    let proposals = client.proposals().await.unwrap();
     for proposal in proposals.into_iter() {
         println!("{proposal:?}");
     }

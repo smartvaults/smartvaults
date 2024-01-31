@@ -42,7 +42,7 @@ impl State for ActivityState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let proposals = client.get_proposals().await.unwrap();
+                let proposals = client.proposals().await.unwrap();
                 let txs = client.get_all_transactions().await.unwrap();
                 (proposals, txs)
             },

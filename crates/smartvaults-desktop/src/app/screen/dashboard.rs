@@ -47,7 +47,7 @@ impl State for DashboardState {
             async move {
                 let balance = client.get_total_balance().await.unwrap();
                 let txs = client.get_all_transactions().await.unwrap();
-                let proposals = client.get_proposals().await.unwrap();
+                let proposals = client.proposals().await.unwrap();
 
                 (balance, proposals, txs)
             },

@@ -85,7 +85,7 @@ impl State for VaultState {
             async move {
                 let policy = client.get_vault_by_id(policy_id).await.ok()?;
                 let list = client.get_txs(policy_id).await.ok()?;
-                let proposals = client.get_proposals_by_policy_id(policy_id).await.ok()?;
+                let proposals = client.proposals_by_policy_id(policy_id).await.ok()?;
                 let signer = client
                     .search_signer_by_descriptor(policy.vault.descriptor())
                     .await
