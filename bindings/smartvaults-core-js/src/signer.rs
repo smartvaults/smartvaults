@@ -157,12 +157,12 @@ impl JsCoreSigner {
     /// Add descriptors with `addDescriptor` method
     pub fn empty(
         fingerprint: &str,
-        r#type: JsSignerType,
+        signer_type: JsSignerType,
         network: JsNetwork,
     ) -> Result<JsCoreSigner> {
         let fingerprint = Fingerprint::from_str(fingerprint).map_err(into_err)?;
         Ok(Self {
-            inner: CoreSigner::new(fingerprint, BTreeMap::new(), r#type.into(), network.into())
+            inner: CoreSigner::new(fingerprint, BTreeMap::new(), signer_type.into(), network.into())
                 .map_err(into_err)?,
         })
     }
