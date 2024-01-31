@@ -341,6 +341,8 @@ pub enum SignerCommand {
     },
     /// Get list of signers
     List,
+    /// Get list of signers received by other users
+    ListShared,
     /// Delete signer
     Delete {
         /// Signer ID

@@ -467,6 +467,11 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 util::print_signers(signers);
                 Ok(())
             }
+            SignerCommand::ListShared => {
+                let signers = client.shared_signers().await?;
+                util::print_shared_signers(signers);
+                Ok(())
+            }
             SignerCommand::Delete { signer_id } => {
                 Ok(client.delete_signer_by_id(&signer_id).await?)
             }

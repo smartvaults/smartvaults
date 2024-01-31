@@ -18,7 +18,7 @@ use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{Keys, Profile, PublicKey, Relay, Timestamp, Url};
 use smartvaults_sdk::protocol::v2::{SharedSignerInvite, Signer, VaultInvite};
 use smartvaults_sdk::types::{
-    GetAddress, GetProposal, GetSignerOffering, GetTransaction, GetUtxo, GetVault,
+    GetAddress, GetProposal, GetSharedSigner, GetSignerOffering, GetTransaction, GetUtxo, GetVault,
     NostrConnectRequest,
 };
 use smartvaults_sdk::util::{self, format};
@@ -518,6 +518,34 @@ where
             signer.name(),
             signer.fingerprint(),
             signer.r#type(),
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_shared_signers<I>(shared_signers: I)
+where
+    I: IntoIterator<Item = GetSharedSigner>,
+{
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "ID", "Owner", "Fingerprint"]);
+
+    for (
+        index,
+        GetSharedSigner {
+            shared_signer_id,
+            owner,
+            shared_signer,
+        },
+    ) in shared_signers.into_iter().enumerate()
+    {
+        table.add_row(row![
+            index + 1,
+            shared_signer_id,
+            owner.name(),
+            shared_signer.fingerprint()
         ]);
     }
 
