@@ -16,7 +16,7 @@ use smartvaults_sdk::core::bitcoin::{Network, ScriptBuf};
 use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
 use smartvaults_sdk::nostr::{Keys, Profile, PublicKey, Relay, Timestamp, Url};
-use smartvaults_sdk::protocol::v2::{Signer, VaultInvite};
+use smartvaults_sdk::protocol::v2::{SharedSignerInvite, Signer, VaultInvite};
 use smartvaults_sdk::types::{
     GetAddress, GetProposal, GetSignerOffering, GetTransaction, GetUtxo, GetVault,
     NostrConnectRequest,
@@ -483,6 +483,26 @@ where
     table.printstd();
 }
 
+pub fn print_signer(signer: Signer) {
+    println!("{}", "\nSigner".fg::<BlazeOrange>().underline());
+    println!("- ID: {}", signer.compute_id());
+    println!("- Name: {}", &signer.name());
+    println!("- Description: {}", signer.description());
+    println!("- Fingerprint: {}", signer.fingerprint());
+
+    println!();
+
+    println!("{}", "Descriptors".fg::<BlazeOrange>().underline());
+    let mut table = Table::new();
+    table.set_titles(row!["#", "Purpose", "Descriptor"]);
+
+    for (index, (purpose, descriptor)) in signer.descriptors().iter().enumerate() {
+        table.add_row(row![index + 1, purpose, descriptor]);
+    }
+
+    table.printstd();
+}
+
 pub fn print_signers<I>(signers: I)
 where
     I: IntoIterator<Item = Signer>,
@@ -498,6 +518,28 @@ where
             signer.name(),
             signer.fingerprint(),
             signer.r#type(),
+        ]);
+    }
+
+    table.printstd();
+}
+
+pub fn print_shared_signer_invites<I>(invites: I)
+where
+    I: IntoIterator<Item = SharedSignerInvite>,
+{
+    let mut table = Table::new();
+
+    table.set_titles(row!["#", "ID", "Sender", "Message"]);
+
+    for (index, invite) in invites.into_iter().enumerate() {
+        table.add_row(row![
+            index + 1,
+            invite.shared_signer.nostr_public_identifier(),
+            invite
+                .sender()
+                .map_or_else(|| String::from("-"), |p| p.to_string()),
+            invite.message
         ]);
     }
 

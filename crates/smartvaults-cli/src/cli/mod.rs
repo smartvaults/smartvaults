@@ -12,7 +12,9 @@ use smartvaults_sdk::core::bitcoin::Address;
 use smartvaults_sdk::nostr::prelude::NostrConnectURI;
 use smartvaults_sdk::nostr::{EventId, PublicKey, Url};
 use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, LabelData, Price, Temperature};
-use smartvaults_sdk::protocol::v2::{ProposalIdentifier, SignerIdentifier, VaultIdentifier};
+use smartvaults_sdk::protocol::v2::{
+    NostrPublicIdentifier, ProposalIdentifier, SignerIdentifier, VaultIdentifier,
+};
 
 pub mod batch;
 pub mod io;
@@ -181,6 +183,12 @@ pub enum Command {
         #[command(subcommand)]
         command: VaultCommand,
     },
+    /// Signer commands
+    #[command(arg_required_else_help = true)]
+    Signer {
+        #[command(subcommand)]
+        command: SignerCommand,
+    },
     /// Proof of Reserve commands
     #[command(arg_required_else_help = true)]
     Proof {
@@ -216,12 +224,6 @@ pub enum Command {
     Set {
         #[command(subcommand)]
         command: SetCommand,
-    },
-    /// Share
-    #[command(arg_required_else_help = true)]
-    Share {
-        #[command(subcommand)]
-        command: ShareCommand,
     },
     /// Delete
     #[command(arg_required_else_help = true)]
@@ -262,7 +264,7 @@ pub enum VaultCommand {
         vault_id: VaultIdentifier,
         // User public key (hex)
         #[arg(required = true)]
-        public_key: XOnlyPublicKey, // TODO: support both hex and bech32
+        public_key: PublicKey,
         /// Optional message
         message: Option<String>,
     },
@@ -309,6 +311,77 @@ pub enum VaultCommand {
         #[arg(required = true)]
         vault_id: VaultIdentifier,
     },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum SignerCommand {
+    /// Add signer commands
+    #[command(arg_required_else_help = true)]
+    Add {
+        #[command(subcommand)]
+        command: AddSignerCommand,
+    },
+    /// Update signer metadata
+    Metadata {
+        /// Signer ID
+        #[arg(required = true)]
+        signer_id: SignerIdentifier,
+        // Signer name
+        #[arg(short, long)]
+        name: Option<String>,
+        /// Signer description
+        #[arg(short, long)]
+        description: Option<String>,
+    },
+    /// Get signer
+    Get {
+        /// Signer ID
+        #[arg(required = true)]
+        signer_id: SignerIdentifier,
+    },
+    /// Get list of signers
+    List,
+    /// Delete signer
+    Delete {
+        /// Signer ID
+        #[arg(required = true)]
+        signer_id: SignerIdentifier,
+    },
+    /// Share signer with user (send invite)
+    Share {
+        /// Signer ID
+        #[arg(required = true)]
+        signer_id: SignerIdentifier,
+        // User public key (hex)
+        #[arg(required = true)]
+        public_key: PublicKey,
+        /// Optional message
+        message: Option<String>,
+    },
+    /// Get shared signer invites
+    Invites,
+    /// Accept signer invite
+    AcceptInvite {
+        /// Shared Signer ID
+        #[arg(required = true)]
+        shared_signer_id: NostrPublicIdentifier,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum AddSignerCommand {
+    /// Add Smart Vaults signer
+    Default,
+    /// Add Coldcard signer
+    Coldcard {
+        /// Signer name
+        #[arg(required = true)]
+        name: String,
+        /// Path to coldcard-export.json
+        #[arg(required = true)]
+        path: PathBuf,
+    },
+    // TODO: add Custom
 }
 
 #[derive(Debug, Subcommand)]
@@ -423,21 +496,6 @@ pub enum AddCommand {
         #[arg(required = true)]
         public_key: PublicKey,
     },
-    /// Add Smart Vaults Signer
-    SmartVaultsSigner {
-        /// Share with contacts
-        #[arg(long)]
-        share_with_contacts: bool,
-    },
-    /// Add Coldcard Signer
-    ColdcardSigner {
-        /// Signer name
-        #[arg(required = true)]
-        name: String,
-        /// Coldcard export JSON path
-        #[arg(required = true)]
-        path: PathBuf,
-    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -459,8 +517,6 @@ pub enum GetCommand {
         #[arg(required = true)]
         proposal_id: ProposalIdentifier,
     },
-    /// Get signers
-    Signers,
     /// Get relays
     Relays,
     /// Get addresses
@@ -503,19 +559,6 @@ pub enum SetCommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum ShareCommand {
-    /// Share a signer
-    Signer {
-        /// Signer ID
-        #[arg(required = true)]
-        signer_id: SignerIdentifier,
-        /// Public Key of the user with whom to share the signer
-        #[arg(required = true)]
-        public_key: PublicKey,
-    },
-}
-
-#[derive(Debug, Subcommand)]
 pub enum DeleteCommand {
     /// Remove relay
     Relay {
@@ -534,18 +577,6 @@ pub enum DeleteCommand {
     // Approval ID
     // #[arg(required = true)]
     // approval_id: EventId,
-    // },
-    /// Delete signer by ID
-    Signer {
-        /// Signer ID
-        #[arg(required = true)]
-        signer_id: SignerIdentifier,
-    },
-    // /// Revoke shared signer by ID
-    // SharedSigner {
-    // Signer ID
-    // #[arg(required = true)]
-    // shared_signer_id: SignerIdentifier,
     // },
     /// Clear cache
     Cache,

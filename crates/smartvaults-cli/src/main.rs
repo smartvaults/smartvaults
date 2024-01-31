@@ -28,9 +28,9 @@ mod util;
 
 use crate::cli::batch::BatchCommand;
 use crate::cli::{
-    io, AddCommand, Cli, CliCommand, Command, ConfigCommand, ConnectCommand, DeleteCommand,
-    GetCommand, KeyAgentCommand, ProofCommand, SetCommand, SettingCommand, ShareCommand,
-    VaultCommand,
+    io, AddCommand, AddSignerCommand, Cli, CliCommand, Command, ConfigCommand, ConnectCommand,
+    DeleteCommand, GetCommand, KeyAgentCommand, ProofCommand, SetCommand, SettingCommand,
+    SignerCommand, VaultCommand,
 };
 
 fn base_path() -> Result<PathBuf> {
@@ -432,6 +432,71 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
         },
+        Command::Signer { command } => match command {
+            SignerCommand::Add { command } => match command {
+                AddSignerCommand::Default => {
+                    client.save_smartvaults_signer().await?;
+                    Ok(())
+                }
+                AddSignerCommand::Coldcard { name, path } => {
+                    let coldcard = ColdcardGenericJson::from_file(path)?;
+                    let mut signer = Signer::from_coldcard(coldcard, client.network())?;
+                    signer.change_name(name);
+                    let signer_id = client.save_signer(signer).await?;
+                    println!("Saved coldcard signer: {signer_id}");
+                    Ok(())
+                }
+            },
+            SignerCommand::Metadata {
+                signer_id,
+                name,
+                description,
+            } => {
+                client
+                    .edit_signer_metadata(&signer_id, name, description)
+                    .await?;
+                Ok(())
+            }
+            SignerCommand::Get { signer_id } => {
+                let signer = client.get_signer_by_id(&signer_id).await?;
+                util::print_signer(signer);
+                Ok(())
+            }
+            SignerCommand::List => {
+                let signers = client.signers().await;
+                util::print_signers(signers);
+                Ok(())
+            }
+            SignerCommand::Delete { signer_id } => {
+                Ok(client.delete_signer_by_id(&signer_id).await?)
+            }
+            SignerCommand::Share {
+                signer_id,
+                public_key,
+                message,
+            } => {
+                client
+                    .share_signer(&signer_id, public_key, message.unwrap_or_default())
+                    .await?;
+                println!(
+                    "Shared signerigner invite sent to {}",
+                    smartvaults_sdk::util::cut_public_key(public_key)
+                );
+                Ok(())
+            }
+            SignerCommand::Invites => {
+                let invites = client.shared_signer_invites().await?;
+                util::print_shared_signer_invites(invites);
+                Ok(())
+            }
+            SignerCommand::AcceptInvite { shared_signer_id } => {
+                client
+                    .accept_shared_signer_invite(&shared_signer_id)
+                    .await?;
+                println!("Signer invite accepted!");
+                Ok(())
+            }
+        },
         Command::Proof { command } => match command {
             ProofCommand::New { .. } => {
                 // let (proposal_id, ..) = client.new_proof_proposal(policy_id, message).await?;
@@ -538,27 +603,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client.add_contact(public_key).await?;
                 Ok(())
             }
-            AddCommand::SmartVaultsSigner {
-                share_with_contacts,
-            } => {
-                let signer_id = client.save_smartvaults_signer().await?;
-                if share_with_contacts {
-                    for user in client.get_contacts().await? {
-                        client
-                            .share_signer(&signer_id, user.public_key(), "")
-                            .await?;
-                    }
-                }
-                Ok(())
-            }
-            AddCommand::ColdcardSigner { name, path } => {
-                let coldcard = ColdcardGenericJson::from_file(path)?;
-                let mut signer = Signer::from_coldcard(coldcard, client.network())?;
-                signer.change_name(name);
-                let signer_id = client.save_signer(signer).await?;
-                println!("Saved coldcard signer: {signer_id}");
-                Ok(())
-            }
         },
         Command::Get { command } => match command {
             GetCommand::Contacts => {
@@ -580,11 +624,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
             GetCommand::Proposal { proposal_id } => {
                 let proposal = client.get_proposal_by_id(&proposal_id).await?;
                 util::print_proposal(proposal);
-                Ok(())
-            }
-            GetCommand::Signers => {
-                let signers = client.get_signers().await;
-                util::print_signers(signers);
                 Ok(())
             }
             GetCommand::Relays => {
@@ -630,19 +669,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
         },
-        Command::Share { command } => match command {
-            ShareCommand::Signer {
-                signer_id,
-                public_key,
-            } => {
-                client.share_signer(&signer_id, public_key, "").await?;
-                println!(
-                    "Shared signerigner invite sent to {}",
-                    smartvaults_sdk::util::cut_public_key(public_key)
-                );
-                Ok(())
-            }
-        },
         Command::Delete { command } => match command {
             DeleteCommand::Relay { url } => {
                 client.remove_relay(url).await?;
@@ -655,9 +681,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
             // client.revoke_approval(approval_id).await?;
             // Ok(())
             // }
-            DeleteCommand::Signer { signer_id } => {
-                Ok(client.delete_signer_by_id(&signer_id).await?)
-            }
             // DeleteCommand::SharedSigner { shared_signer_id } => {
             // Ok(client.revoke_shared_signer(shared_signer_id).await?)
             // }
