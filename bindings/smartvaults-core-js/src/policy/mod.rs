@@ -12,6 +12,7 @@ use wasm_bindgen::prelude::*;
 pub mod template;
 
 use self::template::{JsPolicyTemplate, JsPolicyTemplateType};
+use crate::descriptor::JsDescriptor;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
@@ -85,8 +86,8 @@ impl JsPolicy {
         })
     }
 
-    pub fn descriptor(&self) -> String {
-        self.inner.descriptor().to_string()
+    pub fn descriptor(&self) -> JsDescriptor {
+        self.inner.descriptor().into()
     }
 
     /// Get network
@@ -155,4 +156,6 @@ impl JsPolicy {
             .map_err(into_err)?
             .map(|t| t.into()))
     }
+
+    // TODO: add spend
 }
