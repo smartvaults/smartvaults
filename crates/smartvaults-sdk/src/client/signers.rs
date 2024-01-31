@@ -90,6 +90,36 @@ impl SmartVaults {
         Err(Error::SignerNotFound)
     }
 
+    /// Edit [Signer] metadata
+    ///
+    /// Args set to `None` aren't updated.
+    pub async fn edit_signer_metadata(
+        &self,
+        signer_id: &SignerIdentifier,
+        name: Option<String>,
+        description: Option<String>,
+    ) -> Result<(), Error> {
+        // Get signer
+        let mut signer: Signer = self.storage.signer(signer_id).await?;
+
+        if let Some(name) = name {
+            signer.change_name(name);
+        }
+
+        if let Some(description) = description {
+            signer.change_description(description);
+        }
+
+        // Compose and publish event
+        let event: Event = v2::signer::build_event(&self.keys, &signer)?;
+        self.client.send_event(event).await?;
+
+        // Re-save signer with updated metadata
+        self.storage.save_signer(*signer_id, signer).await;
+
+        Ok(())
+    }
+
     /// Create shared signer and **send invite** to receiver
     pub async fn share_signer<S>(
         &self,
