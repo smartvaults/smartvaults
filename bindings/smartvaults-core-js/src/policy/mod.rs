@@ -218,8 +218,17 @@ impl JsPolicy {
             .map_err(into_err)
     }
 
-    // TODO: add search_used_signers
+    /// Search used signers in this `Policy`
+    #[wasm_bindgen(js_name = searchUsedSigners)]
+    pub fn search_used_signers(&self, signers: Vec<JsCoreSigner>) -> Vec<JsCoreSigner> {
+        self.inner
+            .search_used_signers(signers.into_iter().map(|s| s.into()))
+            .into_iter()
+            .map(|s| s.into())
+            .collect()
+    }
 
+    /// Get policy path for a specific signer
     #[wasm_bindgen(js_name = getPolicyPathFromSigner)]
     pub fn get_policy_path_from_signer(
         &self,

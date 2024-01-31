@@ -138,6 +138,18 @@ impl Deref for JsCoreSigner {
     }
 }
 
+impl From<CoreSigner> for JsCoreSigner {
+    fn from(inner: CoreSigner) -> Self {
+        Self { inner }
+    }
+}
+
+impl From<JsCoreSigner> for CoreSigner {
+    fn from(value: JsCoreSigner) -> Self {
+        value.inner
+    }
+}
+
 #[wasm_bindgen(js_class = CoreSigner)]
 impl JsCoreSigner {
     /// Create new **empty** signer (without descriptors)
