@@ -2,7 +2,6 @@
 // Distributed under the MIT software license
 
 use std::collections::BTreeSet;
-use std::ops::Deref;
 use std::time::Duration;
 
 use nostr_sdk::{
@@ -224,17 +223,30 @@ impl SmartVaults {
     ) -> Result<BTreeSet<Profile>, Error> {
         // Get vault and shared signers
         let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
-        let shared_signers = self.storage.shared_signers().await;
 
-        // Search used signers using the shared signers
-        let result = vault.search_used_signers(shared_signers.values().map(|s| s.deref().clone()));
-
-        // Compose output
         let mut users: BTreeSet<Profile> = BTreeSet::new();
-        for shared_signer in shared_signers
+
+        // Check if I'm a member
+        let signers = self.storage.signers().await;
+        if signers
             .into_values()
-            .filter(|s| result.contains(s.deref()))
+            .map(|s| s.fingerprint())
+            .any(|fingerprint| {
+                vault
+                    .is_fingerprint_involved(&fingerprint)
+                    .unwrap_or_default()
+            })
         {
+            users.insert(self.get_profile().await?);
+        }
+
+        // Get profile of other members
+        let shared_signers = self.storage.shared_signers().await;
+        for shared_signer in shared_signers.into_values().filter(|s| {
+            vault
+                .is_fingerprint_involved(&s.fingerprint())
+                .unwrap_or_default()
+        }) {
             let profile: Profile = self
                 .client
                 .database()
