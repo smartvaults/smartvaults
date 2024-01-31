@@ -367,12 +367,6 @@ impl Policy {
         Ok(satisfiable_item_contains_fingerprint(item, fingerprint))
     }
 
-    /// Check if a [Fingerprint] is involved in the [Policy]
-    pub fn is_fingerprint_involved(&self, fingerprint: &Fingerprint) -> Result<bool, Error> {
-        let item: SatisfiableItem = self.satisfiable_item()?;
-        Ok(satisfiable_item_contains_fingerprint(&item, fingerprint))
-    }
-
     /// Search used signers in this [`Policy`]
     pub fn search_used_signers<I>(&self, signers: I) -> HashSet<CoreSigner>
     where

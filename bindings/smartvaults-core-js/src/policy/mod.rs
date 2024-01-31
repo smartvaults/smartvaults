@@ -52,7 +52,7 @@ impl JsPolicy {
         })
     }
 
-    /// Construct `Policy` from miniscript
+    /// Construct `Policy` from miniscripto policy
     ///
     /// <https://bitcoin.sipa.be/miniscript/>
     #[wasm_bindgen(js_name = fromMiniscript)]
