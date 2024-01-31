@@ -77,7 +77,10 @@ impl Signer {
 
     /// Compose Smart Vaults signer (custom account index)
     pub fn smartvaults(seed: &Seed, network: Network) -> Result<Self, Error> {
-        Self::from_seed(seed, Some(SMARTVAULTS_ACCOUNT_INDEX), network)
+        let mut signer = Self::from_seed(seed, Some(SMARTVAULTS_ACCOUNT_INDEX), network)?;
+        signer.change_name("SmartVaults");
+        signer.change_description("Default SmartVaults signer");
+        Ok(signer)
     }
 
     /// Compose [`Signer`] from custom airgap device
