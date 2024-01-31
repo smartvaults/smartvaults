@@ -95,7 +95,7 @@ impl State for PolicyBuilderState {
         Command::perform(
             async move {
                 let signers = client.signers().await.unwrap();
-                let shared_signers = client.get_shared_signers().await.unwrap();
+                let shared_signers = client.shared_signers().await.unwrap();
                 let profile = client.get_profile().await.unwrap();
                 (signers, shared_signers, profile)
             },

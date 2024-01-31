@@ -628,11 +628,11 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.revoke_shared_signer(**shared_signer_id).await?) })
     }
 
-    pub fn get_shared_signers(&self) -> Result<Vec<Arc<GetSharedSigner>>> {
+    pub fn shared_signers(&self) -> Result<Vec<Arc<GetSharedSigner>>> {
         block_on(async move {
             Ok(self
                 .inner
-                .get_shared_signers()
+                .shared_signers()
                 .await?
                 .into_iter()
                 .map(|s| Arc::new(s.into()))

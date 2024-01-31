@@ -247,9 +247,10 @@ impl SmartVaults {
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
-        let mut list = Vec::new();
-        for (shared_signer_id, shared_signer) in self.storage.shared_signers().await.into_iter() {
+    pub async fn shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
+        let shared_signers = self.storage.shared_signers().await;
+        let mut list = Vec::with_capacity(shared_signers.len());
+        for (shared_signer_id, shared_signer) in shared_signers.into_iter() {
             let profile: Profile = self
                 .client
                 .database()

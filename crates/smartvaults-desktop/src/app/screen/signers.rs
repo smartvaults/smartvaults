@@ -52,7 +52,7 @@ impl State for SignersState {
             async move {
                 let signers = client.signers().await;
                 let shared_signers = match mode {
-                    Mode::User => client.get_shared_signers().await.unwrap(),
+                    Mode::User => client.shared_signers().await.unwrap(),
                     Mode::KeyAgent => Vec::new(),
                 };
                 let signer_offerings = match mode {
