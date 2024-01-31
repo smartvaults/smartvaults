@@ -163,7 +163,7 @@ impl CoreSigner {
     }
 
     /// Compose [CoreSigner] from Coldcard generic JSON (`coldcard-export.json`)
-    pub fn from_coldcard(coldcard: ColdcardGenericJson, network: Network) -> Result<Self, Error> {
+    pub fn from_coldcard(coldcard: &ColdcardGenericJson, network: Network) -> Result<Self, Error> {
         let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
 
         // Derive descriptors

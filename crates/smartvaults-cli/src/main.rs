@@ -440,7 +440,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 }
                 AddSignerCommand::Coldcard { name, path } => {
                     let coldcard = ColdcardGenericJson::from_file(path)?;
-                    let mut signer = Signer::from_coldcard(coldcard, client.network())?;
+                    let mut signer = Signer::from_coldcard(&coldcard, client.network())?;
                     signer.change_name(name);
                     let signer_id = client.save_signer(signer).await?;
                     println!("Saved coldcard signer: {signer_id}");
