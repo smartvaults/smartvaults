@@ -488,12 +488,11 @@ dependencies = [
 
 [[package]]
 name = "bitcoinconsensus"
-version = "0.20.2-0.5.0"
+version = "0.102.0+22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54505558b77e0aa21b2491a7b39cbae9db22ac8b1bc543ef4600edb762306f9c"
+checksum = "40309d37f547b9ae99211394bd8d38884a0e3f684b6993f3efb0af5cec4139e2"
 dependencies = [
  "cc",
- "libc",
 ]
 
 [[package]]
