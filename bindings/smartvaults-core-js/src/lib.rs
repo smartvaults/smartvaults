@@ -12,6 +12,7 @@ pub mod descriptor;
 pub mod error;
 pub mod network;
 pub mod policy;
+pub mod recipient;
 pub mod signer;
 
 /// Run some stuff when the Wasm module is instantiated.
