@@ -58,6 +58,47 @@ impl JsAmount {
     }
 }
 
+#[wasm_bindgen(js_name = Address)]
+pub struct JsAddress {
+    inner: Address,
+}
+
+impl Deref for JsAddress {
+    type Target = Address;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl From<Address> for JsAddress {
+    fn from(inner: Address) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = Address)]
+impl JsAddress {
+    pub fn parse(address: &str, network: JsNetwork) -> Result<JsAddress> {
+        Ok(Self {
+            inner: Address::from_str(address)
+                .map_err(into_err)?
+                .require_network(network.into())
+                .map_err(into_err)?,
+        })
+    }
+
+    #[wasm_bindgen(js_name = asStr)]
+    pub fn as_str(&self) -> String {
+        self.inner.to_string()
+    }
+
+    #[wasm_bindgen(js_name = asQrUri)]
+    pub fn as_qr_uri(&self) -> String {
+        self.inner.to_qr_uri()
+    }
+}
+
 /// Address recipient
 #[wasm_bindgen(js_name = Recipient)]
 pub struct JsRecipient {
@@ -66,21 +107,17 @@ pub struct JsRecipient {
 
 #[wasm_bindgen(js_class = Recipient)]
 impl JsRecipient {
-    pub fn new(address: &str, network: JsNetwork, amount: JsAmount) -> Result<JsRecipient> {
-        let address: Address = Address::from_str(address)
-            .map_err(into_err)?
-            .require_network(network.into())
-            .map_err(into_err)?;
-        Ok(Self {
+    pub fn new(address: &JsAddress, amount: JsAmount) -> Self {
+        Self {
             inner: Recipient {
-                address,
+                address: address.inner.clone(),
                 amount: *amount,
             },
-        })
+        }
     }
 
-    pub fn address(&self) -> String {
-        self.inner.address.to_string()
+    pub fn address(&self) -> JsAddress {
+        self.inner.address.clone().into()
     }
 
     pub fn amount(&self) -> JsAmount {
@@ -104,14 +141,10 @@ impl Deref for JsDestination {
 #[wasm_bindgen(js_class = Destination)]
 impl JsDestination {
     /// Drain all funds to an address
-    pub fn drain(address: &str, network: JsNetwork) -> Result<JsDestination> {
-        let address: Address = Address::from_str(address)
-            .map_err(into_err)?
-            .require_network(network.into())
-            .map_err(into_err)?;
-        Ok(Self {
-            inner: Destination::Drain(address),
-        })
+    pub fn drain(address: &JsAddress) -> Self {
+        Self {
+            inner: Destination::Drain(address.inner.clone()),
+        }
     }
 
     pub fn single(recipient: &JsRecipient) -> Self {
