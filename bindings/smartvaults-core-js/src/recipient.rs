@@ -11,6 +11,53 @@ use wasm_bindgen::prelude::*;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
+#[derive(Clone, Copy)]
+#[wasm_bindgen(js_name = Amount)]
+pub struct JsAmount {
+    inner: Amount,
+}
+
+impl Deref for JsAmount {
+    type Target = Amount;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl From<Amount> for JsAmount {
+    fn from(inner: Amount) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = Amount)]
+impl JsAmount {
+    #[wasm_bindgen(js_name = fromSat)]
+    pub fn from_sat(satoshi: u64) -> Self {
+        Self {
+            inner: Amount::from_sat(satoshi),
+        }
+    }
+
+    #[wasm_bindgen(js_name = fromBtc)]
+    pub fn from_btc(btc: f64) -> Result<JsAmount> {
+        Ok(Self {
+            inner: Amount::from_btc(btc).map_err(into_err)?,
+        })
+    }
+
+    #[wasm_bindgen(js_name = toSat)]
+    pub fn to_sat(&self) -> u64 {
+        self.inner.to_sat()
+    }
+
+    #[wasm_bindgen(js_name = toBtc)]
+    pub fn to_btc(&self) -> f64 {
+        self.inner.to_btc()
+    }
+}
+
 /// Address recipient
 #[wasm_bindgen(js_name = Recipient)]
 pub struct JsRecipient {
@@ -19,7 +66,7 @@ pub struct JsRecipient {
 
 #[wasm_bindgen(js_class = Recipient)]
 impl JsRecipient {
-    pub fn new(address: &str, network: JsNetwork, satoshi: u64) -> Result<JsRecipient> {
+    pub fn new(address: &str, network: JsNetwork, amount: JsAmount) -> Result<JsRecipient> {
         let address: Address = Address::from_str(address)
             .map_err(into_err)?
             .require_network(network.into())
@@ -27,7 +74,7 @@ impl JsRecipient {
         Ok(Self {
             inner: Recipient {
                 address,
-                amount: Amount::from_sat(satoshi),
+                amount: *amount,
             },
         })
     }
@@ -36,8 +83,8 @@ impl JsRecipient {
         self.inner.address.to_string()
     }
 
-    pub fn amount(&self) -> u64 {
-        self.inner.amount.to_sat()
+    pub fn amount(&self) -> JsAmount {
+        self.inner.amount.into()
     }
 }
 
