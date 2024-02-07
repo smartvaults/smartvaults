@@ -163,6 +163,7 @@ impl From<(Purpose, DescriptorPublicKey)> for JsSignerDescriptor {
     }
 }
 
+#[derive(Clone)]
 #[wasm_bindgen(js_name = CoreSigner)]
 pub struct JsCoreSigner {
     inner: CoreSigner,

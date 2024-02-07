@@ -5,8 +5,8 @@ use core::ops::Deref;
 use core::str::FromStr;
 
 use smartvaults_core::bitcoin::bip32::Fingerprint;
-use smartvaults_core::policy::{Policy, PolicyPathSelector};
-use smartvaults_core::SelectableCondition;
+use smartvaults_core::policy::{Policy, PolicyPath, PolicyPathSelector};
+use smartvaults_core::{CoreSigner, SelectableCondition};
 use wasm_bindgen::prelude::*;
 
 pub mod template;
@@ -46,6 +46,7 @@ impl From<(String, Vec<String>)> for JsPolicyPathMissingToSelectedItem {
     }
 }
 
+#[derive(Clone)]
 #[wasm_bindgen(js_name = PolicyPathSelector)]
 pub struct JsPolicyPathSelector {
     inner: PolicyPathSelector,
@@ -90,6 +91,75 @@ impl JsPolicyPathSelector {
             .into_iter()
             .map(|i| i.into())
             .collect()
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPathMultipleItem)]
+pub struct JsPolicyPathMultipleItem {
+    #[wasm_bindgen(getter_with_clone)]
+    pub signer: JsCoreSigner,
+    #[wasm_bindgen(getter_with_clone)]
+    pub pps: Option<JsPolicyPathSelector>,
+}
+
+impl From<(CoreSigner, Option<PolicyPathSelector>)> for JsPolicyPathMultipleItem {
+    fn from((signer, pps): (CoreSigner, Option<PolicyPathSelector>)) -> Self {
+        Self {
+            signer: signer.into(),
+            pps: pps.map(|pps| pps.into()),
+        }
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPath)]
+pub struct JsPolicyPath {
+    inner: PolicyPath,
+}
+
+impl From<PolicyPath> for JsPolicyPath {
+    fn from(inner: PolicyPath) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = PolicyPath)]
+impl JsPolicyPath {
+    #[wasm_bindgen(js_name = isSingle)]
+    pub fn is_single(&self) -> bool {
+        matches!(self.inner, PolicyPath::Single(..))
+    }
+
+    #[wasm_bindgen(js_name = isMultiple)]
+    pub fn is_multiple(&self) -> bool {
+        matches!(self.inner, PolicyPath::Multiple(..))
+    }
+
+    #[wasm_bindgen(js_name = isNone)]
+    pub fn is_none(&self) -> bool {
+        matches!(self.inner, PolicyPath::None)
+    }
+
+    #[wasm_bindgen(js_name = asSingle)]
+    pub fn as_single(&self) -> Option<JsPolicyPathSelector> {
+        if let PolicyPath::Single(pps) = &self.inner {
+            Some(pps.clone().into())
+        } else {
+            None
+        }
+    }
+
+    #[wasm_bindgen(js_name = asMultiple)]
+    pub fn as_multiple(&self) -> Option<Vec<JsPolicyPathMultipleItem>> {
+        if let PolicyPath::Multiple(map) = &self.inner {
+            Some(
+                map.clone()
+                    .into_iter()
+                    .map(JsPolicyPathMultipleItem::from)
+                    .collect(),
+            )
+        } else {
+            None
+        }
     }
 }
 
@@ -241,7 +311,17 @@ impl JsPolicy {
             .map(|s| s.into()))
     }
 
-    // TODO: add get_policy_paths_from_signers
+    #[wasm_bindgen(js_name = getPolicyPathsFromSigners)]
+    pub fn get_policy_paths_from_signers(
+        &self,
+        signers: Vec<JsCoreSigner>,
+    ) -> Result<JsPolicyPath> {
+        Ok(self
+            .inner
+            .get_policy_paths_from_signers(signers.into_iter().map(|s| s.deref().clone()))
+            .map_err(into_err)?
+            .into())
+    }
 
     /// Check if `Policy` match match any template
     #[wasm_bindgen(js_name = templateMatch)]
