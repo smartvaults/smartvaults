@@ -287,7 +287,7 @@ impl Policy {
     }
 
     pub fn description(&self) -> String {
-        self.name.clone()
+        self.description.clone()
     }
 
     pub fn descriptor(&self) -> Descriptor<String> {
