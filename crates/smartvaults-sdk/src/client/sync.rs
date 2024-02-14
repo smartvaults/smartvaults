@@ -13,7 +13,8 @@ use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
-    NegentropyOptions, RelayMessage, RelayPoolNotification, Result, Timestamp, Url,
+    NegentropyOptions, RelayMessage, RelayPoolNotification, RelaySendOptions, Result, Timestamp,
+    Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
@@ -228,7 +229,7 @@ impl SmartVaults {
                             }
                         };
                     let filters: Vec<Filter> = this.sync_filters(last_sync).await;
-                    if let Err(e) = relay.subscribe(filters, None).await {
+                    if let Err(e) = relay.subscribe(filters, RelaySendOptions::new()).await {
                         tracing::error!("Impossible to subscribe to {relay_url}: {e}");
                     }
                 }
@@ -359,7 +360,11 @@ impl SmartVaults {
                         // TODO: use send_event?
                         self.client
                             .pool()
-                            .send_msg_to(uri.relay_url, ClientMessage::event(nip46_event), None)
+                            .send_msg_to(
+                                [uri.relay_url],
+                                ClientMessage::event(nip46_event),
+                                RelaySendOptions::new().skip_send_confirmation(true),
+                            )
                             .await?;
                     }
                     _ => {
@@ -379,7 +384,11 @@ impl SmartVaults {
                                     .to_event(keys)?;
                             self.client
                                 .pool()
-                                .send_msg_to(uri.relay_url, ClientMessage::event(nip46_event), None)
+                                .send_msg_to(
+                                    [uri.relay_url],
+                                    ClientMessage::event(nip46_event),
+                                    RelaySendOptions::new().skip_send_confirmation(true),
+                                )
                                 .await?;
                             self.db
                                 .save_nostr_connect_request(

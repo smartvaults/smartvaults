@@ -15,12 +15,11 @@ use bdk_electrum::electrum_client::{
 };
 use nostr_sdk::database::{NostrDatabaseExt, Order};
 use nostr_sdk::nips::nip06::FromMnemonic;
-use nostr_sdk::relay::pool;
-use nostr_sdk::util::TryIntoUrl;
+use nostr_sdk::pool::pool;
 use nostr_sdk::{
     nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
     JsonUtil, Keys, Kind, Metadata, Options, Profile, Relay, RelayOptions, RelayPoolNotification,
-    Result, SQLiteDatabase, Tag, Timestamp, UncheckedUrl, Url,
+    RelaySendOptions, Result, SQLiteDatabase, Tag, Timestamp, TryIntoUrl, UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -429,7 +428,12 @@ impl SmartVaults {
                 Err(_) => Timestamp::from(0),
             };
             let filters: Vec<Filter> = self.sync_filters(last_sync).await;
-            relay.subscribe(filters, None).await?;
+            relay
+                .subscribe(
+                    filters,
+                    RelaySendOptions::new().skip_send_confirmation(true),
+                )
+                .await?;
             relay.connect(None).await;
 
             if save_to_relay_list {
@@ -1014,10 +1018,7 @@ impl SmartVaults {
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
-            self.client
-                .pool()
-                .send_msg(ClientMessage::event(event), None)
-                .await?;
+            self.client.send_event(event).await?;
             tracing::info!("Published shared key for {pubkey} at event {event_id}");
         }
 
@@ -1805,7 +1806,11 @@ impl SmartVaults {
             .query(vec![Filter::new()], Order::Asc)
             .await?;
         for event in events.into_iter() {
-            pool.send_msg(ClientMessage::event(event), None).await?;
+            pool.send_msg(
+                ClientMessage::event(event),
+                RelaySendOptions::new().skip_send_confirmation(true),
+            )
+            .await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1823,8 +1828,12 @@ impl SmartVaults {
             .query(vec![Filter::new()], Order::Asc)
             .await?;
         for event in events.into_iter() {
-            pool.send_msg_to(&*url, ClientMessage::event(event), None)
-                .await?;
+            pool.send_msg_to(
+                [&*url],
+                ClientMessage::event(event),
+                RelaySendOptions::new().skip_send_confirmation(true),
+            )
+            .await?;
         }
         // TODO: save last rebroadcast timestamp
         Ok(())
@@ -1850,10 +1859,7 @@ impl SmartVaults {
             let event_id: EventId = event.id;
 
             // TODO: use send_batch_event method from nostr-sdk
-            self.client
-                .pool()
-                .send_msg(ClientMessage::event(event), None)
-                .await?;
+            self.client.send_event(event).await?;
             tracing::info!("Published shared key for {public_key} at event {event_id}");
         }
         Ok(())

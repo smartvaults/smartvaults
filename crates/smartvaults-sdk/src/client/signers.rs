@@ -5,7 +5,9 @@ use std::collections::{BTreeMap, HashSet};
 
 use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip04;
-use nostr_sdk::{ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, Tag};
+use nostr_sdk::{
+    ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, RelaySendOptions, Tag,
+};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
@@ -175,7 +177,10 @@ impl SmartVaults {
                 // TODO: use send_batch_event method from nostr-sdk
                 self.client
                     .pool()
-                    .send_msg(ClientMessage::event(event), None)
+                    .send_msg(
+                        ClientMessage::event(event),
+                        RelaySendOptions::new().skip_send_confirmation(true),
+                    )
                     .await?;
 
                 self.storage

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use iced::widget::{Column, Row, Space};
 use iced::{time, Command, Element, Length, Subscription};
-use smartvaults_sdk::nostr::relay::RelayConnectionStats;
+use smartvaults_sdk::nostr::pool::RelayConnectionStats;
 use smartvaults_sdk::nostr::{RelayStatus, Url};
 use smartvaults_sdk::util::format;
 

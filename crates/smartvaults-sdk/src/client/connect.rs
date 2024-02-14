@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI, Request as NIP46Request};
-use nostr_sdk::{ClientMessage, EventBuilder, EventId, Keys, Timestamp, Url};
+use nostr_sdk::{ClientMessage, EventBuilder, EventId, Keys, RelaySendOptions, Timestamp, Url};
 use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk_sqlite::model::NostrConnectRequest;
 
@@ -28,14 +28,14 @@ impl SmartVaults {
                 }
             };
             let filters = self.sync_filters(last_sync).await;
-            relay.subscribe(filters, None).await?;
+            relay.subscribe(filters, RelaySendOptions::new()).await?;
         }
 
         // Send connect ACK
         let keys: &Keys = self.keys();
         let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
         let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
-        self.client.send_event_to(relay_url, nip46_event).await?;
+        self.client.send_event_to([relay_url], nip46_event).await?;
 
         self.db.save_nostr_connect_uri(uri).await?;
 
@@ -60,12 +60,16 @@ impl SmartVaults {
         let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
         if wait {
             self.client
-                .send_event_to(uri.relay_url, nip46_event)
+                .send_event_to([uri.relay_url], nip46_event)
                 .await?;
         } else {
             self.client
                 .pool()
-                .send_msg_to(uri.relay_url, ClientMessage::event(nip46_event), None)
+                .send_msg_to(
+                    [uri.relay_url],
+                    ClientMessage::event(nip46_event),
+                    RelaySendOptions::new().skip_send_confirmation(true),
+                )
                 .await?;
         }
         self.db.delete_nostr_connect_session(app_public_key).await?;
@@ -104,7 +108,7 @@ impl SmartVaults {
             let nip46_event =
                 EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
             self.client
-                .send_event_to(uri.relay_url, nip46_event)
+                .send_event_to([uri.relay_url], nip46_event)
                 .await?;
             self.db
                 .set_nostr_connect_request_as_approved(event_id)
@@ -129,7 +133,7 @@ impl SmartVaults {
             let nip46_event =
                 EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
             self.client
-                .send_event_to(uri.relay_url, nip46_event)
+                .send_event_to([uri.relay_url], nip46_event)
                 .await?;
             self.db.delete_nostr_connect_request(event_id).await?;
             Ok(())

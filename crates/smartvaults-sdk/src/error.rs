@@ -29,7 +29,7 @@ pub enum Error {
     #[error(transparent)]
     Client(#[from] nostr_sdk::client::Error),
     #[error(transparent)]
-    RelayPool(#[from] nostr_sdk::relay::pool::Error),
+    RelayPool(#[from] nostr_sdk::pool::pool::Error),
     #[error(transparent)]
     NostrDatabase(#[from] DatabaseError),
     #[error(transparent)]
@@ -43,7 +43,7 @@ pub enum Error {
     #[error(transparent)]
     SmartVaultsEventBuilder(#[from] SmartVaultsEventBuilderError),
     #[error(transparent)]
-    Relay(#[from] nostr_sdk::relay::Error),
+    Relay(#[from] nostr_sdk::pool::relay::Error),
     #[error(transparent)]
     Policy(#[from] smartvaults_core::policy::Error),
     #[error(transparent)]

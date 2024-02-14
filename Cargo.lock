@@ -291,21 +291,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-wsocket"
+name = "async-utility"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2d9504eb5213e3dde775ccb10994d0c17edbf72f4b008307778c66f5b4c40f0"
+checksum = "a349201d80b4aa18d17a34a182bdd7f8ddf845e9e57d2ea130a12e10ef1e3a47"
 dependencies = [
- "async-utility",
+ "futures-util",
+ "gloo-timers",
+ "tokio",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "async-wsocket"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d253e375ea899cb131b92a474587e217634e7ea927c24d8098eecbcad0c5c97a"
+dependencies = [
+ "async-utility 0.2.0",
  "futures-util",
  "thiserror",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.25.0",
  "tokio-socks",
  "tokio-tungstenite",
  "url",
  "wasm-ws",
- "webpki-roots",
+ "webpki-roots 0.26.1",
 ]
 
 [[package]]
@@ -1122,14 +1134,13 @@ checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
 
 [[package]]
 name = "deadpool"
-version = "0.9.5"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "421fe0f90f2ab22016f32a9881be5134fdd71c65298917084b0c7477cbc3856e"
+checksum = "fb84100978c1c7b37f09ed3ce3e5f843af02c2a2c431bae5b19230dad2c1b490"
 dependencies = [
  "async-trait",
  "deadpool-runtime",
  "num_cpus",
- "retain_mut",
  "tokio",
 ]
 
@@ -1144,9 +1155,9 @@ dependencies = [
 
 [[package]]
 name = "deadpool-sqlite"
-version = "0.5.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e026821eaacbce25ff0d54405e4421d71656fcae3e4a9323461280fcda6dbc7d"
+checksum = "b8010e36e12f3be22543a5e478b4af20aeead9a700dd69581a5e050a070fc22c"
 dependencies = [
  "deadpool",
  "deadpool-sync",
@@ -1273,10 +1284,10 @@ dependencies = [
  "byteorder",
  "libc",
  "log",
- "rustls",
+ "rustls 0.21.10",
  "serde",
  "serde_json",
- "webpki-roots",
+ "webpki-roots 0.25.3",
  "winapi",
 ]
 
@@ -1348,9 +1359,9 @@ dependencies = [
 
 [[package]]
 name = "fallible-iterator"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
 
 [[package]]
 name = "fallible-streaming-iterator"
@@ -1799,7 +1810,7 @@ source = "git+https://github.com/grovesNL/glyphon.git?rev=2caa9fc5e5923c1d827d17
 dependencies = [
  "cosmic-text",
  "etagere",
- "lru",
+ "lru 0.11.1",
  "wgpu",
 ]
 
@@ -1917,7 +1928,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "futures-util",
- "http",
+ "http 0.2.11",
  "indexmap",
  "slab",
  "tokio",
@@ -2014,13 +2025,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "http"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b32afd38673a8016f7c9ae69e5af41a58f81b1d31689040f2f1959594ce194ea"
+dependencies = [
+ "bytes",
+ "fnv",
+ "itoa",
+]
+
+[[package]]
 name = "http-body"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ceab25649e9960c0311ea418d17bee82c0dcec1bd053b5f9a66e265a693bed2"
 dependencies = [
  "bytes",
- "http",
+ "http 0.2.11",
  "pin-project-lite",
 ]
 
@@ -2047,7 +2069,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.11",
  "http-body",
  "httparse",
  "httpdate",
@@ -2067,11 +2089,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
 dependencies = [
  "futures-util",
- "http",
+ "http 0.2.11",
  "hyper",
- "rustls",
+ "rustls 0.21.10",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
 ]
 
 [[package]]
@@ -2474,9 +2496,9 @@ dependencies = [
 
 [[package]]
 name = "libsqlite3-sys"
-version = "0.25.2"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29f835d03d717946d28b1d1ed632eb6f0e24a299388ee623d0c23118d3e8a7fa"
+checksum = "cf4e226dcd58b4be396f7bd3c20da8fdee2911400705297ba7d2d7cc2c30f716"
 dependencies = [
  "cc",
  "pkg-config",
@@ -2536,6 +2558,15 @@ name = "lru"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4a83fb7698b3643a0e34f9ae6f2e8f0178c0fd42f8b59d493aa271ff3a5bf21"
+dependencies = [
+ "hashbrown",
+]
+
+[[package]]
+name = "lru"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db2c024b41519440580066ba82aab04092b333e09066a5eb86c7c4890df31f22"
 dependencies = [
  "hashbrown",
 ]
@@ -2855,7 +2886,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=26cad451575546244365653d201b7aae4e23cf03#26cad451575546244365653d201b7aae4e23cf03"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
  "aes",
  "base64 0.21.7",
@@ -2881,10 +2912,11 @@ dependencies = [
 [[package]]
 name = "nostr-database"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=26cad451575546244365653d201b7aae4e23cf03#26cad451575546244365653d201b7aae4e23cf03"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
  "async-trait",
  "flatbuffers",
+ "lru 0.12.2",
  "nostr",
  "thiserror",
  "tokio",
@@ -2894,22 +2926,37 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=26cad451575546244365653d201b7aae4e23cf03#26cad451575546244365653d201b7aae4e23cf03"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
  "nostr",
  "uniffi",
 ]
 
 [[package]]
+name = "nostr-relay-pool"
+version = "0.27.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
+dependencies = [
+ "async-utility 0.2.0",
+ "async-wsocket",
+ "nostr",
+ "nostr-database",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "nostr-sdk"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=26cad451575546244365653d201b7aae4e23cf03#26cad451575546244365653d201b7aae4e23cf03"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
- "async-utility",
- "async-wsocket",
+ "async-utility 0.2.0",
  "lnurl-pay",
  "nostr",
  "nostr-database",
+ "nostr-relay-pool",
+ "nostr-signer",
  "nostr-sqlite",
  "once_cell",
  "thiserror",
@@ -2920,8 +2967,9 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=26cad451575546244365653d201b7aae4e23cf03#26cad451575546244365653d201b7aae4e23cf03"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
+ "async-utility 0.2.0",
  "nostr-ffi",
  "nostr-sdk",
  "tracing",
@@ -2930,9 +2978,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nostr-signer"
+version = "0.27.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
+dependencies = [
+ "async-utility 0.2.0",
+ "nostr",
+ "nostr-relay-pool",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "nostr-sqlite"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=26cad451575546244365653d201b7aae4e23cf03#26cad451575546244365653d201b7aae4e23cf03"
+source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",
@@ -3700,7 +3760,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.11",
  "http-body",
  "hyper",
  "hyper-rustls",
@@ -3711,21 +3771,21 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
- "rustls",
+ "rustls 0.21.10",
  "rustls-pemfile",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "system-configuration",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
  "tokio-socks",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "webpki-roots",
+ "webpki-roots 0.25.3",
  "winreg",
 ]
 
@@ -3745,12 +3805,6 @@ dependencies = [
  "tiny-skia 0.11.3",
  "usvg",
 ]
-
-[[package]]
-name = "retain_mut"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4389f1d5789befaf6029ebd9f7dac4af7f7e3d61b69d4f30e2ac02b57e7712b0"
 
 [[package]]
 name = "rfd"
@@ -3809,11 +3863,11 @@ dependencies = [
 
 [[package]]
 name = "rusqlite"
-version = "0.28.0"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01e213bc3ecb39ac32e81e51ebe31fd888a940515173e3a18a35f8c6e896422a"
+checksum = "a78046161564f5e7cd9008aff3b2990b3850dc8e0349119b98e8f251e099f24d"
 dependencies = [
- "bitflags 1.3.2",
+ "bitflags 2.4.2",
  "fallible-iterator",
  "fallible-streaming-iterator",
  "hashlink",
@@ -3864,8 +3918,22 @@ checksum = "f9d5a6813c0759e4609cd494e8e725babae6a2ca7b62a5536a13daaec6fcb7ba"
 dependencies = [
  "log",
  "ring",
- "rustls-webpki",
+ "rustls-webpki 0.101.7",
  "sct",
+]
+
+[[package]]
+name = "rustls"
+version = "0.22.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e87c9956bd9807afa1f77e0f7594af32566e830e088a5576d27c5b6f30f49d41"
+dependencies = [
+ "log",
+ "ring",
+ "rustls-pki-types",
+ "rustls-webpki 0.102.2",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -3878,12 +3946,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustls-pki-types"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "048a63e5b3ac996d78d402940b5fa47973d2d080c6c6fffa1d0f19c4445310b7"
+
+[[package]]
 name = "rustls-webpki"
 version = "0.101.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
 dependencies = [
  "ring",
+ "untrusted",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.102.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faaa0a62740bedb9b2ef5afa303da42764c012f743917351dc9a237ea1663610"
+dependencies = [
+ "ring",
+ "rustls-pki-types",
  "untrusted",
 ]
 
@@ -4256,7 +4341,7 @@ dependencies = [
 name = "smartvaults-sdk"
 version = "0.4.0"
 dependencies = [
- "async-utility",
+ "async-utility 0.1.1",
  "bdk_electrum",
  "futures",
  "futures-util",
@@ -4279,7 +4364,7 @@ dependencies = [
 name = "smartvaults-sdk-ffi"
 version = "0.4.0"
 dependencies = [
- "async-utility",
+ "async-utility 0.1.1",
  "nostr-ffi",
  "nostr-sdk-ffi",
  "smartvaults-sdk",
@@ -4774,7 +4859,18 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
- "rustls",
+ "rustls 0.21.10",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-rustls"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "775e0c0f0adb3a2f22a00c4745d728b479985fc15ee7ca6a2608388c5569860f"
+dependencies = [
+ "rustls 0.22.2",
+ "rustls-pki-types",
  "tokio",
 ]
 
@@ -4792,17 +4888,18 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
+checksum = "c83b561d025642014097b66e6c1bb422783339e0909e4429cde4749d1990bc38"
 dependencies = [
  "futures-util",
  "log",
- "rustls",
+ "rustls 0.22.2",
+ "rustls-pki-types",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.25.0",
  "tungstenite",
- "webpki-roots",
+ "webpki-roots 0.26.1",
 ]
 
 [[package]]
@@ -4972,18 +5069,19 @@ checksum = "17f77d76d837a7830fe1d4f12b7b4ba4192c1888001c7164257e4bc6d21d96b4"
 
 [[package]]
 name = "tungstenite"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
+checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
 dependencies = [
  "byteorder",
  "bytes",
  "data-encoding",
- "http",
+ "http 1.0.0",
  "httparse",
  "log",
  "rand",
- "rustls",
+ "rustls 0.22.2",
+ "rustls-pki-types",
  "sha1",
  "thiserror",
  "url",
@@ -5716,6 +5814,15 @@ name = "webpki-roots"
 version = "0.25.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1778a42e8b3b90bff8d0f5032bf22250792889a5cdc752aa0020c84abe3aaf10"
+
+[[package]]
+name = "webpki-roots"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3de34ae270483955a94f4b21bdaaeb83d508bb84a01435f393818edb0012009"
+dependencies = [
+ "rustls-pki-types",
+]
 
 [[package]]
 name = "weedle2"
