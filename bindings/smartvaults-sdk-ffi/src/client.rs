@@ -47,7 +47,7 @@ impl Drop for SmartVaults {
                 .dropped
                 .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(true));
             let inner = self.inner.clone();
-            thread::spawn(async move {
+            let _ = thread::spawn(async move {
                 inner
                     .shutdown()
                     .await
@@ -911,7 +911,7 @@ impl SmartVaults {
         })
     }
 
-    pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Arc<AbortHandle> {
+    pub fn handle_sync(self: Arc<Self>, handler: Box<dyn SyncHandler>) -> Result<Arc<AbortHandle>> {
         tracing::info!("Spawning new `handle_sync` thread");
         let handle = async_utility::thread::abortable(async move {
             let mut receiver = self.inner.sync_notifications();
@@ -923,9 +923,9 @@ impl SmartVaults {
                 })
                 .await;
             }
-        });
+        })?;
 
-        Arc::new(handle.into())
+        Ok(Arc::new(handle.into()))
     }
 }
 

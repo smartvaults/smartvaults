@@ -13,6 +13,7 @@ license = "MIT"
 keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
+async-utility = "0.2"
 nostr = { git = "https://github.com/rust-nostr/nostr", rev = "8ef7b1d29db1c54942ffa39c47db9242bc3cc448", default-features = false }
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "8ef7b1d29db1c54942ffa39c47db9242bc3cc448", default-features = false }
 nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "8ef7b1d29db1c54942ffa39c47db9242bc3cc448" }

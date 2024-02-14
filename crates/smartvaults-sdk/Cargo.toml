@@ -12,10 +12,10 @@ keywords.workspace = true
 
 [features]
 default = []
-blocking = ["async-utility/blocking", "nostr-sdk/blocking"]
+blocking = ["nostr-sdk/blocking"]
 
 [dependencies]
-async-utility = "0.1"
+async-utility.workspace = true
 bdk_electrum = { git = "https://github.com/yukibtc/bdk", rev = "285ff46a49fe53e1f7996b83335442e2febcdeae" }
 smartvaults-core = { path = "../smartvaults-core", features = ["reserves"] }
 smartvaults-protocol = { path = "../smartvaults-protocol" }

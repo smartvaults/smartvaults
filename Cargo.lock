@@ -280,18 +280,6 @@ dependencies = [
 
 [[package]]
 name = "async-utility"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3716c0d3970fe92d79a8f4cda2caf91113574505dff5b18e455e549d4b078e98"
-dependencies = [
- "futures-util",
- "gloo-timers",
- "tokio",
- "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "async-utility"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a349201d80b4aa18d17a34a182bdd7f8ddf845e9e57d2ea130a12e10ef1e3a47"
@@ -308,7 +296,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d253e375ea899cb131b92a474587e217634e7ea927c24d8098eecbcad0c5c97a"
 dependencies = [
- "async-utility 0.2.0",
+ "async-utility",
  "futures-util",
  "thiserror",
  "tokio",
@@ -2937,7 +2925,7 @@ name = "nostr-relay-pool"
 version = "0.27.0"
 source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
- "async-utility 0.2.0",
+ "async-utility",
  "async-wsocket",
  "nostr",
  "nostr-database",
@@ -2951,7 +2939,7 @@ name = "nostr-sdk"
 version = "0.27.0"
 source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
- "async-utility 0.2.0",
+ "async-utility",
  "lnurl-pay",
  "nostr",
  "nostr-database",
@@ -2969,7 +2957,7 @@ name = "nostr-sdk-ffi"
 version = "0.1.0"
 source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
- "async-utility 0.2.0",
+ "async-utility",
  "nostr-ffi",
  "nostr-sdk",
  "tracing",
@@ -2982,7 +2970,7 @@ name = "nostr-signer"
 version = "0.27.0"
 source = "git+https://github.com/rust-nostr/nostr?rev=8ef7b1d29db1c54942ffa39c47db9242bc3cc448#8ef7b1d29db1c54942ffa39c47db9242bc3cc448"
 dependencies = [
- "async-utility 0.2.0",
+ "async-utility",
  "nostr",
  "nostr-relay-pool",
  "thiserror",
@@ -4341,7 +4329,7 @@ dependencies = [
 name = "smartvaults-sdk"
 version = "0.4.0"
 dependencies = [
- "async-utility 0.1.1",
+ "async-utility",
  "bdk_electrum",
  "futures",
  "futures-util",
@@ -4364,7 +4352,7 @@ dependencies = [
 name = "smartvaults-sdk-ffi"
 version = "0.4.0"
 dependencies = [
- "async-utility 0.1.1",
+ "async-utility",
  "nostr-ffi",
  "nostr-sdk-ffi",
  "smartvaults-sdk",

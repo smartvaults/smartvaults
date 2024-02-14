@@ -43,6 +43,8 @@ const TARGET_BLOCKS: [Priority; 3] = [Priority::High, Priority::Medium, Priority
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
+    Thread(#[from] async_utility::thread::Error),
+    #[error(transparent)]
     BdkStore(#[from] NewOrLoadError<StorageError, StorageError>),
     #[error(transparent)]
     Electrum(#[from] electrum_client::Error),
@@ -316,7 +318,7 @@ impl Manager {
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
         sync_channel: Option<Sender<Message>>,
-    ) {
+    ) -> Result<(), Error> {
         let wallets = self.wallets.read().await;
         for (id, wallet) in wallets.clone().into_iter() {
             let endpoint = endpoint.clone();
@@ -334,8 +336,9 @@ impl Manager {
                     }
                     Err(e) => tracing::error!("Impossible to sync policy {id}: {e}"),
                 }
-            });
+            })?;
         }
+        Ok(())
     }
 
     /// Execute a timechain sync

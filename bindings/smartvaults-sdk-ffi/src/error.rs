@@ -24,6 +24,12 @@ impl fmt::Display for SmartVaultsError {
     }
 }
 
+impl From<async_utility::thread::Error> for SmartVaultsError {
+    fn from(e: async_utility::thread::Error) -> SmartVaultsError {
+        Self::Generic(e.to_string())
+    }
+}
+
 impl From<smartvaults_sdk::logger::Error> for SmartVaultsError {
     fn from(e: smartvaults_sdk::logger::Error) -> Self {
         Self::Generic(e.to_string())

@@ -277,11 +277,11 @@ impl SmartVaults {
                 if let Err(e) = manager.load_policy(policy_id, policy).await {
                     tracing::error!("Impossible to load policy {policy_id}: {e}");
                 }
-            });
+            })?;
         }
         self.restore_relays().await?;
         self.client.connect().await;
-        self.sync();
+        self.sync()?;
         Ok(())
     }
 
@@ -354,7 +354,9 @@ impl SmartVaults {
 
     pub async fn start(&self) {
         self.client.start().await;
-        self.sync();
+        if let Err(e) = self.sync() {
+            tracing::error!("Impossible to start sync: {e}");
+        }
     }
 
     pub async fn stop(&self) -> Result<(), Error> {
@@ -372,7 +374,7 @@ impl SmartVaults {
                     self.manager.unload_policies().await;
                     self.client.database().wipe().await?;
                     self.client.start().await;
-                    self.sync();
+                    self.sync()?;
                 }
                 Ok(false)
             })
@@ -442,7 +444,7 @@ impl SmartVaults {
                     if let Err(e) = this.save_relay_list().await {
                         tracing::error!("Impossible to save relay list: {e}");
                     }
-                });
+                })?;
             }
 
             if let Err(e) = self.rebroadcast_to(url.clone()).await {

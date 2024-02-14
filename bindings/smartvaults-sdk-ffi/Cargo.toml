@@ -13,7 +13,7 @@ crate-type = ["cdylib", "staticlib"]
 doctest = false
 
 [dependencies]
-async-utility = "0.1"
+async-utility.workspace = true
 nostr-ffi.workspace = true
 nostr-sdk-ffi.workspace = true
 smartvaults-sdk = { path = "../../crates/smartvaults-sdk", features = ["blocking"] }

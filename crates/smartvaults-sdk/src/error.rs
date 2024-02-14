@@ -15,6 +15,8 @@ pub enum Error {
     #[error(transparent)]
     IO(#[from] std::io::Error),
     #[error(transparent)]
+    Thread(#[from] async_utility::thread::Error),
+    #[error(transparent)]
     Keechain(#[from] smartvaults_core::types::keechain::Error),
     #[error(transparent)]
     Keychain(#[from] smartvaults_core::types::keychain::Error),

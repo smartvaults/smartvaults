@@ -61,9 +61,9 @@ pub enum Message {
 }
 
 impl SmartVaults {
-    fn block_height_syncer(&self) -> AbortHandle {
+    fn block_height_syncer(&self) -> Result<AbortHandle, Error> {
         let this = self.clone();
-        thread::abortable(async move {
+        Ok(thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint().await {
                     Ok(endpoint) => {
@@ -80,12 +80,12 @@ impl SmartVaults {
 
                 thread::sleep(Duration::from_secs(10)).await;
             }
-        })
+        })?)
     }
 
-    fn mempool_fees_syncer(&self) -> AbortHandle {
+    fn mempool_fees_syncer(&self) -> Result<AbortHandle, Error> {
         let this = self.clone();
-        thread::abortable(async move {
+        Ok(thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint().await {
                     Ok(endpoint) => {
@@ -103,31 +103,35 @@ impl SmartVaults {
 
                 thread::sleep(Duration::from_secs(10)).await;
             }
-        })
+        })?)
     }
 
-    fn policies_syncer(&self) -> AbortHandle {
+    fn policies_syncer(&self) -> Result<AbortHandle, Error> {
         let this = self.clone();
-        thread::abortable(async move {
+        Ok(thread::abortable(async move {
             loop {
                 match this.config.electrum_endpoint().await {
                     Ok(endpoint) => {
                         let proxy = this.config.proxy().await.ok();
-                        this.manager
+                        if let Err(e) = this
+                            .manager
                             .sync_all(endpoint, proxy, Some(this.sync_channel.clone()))
-                            .await;
+                            .await
+                        {
+                            tracing::error!("Impossible to sync all wallets: {e}");
+                        }
                     }
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
                 thread::sleep(Duration::from_secs(10)).await;
             }
-        })
+        })?)
     }
 
-    fn handle_pending_events(&self) -> AbortHandle {
+    fn handle_pending_events(&self) -> Result<AbortHandle, Error> {
         let this = self.clone();
-        thread::abortable(async move {
+        Ok(thread::abortable(async move {
             loop {
                 for event in this.storage.pending_events().await.into_iter() {
                     let event_id = event.id;
@@ -137,7 +141,7 @@ impl SmartVaults {
                 }
                 thread::sleep(Duration::from_secs(30)).await;
             }
-        })
+        })?)
     }
 
     pub fn sync_notifications(&self) -> Receiver<Message> {
@@ -202,7 +206,7 @@ impl SmartVaults {
         filters
     }
 
-    pub(crate) fn sync(&self) {
+    pub(crate) fn sync(&self) -> Result<(), Error> {
         if self.syncing.load(Ordering::SeqCst) {
             tracing::warn!("Syncing threads are already running");
         } else {
@@ -212,12 +216,12 @@ impl SmartVaults {
             let this = self.clone();
             thread::spawn(async move {
                 // Sync timechain
-                let block_height_syncer: AbortHandle = this.block_height_syncer();
-                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer();
-                let policies_syncer: AbortHandle = this.policies_syncer();
+                let block_height_syncer: AbortHandle = this.block_height_syncer()?;
+                let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer()?;
+                let policies_syncer: AbortHandle = this.policies_syncer()?;
 
                 // Pending events handler
-                let pending_event_handler = this.handle_pending_events();
+                let pending_event_handler = this.handle_pending_events()?;
 
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp =
@@ -279,7 +283,9 @@ impl SmartVaults {
                     })
                     .await;
                 tracing::debug!("Exited from nostr sync thread");
-            });
+
+                Ok::<(), Error>(())
+            })?;
 
             // Negentropy reconciliation
             let this = self.clone();
@@ -288,8 +294,10 @@ impl SmartVaults {
                 for filter in this.sync_filters(Timestamp::from(0)).await.into_iter() {
                     this.client.reconcile(filter, opts).await.unwrap();
                 }
-            });
+            })?;
         }
+
+        Ok(())
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
