@@ -5,8 +5,9 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI, Request as NIP46Request};
-use nostr_sdk::{ClientMessage, EventBuilder, EventId, Keys, RelaySendOptions, Timestamp, Url};
-use smartvaults_core::secp256k1::XOnlyPublicKey;
+use nostr_sdk::{
+    ClientMessage, EventBuilder, EventId, Keys, PublicKey, RelaySendOptions, Timestamp, Url,
+};
 use smartvaults_sdk_sqlite::model::NostrConnectRequest;
 
 use super::{Error, SmartVaults};
@@ -51,7 +52,7 @@ impl SmartVaults {
 
     pub(crate) async fn _disconnect_nostr_connect_session(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
         wait: bool,
     ) -> Result<(), Error> {
         let uri = self.db.get_nostr_connect_session(app_public_key).await?;
@@ -78,7 +79,7 @@ impl SmartVaults {
 
     pub async fn disconnect_nostr_connect_session(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
     ) -> Result<(), Error> {
         self._disconnect_nostr_connect_session(app_public_key, true)
             .await
@@ -144,7 +145,7 @@ impl SmartVaults {
 
     pub async fn auto_approve_nostr_connect_requests(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
         duration: Duration,
     ) {
         let until: Timestamp = Timestamp::now() + duration;
@@ -153,15 +154,13 @@ impl SmartVaults {
             .await;
     }
 
-    pub async fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
+    pub async fn revoke_nostr_connect_auto_approve(&self, app_public_key: PublicKey) {
         self.db
             .revoke_nostr_connect_auto_approve(app_public_key)
             .await;
     }
 
-    pub async fn get_nostr_connect_pre_authorizations(
-        &self,
-    ) -> BTreeMap<XOnlyPublicKey, Timestamp> {
+    pub async fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<PublicKey, Timestamp> {
         self.db.get_nostr_connect_pre_authorizations().await
     }
 }

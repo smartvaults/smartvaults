@@ -4,6 +4,7 @@
 #![allow(ambiguous_glob_reexports)]
 
 pub use nostr_sdk::prelude::*;
+pub use smartvaults_core::bitcoin::*;
 pub use smartvaults_core::*;
 pub use smartvaults_protocol::*;
 

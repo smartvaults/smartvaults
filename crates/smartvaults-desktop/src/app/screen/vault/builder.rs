@@ -4,9 +4,8 @@
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::PolicyTemplate;
-use smartvaults_sdk::nostr::Profile;
+use smartvaults_sdk::nostr::{Profile, PublicKey};
 use smartvaults_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner};
 use smartvaults_sdk::util;
 
@@ -60,7 +59,7 @@ impl PolicyBuilderState {
         false
     }
 
-    fn pk_is_already_selected(&self, public_key: XOnlyPublicKey) -> bool {
+    fn pk_is_already_selected(&self, public_key: PublicKey) -> bool {
         for (user, ..) in self.policy.iter().flatten() {
             if user.public_key() == public_key {
                 return true;
@@ -155,7 +154,7 @@ impl State for PolicyBuilderState {
                         .flatten()
                         .map(|(_, desc)| desc.clone())
                         .collect();
-                    let public_keys: Vec<XOnlyPublicKey> = self
+                    let public_keys: Vec<PublicKey> = self
                         .policy
                         .iter()
                         .flatten()

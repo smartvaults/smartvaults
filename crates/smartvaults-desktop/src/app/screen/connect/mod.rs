@@ -6,9 +6,8 @@ use std::time::Duration;
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::nostr::nips::nip46::NostrConnectURI;
-use smartvaults_sdk::nostr::{EventId, Timestamp};
+use smartvaults_sdk::nostr::{EventId, PublicKey, Timestamp};
 use smartvaults_sdk::types::NostrConnectRequest;
 use smartvaults_sdk::util;
 
@@ -22,16 +21,16 @@ use crate::theme::icon::{CHECK, FULLSCREEN, PLUS, RELOAD, STOP, STOPWATCH, TRASH
 
 type Sessions = Vec<(NostrConnectURI, Timestamp)>;
 type Requests = Vec<NostrConnectRequest>;
-type Authorizations = BTreeMap<XOnlyPublicKey, Timestamp>;
+type Authorizations = BTreeMap<PublicKey, Timestamp>;
 
 #[derive(Debug, Clone)]
 pub enum ConnectMessage {
     Load((Sessions, Requests, Requests, Authorizations)),
     ApproveRequest(EventId),
     DeleteRequest(EventId),
-    DisconnectSession(XOnlyPublicKey),
-    AddAuthorization(XOnlyPublicKey),
-    RevokeAuthorization(XOnlyPublicKey),
+    DisconnectSession(PublicKey),
+    AddAuthorization(PublicKey),
+    RevokeAuthorization(PublicKey),
     ErrorChanged(Option<String>),
     Reload,
 }

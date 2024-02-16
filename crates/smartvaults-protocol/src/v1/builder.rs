@@ -4,9 +4,8 @@
 use std::collections::HashMap;
 
 use nostr::nips::nip04;
-use nostr::{Event, EventBuilder, EventId, Keys, Tag};
+use nostr::{Event, EventBuilder, EventId, Keys, PublicKey, Tag};
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{Policy, Proposal, Signer};
 use thiserror::Error;
 
@@ -37,11 +36,11 @@ pub trait SmartVaultsEventBuilder {
     fn shared_key(
         keys: &Keys,
         shared_key: &Keys,
-        receiver: &XOnlyPublicKey,
+        receiver: &PublicKey,
         policy_id: EventId,
     ) -> Result<Event, Error> {
         let encrypted_shared_key = nip04::encrypt(
-            &keys.secret_key()?,
+            keys.secret_key()?,
             receiver,
             shared_key.secret_key()?.display_secret().to_string(),
         )?;
@@ -57,7 +56,7 @@ pub trait SmartVaultsEventBuilder {
     fn policy(
         shared_key: &Keys,
         policy: &Policy,
-        nostr_pubkeys: &[XOnlyPublicKey],
+        nostr_pubkeys: &[PublicKey],
     ) -> Result<Event, Error> {
         let content: String = policy.encrypt_with_keys(shared_key)?;
         let tags = nostr_pubkeys.iter().copied().map(Tag::public_key);
@@ -68,7 +67,7 @@ pub trait SmartVaultsEventBuilder {
         shared_key: &Keys,
         policy_id: EventId,
         proposal: &Proposal,
-        nostr_pubkeys: &[XOnlyPublicKey],
+        nostr_pubkeys: &[PublicKey],
     ) -> Result<Event, Error> {
         let mut tags: Vec<Tag> = nostr_pubkeys.iter().copied().map(Tag::public_key).collect();
         tags.push(Tag::event(policy_id));
@@ -80,7 +79,7 @@ pub trait SmartVaultsEventBuilder {
         shared_key: &Keys,
         policy_id: EventId,
         label: &Label,
-        nostr_pubkeys: &[XOnlyPublicKey],
+        nostr_pubkeys: &[PublicKey],
     ) -> Result<Event, Error> {
         let identifier: String = label.generate_identifier(shared_key)?;
         let content: String = label.encrypt_with_keys(shared_key)?;
@@ -115,7 +114,7 @@ pub trait SmartVaultsEventBuilder {
 
     fn key_agents_verified(
         keys: &Keys,
-        public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData>,
+        public_keys: HashMap<PublicKey, VerifiedKeyAgentData>,
         network: Network,
     ) -> Result<Event, Error> {
         let identifier: String = network.magic().to_string();

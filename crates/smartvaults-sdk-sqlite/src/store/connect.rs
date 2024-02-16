@@ -5,8 +5,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use smartvaults_protocol::nostr::nips::nip46::{Message as NIP46Message, NostrConnectURI};
-use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
-use smartvaults_protocol::nostr::{EventId, JsonUtil, Timestamp, Url};
+use smartvaults_protocol::nostr::{EventId, JsonUtil, PublicKey, Timestamp, Url};
 
 use super::Store;
 use crate::model::NostrConnectRequest;
@@ -26,7 +25,7 @@ impl Store {
 
     pub async fn nostr_connect_session_exists(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
     ) -> Result<bool, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
@@ -46,7 +45,7 @@ impl Store {
     pub async fn save_nostr_connect_request(
         &self,
         event_id: EventId,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
         message: NIP46Message,
         timestamp: Timestamp,
         approved: bool,
@@ -101,7 +100,7 @@ impl Store {
 
     pub async fn get_nostr_connect_session(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
     ) -> Result<NostrConnectURI, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
@@ -120,7 +119,7 @@ impl Store {
 
     pub async fn delete_nostr_connect_session(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
     ) -> Result<(), Error> {
         // Delete notifications
         // self.delete_notification(policy_id)?;
@@ -159,7 +158,7 @@ impl Store {
             let approved: bool = row.get(4)?;
             requests.push(NostrConnectRequest {
                 event_id: EventId::from_hex(event_id)?,
-                app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
+                app_public_key: PublicKey::from_str(&app_public_key)?,
                 message: NIP46Message::from_json(message)?,
                 timestamp: Timestamp::from(timestamp),
                 approved,
@@ -186,7 +185,7 @@ impl Store {
         let approved: bool = row.get(3)?;
         Ok(NostrConnectRequest {
             event_id,
-            app_public_key: XOnlyPublicKey::from_str(&app_public_key)?,
+            app_public_key: PublicKey::from_str(&app_public_key)?,
             message: NIP46Message::from_json(message)?,
             timestamp: Timestamp::from(timestamp),
             approved,
@@ -211,17 +210,14 @@ impl Store {
 
     pub async fn set_nostr_connect_auto_approve(
         &self,
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
         until: Timestamp,
     ) {
         let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.write().await;
         nostr_connect_auto_approve.insert(app_public_key, until);
     }
 
-    pub async fn is_nostr_connect_session_pre_authorized(
-        &self,
-        app_public_key: XOnlyPublicKey,
-    ) -> bool {
+    pub async fn is_nostr_connect_session_pre_authorized(&self, app_public_key: PublicKey) -> bool {
         let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.write().await;
         if let Some(until) = nostr_connect_auto_approve.get(&app_public_key) {
             if Timestamp::now() < *until {
@@ -233,14 +229,12 @@ impl Store {
         false
     }
 
-    pub async fn revoke_nostr_connect_auto_approve(&self, app_public_key: XOnlyPublicKey) {
+    pub async fn revoke_nostr_connect_auto_approve(&self, app_public_key: PublicKey) {
         let mut nostr_connect_auto_approve = self.nostr_connect_auto_approve.write().await;
         nostr_connect_auto_approve.remove(&app_public_key);
     }
 
-    pub async fn get_nostr_connect_pre_authorizations(
-        &self,
-    ) -> BTreeMap<XOnlyPublicKey, Timestamp> {
+    pub async fn get_nostr_connect_pre_authorizations(&self) -> BTreeMap<PublicKey, Timestamp> {
         let nostr_connect_auto_approve = self.nostr_connect_auto_approve.read().await;
         nostr_connect_auto_approve
             .iter()

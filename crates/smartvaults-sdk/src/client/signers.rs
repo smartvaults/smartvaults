@@ -6,10 +6,10 @@ use std::collections::{BTreeMap, HashSet};
 use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip04;
 use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, RelaySendOptions, Tag,
+    ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, PublicKey, RelaySendOptions,
+    Tag,
 };
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::{SharedSigner, Signer};
 use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
 use smartvaults_protocol::v1::util::{Encryption, Serde};
@@ -121,7 +121,7 @@ impl SmartVaults {
     pub async fn share_signer(
         &self,
         signer_id: EventId,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     ) -> Result<EventId, Error> {
         if !self
             .storage
@@ -132,7 +132,7 @@ impl SmartVaults {
             let signer: Signer = self.get_signer_by_id(signer_id).await?;
             let shared_signer: SharedSigner = signer.to_shared_signer();
             let content: String =
-                nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
+                nip04::encrypt(keys.secret_key()?, &public_key, shared_signer.as_json())?;
             let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
             let event: Event =
                 EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
@@ -149,7 +149,7 @@ impl SmartVaults {
     pub async fn share_signer_to_multiple_public_keys(
         &self,
         signer_id: EventId,
-        public_keys: Vec<XOnlyPublicKey>,
+        public_keys: Vec<PublicKey>,
     ) -> Result<(), Error> {
         if public_keys.is_empty() {
             return Err(Error::NotEnoughPublicKeys);
@@ -168,7 +168,7 @@ impl SmartVaults {
                 tracing::warn!("Signer {signer_id} already shared with {public_key}");
             } else {
                 let content: String =
-                    nip04::encrypt(&keys.secret_key()?, &public_key, shared_signer.as_json())?;
+                    nip04::encrypt(keys.secret_key()?, &public_key, shared_signer.as_json())?;
                 let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
                 let event: Event =
                     EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
@@ -203,7 +203,7 @@ impl SmartVaults {
     }
 
     pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
-        let public_key: XOnlyPublicKey = self
+        let public_key: PublicKey = self
             .storage
             .get_public_key_for_my_shared_signer(shared_signer_id)
             .await?;
@@ -218,7 +218,7 @@ impl SmartVaults {
     pub async fn my_shared_signer_already_shared(
         &self,
         signer_id: EventId,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     ) -> Result<bool, Error> {
         Ok(self
             .storage
@@ -268,19 +268,18 @@ impl SmartVaults {
     pub async fn get_shared_signers_public_keys(
         &self,
         include_contacts: bool,
-    ) -> Result<Vec<XOnlyPublicKey>, Error> {
-        let public_keys: HashSet<XOnlyPublicKey> =
-            self.storage.get_shared_signers_public_keys().await;
+    ) -> Result<Vec<PublicKey>, Error> {
+        let public_keys: HashSet<PublicKey> = self.storage.get_shared_signers_public_keys().await;
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
             let keys = self.keys();
-            let contacts: Vec<XOnlyPublicKey> = self
+            let contacts: Vec<PublicKey> = self
                 .client
                 .database()
                 .contacts_public_keys(keys.public_key())
                 .await?;
-            let contacts: HashSet<XOnlyPublicKey> = contacts.into_iter().collect();
+            let contacts: HashSet<PublicKey> = contacts.into_iter().collect();
             Ok(public_keys.difference(&contacts).copied().collect())
         }
     }
@@ -288,7 +287,7 @@ impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_shared_signers_by_public_key(
         &self,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     ) -> Result<Vec<GetSharedSigner>, Error> {
         let profile: Profile = self.client.database().profile(public_key).await?;
         Ok(self

@@ -3,15 +3,14 @@
 
 use std::cmp::Ordering;
 
-use nostr_sdk::{EventId, Timestamp};
-use smartvaults_core::secp256k1::XOnlyPublicKey;
+use nostr_sdk::{EventId, PublicKey, Timestamp};
 use smartvaults_core::{ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner};
 use smartvaults_protocol::v1::Label;
 
 #[derive(Debug, Clone)]
 pub(crate) struct InternalPolicy {
     pub policy: Policy,
-    pub public_keys: Vec<XOnlyPublicKey>,
+    pub public_keys: Vec<PublicKey>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +40,7 @@ impl Ord for InternalProposal {
 pub(crate) struct InternalApproval {
     pub proposal_id: EventId,
     pub policy_id: EventId,
-    pub public_key: XOnlyPublicKey,
+    pub public_key: PublicKey,
     pub approval: ApprovedProposal,
     pub timestamp: Timestamp,
 }
@@ -87,7 +86,7 @@ impl Ord for InternalCompletedProposal {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InternalSharedSigner {
-    pub owner_public_key: XOnlyPublicKey,
+    pub owner_public_key: PublicKey,
     pub shared_signer: SharedSigner,
 }
 

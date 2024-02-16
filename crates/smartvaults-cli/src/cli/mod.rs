@@ -8,12 +8,11 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use smartvaults_sdk::core::bips::bip32::Fingerprint;
+use smartvaults_sdk::core::bitcoin::address::NetworkUnchecked;
 use smartvaults_sdk::core::bitcoin::Address;
 use smartvaults_sdk::core::miniscript::{Descriptor, DescriptorPublicKey};
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::nostr::prelude::address::NetworkUnchecked;
 use smartvaults_sdk::nostr::prelude::NostrConnectURI;
-use smartvaults_sdk::nostr::{EventId, Url};
+use smartvaults_sdk::nostr::{EventId, PublicKey, Url};
 use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, LabelData, Price, Temperature};
 
 pub mod batch;
@@ -268,7 +267,7 @@ pub enum ConnectCommand {
     Disconnect {
         /// App Public Key
         #[arg(required = true)]
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
     },
     /// List sessions
     Sessions,
@@ -288,7 +287,7 @@ pub enum ConnectCommand {
     Autoapprove {
         /// App Public Key
         #[arg(required = true)]
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
         /// Seconds
         #[arg(required = true)]
         seconds: u64,
@@ -299,7 +298,7 @@ pub enum ConnectCommand {
     Revoke {
         /// App Public Key
         #[arg(required = true)]
-        app_public_key: XOnlyPublicKey,
+        app_public_key: PublicKey,
     },
 }
 
@@ -347,7 +346,7 @@ pub enum AddCommand {
     Contact {
         /// Public key
         #[arg(required = true)]
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     },
     /// Add policy
     Policy {
@@ -361,7 +360,7 @@ pub enum AddCommand {
         #[arg(required = true)]
         descriptor: String,
         /// Nostr pubkeys
-        nostr_pubkeys: Vec<XOnlyPublicKey>,
+        nostr_pubkeys: Vec<PublicKey>,
     },
     /// Add SmartVaults Signer
     SmartVaultsSigner {
@@ -465,7 +464,7 @@ pub enum ShareCommand {
         signer_id: EventId,
         /// Public Key of the user with whom to share the signer
         #[arg(required = true)]
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     },
 }
 

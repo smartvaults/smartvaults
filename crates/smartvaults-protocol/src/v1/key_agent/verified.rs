@@ -4,12 +4,11 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use nostr::{Event, EventBuilder, Keys, Timestamp};
+use nostr::{Event, EventBuilder, Keys, PublicKey, Timestamp};
 use serde::{Deserialize, Serialize};
 use smartvaults_core::bitcoin::network::constants::{ParseMagicError, UnknownMagic};
 use smartvaults_core::bitcoin::network::Magic;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use thiserror::Error;
 
 use crate::v1::builder::{self, SmartVaultsEventBuilder};
@@ -44,15 +43,12 @@ pub struct VerifiedKeyAgentData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifiedKeyAgents {
-    public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData>,
+    public_keys: HashMap<PublicKey, VerifiedKeyAgentData>,
     network: Network,
 }
 
 impl VerifiedKeyAgents {
-    pub fn new(
-        public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData>,
-        network: Network,
-    ) -> Self {
+    pub fn new(public_keys: HashMap<PublicKey, VerifiedKeyAgentData>, network: Network) -> Self {
         Self {
             public_keys,
             network,
@@ -85,14 +81,14 @@ impl VerifiedKeyAgents {
         }
 
         // Get public keys
-        let public_keys: HashMap<XOnlyPublicKey, VerifiedKeyAgentData> =
+        let public_keys: HashMap<PublicKey, VerifiedKeyAgentData> =
             serde_json::from_str(&event.content)?;
 
         // Compose struct
         Ok(Self::new(public_keys, network))
     }
 
-    pub fn public_keys(&self) -> HashMap<XOnlyPublicKey, VerifiedKeyAgentData> {
+    pub fn public_keys(&self) -> HashMap<PublicKey, VerifiedKeyAgentData> {
         self.public_keys.clone()
     }
 
@@ -101,7 +97,7 @@ impl VerifiedKeyAgents {
     }
 
     /// Check if Key Agent it's verified
-    pub fn is_verified(&self, public_key: &XOnlyPublicKey) -> bool {
+    pub fn is_verified(&self, public_key: &PublicKey) -> bool {
         self.public_keys.contains_key(public_key)
     }
 
@@ -110,7 +106,7 @@ impl VerifiedKeyAgents {
     /// Return `false` if the pubkey already exists
     pub fn add_new_public_key(
         &mut self,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
         data: VerifiedKeyAgentData,
     ) -> bool {
         self.public_keys.insert(public_key, data).is_none()
@@ -119,7 +115,7 @@ impl VerifiedKeyAgents {
     /// Remove verified key agent
     ///
     /// Return `false` if the pubkey NOT exists
-    pub fn remove_public_key(&mut self, public_key: &XOnlyPublicKey) -> bool {
+    pub fn remove_public_key(&mut self, public_key: &PublicKey) -> bool {
         self.public_keys.remove(public_key).is_some()
     }
 

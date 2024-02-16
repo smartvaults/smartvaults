@@ -7,12 +7,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use nostr_sdk::database::{DynNostrDatabase, Order};
-use nostr_sdk::nips::nip04;
-use nostr_sdk::{Event, EventId, Filter, Keys, Kind, Tag};
+use nostr_sdk::prelude::*;
 use smartvaults_core::bitcoin::{Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::{Descriptor, DescriptorPublicKey};
-use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::{
     ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
 };
@@ -65,7 +62,7 @@ pub(crate) struct SmartVaultsStorage {
     approvals: Arc<RwLock<HashMap<EventId, InternalApproval>>>,
     completed_proposals: Arc<RwLock<HashMap<EventId, InternalCompletedProposal>>>,
     signers: Arc<RwLock<HashMap<EventId, Signer>>>,
-    my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, XOnlyPublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
+    my_shared_signers: Arc<RwLock<HashMap<EventId, (EventId, PublicKey)>>>, /* Signer ID, Shared Signer ID, pubkey */
     shared_signers: Arc<RwLock<HashMap<EventId, InternalSharedSigner>>>,
     labels: Arc<RwLock<HashMap<String, InternalLabel>>>,
     frozed_utxos: Arc<RwLock<HashMap<EventId, HashSet<OutPoint>>>>,
@@ -172,7 +169,7 @@ impl SmartVaultsStorage {
             let mut shared_keys = self.shared_keys.write().await;
             if let HashMapEntry::Vacant(e) = shared_keys.entry(policy_id) {
                 let content =
-                    nip04::decrypt(&self.keys.secret_key()?, event.author_ref(), &event.content)?;
+                    nip04::decrypt(self.keys.secret_key()?, event.author_ref(), &event.content)?;
                 let sk = SecretKey::from_str(&content)?;
                 let shared_key = Keys::new(sk);
                 e.insert(shared_key);
@@ -184,7 +181,7 @@ impl SmartVaultsStorage {
             if let HashMapEntry::Vacant(e) = vaults.entry(event.id) {
                 if let Some(shared_key) = shared_keys.get(&event.id) {
                     let policy = Policy::decrypt_with_keys(shared_key, &event.content)?;
-                    let mut nostr_pubkeys: Vec<XOnlyPublicKey> = Vec::new();
+                    let mut nostr_pubkeys: Vec<PublicKey> = Vec::new();
                     for tag in event.tags.iter() {
                         if let Tag::PublicKey { public_key, .. } = tag {
                             nostr_pubkeys.push(*public_key);
@@ -323,7 +320,7 @@ impl SmartVaultsStorage {
                 let mut shared_signers = self.shared_signers.write().await;
                 if let HashMapEntry::Vacant(e) = shared_signers.entry(event.id) {
                     let shared_signer: String = nip04::decrypt(
-                        &self.keys.secret_key()?,
+                        self.keys.secret_key()?,
                         event.author_ref(),
                         &event.content,
                     )?;
@@ -652,7 +649,7 @@ impl SmartVaultsStorage {
         &self,
         signer_id: EventId,
         shared_signer_id: EventId,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     ) {
         let mut my_shared_signers = self.my_shared_signers.write().await;
         my_shared_signers.insert(signer_id, (shared_signer_id, public_key));
@@ -666,7 +663,7 @@ impl SmartVaultsStorage {
         shared_signers.remove(shared_signer_id).is_some()
     }
 
-    pub async fn my_shared_signers(&self) -> HashMap<EventId, XOnlyPublicKey> {
+    pub async fn my_shared_signers(&self) -> HashMap<EventId, PublicKey> {
         self.my_shared_signers
             .read()
             .await
@@ -687,7 +684,7 @@ impl SmartVaultsStorage {
     pub async fn my_shared_signer_already_shared(
         &self,
         signer_id: EventId,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     ) -> bool {
         if let Some((_, pk)) = self.my_shared_signers.read().await.get(&signer_id) {
             if *pk == public_key {
@@ -700,7 +697,7 @@ impl SmartVaultsStorage {
     pub async fn get_public_key_for_my_shared_signer(
         &self,
         shared_signer_id: EventId,
-    ) -> Result<XOnlyPublicKey, Error> {
+    ) -> Result<PublicKey, Error> {
         self.my_shared_signers
             .read()
             .await
@@ -720,7 +717,7 @@ impl SmartVaultsStorage {
     pub async fn get_my_shared_signers_by_signer_id(
         &self,
         signer_id: &EventId,
-    ) -> BTreeMap<EventId, XOnlyPublicKey> {
+    ) -> BTreeMap<EventId, PublicKey> {
         self.my_shared_signers
             .read()
             .await
@@ -730,7 +727,7 @@ impl SmartVaultsStorage {
             .collect()
     }
 
-    pub async fn get_shared_signers_public_keys(&self) -> HashSet<XOnlyPublicKey> {
+    pub async fn get_shared_signers_public_keys(&self) -> HashSet<PublicKey> {
         self.shared_signers
             .read()
             .await
@@ -741,7 +738,7 @@ impl SmartVaultsStorage {
 
     pub async fn get_shared_signers_by_public_key(
         &self,
-        public_key: XOnlyPublicKey,
+        public_key: PublicKey,
     ) -> Vec<(EventId, SharedSigner)> {
         self.shared_signers
             .read()

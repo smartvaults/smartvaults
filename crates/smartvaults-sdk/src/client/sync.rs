@@ -13,12 +13,11 @@ use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
-    NegentropyOptions, RelayMessage, RelayPoolNotification, RelaySendOptions, Result, Timestamp,
-    Url,
+    NegentropyOptions, PublicKey, RelayMessage, RelayPoolNotification, RelaySendOptions, Result,
+    Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
-use smartvaults_core::bitcoin::secp256k1::XOnlyPublicKey;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::{CompletedProposal, Priority};
 use smartvaults_protocol::v1::constants::{
@@ -43,7 +42,7 @@ pub enum EventHandled {
     MySharedSigner(EventId),
     SharedSigner(EventId),
     Contacts,
-    Metadata(XOnlyPublicKey),
+    Metadata(PublicKey),
     NostrConnectRequest(EventId),
     Label,
     EventDeletion,
@@ -162,8 +161,8 @@ impl SmartVaults {
         ]);
 
         let keys: &Keys = self.keys();
-        let public_key: XOnlyPublicKey = keys.public_key();
-        let contacts: Vec<XOnlyPublicKey> = self
+        let public_key: PublicKey = keys.public_key();
+        let contacts: Vec<PublicKey> = self
             .client
             .database()
             .contacts_public_keys(public_key)
@@ -350,7 +349,7 @@ impl SmartVaults {
             && self.db.nostr_connect_session_exists(event.author()).await?
         {
             let keys: &Keys = self.keys();
-            let content = nip04::decrypt(&keys.secret_key()?, event.author_ref(), event.content())?;
+            let content = nip04::decrypt(keys.secret_key()?, event.author_ref(), event.content())?;
             let msg = NIP46Message::from_json(content)?;
             if let Ok(request) = msg.to_request() {
                 match request {

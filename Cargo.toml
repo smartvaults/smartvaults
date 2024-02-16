@@ -14,10 +14,10 @@ keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
 async-utility = "0.2"
-nostr = { git = "https://github.com/rust-nostr/nostr", rev = "a22be153f23652e2df5d4457ffced450fd06a079", default-features = false }
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "a22be153f23652e2df5d4457ffced450fd06a079", default-features = false }
-nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "a22be153f23652e2df5d4457ffced450fd06a079" }
-nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "a22be153f23652e2df5d4457ffced450fd06a079" }
+nostr = { git = "https://github.com/rust-nostr/nostr", rev = "de826afcc8e9b1f8518fa61390b0ff0f4c236875", default-features = false }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "de826afcc8e9b1f8518fa61390b0ff0f4c236875", default-features = false }
+nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "de826afcc8e9b1f8518fa61390b0ff0f4c236875" }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "de826afcc8e9b1f8518fa61390b0ff0f4c236875" }
 once_cell = "1.19"
 serde = "1.0"
 thiserror = "1.0"

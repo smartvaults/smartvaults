@@ -6,8 +6,7 @@ use std::collections::BTreeSet;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::nostr::Profile;
+use smartvaults_sdk::nostr::{Profile, PublicKey};
 use smartvaults_sdk::types::backup::PolicyBackup;
 use smartvaults_sdk::util;
 
@@ -33,7 +32,7 @@ pub struct RestoreVaultState {
     name: String,
     description: String,
     descriptor: String,
-    public_keys: Vec<XOnlyPublicKey>,
+    public_keys: Vec<PublicKey>,
     known_public_keys: BTreeSet<Profile>,
     loading: bool,
     loaded: bool,

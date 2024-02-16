@@ -3,7 +3,7 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
+use smartvaults_sdk::nostr::PublicKey;
 use smartvaults_sdk::types::KeyAgent;
 use smartvaults_sdk::util::{self, format};
 
@@ -16,7 +16,7 @@ use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PATCH_CHECK, PATCH_EXCLAMATION, 
 #[derive(Debug, Clone)]
 pub enum KeyAgentsMessage {
     Load(Vec<KeyAgent>),
-    Request(XOnlyPublicKey),
+    Request(PublicKey),
     ErrorChanged(Option<String>),
     Reload,
 }

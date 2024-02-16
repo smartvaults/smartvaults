@@ -18,21 +18,20 @@ use nostr_sdk::nips::nip06::FromMnemonic;
 use nostr_sdk::pool::pool;
 use nostr_sdk::{
     nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
-    JsonUtil, Keys, Kind, Metadata, Options, Profile, Relay, RelayOptions, RelayPoolNotification,
-    RelaySendOptions, Result, SQLiteDatabase, Tag, Timestamp, TryIntoUrl, UncheckedUrl, Url,
+    JsonUtil, Keys, Kind, Metadata, Options, Profile, PublicKey, Relay, RelayOptions,
+    RelayPoolNotification, RelaySendOptions, Result, SQLiteDatabase, Tag, Timestamp, TryIntoUrl,
+    UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
-use smartvaults_core::bdk::signer::{SignerContext, SignerWrapper};
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
 use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{Address, Network, OutPoint, PrivateKey, ScriptBuf, Txid};
+use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::signer::smartvaults_signer;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
 use smartvaults_core::{
@@ -597,18 +596,15 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_profile(&self) -> Result<Profile, Error> {
-        let public_key: XOnlyPublicKey = self.keys().public_key();
+        let public_key: PublicKey = self.keys().public_key();
         Ok(self.client.database().profile(public_key).await?)
     }
 
-    /// Get [`Metadata`] of [`XOnlyPublicKey`]
+    /// Get [`Metadata`] of [`PublicKey`]
     ///
     /// If not exists in local database, will return an empty [`Metadata`] struct and will request
     /// it to relays
-    pub async fn get_public_key_metadata(
-        &self,
-        public_key: XOnlyPublicKey,
-    ) -> Result<Metadata, Error> {
+    pub async fn get_public_key_metadata(&self, public_key: PublicKey) -> Result<Metadata, Error> {
         let profile: Profile = self.client.database().profile(public_key).await?;
         let metadata: Metadata = profile.metadata();
         if metadata == Metadata::default() {
@@ -631,7 +627,7 @@ impl SmartVaults {
         Ok(self.client.database().contacts(keys.public_key()).await?)
     }
 
-    pub async fn add_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+    pub async fn add_contact(&self, public_key: PublicKey) -> Result<(), Error> {
         let keys: &Keys = self.keys();
         if public_key != keys.public_key() {
             // Add contact
@@ -662,7 +658,7 @@ impl SmartVaults {
         Ok(())
     }
 
-    pub async fn remove_contact(&self, public_key: XOnlyPublicKey) -> Result<(), Error> {
+    pub async fn remove_contact(&self, public_key: PublicKey) -> Result<(), Error> {
         let keys: &Keys = self.keys();
         let contacts: Vec<Contact> = self
             .client
@@ -995,7 +991,7 @@ impl SmartVaults {
         name: S,
         description: S,
         descriptor: S,
-        nostr_pubkeys: Vec<XOnlyPublicKey>,
+        nostr_pubkeys: Vec<PublicKey>,
     ) -> Result<EventId, Error>
     where
         S: AsRef<str>,
@@ -1050,7 +1046,7 @@ impl SmartVaults {
         name: S,
         description: S,
         template: PolicyTemplate,
-        nostr_pubkeys: Vec<XOnlyPublicKey>,
+        nostr_pubkeys: Vec<PublicKey>,
     ) -> Result<EventId, Error>
     where
         S: Into<String>,
@@ -1250,7 +1246,7 @@ impl SmartVaults {
         .await
     }
 
-    async fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
+    /* async fn is_internal_key<S>(&self, descriptor: S) -> Result<bool, Error>
     where
         S: Into<String>,
     {
@@ -1260,7 +1256,7 @@ impl SmartVaults {
             descriptor.starts_with(&format!("tr({}", keys.normalized_public_key()?))
                 || descriptor.starts_with(&format!("tr({}", keys.public_key())),
         )
-    }
+    } */
 
     pub async fn approve<T>(
         &self,
@@ -1276,21 +1272,21 @@ impl SmartVaults {
             proposal,
             ..
         } = self.get_proposal_by_id(proposal_id).await?;
-        let GetPolicy { policy, .. } = self.get_policy_by_id(policy_id).await?;
 
-        // Sign PSBT
-        // Custom signer
         let keys: &Keys = self.keys();
+
+        /* // Sign PSBT
+        // Custom signer
         let signer = SignerWrapper::new(
-            PrivateKey::new(keys.secret_key()?, self.network),
+            PrivateKey::new(**keys.secret_key()?, self.network),
             SignerContext::Tap {
                 is_internal_key: self
                     .is_internal_key(policy.as_descriptor().to_string())
                     .await?,
             },
-        );
+        ); */
         let seed: Seed = self.keechain.read().seed(password)?;
-        let approved_proposal = proposal.approve(&seed, vec![signer], self.network)?;
+        let approved_proposal = proposal.approve(&seed, Vec::new(), self.network)?;
 
         // Get shared keys
         let shared_key: Keys = self.storage.shared_key(&policy_id).await?;
@@ -1401,7 +1397,7 @@ impl SmartVaults {
     //
     // Compose the event
     // let content = approved_proposal.encrypt_with_keys(&shared_keys)?;
-    // let nostr_pubkeys: Vec<XOnlyPublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
+    // let nostr_pubkeys: Vec<PublicKey> = self.db.get_nostr_pubkeys(policy_id).await?;
     // let mut tags: Vec<Tag> = nostr_pubkeys
     // .into_iter()
     // .map(|p| Tag::PubKey(p, None))
@@ -1848,7 +1844,7 @@ impl SmartVaults {
         // Publish the shared key
         for public_key in public_keys.into_iter() {
             let encrypted_shared_key = nips::nip04::encrypt(
-                &keys.secret_key()?,
+                keys.secret_key()?,
                 &public_key,
                 shared_key.secret_key()?.display_secret().to_string(),
             )?;

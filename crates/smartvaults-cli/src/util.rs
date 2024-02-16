@@ -14,10 +14,9 @@ use smartvaults_sdk::core::bips::bip32::Bip32;
 use smartvaults_sdk::core::bitcoin::bip32::ExtendedPubKey;
 use smartvaults_sdk::core::bitcoin::{Network, ScriptBuf};
 use smartvaults_sdk::core::proposal::{CompletedProposal, Proposal};
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::{Keychain, Purpose, Result, SECP256K1};
 use smartvaults_sdk::nostr::prelude::{FromMnemonic, NostrConnectURI, ToBech32};
-use smartvaults_sdk::nostr::{EventId, Keys, Profile, Relay, Timestamp, Url};
+use smartvaults_sdk::nostr::{EventId, Keys, Profile, PublicKey, Relay, Timestamp, Url};
 use smartvaults_sdk::types::{
     GetAddress, GetCompletedProposal, GetPolicy, GetProposal, GetSigner, GetSignerOffering,
     GetTransaction, GetUtxo, NostrConnectRequest,
@@ -649,7 +648,7 @@ pub fn print_requests(requests: Vec<NostrConnectRequest>) -> Result<()> {
     Ok(())
 }
 
-pub fn print_authorizations(authorizations: BTreeMap<XOnlyPublicKey, Timestamp>) {
+pub fn print_authorizations(authorizations: BTreeMap<PublicKey, Timestamp>) {
     let mut table = Table::new();
 
     table.set_titles(row!["#", "App Public Key", "Authorized until",]);

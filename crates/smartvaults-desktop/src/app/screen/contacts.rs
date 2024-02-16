@@ -5,8 +5,7 @@ use std::collections::BTreeSet;
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::nostr::Profile;
+use smartvaults_sdk::nostr::{Profile, PublicKey};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -17,7 +16,7 @@ use crate::theme::icon::{CLIPBOARD, PLUS, RELOAD, TRASH};
 #[derive(Debug, Clone)]
 pub enum ContactsMessage {
     LoadContacts(BTreeSet<Profile>),
-    RemovePublicKey(XOnlyPublicKey),
+    RemovePublicKey(PublicKey),
     ErrorChanged(Option<String>),
     Reload,
 }

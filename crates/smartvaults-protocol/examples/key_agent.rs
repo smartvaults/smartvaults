@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use smartvaults_core::bitcoin::Network;
 use smartvaults_protocol::nostr::prelude::*;
 use smartvaults_protocol::v1::{VerifiedKeyAgentData, VerifiedKeyAgents};
 
@@ -9,9 +10,8 @@ fn main() -> Result<()> {
     let mut verified_key_agents = VerifiedKeyAgents::empty(Network::Testnet);
 
     // Add new key agent pubkey
-    let public_key = XOnlyPublicKey::from_str(
-        "3eea9e831fefdaa8df35187a204d82edb589a36b170955ac5ca6b88340befaa0",
-    )?;
+    let public_key =
+        PublicKey::from_str("3eea9e831fefdaa8df35187a204d82edb589a36b170955ac5ca6b88340befaa0")?;
     let data = VerifiedKeyAgentData {
         approved_at: Some(Timestamp::now()),
     };

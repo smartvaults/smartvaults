@@ -5,9 +5,9 @@ use std::fs::File;
 use std::io::{Error, Read, Write};
 use std::path::Path;
 
+use nostr_sdk::PublicKey;
 use serde::{Deserialize, Serialize};
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_protocol::v1::util::Serde;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct PolicyBackup {
     name: Option<String>,
     description: Option<String>,
     descriptor: Descriptor<String>,
-    public_keys: Vec<XOnlyPublicKey>,
+    public_keys: Vec<PublicKey>,
 }
 
 impl Serde for PolicyBackup {}
@@ -25,7 +25,7 @@ impl PolicyBackup {
         name: S,
         description: S,
         descriptor: Descriptor<String>,
-        public_keys: Vec<XOnlyPublicKey>,
+        public_keys: Vec<PublicKey>,
     ) -> Self
     where
         S: Into<String>,
@@ -60,7 +60,7 @@ impl PolicyBackup {
         self.descriptor.clone()
     }
 
-    pub fn public_keys(&self) -> Vec<XOnlyPublicKey> {
+    pub fn public_keys(&self) -> Vec<PublicKey> {
         self.public_keys.clone()
     }
 

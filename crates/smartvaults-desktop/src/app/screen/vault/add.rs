@@ -5,8 +5,7 @@ use std::collections::{BTreeSet, HashSet};
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::nostr::Profile;
+use smartvaults_sdk::nostr::{Profile, PublicKey};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -21,8 +20,8 @@ pub enum AddVaultMessage {
     DescriptionChanged(String),
     DescriptorChanged(String),
     Load(Box<Profile>, BTreeSet<Profile>),
-    AddPublicKey(XOnlyPublicKey),
-    RemovePublicKey(XOnlyPublicKey),
+    AddPublicKey(PublicKey),
+    RemovePublicKey(PublicKey),
     SelectPublicKeys(bool),
     ErrorChanged(Option<String>),
     SavePolicy,
@@ -35,7 +34,7 @@ pub struct AddVaultState {
     descriptor: String,
     profile: Option<Profile>,
     contacts: BTreeSet<Profile>,
-    public_keys: HashSet<XOnlyPublicKey>,
+    public_keys: HashSet<PublicKey>,
     loading: bool,
     loaded: bool,
     selecting: bool,
@@ -100,8 +99,7 @@ impl State for AddVaultState {
                     let name = self.name.clone();
                     let description = self.description.clone();
                     let descriptor = self.descriptor.clone();
-                    let public_keys: Vec<XOnlyPublicKey> =
-                        self.public_keys.iter().copied().collect();
+                    let public_keys: Vec<PublicKey> = self.public_keys.iter().copied().collect();
                     return Command::perform(
                         async move {
                             client

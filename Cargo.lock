@@ -365,6 +365,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64ct"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
+
+[[package]]
 name = "basic-toml"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1191,6 +1197,7 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
+ "subtle",
 ]
 
 [[package]]
@@ -1991,6 +1998,15 @@ name = "hexf-parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
+
+[[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest",
+]
 
 [[package]]
 name = "home"
@@ -2874,7 +2890,7 @@ dependencies = [
 [[package]]
 name = "nostr"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "aes",
  "base64 0.21.7",
@@ -2882,15 +2898,18 @@ dependencies = [
  "bitcoin",
  "cbc",
  "chacha20",
+ "chacha20poly1305",
  "getrandom",
  "instant",
  "js-sys",
  "negentropy",
  "once_cell",
  "reqwest",
+ "scrypt",
  "serde",
  "serde_json",
  "tracing",
+ "unicode-normalization",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2900,7 +2919,7 @@ dependencies = [
 [[package]]
 name = "nostr-database"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "async-trait",
  "flatbuffers",
@@ -2914,7 +2933,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2923,7 +2942,7 @@ dependencies = [
 [[package]]
 name = "nostr-relay-pool"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "async-utility",
  "async-wsocket",
@@ -2937,7 +2956,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "async-utility",
  "lnurl-pay",
@@ -2955,7 +2974,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "async-utility",
  "nostr-ffi",
@@ -2968,7 +2987,7 @@ dependencies = [
 [[package]]
 name = "nostr-signer"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2980,7 +2999,7 @@ dependencies = [
 [[package]]
 name = "nostr-sqlite"
 version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=a22be153f23652e2df5d4457ffced450fd06a079#a22be153f23652e2df5d4457ffced450fd06a079"
+source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",
@@ -3326,10 +3345,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "password-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346f04948ba92c43e8469c1ee6736c7563d71012b17d40745260fe106aac2166"
+dependencies = [
+ "base64ct",
+ "rand_core",
+ "subtle",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
+
+[[package]]
+name = "pbkdf2"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
+dependencies = [
+ "digest",
+ "hmac",
+]
 
 [[package]]
 name = "percent-encoding"
@@ -4026,6 +4066,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f98d2aa92eebf49b69786be48e4477826b256916e84a57ff2a4f21923b48eb4c"
 
 [[package]]
+name = "salsa20"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97a22f5af31f73a954c10289c93e8a50cc23d971e80ee446f1f6f7137a088213"
+dependencies = [
+ "cipher",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4064,6 +4113,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
+]
+
+[[package]]
+name = "scrypt"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0516a385866c09368f0b5bcd1caff3366aace790fcd46e2bb032697bb172fd1f"
+dependencies = [
+ "password-hash",
+ "pbkdf2",
+ "salsa20",
+ "sha2",
 ]
 
 [[package]]
@@ -4189,6 +4250,17 @@ name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
+name = "sha2"
+version = "0.10.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
 dependencies = [
  "cfg-if",
  "cpufeatures",

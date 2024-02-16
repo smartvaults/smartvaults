@@ -5,8 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use nostr_sdk::database::{NostrDatabaseExt, Order};
 use nostr_sdk::nips::nip01::Coordinate;
-use nostr_sdk::secp256k1::XOnlyPublicKey;
-use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile};
+use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile, PublicKey};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::{Address, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
@@ -169,7 +168,7 @@ impl SmartVaults {
                 .identifier(self.network.magic().to_string()),
             Filter::new().kind(KEY_AGENT_SIGNER_OFFERING_KIND),
         ];
-        let mut key_agents: HashMap<XOnlyPublicKey, HashSet<SignerOffering>> = HashMap::new();
+        let mut key_agents: HashMap<PublicKey, HashSet<SignerOffering>> = HashMap::new();
 
         for event in self
             .client
@@ -214,10 +213,7 @@ impl SmartVaults {
     }
 
     /// Request signers to Key Agent
-    pub async fn request_signers_to_key_agent(
-        &self,
-        key_agent: XOnlyPublicKey,
-    ) -> Result<(), Error> {
+    pub async fn request_signers_to_key_agent(&self, key_agent: PublicKey) -> Result<(), Error> {
         self.add_contact(key_agent).await?;
         Ok(())
     }

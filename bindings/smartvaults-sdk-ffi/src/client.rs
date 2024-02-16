@@ -18,7 +18,6 @@ use smartvaults_sdk::core::bips::bip39::Mnemonic;
 use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_sdk::core::bitcoin::{Address, Txid};
 use smartvaults_sdk::core::miniscript::Descriptor;
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::types::{FeeRate, Priority};
 use smartvaults_sdk::nostr::block_on;
 use uniffi::Object;
@@ -412,7 +411,7 @@ impl SmartVaults {
         public_keys: Vec<Arc<PublicKey>>,
     ) -> Result<Arc<EventId>> {
         block_on(async move {
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| **p).collect();
+            let nostr_pubkeys: Vec<_> = public_keys.into_iter().map(|p| **p).collect();
             Ok(Arc::new(
                 self.inner
                     .save_policy(name, description, descriptor, nostr_pubkeys)
@@ -430,7 +429,7 @@ impl SmartVaults {
         public_keys: Vec<Arc<PublicKey>>,
     ) -> Result<Arc<EventId>> {
         block_on(async move {
-            let nostr_pubkeys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| **p).collect();
+            let nostr_pubkeys: Vec<_> = public_keys.into_iter().map(|p| **p).collect();
             Ok(Arc::new(
                 self.inner
                     .save_policy_from_template(
@@ -609,7 +608,7 @@ impl SmartVaults {
         public_keys: Vec<Arc<PublicKey>>,
     ) -> Result<()> {
         block_on(async move {
-            let public_keys: Vec<XOnlyPublicKey> = public_keys.into_iter().map(|p| **p).collect();
+            let public_keys: Vec<_> = public_keys.into_iter().map(|p| **p).collect();
             Ok(self
                 .inner
                 .share_signer_to_multiple_public_keys(**signer_id, public_keys)

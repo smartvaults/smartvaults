@@ -4,12 +4,11 @@
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
+use smartvaults_sdk::core::bitcoin::psbt::PartiallySignedTransaction;
 use smartvaults_sdk::core::proposal::Proposal;
-use smartvaults_sdk::core::secp256k1::XOnlyPublicKey;
 use smartvaults_sdk::core::signer::{Signer, SignerType};
 use smartvaults_sdk::core::{CompletedProposal, PsbtUtility};
-use smartvaults_sdk::nostr::prelude::psbt::PartiallySignedTransaction;
-use smartvaults_sdk::nostr::EventId;
+use smartvaults_sdk::nostr::{EventId, PublicKey};
 use smartvaults_sdk::types::{GetApproval, GetProposal};
 use smartvaults_sdk::util;
 
@@ -27,7 +26,7 @@ pub enum ProposalMessage {
         EventId,
         Vec<GetApproval>,
         Option<Signer>,
-        XOnlyPublicKey,
+        PublicKey,
     ),
     Approve,
     ApproveWithSeed(String),
@@ -57,7 +56,7 @@ pub struct ProposalState {
     proposal_id: EventId,
     proposal: Option<Proposal>,
     policy_id: Option<EventId>,
-    my_public_key: Option<XOnlyPublicKey>,
+    my_public_key: Option<PublicKey>,
     password: String,
     approved_proposals: Vec<GetApproval>,
     signer: Option<Signer>,

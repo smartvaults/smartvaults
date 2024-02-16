@@ -41,7 +41,7 @@ pub trait Encryption: Serde {
 
     /// Encrypt
     fn encrypt_with_keys(&self, keys: &Keys) -> Result<String, Error> {
-        let key: [u8; 32] = util::generate_shared_key(&keys.secret_key()?, &keys.public_key());
+        let key: [u8; 32] = util::generate_shared_key(keys.secret_key()?, &keys.public_key());
         Ok(self.encrypt(key))
     }
 
@@ -50,7 +50,7 @@ pub trait Encryption: Serde {
     where
         T: AsRef<[u8]>,
     {
-        let key: [u8; 32] = util::generate_shared_key(&keys.secret_key()?, &keys.public_key());
+        let key: [u8; 32] = util::generate_shared_key(keys.secret_key()?, &keys.public_key());
         Self::decrypt(key, content)
     }
 }

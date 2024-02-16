@@ -158,7 +158,7 @@ impl Encryption for Label {}
 mod test {
     use std::str::FromStr;
 
-    use nostr::secp256k1::SecretKey;
+    use nostr::SecretKey;
     use smartvaults_core::bitcoin::Txid;
 
     use super::*;

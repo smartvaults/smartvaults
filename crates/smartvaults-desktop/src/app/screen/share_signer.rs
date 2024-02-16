@@ -5,8 +5,7 @@ use std::collections::{BTreeSet, HashSet};
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::nostr::secp256k1::XOnlyPublicKey;
-use smartvaults_sdk::nostr::{EventId, Profile};
+use smartvaults_sdk::nostr::{EventId, Profile, PublicKey};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -17,9 +16,9 @@ use crate::theme::icon::{PLUS, RELOAD};
 
 #[derive(Debug, Clone)]
 pub enum ShareSignerMessage {
-    Load(BTreeSet<Profile>, Vec<XOnlyPublicKey>),
-    AddPublicKey(XOnlyPublicKey),
-    RemovePublicKey(XOnlyPublicKey),
+    Load(BTreeSet<Profile>, Vec<PublicKey>),
+    AddPublicKey(PublicKey),
+    RemovePublicKey(PublicKey),
     Share,
     Reload,
     ErrorChanged(Option<String>),
@@ -31,8 +30,8 @@ pub struct ShareSignerState {
     loaded: bool,
     signer_id: EventId,
     contacts: BTreeSet<Profile>,
-    public_keys: HashSet<XOnlyPublicKey>,
-    already_shared_with: Vec<XOnlyPublicKey>,
+    public_keys: HashSet<PublicKey>,
+    already_shared_with: Vec<PublicKey>,
     error: Option<String>,
 }
 
@@ -62,7 +61,7 @@ impl State for ShareSignerState {
         Command::perform(
             async move {
                 let contacts = client.get_contacts().await.unwrap();
-                let mut already_shared_with: Vec<XOnlyPublicKey> = Vec::new();
+                let mut already_shared_with: Vec<PublicKey> = Vec::new();
                 for user in contacts.iter() {
                     if client
                         .my_shared_signer_already_shared(signer_id, user.public_key())
@@ -193,7 +192,7 @@ impl State for ShareSignerState {
                     .push(rule::horizontal_bold());
 
                 for user in self.contacts.iter() {
-                    let public_key: XOnlyPublicKey = user.public_key();
+                    let public_key: PublicKey = user.public_key();
                     let metadata = user.metadata();
 
                     let select_btn = if self.already_shared_with.contains(&public_key) {

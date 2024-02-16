@@ -3,7 +3,6 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::nostr::prelude::FromPkStr;
 use smartvaults_sdk::nostr::Keys;
 
 use crate::app::component::Dashboard;
@@ -46,7 +45,7 @@ impl State for AddContactState {
                 }
                 AddContactMessage::SaveContact => {
                     let client = ctx.client.clone();
-                    match Keys::from_pk_str(&self.public_key) {
+                    match Keys::parse(&self.public_key) {
                         Ok(keys) => {
                             self.loading = true;
                             return Command::perform(

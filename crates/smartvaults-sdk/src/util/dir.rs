@@ -3,8 +3,8 @@
 
 use std::path::{Path, PathBuf};
 
+use nostr_sdk::PublicKey;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::util::dir;
 pub use smartvaults_core::util::dir::Error;
 
@@ -54,7 +54,7 @@ where
 pub(crate) fn user_db<P>(
     base_path: P,
     network: Network,
-    public_key: XOnlyPublicKey,
+    public_key: PublicKey,
 ) -> Result<PathBuf, Error>
 where
     P: AsRef<Path>,
@@ -66,7 +66,7 @@ where
 
 pub(crate) fn nostr_db<P>(
     base_path: P,
-    public_key: XOnlyPublicKey,
+    public_key: PublicKey,
     network: Network,
 ) -> Result<PathBuf, Error>
 where

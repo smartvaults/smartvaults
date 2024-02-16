@@ -14,8 +14,7 @@ use chacha20poly1305::aead::KeyInit;
 use chacha20poly1305::XChaCha20Poly1305;
 use deadpool_sqlite::{Config, Object, Pool, Runtime};
 use rusqlite::config::DbConfig;
-use smartvaults_protocol::nostr::secp256k1::XOnlyPublicKey;
-use smartvaults_protocol::nostr::{Keys, Timestamp};
+use smartvaults_protocol::nostr::{Keys, PublicKey, Timestamp};
 use tokio::sync::RwLock;
 
 mod connect;
@@ -31,7 +30,7 @@ use super::Error;
 pub struct Store {
     pool: Pool,
     cipher: XChaCha20Poly1305,
-    nostr_connect_auto_approve: Arc<RwLock<HashMap<XOnlyPublicKey, Timestamp>>>,
+    nostr_connect_auto_approve: Arc<RwLock<HashMap<PublicKey, Timestamp>>>,
 }
 
 impl Debug for Store {
