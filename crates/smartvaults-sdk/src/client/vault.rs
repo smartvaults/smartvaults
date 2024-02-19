@@ -58,13 +58,14 @@ impl SmartVaults {
         vault: Vault,
         metadata: Option<VaultMetadata>,
     ) -> Result<VaultIdentifier, Error> {
+        let signer = self.client.signer().await?;
+
         let vault_id: VaultIdentifier = vault.compute_id();
 
         // TODO: check if vault already exists
 
         // Compose and publish events
-        let keys = self.keys();
-        let vault_event: Event = v2::vault::build_event(keys, &vault)?;
+        let vault_event: Event = v2::vault::build_event(&signer, &vault).await?;
         let event_id: EventId = vault_event.id;
         let mut events: Vec<Event> = Vec::with_capacity(1 + usize::from(metadata.is_some()));
         events.push(vault_event);
@@ -182,7 +183,7 @@ impl SmartVaults {
         let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
 
         // Compose invite
-        let sender: PublicKey = self.keys.public_key();
+        let sender: PublicKey = self.nostr_public_key().await?;
         let invite: VaultInvite = VaultInvite::new(vault, Some(sender), message);
 
         // Compose and publish event
@@ -261,8 +262,8 @@ impl SmartVaults {
 
         let event: Event = self.client.database().event_by_id(event_id).await?;
         let author = event.author();
-        let keys = self.keys();
-        if author == keys.public_key() {
+        let public_key: PublicKey = self.nostr_public_key().await?;
+        if author == public_key {
             // Delete policy
             let builder = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(event_id)]);
             self.client.send_event_builder(builder).await?;

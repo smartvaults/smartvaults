@@ -10,8 +10,10 @@
 //! [0x01, 0x01, 0x00, 0xB4, 0xAA, 0x19 0xF4, 0x39, 0x00, 0x12, 0x21, ...]
 //! ```
 
+use async_trait::async_trait;
 use nostr::nips::nip44;
 use nostr::{Keys, PublicKey, SecretKey};
+use nostr_signer::NostrSigner;
 use thiserror::Error;
 
 /// Protocol Message Error
@@ -117,11 +119,14 @@ pub trait ProtocolEncoding: Sized {
 }
 
 /// Protocol encryption
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ProtocolEncryption: ProtocolEncoding
 where
     <Self as ProtocolEncoding>::Err: From<ProtocolMessageError>,
     <Self as ProtocolEncryption>::Err:
         From<<Self as ProtocolEncoding>::Err> + From<nip44::Error> + From<nostr::key::Error>,
+    <Self as ProtocolEncryption>::Err: From<nostr_signer::Error>,
 {
     /// Error
     type Err;
@@ -168,5 +173,47 @@ where
     /// Encrypt with [`Keys`] (for self-encryption)
     fn encrypt_with_keys(&self, keys: &Keys) -> Result<String, <Self as ProtocolEncryption>::Err> {
         self.encrypt(keys.secret_key()?, &keys.public_key())
+    }
+
+    /// Decrypt with [`NostrSigner`]
+    async fn decrypt_with_signer_and_public_key(
+        signer: &NostrSigner,
+        public_key: &PublicKey,
+        payload: &[u8],
+    ) -> Result<Self, <Self as ProtocolEncryption>::Err> {
+        let payload: String = signer.nip44_decrypt(*public_key, payload).await?;
+        let payload: &[u8] = payload.as_bytes();
+        Ok(Self::decode(payload)?)
+    }
+
+    /// Encrypt with [`NostrSigner`]
+    async fn encrypt_with_signer_and_public_key(
+        &self,
+        signer: &NostrSigner,
+        public_key: &PublicKey,
+    ) -> Result<String, <Self as ProtocolEncryption>::Err> {
+        let buf: Vec<u8> = self.encode();
+        Ok(signer
+            .nip44_encrypt(*public_key, buf, nip44::Version::V2)
+            .await?)
+    }
+
+    /// Decrypt with [`NostrSigner`] (for self-decryption)
+    async fn decrypt_with_signer(
+        signer: &NostrSigner,
+        payload: &[u8],
+    ) -> Result<Self, <Self as ProtocolEncryption>::Err> {
+        let public_key = signer.public_key().await?;
+        Self::decrypt_with_signer_and_public_key(signer, &public_key, payload).await
+    }
+
+    /// Encrypt with [`NostrSigner`] (for self-encryption)
+    async fn encrypt_with_signer(
+        &self,
+        signer: &NostrSigner,
+    ) -> Result<String, <Self as ProtocolEncryption>::Err> {
+        let public_key = signer.public_key().await?;
+        self.encrypt_with_signer_and_public_key(signer, &public_key)
+            .await
     }
 }

@@ -5,7 +5,8 @@
 
 use core::ops::Deref;
 
-use nostr::{Event, EventBuilder, Keys, PublicKey, Tag, Timestamp};
+use nostr::{Event, EventBuilder, PublicKey, Tag, Timestamp};
+use nostr_signer::NostrSigner;
 use prost::Message;
 use smartvaults_core::crypto::hash;
 use smartvaults_core::CoreSigner;
@@ -116,17 +117,21 @@ impl ProtocolEncryption for SharedSigner {
 
 /// Build [SharedSigner] event
 ///
-/// Must use **own** [`Keys`] (not random or shared key)!
-pub fn build_event(keys: &Keys, shared_signer: &SharedSigner) -> Result<Event, Error> {
+/// Must use **own** [`NostrSigner`] (not random or shared key)!
+pub async fn build_event(
+    signer: &NostrSigner,
+    shared_signer: &SharedSigner,
+) -> Result<Event, Error> {
     // Encrypt
-    let encrypted_content: String = shared_signer.encrypt_with_keys(keys)?;
+    let encrypted_content: String = shared_signer.encrypt_with_signer(signer).await?;
 
     // Compose and build event
     let identifier: String = shared_signer.nostr_public_identifier().to_string();
-    Ok(EventBuilder::new(
+    let builder = EventBuilder::new(
         SHARED_SIGNER_KIND_V2,
         encrypted_content,
         [Tag::Identifier(identifier)],
-    )
-    .to_event(keys)?)
+    );
+
+    Ok(signer.sign_event_builder(builder).await?)
 }

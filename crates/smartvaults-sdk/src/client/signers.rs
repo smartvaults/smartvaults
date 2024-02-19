@@ -20,13 +20,15 @@ impl SmartVaults {
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<(), Error> {
+        let public_key: PublicKey = self.nostr_public_key().await?;
+
         let signer: Signer = self.storage.signer(signer_id).await?;
 
         let nostr_public_identifier: NostrPublicIdentifier = signer.nostr_public_identifier();
 
         let filter: Filter = Filter::new()
             .kind(SIGNER_KIND_V2)
-            .author(self.keys.public_key())
+            .author(public_key)
             .identifier(nostr_public_identifier.to_string())
             .limit(1);
         let res: Vec<Event> = self
@@ -45,10 +47,10 @@ impl SmartVaults {
     }
 
     pub async fn save_signer(&self, signer: Signer) -> Result<SignerIdentifier, Error> {
-        let keys: &Keys = self.keys();
+        let nostr_signer = self.client.signer().await?;
 
         // Compose and publish event
-        let event: Event = v2::signer::build_event(keys, &signer)?;
+        let event: Event = v2::signer::build_event(&nostr_signer, &signer).await?;
         self.client.send_event(event).await?;
 
         // Index signer
@@ -99,6 +101,8 @@ impl SmartVaults {
         name: Option<String>,
         description: Option<String>,
     ) -> Result<(), Error> {
+        let nostr_signer = self.client.signer().await?;
+
         // Get signer
         let mut signer: Signer = self.storage.signer(signer_id).await?;
 
@@ -111,7 +115,7 @@ impl SmartVaults {
         }
 
         // Compose and publish event
-        let event: Event = v2::signer::build_event(&self.keys, &signer)?;
+        let event: Event = v2::signer::build_event(&nostr_signer, &signer).await?;
         self.client.send_event(event).await?;
 
         // Re-save signer with updated metadata
@@ -130,11 +134,13 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
+        let public_key: PublicKey = self.nostr_public_key().await?;
+
         // Get signer
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
 
         // Build shared signer
-        let shared_signer: SharedSigner = signer.to_shared(self.keys.public_key(), receiver);
+        let shared_signer: SharedSigner = signer.to_shared(public_key, receiver);
 
         // Compose invite
         let invite: SharedSignerInvite = shared_signer.to_invite(message);
@@ -159,12 +165,15 @@ impl SmartVaults {
         &self,
         shared_signer_id: &NostrPublicIdentifier,
     ) -> Result<(), Error> {
+        let nostr_signer = self.client.signer().await?;
+
         // Get invite
         let invite: SharedSignerInvite =
             self.storage.shared_signer_invite(shared_signer_id).await?;
 
         // Compose and publish event
-        let event: Event = v2::signer::shared::build_event(&self.keys, invite.shared_signer())?;
+        let event: Event =
+            v2::signer::shared::build_event(&nostr_signer, invite.shared_signer()).await?;
         self.client.send_event(event).await?;
 
         // Delete invite
@@ -188,9 +197,11 @@ impl SmartVaults {
         &self,
         shared_signer_id: &NostrPublicIdentifier,
     ) -> Result<(), Error> {
+        let public_key: PublicKey = self.nostr_public_key().await?;
+
         let filter: Filter = Filter::new()
             .kind(SHARED_SIGNER_KIND_V2)
-            .author(self.keys.public_key())
+            .author(public_key)
             .identifier(shared_signer_id.to_string())
             .limit(1);
         let res: Vec<Event> = self
@@ -221,11 +232,11 @@ impl SmartVaults {
             return Err(Error::NotEnoughPublicKeys);
         }
 
-        let keys: &Keys = self.keys();
+        let public_key: PublicKey = self.nostr_public_key().await?;
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
 
         for receiver in receivers.into_iter() {
-            let _shared_signer: SharedSigner = signer.as_shared(keys.public_key(), receiver);
+            let _shared_signer: SharedSigner = signer.as_shared(public_key, receiver);
 
             todo!();
 
@@ -274,11 +285,11 @@ impl SmartVaults {
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
-            let keys = self.keys();
+            let public_key: PublicKey = self.nostr_public_key().await?;
             let contacts: Vec<PublicKey> = self
                 .client
                 .database()
-                .contacts_public_keys(keys.public_key())
+                .contacts_public_keys(public_key)
                 .await?;
             let contacts: HashSet<PublicKey> = contacts.into_iter().collect();
             Ok(public_keys.difference(&contacts).copied().collect())

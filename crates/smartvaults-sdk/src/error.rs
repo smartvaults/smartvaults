@@ -45,6 +45,8 @@ pub enum Error {
     #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
     #[error(transparent)]
+    NostrSigner(#[from] nostr_sdk::signer::Error),
+    #[error(transparent)]
     SmartVaultsEventBuilder(#[from] SmartVaultsEventBuilderError),
     #[error(transparent)]
     Relay(#[from] nostr_sdk::pool::relay::Error),

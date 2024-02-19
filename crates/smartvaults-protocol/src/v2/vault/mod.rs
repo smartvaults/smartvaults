@@ -7,7 +7,8 @@ use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 
-use nostr::{Event, EventBuilder, Keys, SecretKey};
+use nostr::{Event, EventBuilder, SecretKey};
+use nostr_signer::NostrSigner;
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::policy::Policy;
@@ -144,14 +145,14 @@ impl ProtocolEncryption for Vault {
 }
 
 /// Build [`Vault`] event
-///
-/// Must use **own** [`Keys`] (not random or shared key)!
-pub fn build_event(keys: &Keys, vault: &Vault) -> Result<Event, Error> {
+pub async fn build_event(signer: &NostrSigner, vault: &Vault) -> Result<Event, Error> {
     // Encrypt
-    let encrypted_content: String = vault.encrypt_with_keys(keys)?;
+    let encrypted_content: String = vault.encrypt_with_signer(signer).await?;
 
     // Compose and build event
-    Ok(EventBuilder::new(VAULT_KIND_V2, encrypted_content, []).to_event(keys)?)
+    let builder = EventBuilder::new(VAULT_KIND_V2, encrypted_content, []);
+
+    Ok(signer.sign_event_builder(builder).await?)
 }
 
 #[cfg(bench)]

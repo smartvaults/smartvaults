@@ -7,7 +7,8 @@ use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 use std::collections::BTreeMap;
 
-use nostr::{Event, EventBuilder, Keys, PublicKey, Tag, Timestamp};
+use nostr::{Event, EventBuilder, PublicKey, Tag, Timestamp};
+use nostr_signer::NostrSigner;
 use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
@@ -174,18 +175,17 @@ impl ProtocolEncryption for Signer {
 }
 
 /// Build [`Signer`] event
-///
-/// Must use **own** [`Keys`] (not random or shared key)!
-pub fn build_event(keys: &Keys, signer: &Signer) -> Result<Event, Error> {
+pub async fn build_event(nostr_signer: &NostrSigner, signer: &Signer) -> Result<Event, Error> {
     // Encrypt
-    let encrypted_content: String = signer.encrypt_with_keys(keys)?;
+    let encrypted_content: String = signer.encrypt_with_signer(nostr_signer).await?;
 
     // Compose and build event
     let identifier: String = signer.nostr_public_identifier().to_string();
-    Ok(EventBuilder::new(
+    let builder = EventBuilder::new(
         SIGNER_KIND_V2,
         encrypted_content,
         [Tag::Identifier(identifier)],
-    )
-    .to_event(keys)?)
+    );
+
+    Ok(nostr_signer.sign_event_builder(builder).await?)
 }

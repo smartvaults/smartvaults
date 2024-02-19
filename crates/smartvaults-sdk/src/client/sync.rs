@@ -191,8 +191,8 @@ impl SmartVaults {
         vec![Filter::new().authors(public_keys).since(since)]
     }
 
-    pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
-        let public_key: PublicKey = self.keys.public_key();
+    pub(crate) async fn sync_filters(&self, since: Timestamp) -> Result<Vec<Filter>, Error> {
+        let public_key: PublicKey = self.nostr_public_key().await?;
 
         // Author filter include vaults, metadata, contacts, relay list, ...
         let author_filter: Filter = Filter::new().author(public_key).since(since);
@@ -222,7 +222,7 @@ impl SmartVaults {
             filters.push(Filter::new().authors(contacts).since(since));
         }
 
-        filters
+        Ok(filters)
     }
 
     pub(crate) fn sync(&self) -> Result<(), Error> {
@@ -252,7 +252,7 @@ impl SmartVaults {
                         };
 
                     // Subscribe to default filters
-                    let filters: Vec<Filter> = this.sync_filters(last_sync).await;
+                    let filters: Vec<Filter> = this.sync_filters(last_sync).await?;
                     if let Err(e) = relay
                         .subscribe_with_internal_id(
                             InternalSubscriptionId::from("smartvaults-default"),
@@ -333,7 +333,12 @@ impl SmartVaults {
             let this = self.clone();
             thread::spawn(async move {
                 let opts = NegentropyOptions::new().direction(NegentropyDirection::Both);
-                for filter in this.sync_filters(Timestamp::from(0)).await.into_iter() {
+                for filter in this
+                    .sync_filters(Timestamp::from(0))
+                    .await
+                    .unwrap()
+                    .into_iter()
+                {
                     this.client.reconcile(filter, opts).await.unwrap();
                 }
             })?;
@@ -357,7 +362,8 @@ impl SmartVaults {
                     event.author(),
                 )))?;
         } else if event.kind == Kind::RelayList {
-            if event.author() == self.keys().public_key() {
+            let public_key: PublicKey = self.nostr_public_key().await?;
+            if event.author() == public_key {
                 tracing::debug!("Received relay list: {:?}", event.tags);
                 let current_relays: HashSet<Url> = self
                     .db
@@ -391,47 +397,26 @@ impl SmartVaults {
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.author()).await?
         {
-            let keys: &Keys = self.keys();
-            let content = nip04::decrypt(keys.secret_key()?, event.author_ref(), event.content())?;
-            let msg = NIP46Message::from_json(content)?;
-            if let Ok(request) = msg.to_request() {
-                match request {
-                    NIP46Request::Disconnect => {
-                        self._disconnect_nostr_connect_session(event.author(), false)
-                            .await?;
-                    }
-                    NIP46Request::GetPublicKey => {
-                        let uri = self.db.get_nostr_connect_session(event.author()).await?;
-                        let msg = msg
-                            .generate_response(keys)?
-                            .ok_or(Error::CantGenerateNostrConnectResponse)?;
-                        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?
-                            .to_event(keys)?;
-                        // TODO: use send_event?
-                        self.client
-                            .pool()
-                            .send_msg_to(
-                                [uri.relay_url],
-                                ClientMessage::event(nip46_event),
-                                RelaySendOptions::new().skip_send_confirmation(true),
-                            )
-                            .await?;
-                    }
-                    _ => {
-                        if self
-                            .db
-                            .is_nostr_connect_session_pre_authorized(event.author())
-                            .await
-                        {
+            let signer = self.client.signer().await?;
+            if let NostrSigner::Keys(keys) = &signer {
+                let content =
+                    nip04::decrypt(keys.secret_key()?, event.author_ref(), event.content())?;
+                let msg = NIP46Message::from_json(content)?;
+                if let Ok(request) = msg.to_request() {
+                    match request {
+                        NIP46Request::Disconnect => {
+                            self._disconnect_nostr_connect_session(event.author(), false)
+                                .await?;
+                        }
+                        NIP46Request::GetPublicKey => {
                             let uri = self.db.get_nostr_connect_session(event.author()).await?;
-                            let keys: &Keys = self.keys();
-                            let req_message = msg.clone();
                             let msg = msg
                                 .generate_response(keys)?
                                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
                             let nip46_event =
                                 EventBuilder::nostr_connect(keys, uri.public_key, msg)?
                                     .to_event(keys)?;
+                            // TODO: use send_event?
                             self.client
                                 .pool()
                                 .send_msg_to(
@@ -440,36 +425,60 @@ impl SmartVaults {
                                     RelaySendOptions::new().skip_send_confirmation(true),
                                 )
                                 .await?;
-                            self.db
-                                .save_nostr_connect_request(
-                                    event.id,
-                                    event.author(),
-                                    req_message,
-                                    event.created_at,
-                                    true,
-                                )
-                                .await?;
-                            tracing::info!(
-                                "Auto approved nostr connect request {} for app {}",
-                                event.id,
-                                event.author()
-                            )
-                        } else {
-                            self.db
-                                .save_nostr_connect_request(
-                                    event.id,
-                                    event.author(),
-                                    msg,
-                                    event.created_at,
-                                    false,
-                                )
-                                .await?;
                         }
-                    }
-                };
-                self.sync_channel.send(Message::EventHandled(
-                    EventHandled::NostrConnectRequest(event.id),
-                ))?;
+                        _ => {
+                            if self
+                                .db
+                                .is_nostr_connect_session_pre_authorized(event.author())
+                                .await
+                            {
+                                let uri = self.db.get_nostr_connect_session(event.author()).await?;
+                                let req_message = msg.clone();
+                                let msg = msg
+                                    .generate_response(keys)?
+                                    .ok_or(Error::CantGenerateNostrConnectResponse)?;
+                                let nip46_event =
+                                    EventBuilder::nostr_connect(keys, uri.public_key, msg)?
+                                        .to_event(keys)?;
+                                self.client
+                                    .pool()
+                                    .send_msg_to(
+                                        [uri.relay_url],
+                                        ClientMessage::event(nip46_event),
+                                        RelaySendOptions::new().skip_send_confirmation(true),
+                                    )
+                                    .await?;
+                                self.db
+                                    .save_nostr_connect_request(
+                                        event.id,
+                                        event.author(),
+                                        req_message,
+                                        event.created_at,
+                                        true,
+                                    )
+                                    .await?;
+                                tracing::info!(
+                                    "Auto approved nostr connect request {} for app {}",
+                                    event.id,
+                                    event.author()
+                                )
+                            } else {
+                                self.db
+                                    .save_nostr_connect_request(
+                                        event.id,
+                                        event.author(),
+                                        msg,
+                                        event.created_at,
+                                        false,
+                                    )
+                                    .await?;
+                            }
+                        }
+                    };
+                    self.sync_channel.send(Message::EventHandled(
+                        EventHandled::NostrConnectRequest(event.id),
+                    ))?;
+                }
             }
         } else if let Some(h) = self.storage.handle_event(&event).await? {
             match h {

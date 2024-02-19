@@ -592,11 +592,12 @@ impl SmartVaults {
         &self,
         signer_id: Arc<EventId>,
         public_key: Arc<PublicKey>,
+        message: String,
     ) -> Result<Arc<EventId>> {
         block_on(async move {
             Ok(Arc::new(
                 self.inner
-                    .share_signer(**signer_id, **public_key)
+                    .share_signer(**signer_id, **public_key, message)
                     .await?
                     .into(),
             ))

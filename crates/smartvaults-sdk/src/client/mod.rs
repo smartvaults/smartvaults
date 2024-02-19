@@ -57,7 +57,6 @@ use crate::{util, Error};
 pub struct SmartVaults {
     network: Network,
     keechain: Arc<ParkingLotRwLock<KeeChain>>,
-    keys: Keys,
     client: Client,
     manager: Manager,
     config: Config,
@@ -114,7 +113,6 @@ impl SmartVaults {
         let this = Self {
             network,
             keechain: Arc::new(ParkingLotRwLock::new(keechain)),
-            keys,
             client,
             manager: Manager::new(db.clone(), network),
             config: Config::try_from_file(base_path, network)?,
@@ -390,10 +388,6 @@ impl SmartVaults {
         Ok(self.keechain.read().keychain(password)?)
     }
 
-    pub fn keys(&self) -> &Keys {
-        &self.keys
-    }
-
     pub fn fingerprint(&self) -> Fingerprint {
         self.keechain.read().fingerprint()
     }
@@ -430,7 +424,7 @@ impl SmartVaults {
                 Ok(ts) => ts,
                 Err(_) => Timestamp::from(0),
             };
-            let filters: Vec<Filter> = self.sync_filters(last_sync).await;
+            let filters: Vec<Filter> = self.sync_filters(last_sync).await?;
             relay
                 .subscribe(
                     filters,
@@ -570,6 +564,12 @@ impl SmartVaults {
         self.manager.block_height()
     }
 
+    pub async fn nostr_public_key(&self) -> Result<PublicKey, Error> {
+        let signer = self.client.signer().await?;
+        let public_key: PublicKey = signer.public_key().await?;
+        Ok(public_key)
+    }
+
     pub async fn set_metadata(&self, metadata: &Metadata) -> Result<(), Error> {
         let builder = EventBuilder::metadata(metadata);
         self.client.send_event_builder(builder).await?;
@@ -578,7 +578,7 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_profile(&self) -> Result<Profile, Error> {
-        let public_key: PublicKey = self.keys().public_key();
+        let public_key: PublicKey = self.nostr_public_key().await?;
         Ok(self.client.database().profile(public_key).await?)
     }
 
@@ -605,18 +605,18 @@ impl SmartVaults {
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_contacts(&self) -> Result<BTreeSet<Profile>, Error> {
-        let keys = self.keys();
-        Ok(self.client.database().contacts(keys.public_key()).await?)
+        let public_key: PublicKey = self.nostr_public_key().await?;
+        Ok(self.client.database().contacts(public_key).await?)
     }
 
     pub async fn add_contact(&self, public_key: PublicKey) -> Result<(), Error> {
-        let keys: &Keys = self.keys();
-        if public_key != keys.public_key() {
+        let my_public_key: PublicKey = self.nostr_public_key().await?;
+        if public_key != my_public_key {
             // Add contact
             let mut contacts: Vec<Contact> = self
                 .client
                 .database()
-                .contacts_public_keys(keys.public_key())
+                .contacts_public_keys(my_public_key)
                 .await?
                 .into_iter()
                 .map(|p| Contact::new::<String>(p, None, None))
@@ -641,11 +641,11 @@ impl SmartVaults {
     }
 
     pub async fn remove_contact(&self, public_key: PublicKey) -> Result<(), Error> {
-        let keys: &Keys = self.keys();
+        let my_public_key: PublicKey = self.nostr_public_key().await?;
         let contacts: Vec<Contact> = self
             .client
             .database()
-            .contacts_public_keys(keys.public_key())
+            .contacts_public_keys(my_public_key)
             .await?
             .into_iter()
             .filter(|p| p != &public_key)
@@ -868,8 +868,9 @@ impl SmartVaults {
         drop(seed);
 
         // Compose the event
-        let keys: &Keys = self.keys();
-        let event = v2::approval::build_event(&vault, &approval, keys)?;
+        let signer = self.client.signer().await?;
+        let public_key = signer.public_key().await?;
+        let event = v2::approval::build_event(&signer, &vault, &approval).await?;
         let timestamp = event.created_at;
 
         // Publish the event
@@ -880,7 +881,7 @@ impl SmartVaults {
             .save_approval(
                 event_id,
                 InternalApproval {
-                    public_key: keys.public_key(),
+                    public_key: public_key,
                     approval: approval.clone(),
                     timestamp,
                 },

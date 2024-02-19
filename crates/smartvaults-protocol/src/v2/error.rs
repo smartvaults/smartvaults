@@ -56,6 +56,8 @@ pub enum Error {
     #[error(transparent)]
     EventBuilder(#[from] nostr::event::builder::Error),
     #[error(transparent)]
+    NostrSigner(#[from] nostr_signer::Error),
+    #[error(transparent)]
     DescriptorKeyParse(#[from] DescriptorKeyParseError),
     #[error(transparent)]
     TryFromSlice(#[from] TryFromSliceError),
