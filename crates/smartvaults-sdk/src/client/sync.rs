@@ -185,14 +185,14 @@ impl SmartVaults {
         let vaults = self.storage.vaults().await;
         let public_keys = vaults.into_values().map(|i| {
             let secret_key = i.shared_key();
-            let keys = Keys::new(secret_key);
+            let keys = Keys::new(secret_key.clone());
             keys.public_key()
         });
         vec![Filter::new().authors(public_keys).since(since)]
     }
 
     pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
-        let public_key: XOnlyPublicKey = self.keys.public_key();
+        let public_key: PublicKey = self.keys.public_key();
 
         // Author filter include vaults, metadata, contacts, relay list, ...
         let author_filter: Filter = Filter::new().author(public_key).since(since);
@@ -212,7 +212,7 @@ impl SmartVaults {
 
         let mut filters: Vec<Filter> = vec![author_filter, pubkey_filter, key_agents, smartvaults];
 
-        let contacts: Vec<XOnlyPublicKey> = self
+        let contacts: Vec<PublicKey> = self
             .client
             .database()
             .contacts_public_keys(public_key)

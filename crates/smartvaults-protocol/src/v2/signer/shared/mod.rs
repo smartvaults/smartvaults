@@ -5,10 +5,9 @@
 
 use core::ops::Deref;
 
-use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
+use nostr::{Event, EventBuilder, Keys, PublicKey, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::crypto::hash;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::CoreSigner;
 
 pub mod invite;
@@ -23,8 +22,8 @@ use crate::v2::{Error, NostrPublicIdentifier};
 /// Shared Signer
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SharedSigner {
-    owner: XOnlyPublicKey,
-    receiver: XOnlyPublicKey,
+    owner: PublicKey,
+    receiver: PublicKey,
     core: CoreSigner,
     timestamp: Timestamp,
 }
@@ -40,8 +39,8 @@ impl Deref for SharedSigner {
 impl SharedSigner {
     /// Compose new Shared Signer
     pub fn new(
-        owner: XOnlyPublicKey,
-        receiver: XOnlyPublicKey,
+        owner: PublicKey,
+        receiver: PublicKey,
         core: CoreSigner,
         timestamp: Timestamp,
     ) -> Self {
@@ -59,12 +58,12 @@ impl SharedSigner {
     }
 
     /// The owner of the signer
-    pub fn owner(&self) -> &XOnlyPublicKey {
+    pub fn owner(&self) -> &PublicKey {
         &self.owner
     }
 
     /// The receiver of the shared signer
-    pub fn receiver(&self) -> &XOnlyPublicKey {
+    pub fn receiver(&self) -> &PublicKey {
         &self.receiver
     }
 
@@ -80,7 +79,7 @@ impl SharedSigner {
     where
         S: Into<String>,
     {
-        let sender: XOnlyPublicKey = self.owner;
+        let sender: PublicKey = self.owner;
         SharedSignerInvite::new(self, Some(sender), message)
     }
 

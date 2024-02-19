@@ -6,9 +6,8 @@
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 
-use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
+use nostr::{Event, EventBuilder, Keys, PublicKey, Tag, Timestamp};
 use prost::Message;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 use super::Vault;
 use crate::v2::constants::{WRAPPER_EXIPRATION, WRAPPER_KIND};
@@ -22,7 +21,7 @@ pub struct VaultInvite {
     /// Vault
     pub vault: Vault,
     /// Invite sender
-    pub sender: Option<XOnlyPublicKey>,
+    pub sender: Option<PublicKey>,
     /// Invite message
     pub message: String,
     /// Invite timestamp
@@ -57,7 +56,7 @@ impl Hash for VaultInvite {
 
 impl VaultInvite {
     /// Compose new [Vault] invite
-    pub fn new<S>(vault: Vault, sender: Option<XOnlyPublicKey>, message: S) -> Self
+    pub fn new<S>(vault: Vault, sender: Option<PublicKey>, message: S) -> Self
     where
         S: Into<String>,
     {
@@ -75,7 +74,7 @@ impl VaultInvite {
     }
 
     /// Get sender
-    pub fn sender(&self) -> Option<XOnlyPublicKey> {
+    pub fn sender(&self) -> Option<PublicKey> {
         self.sender
     }
 
@@ -109,13 +108,13 @@ impl ProtocolEncryption for VaultInvite {
 }
 
 /// Build [`Vault`] invite [`Event`]
-pub fn build_event(invite: VaultInvite, receiver: XOnlyPublicKey) -> Result<Event, Error> {
+pub fn build_event(invite: VaultInvite, receiver: PublicKey) -> Result<Event, Error> {
     // Compose wrapper
     let wrapper: Wrapper = Wrapper::VaultInvite(invite);
 
     // Encrypt
     let keys = Keys::generate();
-    let encrypted_content: String = wrapper.encrypt(&keys.secret_key()?, &receiver)?;
+    let encrypted_content: String = wrapper.encrypt(keys.secret_key()?, &receiver)?;
 
     // Compose and sign event
     Ok(EventBuilder::new(

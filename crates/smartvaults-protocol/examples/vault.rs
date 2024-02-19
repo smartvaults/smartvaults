@@ -3,11 +3,10 @@
 
 use std::str::FromStr;
 
-use nostr::secp256k1::SecretKey;
 use smartvaults_protocol::core::bitcoin::Network;
 use smartvaults_protocol::core::miniscript::DescriptorPublicKey;
 use smartvaults_protocol::core::PolicyTemplate;
-use smartvaults_protocol::nostr::Keys;
+use smartvaults_protocol::nostr::{Keys, SecretKey};
 use smartvaults_protocol::v2::{ProtocolEncryption, Vault};
 
 const SECRET_KEY: &str = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
@@ -23,8 +22,12 @@ fn main() {
     // Compose vault
     let network = Network::Testnet;
     let shared_key = Keys::generate();
-    let vault =
-        Vault::from_template(template.clone(), network, shared_key.secret_key().unwrap()).unwrap();
+    let vault = Vault::from_template(
+        template.clone(),
+        network,
+        shared_key.secret_key().unwrap().clone(),
+    )
+    .unwrap();
 
     // Encryption keys
     let secret_key = SecretKey::from_str(SECRET_KEY).unwrap();

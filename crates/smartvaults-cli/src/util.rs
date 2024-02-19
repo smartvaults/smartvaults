@@ -336,7 +336,7 @@ where
         },
     ) in vaults.into_iter().enumerate()
     {
-        let shared_key = Keys::new(vault.shared_key());
+        let shared_key = Keys::new(vault.shared_key().clone());
         table.add_row(row![
             index + 1,
             vault.compute_id(),

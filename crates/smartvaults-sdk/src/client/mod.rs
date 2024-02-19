@@ -1237,7 +1237,7 @@ impl SmartVaults {
             self.manager.get_address(vault, index).await?.address;
 
         let vault = self.storage.vault(vault).await?;
-        let shared_key = Keys::new(vault.shared_key());
+        let shared_key = Keys::new(vault.shared_key().clone());
         let address = Address::new(self.network, address.payload);
         let identifier: String =
             LabelData::Address(address.clone()).generate_identifier(&shared_key)?;

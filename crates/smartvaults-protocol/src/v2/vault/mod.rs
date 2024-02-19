@@ -7,11 +7,10 @@ use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 
-use nostr::{Event, EventBuilder, Keys};
+use nostr::{Event, EventBuilder, Keys, SecretKey};
 use prost::Message;
 use smartvaults_core::bitcoin::Network;
 use smartvaults_core::policy::Policy;
-use smartvaults_core::secp256k1::SecretKey;
 use smartvaults_core::PolicyTemplate;
 
 pub mod id;
@@ -121,8 +120,8 @@ impl Vault {
     }
 
     /// Get [`SecretKey`]
-    pub fn shared_key(&self) -> SecretKey {
-        self.shared_key
+    pub fn shared_key(&self) -> &SecretKey {
+        &self.shared_key
     }
 }
 

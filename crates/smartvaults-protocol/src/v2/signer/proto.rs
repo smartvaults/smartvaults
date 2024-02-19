@@ -4,11 +4,10 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use nostr::Timestamp;
+use nostr::{PublicKey, Timestamp};
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bips::bip48::ScriptType;
 use smartvaults_core::miniscript::DescriptorPublicKey;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{CoreSigner, Purpose, SignerType};
 
 use super::{SharedSigner, SharedSignerInvite, Signer};
@@ -178,8 +177,8 @@ impl TryFrom<ProtoSharedSigner> for SharedSigner {
         }
 
         Ok(Self::new(
-            XOnlyPublicKey::from_str(&value.owner)?,
-            XOnlyPublicKey::from_str(&value.receiver)?,
+            PublicKey::from_hex(&value.owner)?,
+            PublicKey::from_hex(&value.receiver)?,
             CoreSigner::unknown(fingerprint, descriptors, *network)?,
             Timestamp::from(value.timestamp),
         ))
@@ -205,8 +204,8 @@ impl TryFrom<ProtoSharedSignerInvite> for SharedSignerInvite {
             .shared_signer
             .ok_or(Error::NotFound(String::from("shared signer")))?;
         let shared_signer: SharedSigner = SharedSigner::try_from(shared_signer)?;
-        let sender: Option<XOnlyPublicKey> = match invite.sender {
-            Some(public_key) => Some(XOnlyPublicKey::from_str(&public_key)?),
+        let sender: Option<PublicKey> = match invite.sender {
+            Some(public_key) => Some(PublicKey::from_str(&public_key)?),
             None => None,
         };
         Ok(Self {

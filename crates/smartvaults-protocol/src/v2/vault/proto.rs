@@ -3,10 +3,9 @@
 
 use core::str::FromStr;
 
-use nostr::Timestamp;
+use nostr::{PublicKey, SecretKey, Timestamp};
 use smartvaults_core::hashes::Hash;
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
 use smartvaults_core::Policy;
 
 use super::{Vault, VaultIdentifier, VaultInvite, VaultMetadata, Version};
@@ -109,8 +108,8 @@ impl TryFrom<ProtoVaultInvite> for VaultInvite {
     fn try_from(invite: ProtoVaultInvite) -> Result<Self, Self::Error> {
         let vault: ProtoVault = invite.vault.ok_or(Error::NotFound(String::from("vault")))?;
         let vault: Vault = Vault::try_from(vault)?;
-        let sender: Option<XOnlyPublicKey> = match invite.sender {
-            Some(public_key) => Some(XOnlyPublicKey::from_str(&public_key)?),
+        let sender: Option<PublicKey> = match invite.sender {
+            Some(public_key) => Some(PublicKey::from_hex(&public_key)?),
             None => None,
         };
         Ok(Self {

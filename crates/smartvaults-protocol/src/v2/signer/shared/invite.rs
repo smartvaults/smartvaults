@@ -6,9 +6,8 @@
 use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 
-use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
+use nostr::{Event, EventBuilder, Keys, PublicKey, Tag, Timestamp};
 use prost::Message;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 
 use super::SharedSigner;
 use crate::v2::constants::{WRAPPER_EXIPRATION, WRAPPER_KIND};
@@ -22,7 +21,7 @@ pub struct SharedSignerInvite {
     /// Shared Signer
     pub shared_signer: SharedSigner,
     /// Invite sender
-    pub sender: Option<XOnlyPublicKey>,
+    pub sender: Option<PublicKey>,
     /// Invite message
     pub message: String,
     /// Invite timestamp
@@ -57,7 +56,7 @@ impl Hash for SharedSignerInvite {
 
 impl SharedSignerInvite {
     /// Compose new [SharedSigner] invite
-    pub fn new<S>(shared_signer: SharedSigner, sender: Option<XOnlyPublicKey>, message: S) -> Self
+    pub fn new<S>(shared_signer: SharedSigner, sender: Option<PublicKey>, message: S) -> Self
     where
         S: Into<String>,
     {
@@ -75,7 +74,7 @@ impl SharedSignerInvite {
     }
 
     /// Get sender
-    pub fn sender(&self) -> Option<XOnlyPublicKey> {
+    pub fn sender(&self) -> Option<PublicKey> {
         self.sender
     }
 
@@ -109,13 +108,13 @@ impl ProtocolEncryption for SharedSignerInvite {
 }
 
 /// Build [`SharedSigner`] invite [`Event`]
-pub fn build_event(invite: SharedSignerInvite, receiver: XOnlyPublicKey) -> Result<Event, Error> {
+pub fn build_event(invite: SharedSignerInvite, receiver: PublicKey) -> Result<Event, Error> {
     // Compose wrapper
     let wrapper: Wrapper = Wrapper::SharedSignerInvite(invite);
 
     // Encrypt
     let keys = Keys::generate();
-    let encrypted_content: String = wrapper.encrypt(&keys.secret_key()?, &receiver)?;
+    let encrypted_content: String = wrapper.encrypt(keys.secret_key()?, &receiver)?;
 
     // Compose and sign event
     Ok(EventBuilder::new(

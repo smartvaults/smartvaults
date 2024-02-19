@@ -165,7 +165,7 @@ impl SmartVaultsStorage {
             if let HashMapEntry::Vacant(e) = vaults_ids.entry(event.id) {
                 let vault: Vault = Vault::decrypt_with_keys(&self.keys, &event.content)?;
                 let vault_id = vault.compute_id();
-                let shared_key = Keys::new(vault.shared_key());
+                let shared_key = Keys::new(vault.shared_key().clone());
                 let internal = InternalVault {
                     event_id: event.id,
                     vault,
@@ -257,7 +257,7 @@ impl SmartVaultsStorage {
             let shared_signer_id = event.identifier().ok_or(Error::SharedSignerIdNotFound)?;
             let id = NostrPublicIdentifier::from_str(shared_signer_id)?;
             let shared_signer: SharedSigner =
-                SharedSigner::decrypt_with_keys(self.keys, event.content())?;
+                SharedSigner::decrypt_with_keys(&self.keys, event.content())?;
             shared_signers
                 .entry(id)
                 .and_modify(|s| {
@@ -396,7 +396,7 @@ impl SmartVaultsStorage {
             Some(internal) => {
                 // Delete vault key
                 let mut vaults_keys = self.vaults_keys.write().await;
-                let keys = Keys::new(internal.vault.shared_key());
+                let keys = Keys::new(internal.vault.shared_key().clone());
                 vaults_keys.remove(&keys.public_key());
                 drop(vaults_keys);
 

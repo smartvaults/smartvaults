@@ -11,8 +11,7 @@
 //! ```
 
 use nostr::nips::nip44;
-use nostr::Keys;
-use smartvaults_core::secp256k1::{SecretKey, XOnlyPublicKey};
+use nostr::{Keys, PublicKey, SecretKey};
 use thiserror::Error;
 
 /// Protocol Message Error
@@ -130,7 +129,7 @@ where
     /// Decrypt
     fn decrypt<T>(
         secret_key: &SecretKey,
-        public_key: &XOnlyPublicKey,
+        public_key: &PublicKey,
         payload: T,
     ) -> Result<Self, <Self as ProtocolEncryption>::Err>
     where
@@ -144,7 +143,7 @@ where
     fn encrypt(
         &self,
         secret_key: &SecretKey,
-        public_key: &XOnlyPublicKey,
+        public_key: &PublicKey,
     ) -> Result<String, <Self as ProtocolEncryption>::Err> {
         let buf: Vec<u8> = self.encode();
         Ok(nip44::encrypt(
@@ -163,11 +162,11 @@ where
     where
         T: AsRef<[u8]>,
     {
-        Self::decrypt(&keys.secret_key()?, &keys.public_key(), payload)
+        Self::decrypt(keys.secret_key()?, &keys.public_key(), payload)
     }
 
     /// Encrypt with [`Keys`] (for self-encryption)
     fn encrypt_with_keys(&self, keys: &Keys) -> Result<String, <Self as ProtocolEncryption>::Err> {
-        self.encrypt(&keys.secret_key()?, &keys.public_key())
+        self.encrypt(keys.secret_key()?, &keys.public_key())
     }
 }

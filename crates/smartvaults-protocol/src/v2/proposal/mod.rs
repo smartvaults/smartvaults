@@ -447,7 +447,7 @@ impl ProtocolEncryption for Proposal {
 /// Build [`Proposal`] event
 pub fn build_event(vault: &Vault, proposal: &Proposal) -> Result<Event, Error> {
     // Keys
-    let keys: Keys = Keys::new(vault.shared_key());
+    let keys: Keys = Keys::new(vault.shared_key().clone());
 
     // Encrypt
     let encrypted_content: String = proposal.encrypt_with_keys(&keys)?;

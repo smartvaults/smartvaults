@@ -111,7 +111,7 @@ impl ProtocolEncryption for Approval {
 
 /// Build [`Approval`] event
 pub fn build_event(vault: &Vault, approval: &Approval, keys: &Keys) -> Result<Event, Error> {
-    let shared_key: Keys = Keys::new(vault.shared_key());
+    let shared_key: Keys = Keys::new(vault.shared_key().clone());
     let encrypted_content: String = approval.encrypt_with_keys(&shared_key)?;
 
     // Compose and build event

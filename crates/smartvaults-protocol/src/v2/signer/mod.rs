@@ -7,7 +7,7 @@ use core::hash::{Hash, Hasher};
 use core::ops::Deref;
 use std::collections::BTreeMap;
 
-use nostr::{Event, EventBuilder, Keys, Tag, Timestamp};
+use nostr::{Event, EventBuilder, Keys, PublicKey, Tag, Timestamp};
 use prost::Message;
 use smartvaults_core::bips::bip32::Fingerprint;
 use smartvaults_core::bitcoin::Network;
@@ -15,7 +15,6 @@ use smartvaults_core::constants::SMARTVAULTS_ACCOUNT_INDEX;
 #[cfg(feature = "hwi")]
 use smartvaults_core::hwi::BoxedHWI;
 use smartvaults_core::miniscript::DescriptorPublicKey;
-use smartvaults_core::secp256k1::XOnlyPublicKey;
 use smartvaults_core::{ColdcardGenericJson, CoreSigner, Purpose, Seed};
 
 pub mod id;
@@ -146,12 +145,12 @@ impl Signer {
     }
 
     /// Get Shared Signer
-    pub fn as_shared(&self, owner: XOnlyPublicKey, receiver: XOnlyPublicKey) -> SharedSigner {
+    pub fn as_shared(&self, owner: PublicKey, receiver: PublicKey) -> SharedSigner {
         SharedSigner::new(owner, receiver, self.core.clone(), Timestamp::now())
     }
 
     /// Consume [`Signer`] and get Shared Signer
-    pub fn to_shared(self, owner: XOnlyPublicKey, receiver: XOnlyPublicKey) -> SharedSigner {
+    pub fn to_shared(self, owner: PublicKey, receiver: PublicKey) -> SharedSigner {
         SharedSigner::new(owner, receiver, self.core, Timestamp::now())
     }
 }

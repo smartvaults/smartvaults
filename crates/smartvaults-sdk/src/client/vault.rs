@@ -4,11 +4,7 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use nostr_sdk::{
-    Event, EventBuilder, EventId, Filter, Keys, Kind, NostrDatabaseExt, Profile, RelaySendOptions,
-    Tag,
-};
-use smartvaults_core::secp256k1::XOnlyPublicKey;
+use nostr_sdk::prelude::*;
 use smartvaults_core::{Policy, PolicyTemplate};
 use smartvaults_protocol::v2::{self, Vault, VaultIdentifier, VaultInvite, VaultMetadata};
 
@@ -81,7 +77,7 @@ impl SmartVaults {
 
         // Load policy
         let policy: Policy = vault.policy();
-        let shared_key = Keys::new(vault.shared_key());
+        let shared_key = Keys::new(vault.shared_key().clone());
         self.manager.load_policy(vault_id, policy).await?;
 
         // Index event
@@ -113,7 +109,7 @@ impl SmartVaults {
     {
         // Generate a shared key
         let shared_key = Keys::generate();
-        let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?)?;
+        let vault = Vault::new(descriptor, self.network, shared_key.secret_key()?.clone())?;
         let vault_id: VaultIdentifier = vault.compute_id();
 
         // Add metadata
@@ -135,7 +131,8 @@ impl SmartVaults {
         S: Into<String>,
     {
         let shared_key = Keys::generate();
-        let vault: Vault = Vault::from_template(template, self.network, shared_key.secret_key()?)?;
+        let vault: Vault =
+            Vault::from_template(template, self.network, shared_key.secret_key()?.clone())?;
         let descriptor: String = vault.as_descriptor().to_string();
         self.save_vault(name, description, descriptor).await
     }
@@ -175,7 +172,7 @@ impl SmartVaults {
     pub async fn invite_to_vault<S>(
         &self,
         vault_id: &VaultIdentifier,
-        receiver: XOnlyPublicKey,
+        receiver: PublicKey,
         message: S,
     ) -> Result<(), Error>
     where
@@ -185,7 +182,7 @@ impl SmartVaults {
         let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
 
         // Compose invite
-        let sender: XOnlyPublicKey = self.keys.public_key();
+        let sender: PublicKey = self.keys.public_key();
         let invite: VaultInvite = VaultInvite::new(vault, Some(sender), message);
 
         // Compose and publish event

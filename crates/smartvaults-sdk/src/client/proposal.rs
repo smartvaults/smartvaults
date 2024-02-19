@@ -39,7 +39,7 @@ impl SmartVaults {
 
         // Get Vault for shared key
         let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
-        let shared_key: Keys = Keys::new(vault.shared_key());
+        let shared_key: Keys = Keys::new(vault.shared_key().clone());
 
         let filter: Filter = Filter::new()
             .kind(PROPOSAL_KIND_V2)
