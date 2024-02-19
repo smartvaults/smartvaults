@@ -2889,8 +2889,8 @@ dependencies = [
 
 [[package]]
 name = "nostr"
-version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+version = "0.28.1"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "aes",
  "base64 0.21.7",
@@ -2918,8 +2918,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-database"
-version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+version = "0.28.1"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "async-trait",
  "flatbuffers",
@@ -2933,7 +2933,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2941,8 +2941,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-relay-pool"
-version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+version = "0.28.1"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "async-utility",
  "async-wsocket",
@@ -2955,8 +2955,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-sdk"
-version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+version = "0.28.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "async-utility",
  "lnurl-pay",
@@ -2965,6 +2965,8 @@ dependencies = [
  "nostr-relay-pool",
  "nostr-signer",
  "nostr-sqlite",
+ "nostr-zapper",
+ "nwc",
  "once_cell",
  "thiserror",
  "tokio",
@@ -2974,7 +2976,7 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "async-utility",
  "nostr-ffi",
@@ -2986,8 +2988,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-signer"
-version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+version = "0.28.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "async-utility",
  "nostr",
@@ -2998,8 +3000,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-sqlite"
-version = "0.27.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=de826afcc8e9b1f8518fa61390b0ff0f4c236875#de826afcc8e9b1f8518fa61390b0ff0f4c236875"
+version = "0.28.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",
@@ -3009,6 +3011,16 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "nostr-zapper"
+version = "0.28.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
+dependencies = [
+ "async-trait",
+ "nostr",
+ "thiserror",
 ]
 
 [[package]]
@@ -3090,6 +3102,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
+]
+
+[[package]]
+name = "nwc"
+version = "0.28.1"
+source = "git+https://github.com/rust-nostr/nostr?rev=c90b586276afd477e1eddcad5e91c957fbee9a2d#c90b586276afd477e1eddcad5e91c957fbee9a2d"
+dependencies = [
+ "async-utility",
+ "nostr",
+ "nostr-relay-pool",
+ "nostr-zapper",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]
