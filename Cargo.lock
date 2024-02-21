@@ -4388,6 +4388,7 @@ name = "smartvaults-core-js"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "serde_json",
  "smartvaults-core",
  "wasm-bindgen",
 ]

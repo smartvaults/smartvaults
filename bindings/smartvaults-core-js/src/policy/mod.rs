@@ -137,4 +137,11 @@ impl JsPolicy {
     pub fn has_relative_timelock(&self) -> bool {
         self.inner.has_relative_timelock()
     }
+
+    /// Get `SatisfiableItem`
+    #[wasm_bindgen(js_name = satisfiableItem)]
+    pub fn satisfiable_item(&self) -> Result<String> {
+        let item = self.inner.satisfiable_item().map_err(into_err)?;
+        serde_json::to_string(item).map_err(into_err)
+    }
 }

@@ -21,7 +21,7 @@ bitcoinconsensus = { version = "0.20.2-0.5.0", optional = true }
 keechain-core = { git = "https://github.com/yukibtc/keechain", rev = "ce680ee98d1425b48119f06702e2286aa6b91843" }
 once_cell.workspace = true
 serde = { workspace = true, features = ["derive"] }
-serde_json = "1.0"
+serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

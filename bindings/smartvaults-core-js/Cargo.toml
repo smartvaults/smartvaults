@@ -16,6 +16,7 @@ default = []
 
 [dependencies]
 console_error_panic_hook = { version = "0.1", optional = true }
+serde_json.workspace = true
 smartvaults-core = { path = "../../crates/smartvaults-core", default-features = false }
 wasm-bindgen = { workspace = true, features = ["std"] }
 
