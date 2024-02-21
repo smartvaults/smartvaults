@@ -36,6 +36,9 @@ impl From<JsPolicy> for Policy {
 
 #[wasm_bindgen(js_class = Policy)]
 impl JsPolicy {
+    /// Construct `Policy` from descriptor string
+    ///
+    /// The descriptor must be typed, for example: `tr(...)`
     #[wasm_bindgen(js_name = fromDescriptor)]
     pub fn from_descriptor(
         name: &str,
@@ -49,6 +52,9 @@ impl JsPolicy {
         })
     }
 
+    /// Construct `Policy` from miniscript
+    ///
+    /// <https://bitcoin.sipa.be/miniscript/>
     #[wasm_bindgen(js_name = fromMiniscript)]
     pub fn from_miniscript(
         name: &str,
@@ -62,6 +68,9 @@ impl JsPolicy {
         })
     }
 
+    /// Try to construct `Policy` from descriptor string or miniscript policy
+    ///
+    /// Internally try before to construct the `Policy` from a descriptor string. If fail, try from miniscript policy.
     #[wasm_bindgen(js_name = fromDescOrMiniscript)]
     pub fn from_desc_or_miniscript(
         name: &str,
@@ -82,5 +91,25 @@ impl JsPolicy {
 
     pub fn descriptor(&self) -> String {
         self.inner.descriptor().to_string()
+    }
+
+    /// Get network
+    pub fn network(&self) -> JsNetwork {
+        self.inner.network().into()
+    }
+
+    /// Check if `Policy` has an `absolute` or `relative` timelock
+    pub fn has_timelock(&self) -> bool {
+        self.inner.has_timelock()
+    }
+
+    /// Check if `Policy` has a `absolute` timelock
+    pub fn has_absolute_timelock(&self) -> bool {
+        self.inner.has_absolute_timelock()
+    }
+
+    /// Check if `Policy` has a `relative` timelock
+    pub fn has_relative_timelock(&self) -> bool {
+        self.inner.has_relative_timelock()
     }
 }
