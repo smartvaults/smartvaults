@@ -8,6 +8,7 @@ use wasm_bindgen::prelude::*;
 
 pub mod template;
 
+use self::template::JsPolicyTemplate;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
@@ -91,6 +92,25 @@ impl JsPolicy {
         })
     }
 
+    /// Construct `Policy` from `PolicyTemplate`
+    #[wasm_bindgen(js_name = fromTemplate)]
+    pub fn from_template(
+        name: &str,
+        description: &str,
+        template: &JsPolicyTemplate,
+        network: JsNetwork,
+    ) -> Result<JsPolicy> {
+        Ok(Self {
+            inner: Policy::from_template(
+                name,
+                description,
+                template.deref().clone(),
+                network.into(),
+            )
+            .map_err(into_err)?,
+        })
+    }
+
     pub fn descriptor(&self) -> String {
         self.inner.descriptor().to_string()
     }
@@ -101,16 +121,19 @@ impl JsPolicy {
     }
 
     /// Check if `Policy` has an `absolute` or `relative` timelock
+    #[wasm_bindgen(js_name = hasTimelock)]
     pub fn has_timelock(&self) -> bool {
         self.inner.has_timelock()
     }
 
     /// Check if `Policy` has a `absolute` timelock
+    #[wasm_bindgen(js_name = hasAbsoluteTimelock)]
     pub fn has_absolute_timelock(&self) -> bool {
         self.inner.has_absolute_timelock()
     }
 
     /// Check if `Policy` has a `relative` timelock
+    #[wasm_bindgen(js_name = hasRelativeTimelock)]
     pub fn has_relative_timelock(&self) -> bool {
         self.inner.has_relative_timelock()
     }
