@@ -4,6 +4,7 @@
 use core::ops::Deref;
 
 use smartvaults_core::policy::Policy;
+use smartvaults_core::SelectableCondition;
 use wasm_bindgen::prelude::*;
 
 pub mod template;
@@ -11,6 +12,35 @@ pub mod template;
 use self::template::JsPolicyTemplate;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
+
+#[wasm_bindgen(js_name = SelectableCondition)]
+pub struct JsSelectableCondition {
+    inner: SelectableCondition,
+}
+
+impl From<SelectableCondition> for JsSelectableCondition {
+    fn from(inner: SelectableCondition) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = SelectableCondition)]
+impl JsSelectableCondition {
+    #[wasm_bindgen(getter)]
+    pub fn path(&self) -> String {
+        self.inner.path.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn thresh(&self) -> usize {
+        self.inner.thresh
+    }
+
+    #[wasm_bindgen(getter, js_name = subPaths)]
+    pub fn sub_paths(&self) -> Vec<String> {
+        self.inner.sub_paths.clone()
+    }
+}
 
 #[wasm_bindgen(js_name = Policy)]
 pub struct JsPolicy {
@@ -143,5 +173,17 @@ impl JsPolicy {
     pub fn satisfiable_item(&self) -> Result<String> {
         let item = self.inner.satisfiable_item().map_err(into_err)?;
         serde_json::to_string(item).map_err(into_err)
+    }
+
+    /// Get list of selectable conditions
+    ///
+    /// Return `None` if the `Policy` hasn't timelocks
+    #[wasm_bindgen(js_name = selectableConditions)]
+    pub fn selectable_conditions(&self) -> Result<Option<Vec<JsSelectableCondition>>> {
+        Ok(self
+            .inner
+            .selectable_conditions()
+            .map_err(into_err)?
+            .map(|l| l.into_iter().map(|s| s.into()).collect()))
     }
 }
