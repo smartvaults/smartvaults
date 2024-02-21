@@ -2,7 +2,9 @@
 // Distributed under the MIT software license
 
 use core::ops::Deref;
+use core::str::FromStr;
 
+use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::policy::Policy;
 use smartvaults_core::SelectableCondition;
 use wasm_bindgen::prelude::*;
@@ -186,4 +188,15 @@ impl JsPolicy {
             .map_err(into_err)?
             .map(|l| l.into_iter().map(|s| s.into()).collect()))
     }
+
+    /// Check if a `Fingerprint` is involved in the `Policy`
+    #[wasm_bindgen(js_name = isFingerprintInvolved)]
+    pub fn is_fingerprint_involved(&self, fingerprint: &str) -> Result<bool> {
+        let fingerprint: Fingerprint = Fingerprint::from_str(fingerprint).map_err(into_err)?;
+        self.inner
+            .is_fingerprint_involved(&fingerprint)
+            .map_err(into_err)
+    }
+
+    // TODO: add search_used_signers
 }

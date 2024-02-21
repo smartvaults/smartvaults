@@ -411,6 +411,12 @@ impl Policy {
         Ok(check(item, None, &path))
     }
 
+    /// Check if a [Fingerprint] is involved in the [Policy]
+    pub fn is_fingerprint_involved(&self, fingerprint: &Fingerprint) -> Result<bool, Error> {
+        let item: &SatisfiableItem = self.satisfiable_item()?;
+        Ok(satisfiable_item_contains_fingerprint(item, fingerprint))
+    }
+
     /// Search used signers in this [`Policy`]
     pub fn search_used_signers<I>(&self, my_signers: I) -> Result<Vec<Signer>, Error>
     where
@@ -1049,6 +1055,31 @@ mod tests {
                 missing_to_select
             })
         );
+    }
+
+    #[test]
+    fn test_is_fingerprint_involved() {
+        let desc = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
+        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+
+        let fingerprint = Fingerprint::from_str("7356e457").unwrap();
+        assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
+
+        let fingerprint = Fingerprint::from_str("f3ab64d8").unwrap();
+        assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
+
+        let fingerprint = Fingerprint::from_str("f57a6b99").unwrap();
+        assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
+
+        let fingerprint = Fingerprint::from_str("4eb5d5a1").unwrap();
+        assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
+
+        let fingerprint = Fingerprint::from_str("8cab67b4").unwrap();
+        assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
+
+        // NOT involved
+        let fingerprint = Fingerprint::from_str("7c997e72").unwrap();
+        assert!(!policy.is_fingerprint_involved(&fingerprint).unwrap());
     }
 
     #[test]
