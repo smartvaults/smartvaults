@@ -8,6 +8,7 @@
 #[cfg(feature = "console_error_panic_hook")]
 use wasm_bindgen::prelude::*;
 
+pub mod descriptor;
 pub mod error;
 pub mod network;
 pub mod policy;
