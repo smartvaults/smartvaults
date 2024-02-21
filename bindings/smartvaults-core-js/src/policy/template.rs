@@ -15,7 +15,7 @@ pub struct JsRelativeLockTime {
     inner: Sequence,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_class = RelativeLockTime)]
 impl JsRelativeLockTime {
     #[wasm_bindgen(js_name = fromBlocks)]
     pub fn from_blocks(blocks: u16) -> Self {
@@ -30,7 +30,7 @@ pub struct JsAbsoluteLockTime {
     inner: absolute::LockTime,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_class = AbsoluteLockTime)]
 impl JsAbsoluteLockTime {
     #[wasm_bindgen(js_name = fromHeight)]
     pub fn from_height(height: u32) -> Result<JsAbsoluteLockTime> {
@@ -55,7 +55,6 @@ pub struct JsLocktime {
 #[wasm_bindgen(js_class = Locktime)]
 impl JsLocktime {
     /// An absolute locktime restriction
-    #[wasm_bindgen]
     pub fn after(after: &JsAbsoluteLockTime) -> Self {
         Self {
             inner: Locktime::After(after.inner),
@@ -63,7 +62,6 @@ impl JsLocktime {
     }
 
     /// A relative locktime restriction
-    #[wasm_bindgen]
     pub fn older(older: &JsRelativeLockTime) -> Self {
         Self {
             inner: Locktime::Older(older.inner),
@@ -78,14 +76,12 @@ pub struct JsDecayingTime {
 
 #[wasm_bindgen(js_class = DecayingTime)]
 impl JsDecayingTime {
-    #[wasm_bindgen]
     pub fn single(timelock: &JsLocktime) -> Self {
         Self {
             inner: DecayingTime::Single(timelock.inner),
         }
     }
 
-    #[wasm_bindgen]
     pub fn multiple(timelocks: Vec<JsLocktime>) -> Self {
         Self {
             inner: DecayingTime::Multiple(timelocks.into_iter().map(|l| l.inner).collect()),
@@ -95,6 +91,7 @@ impl JsDecayingTime {
 
 #[wasm_bindgen(js_name = PolicyTemplateType)]
 pub enum JsPolicyTemplateType {
+    Singlesig,
     Multisig,
     /// Social Recovery / Inheritance
     Recovery,
@@ -137,7 +134,12 @@ impl Deref for JsPolicyTemplate {
 
 #[wasm_bindgen(js_class = PolicyTemplate)]
 impl JsPolicyTemplate {
-    #[wasm_bindgen]
+    pub fn singlesig(key: &JsDescriptorPublicKey) -> Self {
+        Self {
+            inner: PolicyTemplate::singlesig(key.deref().clone()),
+        }
+    }
+
     pub fn multisig(threshold: usize, keys: Vec<JsDescriptorPublicKey>) -> Self {
         Self {
             inner: PolicyTemplate::multisig(
@@ -147,21 +149,18 @@ impl JsPolicyTemplate {
         }
     }
 
-    #[wasm_bindgen]
     pub fn recovery(my_key: &JsDescriptorPublicKey, recovery: &JsRecoveryTemplate) -> Self {
         Self {
             inner: PolicyTemplate::recovery(my_key.deref().clone(), recovery.inner.clone()),
         }
     }
 
-    #[wasm_bindgen]
     pub fn hold(my_key: &JsDescriptorPublicKey, timelock: &JsLocktime) -> Self {
         Self {
             inner: PolicyTemplate::hold(my_key.deref().clone(), timelock.inner),
         }
     }
 
-    #[wasm_bindgen]
     pub fn decaying(
         start_threshold: usize,
         keys: Vec<JsDescriptorPublicKey>,
