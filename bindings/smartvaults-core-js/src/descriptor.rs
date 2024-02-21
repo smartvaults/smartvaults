@@ -22,6 +22,12 @@ impl Deref for JsDescriptorPublicKey {
     }
 }
 
+impl From<JsDescriptorPublicKey> for DescriptorPublicKey {
+    fn from(value: JsDescriptorPublicKey) -> Self {
+        value.inner
+    }
+}
+
 #[wasm_bindgen(js_class = DescriptorPublicKey)]
 impl JsDescriptorPublicKey {
     pub fn parse(s: &str) -> Result<JsDescriptorPublicKey> {

@@ -164,10 +164,7 @@ impl Deref for RecoveryTemplate {
 impl RecoveryTemplate {
     #[uniffi::constructor]
     pub fn new(threshold: u64, keys: Vec<Arc<Descriptor>>, locktime: Arc<Locktime>) -> Self {
-        let keys: Vec<DescriptorPublicKey> = keys
-            .into_iter()
-            .map(|k| k.as_ref().deref().clone())
-            .collect();
+        let keys = keys.into_iter().map(|k| k.as_ref().deref().clone());
         Self {
             inner: core::RecoveryTemplate::new(threshold as usize, keys, **locktime),
         }

@@ -64,10 +64,13 @@ pub struct RecoveryTemplate {
 }
 
 impl RecoveryTemplate {
-    pub fn new(threshold: usize, keys: Vec<DescriptorPublicKey>, timelock: Locktime) -> Self {
+    pub fn new<I>(threshold: usize, keys: I, timelock: Locktime) -> Self
+    where
+        I: IntoIterator<Item = DescriptorPublicKey>,
+    {
         Self {
             threshold,
-            keys,
+            keys: keys.into_iter().collect(),
             timelock,
         }
     }

@@ -6,6 +6,8 @@ use core::ops::Deref;
 use smartvaults_core::policy::Policy;
 use wasm_bindgen::prelude::*;
 
+pub mod template;
+
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 
