@@ -20,7 +20,7 @@ use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, OutPoint};
 use keechain_core::miniscript::descriptor::DescriptorType;
 use keechain_core::miniscript::policy::Concrete;
-use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
+use keechain_core::miniscript::Descriptor;
 use keechain_core::secp256k1::XOnlyPublicKey;
 use keechain_core::util::time;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -67,8 +67,8 @@ pub enum Error {
     DescOrPolicy(Box<Self>, Box<Self>),
     #[error("must be a taproot descriptor")]
     NotTaprootDescriptor,
-    #[error("wallet spending policy not found")]
-    WalletSpendingPolicyNotFound,
+    #[error("spending policy not found")]
+    SpendingPolicyNotFound,
     #[error("no utxos selected")]
     NoUtxosSelected,
     #[error("No UTXOs available: {0}")]
@@ -148,15 +148,10 @@ impl<'de> Deserialize<'de> for Policy {
 pub struct Policy {
     name: String,
     description: String,
+    /// Descriptor
     descriptor: Descriptor<String>,
-    /// Descriptor with secret keys converted to public keys (if any)
-    ///
-    /// Needed for `Policy::spending_policy`
-    descriptor_public_key: Descriptor<DescriptorPublicKey>,
-    /// Signer container
-    ///
-    /// Needed for `Policy::spending_policy`
-    signer: SignersContainer,
+    /// Spending policy
+    spending_policy: Option<SpendingPolicy>,
     /// network
     network: Network,
 }
@@ -203,13 +198,20 @@ impl Policy {
             let (descriptor_public_key, keymap) =
                 desc.into_wallet_descriptor(&SECP256K1, network)?;
 
+            // Get spending policy
+            let signer = SignersContainer::build(keymap, &descriptor_public_key, &SECP256K1);
+            let spending_policy: Option<SpendingPolicy> = descriptor_public_key.extract_policy(
+                &signer,
+                BuildSatisfaction::None,
+                &SECP256K1,
+            )?;
+
             // Compose policy
             Ok(Self {
                 name: name.into(),
                 description: description.into(),
                 descriptor,
-                signer: SignersContainer::build(keymap, &descriptor_public_key, &SECP256K1),
-                descriptor_public_key,
+                spending_policy,
                 network,
             })
         } else {
@@ -330,16 +332,16 @@ impl Policy {
         descriptor.contains("older")
     }
 
-    pub fn spending_policy(&self) -> Result<SpendingPolicy, Error> {
-        self.descriptor_public_key
-            .extract_policy(&self.signer, BuildSatisfaction::None, &SECP256K1)?
-            .ok_or(Error::WalletSpendingPolicyNotFound)
+    pub fn spending_policy(&self) -> Result<&SpendingPolicy, Error> {
+        self.spending_policy
+            .as_ref()
+            .ok_or(Error::SpendingPolicyNotFound)
     }
 
     /// Get [`SatisfiableItem`]
-    pub fn satisfiable_item(&self) -> Result<SatisfiableItem, Error> {
+    pub fn satisfiable_item(&self) -> Result<&SatisfiableItem, Error> {
         let policy = self.spending_policy()?;
-        Ok(policy.item)
+        Ok(&policy.item)
     }
 
     pub fn selectable_conditions(&self) -> Result<Option<Vec<SelectableCondition>>, Error> {
@@ -364,9 +366,9 @@ impl Policy {
                 }
             }
 
-            let item = self.satisfiable_item()?;
+            let item: &SatisfiableItem = self.satisfiable_item()?;
             let mut result = Vec::new();
-            selectable_conditions(&item, item.id(), &mut result);
+            selectable_conditions(item, item.id(), &mut result);
             Ok(Some(result))
         } else {
             Ok(None)
@@ -405,9 +407,9 @@ impl Policy {
             None
         }
 
-        let item = self.satisfiable_item()?;
+        let item: &SatisfiableItem = self.satisfiable_item()?;
         let path: String = path.into();
-        Ok(check(&item, None, &path))
+        Ok(check(item, None, &path))
     }
 
     /// Search used signers in this [`Policy`]
@@ -571,7 +573,7 @@ impl Policy {
                 return Ok(Some(PolicyTemplateType::Singlesig))
             }
             SatisfiableItem::Thresh { items, threshold } => {
-                if threshold == 1 && items.len() == 2 {
+                if *threshold == 1 && items.len() == 2 {
                     if let SatisfiableItem::SchnorrSignature(..) = items[0].item {
                         match &items[1].item {
                             // Multisig 1 of 2 or N of M templates
@@ -830,7 +832,7 @@ impl Policy {
         // Get policies and specify which ones to use
         let wallet_policy = wallet
             .policies(KeychainKind::External)?
-            .ok_or(Error::WalletSpendingPolicyNotFound)?;
+            .ok_or(Error::SpendingPolicyNotFound)?;
         let mut path = BTreeMap::new();
         path.insert(wallet_policy.id, vec![1]);
 
@@ -846,6 +848,7 @@ impl Policy {
 
 #[cfg(test)]
 mod tests {
+    use bdk::keys::DescriptorPublicKey;
     use keechain_core::bips::bip39::Mnemonic;
     use keechain_core::Seed;
 

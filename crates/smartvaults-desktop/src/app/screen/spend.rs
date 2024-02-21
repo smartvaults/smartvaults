@@ -266,7 +266,7 @@ impl State for SpendState {
                         return Command::perform(
                             async move {
                                 let utxos = client.get_utxos(policy_id).await?;
-                                let item = policy.satisfiable_item()?;
+                                let item = policy.satisfiable_item()?.clone();
                                 let conditions = policy.selectable_conditions()?;
                                 Ok::<
                                     (

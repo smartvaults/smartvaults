@@ -522,7 +522,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     println!("\n{}\n", policy.as_descriptor());
                     Ok(())
                 } else {
-                    let item = policy.satisfiable_item()?;
+                    let item = policy.satisfiable_item()?.clone();
                     let address = client.get_last_unused_address(policy_id).await?;
                     let txs = client.get_txs(policy_id).await.unwrap_or_default();
                     let utxos = client.get_utxos(policy_id).await.unwrap_or_default();
