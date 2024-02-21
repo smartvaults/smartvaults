@@ -14,6 +14,7 @@ use crate::Descriptor;
 
 #[derive(Enum)]
 pub enum PolicyTemplateType {
+    Singlesig,
     Multisig,
     /// Social Recovery / Inheritance
     Recovery,
@@ -24,6 +25,7 @@ pub enum PolicyTemplateType {
 impl From<core::PolicyTemplateType> for PolicyTemplateType {
     fn from(value: core::PolicyTemplateType) -> Self {
         match value {
+            core::PolicyTemplateType::Singlesig => Self::Singlesig,
             core::PolicyTemplateType::Multisig => Self::Multisig,
             core::PolicyTemplateType::Recovery => Self::Recovery,
             core::PolicyTemplateType::Hold => Self::Hold,
@@ -193,6 +195,13 @@ impl From<core::PolicyTemplate> for PolicyTemplate {
 
 #[uniffi::export]
 impl PolicyTemplate {
+    #[uniffi::constructor]
+    pub fn singlesig(key: Arc<Descriptor>) -> Self {
+        Self {
+            inner: core::PolicyTemplate::singlesig(key.as_ref().deref().clone()),
+        }
+    }
+
     #[uniffi::constructor]
     pub fn multisig(threshold: u64, keys: Vec<Arc<Descriptor>>) -> Self {
         let keys: Vec<DescriptorPublicKey> = keys

@@ -1,6 +1,8 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use core::fmt;
+
 pub use keechain_core::bitcoin::absolute::LockTime as AbsoluteLockTime;
 pub use keechain_core::bitcoin::Sequence;
 use keechain_core::miniscript::policy::concrete::Policy;
@@ -13,6 +15,21 @@ pub enum Error {
     InvalidThreshold,
     #[error("not keys")]
     NoKeys,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PolicyTemplateResult {
+    Singlesig(DescriptorPublicKey),
+    Policy(Policy<DescriptorPublicKey>),
+}
+
+impl fmt::Display for PolicyTemplateResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Singlesig(key) => write!(f, "{key}"),
+            Self::Policy(policy) => write!(f, "{policy}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
@@ -31,6 +48,7 @@ pub enum DecayingTime {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Hash)]
 pub enum PolicyTemplateType {
+    Singlesig,
     Multisig,
     /// Social Recovery / Inheritance
     Recovery,
@@ -77,6 +95,9 @@ impl RecoveryTemplate {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
 pub enum PolicyTemplate {
+    Singlesig {
+        key: DescriptorPublicKey,
+    },
     Multisig {
         threshold: usize,
         keys: Vec<DescriptorPublicKey>,
@@ -97,6 +118,11 @@ pub enum PolicyTemplate {
 }
 
 impl PolicyTemplate {
+    #[inline]
+    pub fn singlesig(key: DescriptorPublicKey) -> Self {
+        Self::Singlesig { key }
+    }
+
     #[inline]
     pub fn multisig(threshold: usize, keys: Vec<DescriptorPublicKey>) -> Self {
         Self::Multisig { threshold, keys }
@@ -125,8 +151,9 @@ impl PolicyTemplate {
         }
     }
 
-    pub fn build(self) -> Result<Policy<DescriptorPublicKey>, Error> {
+    pub fn build(self) -> Result<PolicyTemplateResult, Error> {
         match self {
+            Self::Singlesig { key } => Ok(PolicyTemplateResult::Singlesig(key)),
             Self::Multisig { threshold, keys } => {
                 if threshold == 0 || threshold > keys.len() {
                     return Err(Error::InvalidThreshold);
@@ -138,19 +165,26 @@ impl PolicyTemplate {
 
                 let keys: Vec<Policy<DescriptorPublicKey>> =
                     keys.into_iter().map(Policy::Key).collect();
-                Ok(Policy::Threshold(threshold, keys))
+                let policy = Policy::Threshold(threshold, keys);
+                Ok(PolicyTemplateResult::Policy(policy))
             }
-            Self::Recovery { my_key, recovery } => Ok(Policy::Or(vec![
-                (1, Policy::Key(my_key.clone())),
-                (1, recovery.build()?),
-            ])),
-            Self::Hold { my_key, timelock } => Ok(Policy::And(vec![
-                Policy::Key(my_key.clone()),
-                match timelock {
-                    Locktime::After(after) => Policy::After(after.into()),
-                    Locktime::Older(older) => Policy::Older(older),
-                },
-            ])),
+            Self::Recovery { my_key, recovery } => {
+                let policy = Policy::Or(vec![
+                    (1, Policy::Key(my_key.clone())),
+                    (1, recovery.build()?),
+                ]);
+                Ok(PolicyTemplateResult::Policy(policy))
+            }
+            Self::Hold { my_key, timelock } => {
+                let policy = Policy::And(vec![
+                    Policy::Key(my_key.clone()),
+                    match timelock {
+                        Locktime::After(after) => Policy::After(after.into()),
+                        Locktime::Older(older) => Policy::Older(older),
+                    },
+                ]);
+                Ok(PolicyTemplateResult::Policy(policy))
+            }
             Self::Decaying {
                 start_threshold,
                 keys,
@@ -182,7 +216,8 @@ impl PolicyTemplate {
                     }
                 }
 
-                Ok(Policy::Threshold(start_threshold, list))
+                let policy: Policy<DescriptorPublicKey> = Policy::Threshold(start_threshold, list);
+                Ok(PolicyTemplateResult::Policy(policy))
             }
         }
     }
@@ -193,6 +228,14 @@ mod test {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn test_singlesig_template() {
+        let desc1 = DescriptorPublicKey::from_str("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*").unwrap();
+
+        let template = PolicyTemplate::singlesig(desc1);
+        assert_eq!(template.build().unwrap().to_string(), String::from("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*"));
+    }
 
     #[test]
     fn test_multisig_template() {

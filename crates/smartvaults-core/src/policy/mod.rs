@@ -27,6 +27,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod template;
 
+use self::template::PolicyTemplateResult;
 pub use self::template::{
     AbsoluteLockTime, DecayingTime, Locktime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate,
     Sequence,
@@ -278,8 +279,15 @@ impl Policy {
     where
         S: Into<String>,
     {
-        let policy: Concrete<DescriptorPublicKey> = template.build()?;
-        Self::from_policy(name.into(), description.into(), policy.to_string(), network)
+        match template.build()? {
+            PolicyTemplateResult::Singlesig(key) => {
+                let descriptor = Descriptor::new_tr(key, None)?;
+                Self::from_descriptor(name, description, descriptor.to_string(), network)
+            }
+            PolicyTemplateResult::Policy(policy) => {
+                Self::from_policy(name.into(), description.into(), policy.to_string(), network)
+            }
+        }
     }
 
     pub fn name(&self) -> String {
@@ -558,75 +566,87 @@ impl Policy {
 
     /// Check if [`Policy`] match any [`PolicyTemplateType`]
     pub fn template_match(&self) -> Result<Option<PolicyTemplateType>, Error> {
-        if let SatisfiableItem::Thresh { items, threshold } = self.satisfiable_item()? {
-            if threshold == 1 && items.len() == 2 {
-                if let SatisfiableItem::SchnorrSignature(..) = items[0].item {
-                    match &items[1].item {
-                        // Multisig 1 of 2 or N of M templates
-                        SatisfiableItem::SchnorrSignature(..)
-                        | SatisfiableItem::Multisig { .. } => {
-                            return Ok(Some(PolicyTemplateType::Multisig))
-                        }
-                        SatisfiableItem::Thresh { items, threshold } => {
-                            if *threshold == 2 && items.len() == 2 {
-                                match items[0].item {
-                                    // Hold template
-                                    SatisfiableItem::SchnorrSignature(..) => {
-                                        if let SatisfiableItem::RelativeTimelock { .. }
-                                        | SatisfiableItem::AbsoluteTimelock { .. } =
-                                            items[1].item
-                                        {
-                                            return Ok(Some(PolicyTemplateType::Hold));
+        match self.satisfiable_item()? {
+            SatisfiableItem::SchnorrSignature(..) => {
+                return Ok(Some(PolicyTemplateType::Singlesig))
+            }
+            SatisfiableItem::Thresh { items, threshold } => {
+                if threshold == 1 && items.len() == 2 {
+                    if let SatisfiableItem::SchnorrSignature(..) = items[0].item {
+                        match &items[1].item {
+                            // Multisig 1 of 2 or N of M templates
+                            SatisfiableItem::SchnorrSignature(..)
+                            | SatisfiableItem::Multisig { .. } => {
+                                return Ok(Some(PolicyTemplateType::Multisig))
+                            }
+                            SatisfiableItem::Thresh { items, threshold } => {
+                                if *threshold == 2 && items.len() == 2 {
+                                    match items[0].item {
+                                        // Hold template
+                                        SatisfiableItem::SchnorrSignature(..) => {
+                                            if let SatisfiableItem::RelativeTimelock { .. }
+                                            | SatisfiableItem::AbsoluteTimelock { .. } =
+                                                items[1].item
+                                            {
+                                                return Ok(Some(PolicyTemplateType::Hold));
+                                            }
                                         }
-                                    }
-                                    // Recovery templates
-                                    SatisfiableItem::Multisig { .. } => {
-                                        // Social Recovery / Inheritance
-                                        if let SatisfiableItem::RelativeTimelock { .. }
-                                        | SatisfiableItem::AbsoluteTimelock { .. } =
-                                            items[1].item
-                                        {
-                                            return Ok(Some(PolicyTemplateType::Recovery));
+                                        // Recovery templates
+                                        SatisfiableItem::Multisig { .. } => {
+                                            // Social Recovery / Inheritance
+                                            if let SatisfiableItem::RelativeTimelock { .. }
+                                            | SatisfiableItem::AbsoluteTimelock { .. } =
+                                                items[1].item
+                                            {
+                                                return Ok(Some(PolicyTemplateType::Recovery));
+                                            }
                                         }
+                                        _ => (),
                                     }
-                                    _ => (),
+                                }
+
+                                // Decaying template
+                                if threshold < &items.len() {
+                                    let keys_count: usize = items
+                                        .iter()
+                                        .filter(|i| {
+                                            matches!(i.item, SatisfiableItem::SchnorrSignature(_))
+                                        })
+                                        .count();
+                                    let absolute_timelock_count: usize = items
+                                        .iter()
+                                        .filter(|i| {
+                                            matches!(
+                                                i.item,
+                                                SatisfiableItem::AbsoluteTimelock { .. }
+                                            )
+                                        })
+                                        .count();
+                                    let relative_timelock_count: usize = items
+                                        .iter()
+                                        .filter(|i| {
+                                            matches!(
+                                                i.item,
+                                                SatisfiableItem::RelativeTimelock { .. }
+                                            )
+                                        })
+                                        .count();
+
+                                    if threshold <= &keys_count
+                                        && absolute_timelock_count + relative_timelock_count
+                                            == items.len() - keys_count
+                                    {
+                                        return Ok(Some(PolicyTemplateType::Decaying));
+                                    }
                                 }
                             }
-
-                            // Decaying template
-                            if threshold < &items.len() {
-                                let keys_count: usize = items
-                                    .iter()
-                                    .filter(|i| {
-                                        matches!(i.item, SatisfiableItem::SchnorrSignature(_))
-                                    })
-                                    .count();
-                                let absolute_timelock_count: usize = items
-                                    .iter()
-                                    .filter(|i| {
-                                        matches!(i.item, SatisfiableItem::AbsoluteTimelock { .. })
-                                    })
-                                    .count();
-                                let relative_timelock_count: usize = items
-                                    .iter()
-                                    .filter(|i| {
-                                        matches!(i.item, SatisfiableItem::RelativeTimelock { .. })
-                                    })
-                                    .count();
-
-                                if threshold <= &keys_count
-                                    && absolute_timelock_count + relative_timelock_count
-                                        == items.len() - keys_count
-                                {
-                                    return Ok(Some(PolicyTemplateType::Decaying));
-                                }
-                            }
+                            _ => (),
                         }
-                        _ => (),
                     }
                 }
             }
-        }
+            _ => {}
+        };
 
         Ok(None)
     }
@@ -985,6 +1005,14 @@ mod tests {
 
     #[test]
     fn test_policy_template_match() {
+        let singlesig = DescriptorPublicKey::from_str("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*").unwrap();
+        let singlesig = PolicyTemplate::singlesig(singlesig);
+        let policy = Policy::from_template("Singlesig", "", singlesig, NETWORK).unwrap();
+        assert_eq!(
+            policy.template_match().unwrap(),
+            Some(PolicyTemplateType::Singlesig)
+        );
+
         let multisig_1_of_2 = "thresh(1,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))";
         let policy = Policy::from_policy("Multisig 1 of 2", "", multisig_1_of_2, NETWORK).unwrap();
         assert_eq!(
