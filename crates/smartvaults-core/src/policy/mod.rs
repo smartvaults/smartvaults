@@ -7,7 +7,7 @@ use core::str::FromStr;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use bdk::chain::{ConfirmationTime, PersistBackend};
-use bdk::descriptor::policy::{BuildSatisfaction, SatisfiableItem};
+use bdk::descriptor::policy::{BuildSatisfaction, PkOrF, SatisfiableItem};
 use bdk::descriptor::{ExtractPolicy, IntoWalletDescriptor, Policy as SpendingPolicy};
 use bdk::signer::SignersContainer;
 use bdk::wallet::tx_builder::AddUtxoError;
@@ -15,6 +15,7 @@ use bdk::wallet::ChangeSet;
 use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
+use keechain_core::bitcoin::bip32::Fingerprint;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, OutPoint};
@@ -46,8 +47,6 @@ pub enum Error {
     BdkCreateTx(String),
     #[error(transparent)]
     BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
-    #[error(transparent)]
-    Json(#[from] serde_json::Error),
     #[error(transparent)]
     Miniscript(#[from] keechain_core::miniscript::Error),
     #[error(transparent)]
@@ -443,8 +442,7 @@ impl Policy {
                 {
                     for (index, sub_path) in sub_paths.iter().enumerate() {
                         if let Some(item) = self.satisfiable_item_by_path(sub_path)? {
-                            let json: String = serde_json::json!(item).to_string();
-                            if json.contains(&signer.fingerprint().to_string()) {
+                            if satisfiable_item_contains_fingerprint(&item, &signer.fingerprint()) {
                                 map.insert(path.clone(), (*thresh, vec![index]));
                             }
                         }
@@ -843,6 +841,53 @@ impl Policy {
             message,
             psbt,
         ))
+    }
+}
+
+fn satisfiable_item_contains_fingerprint(
+    item: &SatisfiableItem,
+    fingerprint: &Fingerprint,
+) -> bool {
+    match item {
+        SatisfiableItem::EcdsaSignature(key) => {
+            if let PkOrF::Fingerprint(f) = key {
+                f == fingerprint
+            } else {
+                false
+            }
+        }
+        SatisfiableItem::SchnorrSignature(key) => {
+            if let PkOrF::Fingerprint(f) = key {
+                f == fingerprint
+            } else {
+                false
+            }
+        }
+        SatisfiableItem::Sha256Preimage { .. } => false,
+        SatisfiableItem::Hash256Preimage { .. } => false,
+        SatisfiableItem::Ripemd160Preimage { .. } => false,
+        SatisfiableItem::Hash160Preimage { .. } => false,
+        SatisfiableItem::AbsoluteTimelock { .. } => false,
+        SatisfiableItem::RelativeTimelock { .. } => false,
+        SatisfiableItem::Multisig { keys, .. } => {
+            for key in keys.iter() {
+                if let PkOrF::Fingerprint(f) = key {
+                    if f == fingerprint {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        SatisfiableItem::Thresh { items, .. } => {
+            for x in items.iter() {
+                if satisfiable_item_contains_fingerprint(&x.item, fingerprint) {
+                    return true;
+                }
+            }
+
+            false
+        }
     }
 }
 
