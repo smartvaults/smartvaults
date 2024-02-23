@@ -1795,12 +1795,8 @@ impl SmartVaults {
         let mut already_seen: HashSet<Descriptor<String>> = HashSet::with_capacity(vaults.len());
         for (policy_id, InternalPolicy { policy, .. }) in vaults.into_iter() {
             if already_seen.insert(policy.descriptor()) {
-                txs.extend(
-                    self.get_txs(policy_id)
-                        .await
-                        .unwrap_or_default()
-                        .into_iter(),
-                );
+                let t = self.get_txs(policy_id).await?;
+                txs.extend(t);
             }
         }
         Ok(txs)
