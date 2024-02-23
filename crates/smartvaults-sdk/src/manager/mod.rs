@@ -353,17 +353,48 @@ impl Manager {
         Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
     }
 
+    /// Full sync all policies with the timechain
+    pub async fn full_sync_all(
+        &self,
+        endpoint: ElectrumEndpoint,
+        proxy: Option<SocketAddr>,
+        force: bool,
+        sync_channel: Option<Sender<Message>>,
+    ) -> Result<(), Error> {
+        let wallets = self.wallets.read().await;
+        for (id, wallet) in wallets.clone().into_iter() {
+            let endpoint = endpoint.clone();
+            let sync_channel = sync_channel.clone();
+            thread::spawn(async move {
+                match wallet.full_sync(endpoint, proxy, force).await {
+                    Ok(_) => {
+                        if let Some(sync_channel) = sync_channel {
+                            let _ = sync_channel.send(Message::WalletSyncCompleted(id));
+                        }
+                    }
+                    Err(WalletError::AlreadySynced) => {}
+                    Err(WalletError::AlreadySyncing) => {
+                        tracing::warn!("Policy {id} is already syncing");
+                    }
+                    Err(e) => tracing::error!("Impossible to sync policy {id}: {e}"),
+                }
+            })?;
+        }
+        Ok(())
+    }
+
     /// Execute a **full** timechain sync.
     pub async fn full_sync(
         &self,
         policy_id: EventId,
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
+        force: bool,
     ) -> Result<(), Error> {
         Ok(self
             .wallet(policy_id)
             .await?
-            .full_sync(endpoint, proxy)
+            .full_sync(endpoint, proxy, force)
             .await?)
     }
 

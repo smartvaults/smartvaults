@@ -23,6 +23,7 @@ pub enum SettingsMessage {
     AskClearCache,
     CloseModal,
     ClearCache,
+    ForceFullTimechainSync,
 }
 
 #[derive(Debug, Default)]
@@ -57,6 +58,13 @@ impl State for SettingsState {
                     let client = ctx.client.clone();
                     return Command::perform(
                         async move { client.clear_cache().await.unwrap() },
+                        move |_| Message::View(Stage::Dashboard),
+                    );
+                }
+                SettingsMessage::ForceFullTimechainSync => {
+                    let client = ctx.client.clone();
+                    return Command::perform(
+                        async move { client.force_full_timechain_sync().await.unwrap() },
                         move |_| Message::View(Stage::Dashboard),
                     );
                 }
@@ -105,6 +113,15 @@ impl State for SettingsState {
                     .text("Rebroadcast all events")
                     .icon(BROADCAST_PIN)
                     .on_press(SettingsMessage::RebroadcastAllEvents.into())
+                    .width(Length::Fill)
+                    .view(),
+            )
+            .push(
+                Button::new()
+                    .text("Force full timechain sync")
+                    .icon(TRASH)
+                    .style(ButtonStyle::Bordered)
+                    .on_press(SettingsMessage::ForceFullTimechainSync.into())
                     .width(Length::Fill)
                     .view(),
             )

@@ -363,6 +363,16 @@ impl SmartVaults {
         Ok(())
     }
 
+    /// Force a full timechain sync
+    pub async fn force_full_timechain_sync(&self) -> Result<(), Error> {
+        let endpoint = self.config.electrum_endpoint().await?;
+        let proxy = self.config.proxy().await.ok();
+        self.manager
+            .full_sync_all(endpoint, proxy, true, None)
+            .await?;
+        Ok(())
+    }
+
     /// Clear cache
     pub async fn clear_cache(&self) -> Result<(), Error> {
         self.client.stop().await?;

@@ -330,28 +330,14 @@ impl SmartVaultsWallet {
         wallet.list_unspent().collect()
     }
 
-    /// Execute a full timechain sync.
-    pub async fn full_sync(
+    async fn internal_full_sync(
         &self,
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
+        prev_tip: CheckPoint,
+        graph: TxGraph<ConfirmationTimeHeightAnchor>,
     ) -> Result<(), Error> {
-        let last_sync: Timestamp = self.last_sync();
-        if last_sync + WALLET_SYNC_INTERVAL > Timestamp::now() {
-            return Err(Error::AlreadySynced);
-        }
-
-        if self.is_syncing() {
-            return Err(Error::AlreadySyncing);
-        }
-
-        self.set_syncing(true);
-
-        tracing::debug!("Syncing policy {} [full]", self.id);
-
-        let prev_tip: CheckPoint = self.latest_checkpoint().await;
         let keychain_spks = self.spks().await;
-        let graph: TxGraph<ConfirmationTimeHeightAnchor> = self.graph().await;
 
         tracing::info!("Initializing electrum client: endpoint={endpoint}, proxy={proxy:?}");
         let proxy: Option<Socks5Config> = proxy.map(Socks5Config::new);
@@ -382,10 +368,61 @@ impl SmartVaultsWallet {
         };
 
         self.apply_update(update).await?;
+
+        Ok(())
+    }
+
+    /// Execute a full timechain sync.
+    pub async fn full_sync(
+        &self,
+        endpoint: ElectrumEndpoint,
+        proxy: Option<SocketAddr>,
+        force: bool,
+    ) -> Result<(), Error> {
+        if !force {
+            let last_sync: Timestamp = self.last_sync();
+            if last_sync + WALLET_SYNC_INTERVAL > Timestamp::now() {
+                return Err(Error::AlreadySynced);
+            }
+
+            if self.is_syncing() {
+                return Err(Error::AlreadySyncing);
+            }
+        }
+
+        self.set_syncing(true);
+
+        if force {
+            tracing::debug!("Syncing policy {} [full-force]", self.id);
+        } else {
+            tracing::debug!("Syncing policy {} [full]", self.id);
+        }
+
+        // Prepare timechain data
+        let prev_tip: CheckPoint = if force {
+            CheckPoint::new(BlockId::default())
+        } else {
+            self.latest_checkpoint().await
+        };
+        let graph: TxGraph<ConfirmationTimeHeightAnchor> = if force {
+            TxGraph::default()
+        } else {
+            self.graph().await
+        };
+
+        // Sync
+        self.internal_full_sync(endpoint, proxy, prev_tip, graph)
+            .await?;
+
+        // Update sync timestamp and status
         self.update_last_sync();
         self.set_syncing(false);
 
-        tracing::info!("Policy {} synced", self.id);
+        if force {
+            tracing::info!("Policy {} synced [full-force]", self.id);
+        } else {
+            tracing::info!("Policy {} synced [full]", self.id);
+        }
 
         Ok(())
     }
@@ -406,7 +443,7 @@ impl SmartVaultsWallet {
 
         if self.is_chain_empty().await {
             tracing::warn!("Local chain is empty: executing a full sync");
-            return self.full_sync(endpoint, proxy).await;
+            return self.full_sync(endpoint, proxy, true).await;
         }
 
         self.set_syncing(true);

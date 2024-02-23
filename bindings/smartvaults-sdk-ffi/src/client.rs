@@ -177,6 +177,11 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.stop().await?) })
     }
 
+    /// Force a full timechain sync
+    pub fn force_full_timechain_sync(&self) -> Result<()> {
+        block_on(async move { Ok(self.inner.force_full_timechain_sync().await?) })
+    }
+
     /// Delete all data from cache/database
     pub fn clear_cache(&self) -> Result<()> {
         block_on(async move { Ok(self.inner.clear_cache().await?) })
