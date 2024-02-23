@@ -427,7 +427,7 @@ impl SmartVaultsWallet {
         Ok(())
     }
 
-    pub async fn sync(
+    /* pub async fn sync(
         &self,
         endpoint: ElectrumEndpoint,
         proxy: Option<SocketAddr>,
@@ -443,7 +443,7 @@ impl SmartVaultsWallet {
 
         if self.is_chain_empty().await {
             tracing::warn!("Local chain is empty: executing a full sync");
-            return self.full_sync(endpoint, proxy, true).await;
+            return self.full_sync(endpoint, proxy, false).await;
         }
 
         self.set_syncing(true);
@@ -499,7 +499,7 @@ impl SmartVaultsWallet {
         tracing::info!("Policy {} synced", self.id);
 
         Ok(())
-    }
+    } */
 
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn apply_update(&self, update: Update) -> Result<(), Error> {

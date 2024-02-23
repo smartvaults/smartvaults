@@ -324,7 +324,7 @@ impl Manager {
             let endpoint = endpoint.clone();
             let sync_channel = sync_channel.clone();
             thread::spawn(async move {
-                match wallet.sync(endpoint, proxy).await {
+                match wallet.full_sync(endpoint, proxy, false).await {
                     Ok(_) => {
                         if let Some(sync_channel) = sync_channel {
                             let _ = sync_channel.send(Message::WalletSyncCompleted(id));
@@ -341,7 +341,7 @@ impl Manager {
         Ok(())
     }
 
-    /// Execute a timechain sync
+    /* /// Execute a timechain sync
     ///
     /// If the local chain is empty, execute a full sync.
     pub async fn sync(
@@ -351,7 +351,7 @@ impl Manager {
         proxy: Option<SocketAddr>,
     ) -> Result<(), Error> {
         Ok(self.wallet(policy_id).await?.sync(endpoint, proxy).await?)
-    }
+    } */
 
     /// Full sync all policies with the timechain
     pub async fn full_sync_all(
