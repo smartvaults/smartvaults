@@ -375,19 +375,23 @@ impl SmartVaults {
 
     /// Clear cache
     pub async fn clear_cache(&self) -> Result<(), Error> {
+        let mut notifications = self.client.notifications();
+
+        // Stop client
         self.client.stop().await?;
-        self.client
-            .handle_notifications(|notification: RelayPoolNotification| async move {
-                if let RelayPoolNotification::Stop = notification {
-                    self.db.wipe().await?;
-                    self.manager.unload_policies().await;
-                    self.client.database().wipe().await?;
-                    self.client.start().await;
-                    self.sync()?;
-                }
-                Ok(false)
-            })
-            .await?;
+
+        // Wait for stop notification: clear databases and unload policies
+        while let Ok(notification) = notifications.recv().await {
+            if let RelayPoolNotification::Stop = notification {
+                self.db.wipe().await?;
+                self.manager.unload_policies().await;
+                self.client.database().wipe().await?;
+                break;
+            }
+        }
+
+        // Re-init everything
+        self.init().await?;
         Ok(())
     }
 
