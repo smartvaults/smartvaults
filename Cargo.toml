@@ -14,6 +14,8 @@ keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
 async-utility = "0.2"
+bdk = { git = "https://github.com/bitcoindevkit/bdk", rev = "50c549b5aca3c58bcffce359f4937a8c3eb57a35", default-features = false }
+bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "50c549b5aca3c58bcffce359f4937a8c3eb57a35" }
 nostr = { git = "https://github.com/rust-nostr/nostr", rev = "18b10a4ed5213808d927fc45357a49116600a4d7", default-features = false }
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "18b10a4ed5213808d927fc45357a49116600a4d7", default-features = false }
 nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "18b10a4ed5213808d927fc45357a49116600a4d7" }
