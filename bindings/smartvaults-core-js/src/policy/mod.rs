@@ -17,6 +17,35 @@ use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
 use crate::signer::JsCoreSigner;
 
+#[wasm_bindgen(js_name = SelectableCondition)]
+pub struct JsSelectableCondition {
+    inner: SelectableCondition,
+}
+
+impl From<SelectableCondition> for JsSelectableCondition {
+    fn from(inner: SelectableCondition) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = SelectableCondition)]
+impl JsSelectableCondition {
+    #[wasm_bindgen(getter)]
+    pub fn path(&self) -> String {
+        self.inner.path.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn thresh(&self) -> usize {
+        self.inner.thresh
+    }
+
+    #[wasm_bindgen(getter, js_name = subPaths)]
+    pub fn sub_paths(&self) -> Vec<String> {
+        self.inner.sub_paths.clone()
+    }
+}
+
 #[wasm_bindgen(js_name = PolicyPathSelectedItem)]
 pub struct JsPolicyPathSelectedItem {
     #[wasm_bindgen(getter_with_clone)]
@@ -192,7 +221,7 @@ impl From<JsPolicy> for Policy {
 impl JsPolicy {
     /// Construct `Policy` from descriptor string
     ///
-    /// The descriptor must be typed, for example: `tr(...)`
+    /// The descriptor must be typed, for example: `tr(...)` or `wsh(...)`
     #[wasm_bindgen(js_name = fromDescriptor)]
     pub fn from_descriptor(descriptor: &str, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {

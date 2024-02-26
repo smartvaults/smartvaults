@@ -193,9 +193,7 @@ where
         public_key: &PublicKey,
     ) -> Result<String, <Self as ProtocolEncryption>::Err> {
         let buf: Vec<u8> = self.encode();
-        Ok(signer
-            .nip44_encrypt(*public_key, buf, nip44::Version::V2)
-            .await?)
+        Ok(signer.nip44_encrypt(*public_key, buf).await?)
     }
 
     /// Decrypt with [`NostrSigner`] (for self-decryption)

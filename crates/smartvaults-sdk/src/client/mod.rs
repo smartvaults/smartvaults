@@ -881,7 +881,7 @@ impl SmartVaults {
             .save_approval(
                 event_id,
                 InternalApproval {
-                    public_key: public_key,
+                    public_key,
                     approval: approval.clone(),
                     timestamp,
                 },

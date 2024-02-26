@@ -16,7 +16,7 @@ use crate::types::GetSharedSigner;
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<Signer, Error> {
-        Ok(self.storage.signer(signer_id).await?)
+        self.storage.signer(signer_id).await
     }
 
     pub async fn delete_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<(), Error> {

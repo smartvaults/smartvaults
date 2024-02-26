@@ -301,7 +301,7 @@ impl SmartVaultsStorage {
             return Ok(Some(EventHandled::VerifiedKeyAgents));
         } else if event.kind == WRAPPER_KIND {
             let secret_key = self.keys.secret_key()?;
-            match Wrapper::decrypt(&secret_key, event.author_ref(), event.content())? {
+            match Wrapper::decrypt(secret_key, event.author_ref(), event.content())? {
                 Wrapper::VaultInvite(invite) => {
                     let vaults = self.vaults.read().await;
                     let mut vault_invites = self.vault_invites.write().await;

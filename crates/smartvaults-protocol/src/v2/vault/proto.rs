@@ -109,7 +109,7 @@ impl TryFrom<ProtoVaultInvite> for VaultInvite {
         let vault: ProtoVault = invite.vault.ok_or(Error::NotFound(String::from("vault")))?;
         let vault: Vault = Vault::try_from(vault)?;
         let sender: Option<PublicKey> = match invite.sender {
-            Some(public_key) => Some(PublicKey::from_hex(&public_key)?),
+            Some(public_key) => Some(PublicKey::from_hex(public_key)?),
             None => None,
         };
         Ok(Self {

@@ -104,6 +104,7 @@ pub enum JsPolicyTemplateType {
 impl From<PolicyTemplateType> for JsPolicyTemplateType {
     fn from(value: PolicyTemplateType) -> Self {
         match value {
+            PolicyTemplateType::Singlesig => Self::Singlesig,
             PolicyTemplateType::Multisig => Self::Multisig,
             PolicyTemplateType::Recovery => Self::Recovery,
             PolicyTemplateType::Hold => Self::Hold,
