@@ -189,6 +189,12 @@ pub enum Command {
         #[command(subcommand)]
         command: SignerCommand,
     },
+    /// Proposal commands
+    #[command(arg_required_else_help = true)]
+    Proposal {
+        #[command(subcommand)]
+        command: ProposalCommand,
+    },
     /// Proof of Reserve commands
     #[command(arg_required_else_help = true)]
     Proof {
@@ -371,6 +377,33 @@ pub enum SignerCommand {
 }
 
 #[derive(Debug, Subcommand)]
+pub enum ProposalCommand {
+    /// Update proposal metadata
+    Metadata {
+        /// Proposal ID
+        #[arg(required = true)]
+        proposal_id: ProposalIdentifier,
+        /// Proposal description
+        #[arg(required = true)]
+        description: String,
+    },
+    /// Get proposal
+    Get {
+        /// Proposal ID
+        #[arg(required = true)]
+        proposal_id: ProposalIdentifier,
+    },
+    /// Get list of proposals
+    List,
+    /// Delete proposal
+    Delete {
+        /// Proposal ID
+        #[arg(required = true)]
+        proposal_id: ProposalIdentifier,
+    },
+}
+
+#[derive(Debug, Subcommand)]
 pub enum AddSignerCommand {
     /// Add Smart Vaults signer
     Default,
@@ -504,21 +537,6 @@ pub enum AddCommand {
 pub enum GetCommand {
     /// Get contacts list
     Contacts,
-    /// Get proposals list
-    Proposals {
-        /// Get all proposals (both prending and completed)
-        #[arg(long)]
-        all: bool,
-        /// Get only completed proposals
-        #[arg(long)]
-        completed: bool,
-    },
-    /// Get proposal by ID
-    Proposal {
-        /// Proposal ID
-        #[arg(required = true)]
-        proposal_id: ProposalIdentifier,
-    },
     /// Get relays
     Relays,
     /// Get addresses
@@ -568,18 +586,6 @@ pub enum DeleteCommand {
         #[arg(required = true)]
         url: Url,
     },
-    /// Delete proposal by ID
-    Proposal {
-        /// Proposal ID
-        #[arg(required = true)]
-        proposal_id: ProposalIdentifier,
-    },
-    // /// Delete approval by ID
-    // Approval {
-    // Approval ID
-    // #[arg(required = true)]
-    // approval_id: EventId,
-    // },
     /// Clear cache
     Cache,
 }

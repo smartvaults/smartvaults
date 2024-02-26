@@ -27,11 +27,7 @@ mod cli;
 mod util;
 
 use crate::cli::batch::BatchCommand;
-use crate::cli::{
-    io, AddCommand, AddSignerCommand, Cli, CliCommand, Command, ConfigCommand, ConnectCommand,
-    DeleteCommand, GetCommand, KeyAgentCommand, ProofCommand, SetCommand, SettingCommand,
-    SignerCommand, VaultCommand,
-};
+use crate::cli::*;
 
 fn base_path() -> Result<PathBuf> {
     let home_path = dirs::home_dir().expect("Imposible to get the HOME dir");
@@ -502,6 +498,30 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
         },
+        Command::Proposal { command } => match command {
+            ProposalCommand::Get { proposal_id } => {
+                let proposal = client.get_proposal_by_id(&proposal_id).await?;
+                util::print_proposal(proposal);
+                Ok(())
+            }
+            ProposalCommand::List => {
+                let proposals = client.proposals().await?;
+                util::print_proposals(proposals);
+                Ok(())
+            }
+            ProposalCommand::Metadata {
+                proposal_id,
+                description,
+            } => {
+                client
+                    .edit_proposal_description(&proposal_id, description)
+                    .await?;
+                Ok(())
+            }
+            ProposalCommand::Delete { proposal_id } => {
+                Ok(client.delete_proposal_by_id(&proposal_id).await?)
+            }
+        },
         Command::Proof { command } => match command {
             ProofCommand::New { .. } => {
                 // let (proposal_id, ..) = client.new_proof_proposal(policy_id, message).await?;
@@ -615,22 +635,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 util::print_profiles(contacts);
                 Ok(())
             }
-            GetCommand::Proposals { all, completed } => {
-                if all {
-                    // let proposals = client.get_completed_proposals().await?;
-                    // util::print_completed_proposals(proposals);
-                } else if completed {
-                } else {
-                    let proposals = client.proposals().await?;
-                    util::print_proposals(proposals);
-                }
-                Ok(())
-            }
-            GetCommand::Proposal { proposal_id } => {
-                let proposal = client.get_proposal_by_id(&proposal_id).await?;
-                util::print_proposal(proposal);
-                Ok(())
-            }
             GetCommand::Relays => {
                 let relays = client.relays().await;
                 util::print_relays(relays).await;
@@ -679,16 +683,6 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client.remove_relay(url).await?;
                 Ok(())
             }
-            DeleteCommand::Proposal { proposal_id } => {
-                Ok(client.delete_proposal_by_id(&proposal_id).await?)
-            }
-            // DeleteCommand::Approval { approval_id } => {
-            // client.revoke_approval(approval_id).await?;
-            // Ok(())
-            // }
-            // DeleteCommand::SharedSigner { shared_signer_id } => {
-            // Ok(client.revoke_shared_signer(shared_signer_id).await?)
-            // }
             DeleteCommand::Cache => Ok(client.clear_cache().await?),
         },
         Command::Rebroadcast => {

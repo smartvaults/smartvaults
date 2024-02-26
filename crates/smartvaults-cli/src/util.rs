@@ -437,7 +437,7 @@ where
             proposal.r#type(),
             proposal.status(),
             signed,
-            proposal.description(),
+            proposal.description().unwrap_or_default(),
         ]);
     }
 
