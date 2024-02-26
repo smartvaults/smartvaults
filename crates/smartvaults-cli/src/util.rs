@@ -412,7 +412,7 @@ pub fn print_proposal(proposal: GetProposal) {
     println!();
 }
 
-pub fn print_proposals<I>(_proposals: I)
+pub fn print_proposals<I>(proposals: I)
 where
     I: IntoIterator<Item = GetProposal>,
 {
@@ -424,61 +424,22 @@ where
         "Vault ID",
         "Type",
         "Status",
+        "Signed",
         "Description",
-        "Address",
-        "Amount",
     ]);
 
-    // for (index, GetProposal { proposal, signed }) in proposals.into_iter().enumerate() {
-    // match proposal {
-    // Proposal::Spending {
-    // to_address,
-    // amount,
-    // description,
-    // ..
-    // } => {
-    // table.add_row(row![
-    // index + 1,
-    // proposal.id(),
-    // proposal.vault_id(),
-    // "spending",
-    // description,
-    // to_address.assume_checked(),
-    // format!("{} sat", format::number(amount)),
-    // signed
-    // ]);
-    // }
-    // Proposal::KeyAgentPayment {
-    // signer_descriptor,
-    // amount,
-    // description,
-    // ..
-    // } => {
-    // table.add_row(row![
-    // index + 1,
-    // proposal_id,
-    // util::cut_event_id(policy_id),
-    // "key-agent-payment",
-    // description,
-    // signer_descriptor,
-    // format!("{} sat", format::number(amount)),
-    // signed
-    // ]);
-    // }
-    // Proposal::ProofOfReserve { message, .. } => {
-    // table.add_row(row![
-    // index + 1,
-    // proposal_id,
-    // util::cut_event_id(policy_id),
-    // "proof-of-reserve",
-    // message,
-    // "-",
-    // "-",
-    // signed,
-    // ]);
-    // }
-    // }
-    // }
+    for (index, GetProposal { proposal, signed }) in proposals.into_iter().enumerate() {
+        let proposal_id = proposal.compute_id();
+        table.add_row(row![
+            index + 1,
+            proposal_id,
+            proposal.vault_id(),
+            proposal.r#type(),
+            proposal.status(),
+            signed,
+            proposal.description(),
+        ]);
+    }
 
     table.printstd();
 }
