@@ -135,16 +135,19 @@ impl SmartVaults {
         Ok(thread::abortable(async move {
             loop {
                 if this.resubscribe_vaults.load(Ordering::SeqCst) {
+                    this.set_resubscribe_vaults(false);
+
                     // Resubscribe to vaults authored filter
                     for (relay_url, relay) in this.client.relays().await {
-                        let last_sync: Timestamp =
-                            match this.db.get_last_relay_sync(relay_url.clone()).await {
-                                Ok(ts) => ts,
-                                Err(e) => {
-                                    tracing::error!("Impossible to get last relay sync: {e}");
-                                    Timestamp::from(0)
-                                }
-                            };
+                        /* let last_sync: Timestamp =
+                        match this.db.get_last_relay_sync(relay_url.clone()).await {
+                            Ok(ts) => ts,
+                            Err(e) => {
+                                tracing::error!("Impossible to get last relay sync: {e}");
+                                Timestamp::from(0)
+                            }
+                        }; */
+                        let last_sync: Timestamp = Timestamp::from(0); // TODO
 
                         let filters: Vec<Filter> = this.sync_vaults_filter(last_sync).await;
                         if let Err(e) = relay
@@ -160,8 +163,6 @@ impl SmartVaults {
                             );
                         }
                     }
-
-                    this.set_resubscribe_vaults(false);
                 }
 
                 thread::sleep(Duration::from_secs(10)).await;
@@ -180,15 +181,21 @@ impl SmartVaults {
         self.sync_channel.subscribe()
     }
 
-    /// Get [Filter] for everything authored by vaults shared key
+    /// Get [Filter] for everything authored or `p` tagged by/with vaults shared key
     pub(crate) async fn sync_vaults_filter(&self, since: Timestamp) -> Vec<Filter> {
         let vaults = self.storage.vaults().await;
-        let public_keys = vaults.into_values().map(|i| {
-            let secret_key = i.shared_key();
-            let keys = Keys::new(secret_key.clone());
-            keys.public_key()
-        });
-        vec![Filter::new().authors(public_keys).since(since)]
+        let public_keys: HashSet<PublicKey> = vaults
+            .into_values()
+            .map(|i| {
+                let secret_key = i.shared_key();
+                let keys = Keys::new(secret_key.clone());
+                keys.public_key()
+            })
+            .collect();
+        vec![
+            Filter::new().authors(public_keys.clone()).since(since),
+            Filter::new().pubkeys(public_keys).since(since),
+        ]
     }
 
     pub(crate) async fn sync_filters(&self, since: Timestamp) -> Result<Vec<Filter>, Error> {

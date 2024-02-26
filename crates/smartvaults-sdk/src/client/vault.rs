@@ -86,10 +86,13 @@ impl SmartVaults {
             .save_vault(event_id, vault_id, vault, metadata)
             .await;
 
-        // Request events authored by the vault
-        let filter = Filter::new().author(shared_key.public_key());
+        // Request events authored by the vault and events where vault was `p` tagged
+        let filters = vec![
+            Filter::new().author(shared_key.public_key()),
+            Filter::new().pubkey(shared_key.public_key()),
+        ];
         self.client
-            .req_events_of(vec![filter], Some(Duration::from_secs(60)))
+            .req_events_of(filters, Some(Duration::from_secs(60)))
             .await;
 
         // Mark for re-subscription
