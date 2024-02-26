@@ -458,12 +458,8 @@ impl SmartVaultsStorage {
 
     /// Get proposals
     pub async fn proposals(&self) -> HashMap<ProposalIdentifier, Proposal> {
-        self.proposals
-            .read()
-            .await
-            .iter()
-            .map(|(id, proposal)| (*id, proposal.clone()))
-            .collect()
+        let proposals = self.proposals.read().await;
+        proposals.clone()
     }
 
     pub async fn proposal(&self, proposal_id: &ProposalIdentifier) -> Result<Proposal, Error> {

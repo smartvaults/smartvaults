@@ -785,6 +785,7 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
+        // Create spending proposal
         let spending_proposal: SpendingProposal = self
             .internal_spend(
                 vault_id,
@@ -795,6 +796,8 @@ impl SmartVaults {
                 skip_frozen_utxos,
             )
             .await?;
+
+        // Compose protocol pending proposal
         let pending = PendingProposal::Spending {
             descriptor: spending_proposal.descriptor,
             destination,
@@ -818,38 +821,6 @@ impl SmartVaults {
         Ok(proposal)
     }
 
-    // /// Spend to another [`Policy`]
-    // pub async fn self_transfer(
-    // &self,
-    // from_policy_id: EventId,
-    // to_policy_id: EventId,
-    // amount: Amount,
-    // fee_rate: FeeRate,
-    // utxos: Option<Vec<OutPoint>>,
-    // policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    // skip_frozen_utxos: bool,
-    // ) -> Result<GetProposal, Error> {
-    // let address = self
-    // .get_address(to_policy_id, AddressIndex::New)
-    // .await?
-    // .address;
-    // let description: String = format!(
-    // "Self transfer from policy #{} to #{}",
-    // util::cut_event_id(from_policy_id),
-    // util::cut_event_id(to_policy_id)
-    // );
-    // self.spend(
-    // from_policy_id,
-    // destination,
-    // description,
-    // fee_rate,
-    // utxos,
-    // policy_path,
-    // skip_frozen_utxos,
-    // )
-    // .await
-    // }
-
     pub async fn approve<T>(
         &self,
         proposal_id: &ProposalIdentifier,
@@ -860,7 +831,7 @@ impl SmartVaults {
     {
         // Get proposal and policy
         let proposal: Proposal = self.storage.proposal(proposal_id).await?;
-        let vault = self.storage.vault(&proposal.vault_id()).await?;
+        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
 
         // Sign PSBT
         let seed: Seed = self.keechain.read().seed(password)?;

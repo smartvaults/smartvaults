@@ -11,23 +11,39 @@ use crate::storage::InternalVault;
 use crate::types::GetProposal;
 
 impl SmartVaults {
+    async fn internal_get_proposal(
+        &self,
+        proposal_id: ProposalIdentifier,
+        proposal: Proposal,
+    ) -> GetProposal {
+        if proposal.is_finalized() {
+            GetProposal {
+                signed: true,
+                proposal,
+            }
+        } else {
+            let approvals = self
+                .storage
+                .approvals()
+                .await
+                .into_iter()
+                .filter(|(_, i)| i.approval.proposal_id() == proposal_id)
+                .map(|(_, i)| i.approval);
+
+            GetProposal {
+                signed: proposal.try_finalize(approvals).is_ok(),
+                proposal,
+            }
+        }
+    }
+
     #[tracing::instrument(skip_all, level = "trace")]
     pub async fn get_proposal_by_id(
         &self,
         proposal_id: &ProposalIdentifier,
     ) -> Result<GetProposal, Error> {
         let proposal = self.storage.proposal(proposal_id).await?;
-        let approvals = self
-            .storage
-            .approvals()
-            .await
-            .into_iter()
-            .filter(|(_, i)| i.approval.proposal_id() == *proposal_id)
-            .map(|(_, i)| i.approval);
-        Ok(GetProposal {
-            signed: proposal.try_finalize(approvals).is_ok(),
-            proposal,
-        })
+        Ok(self.internal_get_proposal(*proposal_id, proposal).await)
     }
 
     pub async fn delete_proposal_by_id(
@@ -72,17 +88,8 @@ impl SmartVaults {
         let proposals = self.storage.proposals().await;
         let mut list = Vec::with_capacity(proposals.len());
         for (proposal_id, proposal) in proposals.into_iter() {
-            let approvals = self
-                .storage
-                .approvals()
-                .await
-                .into_values()
-                .filter(|i| i.approval.proposal_id() == proposal_id)
-                .map(|i| i.approval);
-            list.push(GetProposal {
-                signed: proposal.try_finalize(approvals).is_ok(),
-                proposal,
-            });
+            let proposal: GetProposal = self.internal_get_proposal(proposal_id, proposal).await;
+            list.push(proposal);
         }
         list.sort();
         Ok(list)
@@ -99,17 +106,8 @@ impl SmartVaults {
             .into_iter()
             .filter(|(_, p)| p.vault_id() == vault_id)
         {
-            let approvals = self
-                .storage
-                .approvals()
-                .await
-                .into_values()
-                .filter(|i| i.approval.proposal_id() == proposal_id)
-                .map(|i| i.approval);
-            list.push(GetProposal {
-                signed: proposal.try_finalize(approvals).is_ok(),
-                proposal,
-            });
+            let proposal: GetProposal = self.internal_get_proposal(proposal_id, proposal).await;
+            list.push(proposal);
         }
         list.sort();
         Ok(list)
