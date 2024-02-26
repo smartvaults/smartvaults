@@ -4,13 +4,31 @@
 use nostr_sdk::database::Order;
 use nostr_sdk::{Event, EventBuilder, Filter, Keys, Kind, Tag};
 use smartvaults_protocol::v2::constants::PROPOSAL_KIND_V2;
-use smartvaults_protocol::v2::{Proposal, ProposalIdentifier, VaultIdentifier};
+use smartvaults_protocol::v2::{self, Proposal, ProposalIdentifier, Vault, VaultIdentifier};
 
 use super::{Error, SmartVaults};
 use crate::storage::InternalVault;
 use crate::types::GetProposal;
 
 impl SmartVaults {
+    pub(super) async fn internal_save_proposal(
+        &self,
+        proposal_id: &ProposalIdentifier,
+        vault: &Vault,
+        proposal: &Proposal,
+    ) -> Result<(), Error> {
+        // Compose and publish event
+        let event = v2::proposal::build_event(vault, proposal)?;
+        self.client.send_event(event).await?;
+
+        // Index proposal
+        self.storage
+            .save_proposal(*proposal_id, proposal.clone())
+            .await;
+
+        Ok(())
+    }
+
     async fn internal_get_proposal(
         &self,
         proposal_id: ProposalIdentifier,
@@ -111,5 +129,23 @@ impl SmartVaults {
         }
         list.sort();
         Ok(list)
+    }
+
+    /// Edit [Proposal] description
+    pub async fn edit_proposal_description<S>(
+        &self,
+        proposal_id: &ProposalIdentifier,
+        description: S,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        let mut proposal = self.storage.proposal(proposal_id).await?;
+        let InternalVault { vault, .. } = self.storage.vault(&proposal.vault_id()).await?;
+
+        proposal.change_description(description);
+
+        self.internal_save_proposal(proposal_id, &vault, &proposal)
+            .await
     }
 }

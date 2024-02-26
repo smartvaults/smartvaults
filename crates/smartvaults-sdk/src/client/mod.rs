@@ -806,17 +806,10 @@ impl SmartVaults {
         let mut proposal = Proposal::pending(*vault_id, pending, self.network);
         proposal.change_description(description);
 
-        // Get vault
-        let vault = self.storage.vault(vault_id).await?;
-
-        // Compose and send event
-        let event: Event = v2::proposal::build_event(&vault, &proposal)?;
-        self.client.send_event(event).await?;
-
-        // Index proposal
-        self.storage
-            .save_proposal(proposal.compute_id(), proposal.clone())
-            .await;
+        // Save vault
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
+        self.internal_save_proposal(&proposal.compute_id(), &vault, &proposal)
+            .await?;
 
         Ok(proposal)
     }
@@ -1031,14 +1024,8 @@ impl SmartVaults {
             }
         }
 
-        // Compose and publish event
-        let event = v2::proposal::build_event(&vault, &proposal)?;
-        self.client.send_event(event).await?;
-
-        // Index proposal
-        self.storage
-            .save_proposal(*proposal_id, proposal.clone())
-            .await;
+        self.internal_save_proposal(proposal_id, &vault, &proposal)
+            .await?;
 
         Ok(proposal)
     }
