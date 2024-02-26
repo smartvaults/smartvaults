@@ -35,6 +35,7 @@ message Proposal {
   ProposalStatus status = 2;
   bytes network = 3;
   fixed64 timestamp = 4;
+  optional string description = 5;
 }
 
 message ProposalStatus {
@@ -42,7 +43,6 @@ message ProposalStatus {
     message Spending {
       string descriptor = 1;
       Destination destination = 2;
-      string description = 3;
       string psbt = 4;
     }
 
@@ -57,7 +57,6 @@ message ProposalStatus {
       string signer_descriptor = 2;
       Recipient recipient = 3;
       Period period = 4;
-      string description = 5;
       string psbt = 6;
     }
 
@@ -71,7 +70,6 @@ message ProposalStatus {
   message CompletedProposal {
     message Spending {
       bytes tx = 1;
-      string description = 2;
     }
 
     message ProofOfReserve {
@@ -82,7 +80,6 @@ message ProposalStatus {
 
     message KeyAgentPayment {
       bytes tx = 1;
-      string description = 2;
     }
 
     oneof proposal {

@@ -228,6 +228,7 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
+        // Create spending proposal
         let recipient = Recipient { address, amount };
         let spending_proposal: SpendingProposal = self
             .internal_spend(
@@ -239,15 +240,17 @@ impl SmartVaults {
                 skip_frozen_utxos,
             )
             .await?;
+
+        // Compose pending proposal
         let pending = PendingProposal::KeyAgentPayment {
             descriptor: spending_proposal.descriptor,
             signer_descriptor,
             recipient,
             period,
-            description: description.into(),
             psbt: spending_proposal.psbt,
         };
-        let proposal = Proposal::pending(*vault_id, pending, self.network);
+        let mut proposal = Proposal::pending(*vault_id, pending, self.network);
+        proposal.change_description(description);
 
         // Get vault
         let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;

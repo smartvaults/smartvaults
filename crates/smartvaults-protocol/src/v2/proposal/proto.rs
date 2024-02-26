@@ -81,12 +81,10 @@ impl From<&PendingProposal> for ProtoPendingProposal {
                 PendingProposal::Spending {
                     descriptor,
                     destination,
-                    description,
                     psbt,
                 } => ProtoPendingProposalEnum::Spending(ProtoPendingSpending {
                     descriptor: descriptor.to_string(),
                     destination: Some(destination.into()),
-                    description: description.to_owned(),
                     psbt: psbt.to_string(),
                 }),
                 PendingProposal::ProofOfReserve {
@@ -103,14 +101,12 @@ impl From<&PendingProposal> for ProtoPendingProposal {
                     signer_descriptor,
                     recipient,
                     period,
-                    description,
                     psbt,
                 } => ProtoPendingProposalEnum::KeyAgentPayment(ProtoPendingKeyAgentPayment {
                     descriptor: descriptor.to_string(),
                     signer_descriptor: signer_descriptor.to_string(),
                     recipient: Some(recipient.into()),
                     period: Some(period.into()),
-                    description: description.to_owned(),
                     psbt: psbt.to_string(),
                 }),
             }),
@@ -122,10 +118,9 @@ impl From<&CompletedProposal> for ProtoCompletedProposal {
     fn from(value: &CompletedProposal) -> Self {
         Self {
             proposal: Some(match value {
-                CompletedProposal::Spending { tx, description } => {
+                CompletedProposal::Spending { tx } => {
                     ProtoCompletedProposalEnum::Spending(ProtoCompletedSpending {
                         tx: consensus::serialize(tx),
-                        description: description.clone(),
                     })
                 }
                 CompletedProposal::ProofOfReserve {
@@ -137,10 +132,9 @@ impl From<&CompletedProposal> for ProtoCompletedProposal {
                     message: message.clone(),
                     psbt: psbt.to_string(),
                 }),
-                CompletedProposal::KeyAgentPayment { tx, description } => {
+                CompletedProposal::KeyAgentPayment { tx } => {
                     ProtoCompletedProposalEnum::KeyAgentPayment(ProtoCompletedKeyAgentPayment {
                         tx: consensus::serialize(tx),
-                        description: description.clone(),
                     })
                 }
             }),
@@ -158,7 +152,6 @@ impl TryFrom<ProtoCompletedProposal> for CompletedProposal {
         {
             ProtoCompletedProposalEnum::Spending(inner) => Ok(Self::Spending {
                 tx: consensus::deserialize(&inner.tx)?,
-                description: inner.description,
             }),
             ProtoCompletedProposalEnum::ProofOfReserve(inner) => Ok(Self::ProofOfReserve {
                 descriptor: Descriptor::from_str(&inner.descriptor)?,
@@ -167,7 +160,6 @@ impl TryFrom<ProtoCompletedProposal> for CompletedProposal {
             }),
             ProtoCompletedProposalEnum::KeyAgentPayment(inner) => Ok(Self::KeyAgentPayment {
                 tx: consensus::deserialize(&inner.tx)?,
-                description: inner.description,
             }),
         }
     }
@@ -193,6 +185,7 @@ impl From<&Proposal> for ProtoProposal {
             }),
             network: proposal.network.magic().to_bytes().to_vec(),
             timestamp: proposal.timestamp.as_u64(),
+            description: proposal.description.clone(),
         }
     }
 }
@@ -253,7 +246,6 @@ impl TryFrom<ProtoProposal> for Proposal {
                                     .collect(),
                             ),
                         },
-                        description: inner.description,
                         psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
                     },
                     ProtoPendingProposalEnum::ProofOfReserve(inner) => {
@@ -282,7 +274,6 @@ impl TryFrom<ProtoProposal> for Proposal {
                                 from: period.from.into(),
                                 to: period.to.into(),
                             },
-                            description: inner.description,
                             psbt: PartiallySignedTransaction::from_str(&inner.psbt)?,
                         }
                     }
@@ -298,6 +289,7 @@ impl TryFrom<ProtoProposal> for Proposal {
             status,
             network,
             timestamp: Timestamp::from(value.timestamp),
+            description: value.description,
         })
     }
 }

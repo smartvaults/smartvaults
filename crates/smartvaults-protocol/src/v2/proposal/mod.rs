@@ -63,6 +63,7 @@ pub struct Proposal {
     status: ProposalStatus,
     network: Network,
     timestamp: Timestamp,
+    description: Option<String>,
 }
 
 impl PartialOrd for Proposal {
@@ -85,6 +86,7 @@ impl Proposal {
             status: ProposalStatus::Pending(proposal),
             network,
             timestamp: Timestamp::now(),
+            description: None,
         }
     }
 
@@ -180,20 +182,17 @@ impl Proposal {
         }
     }
 
-    /// Get description/message
-    pub fn description(&self) -> &String {
-        match &self.status {
-            ProposalStatus::Pending(inner) => match inner {
-                PendingProposal::Spending { description, .. } => description,
-                PendingProposal::ProofOfReserve { message, .. } => message,
-                PendingProposal::KeyAgentPayment { description, .. } => description,
-            },
-            ProposalStatus::Completed(inner) => match inner {
-                CompletedProposal::Spending { description, .. } => description,
-                CompletedProposal::ProofOfReserve { message, .. } => message,
-                CompletedProposal::KeyAgentPayment { description, .. } => description,
-            },
-        }
+    /// Get description
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// Change proposal description
+    pub fn change_description<S>(&mut self, description: S)
+    where
+        S: Into<String>,
+    {
+        self.description = Some(description.into())
     }
 
     /// Approve a **pending** proposal with [`Seed`]
@@ -275,10 +274,7 @@ impl Proposal {
             let psbts = approvals.into_iter().map(|a| a.psbt());
             match pending {
                 PendingProposal::Spending {
-                    descriptor,
-                    psbt,
-                    description,
-                    ..
+                    descriptor, psbt, ..
                 } => {
                     let spending = SpendingProposal {
                         descriptor: descriptor.clone(),
@@ -286,16 +282,10 @@ impl Proposal {
                         network: self.network,
                     };
                     let tx = spending.finalize(psbts)?;
-                    self.status = ProposalStatus::Completed(CompletedProposal::Spending {
-                        tx,
-                        description: description.clone(),
-                    });
+                    self.status = ProposalStatus::Completed(CompletedProposal::Spending { tx });
                 }
                 PendingProposal::KeyAgentPayment {
-                    descriptor,
-                    psbt,
-                    description,
-                    ..
+                    descriptor, psbt, ..
                 } => {
                     let spending = SpendingProposal {
                         descriptor: descriptor.clone(),
@@ -303,10 +293,8 @@ impl Proposal {
                         network: self.network,
                     };
                     let tx = spending.finalize(psbts)?;
-                    self.status = ProposalStatus::Completed(CompletedProposal::KeyAgentPayment {
-                        tx,
-                        description: description.clone(),
-                    });
+                    self.status =
+                        ProposalStatus::Completed(CompletedProposal::KeyAgentPayment { tx });
                 }
                 PendingProposal::ProofOfReserve {
                     descriptor,
@@ -365,8 +353,6 @@ pub enum PendingProposal {
         descriptor: Descriptor<String>,
         /// Recipients
         destination: Destination,
-        /// Description/note
-        description: String,
         /// PSBT
         psbt: PartiallySignedTransaction,
     },
@@ -391,8 +377,6 @@ pub enum PendingProposal {
         recipient: Recipient,
         /// Period
         period: Period,
-        /// Description/note
-        description: String,
         /// PSBT
         psbt: PartiallySignedTransaction,
     },
@@ -405,8 +389,6 @@ pub enum CompletedProposal {
     Spending {
         /// TX
         tx: Transaction,
-        /// Description/note
-        description: String,
     },
     /// Proof of reserve
     ProofOfReserve {
@@ -421,8 +403,6 @@ pub enum CompletedProposal {
     KeyAgentPayment {
         /// TX
         tx: Transaction,
-        /// Description/note
-        description: String,
     },
 }
 

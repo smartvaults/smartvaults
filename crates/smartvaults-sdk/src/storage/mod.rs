@@ -515,7 +515,7 @@ impl SmartVaultsStorage {
         proposals
             .values()
             .find(|p| p.vault_id() == vault_id && p.tx().txid() == txid)
-            .map(|p| p.description().clone())
+            .and_then(|p| p.description().map(|d| d.to_string()))
     }
 
     pub async fn txs_descriptions(&self, vault_id: VaultIdentifier) -> HashMap<Txid, String> {
@@ -524,7 +524,7 @@ impl SmartVaultsStorage {
         for proposal in proposals.values().filter(|p| p.vault_id() == vault_id) {
             if proposal.is_finalized() {
                 if let HashMapEntry::Vacant(e) = map.entry(proposal.tx().txid()) {
-                    e.insert(proposal.description().clone());
+                    e.insert(proposal.description().unwrap_or_default().to_string());
                 }
             }
         }

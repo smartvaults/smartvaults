@@ -801,10 +801,10 @@ impl SmartVaults {
         let pending = PendingProposal::Spending {
             descriptor: spending_proposal.descriptor,
             destination,
-            description: description.into(),
             psbt: spending_proposal.psbt,
         };
-        let proposal = Proposal::pending(*vault_id, pending, self.network);
+        let mut proposal = Proposal::pending(*vault_id, pending, self.network);
+        proposal.change_description(description);
 
         // Get vault
         let vault = self.storage.vault(vault_id).await?;
