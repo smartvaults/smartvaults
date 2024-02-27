@@ -94,7 +94,7 @@ impl State for PolicyBuilderState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let signers = client.signers().await.unwrap();
+                let signers = client.signers().await;
                 let shared_signers = client.shared_signers().await.unwrap();
                 let profile = client.get_profile().await.unwrap();
                 (signers, shared_signers, profile)
@@ -131,7 +131,11 @@ impl State for PolicyBuilderState {
                     }
                 }
                 PolicyBuilderMessage::ErrorChanged(error) => self.error = error,
-                PolicyBuilderMessage::Load((signers, profile)) => {
+                PolicyBuilderMessage::Load {
+                    signers,
+                    shared_signers,
+                    profile,
+                } => {
                     self.signers = signers;
                     self.profile = Some(profile);
                     self.loading = false;
@@ -172,20 +176,12 @@ impl State for PolicyBuilderState {
                         .flatten()
                         .map(|(_, desc)| desc.clone())
                         .collect();
-                    let public_keys: Vec<PublicKey> = self
-                        .policy
-                        .iter()
-                        .flatten()
-                        .map(|(user, ..)| user.public_key())
-                        .collect();
                     return Command::perform(
                         async move {
                             let template: PolicyTemplate =
                                 PolicyTemplate::multisig(threshold, descriptors);
                             let policy: String = template.build()?.to_string();
-                            client
-                                .save_policy(name, description, policy, public_keys)
-                                .await?;
+                            client.save_vault(name, description, policy).await?;
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },
                         |res| match res {

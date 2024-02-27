@@ -27,6 +27,7 @@ impl SmartVaults {
         ) in items.into_iter()
         {
             vaults.push(GetVault {
+                vault_id: id,
                 vault,
                 metadata,
                 balance: self.manager.get_balance(&id).await?,
@@ -46,6 +47,7 @@ impl SmartVaults {
             vault, metadata, ..
         } = self.storage.vault(vault_id).await?;
         Ok(GetVault {
+            vault_id: *vault_id,
             vault,
             metadata,
             balance: self.manager.get_balance(vault_id).await?,

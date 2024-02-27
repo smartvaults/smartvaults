@@ -18,6 +18,10 @@ pub mod wrapper;
 
 pub use self::approval::{Approval, ApprovalType};
 pub use self::error::Error;
+pub use self::key_agent::{
+    BasisPoints, Currency, DeviceType, KeyAgentMetadata, Price, SignerOffering, Temperature,
+    VerifiedKeyAgentData, VerifiedKeyAgents,
+};
 pub use self::message::{ProtocolEncoding, ProtocolEncryption};
 pub use self::network::NetworkMagic;
 pub use self::nostr_public_id::NostrPublicIdentifier;

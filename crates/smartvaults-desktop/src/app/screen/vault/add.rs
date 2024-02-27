@@ -99,13 +99,8 @@ impl State for AddVaultState {
                     let name = self.name.clone();
                     let description = self.description.clone();
                     let descriptor = self.descriptor.clone();
-                    let public_keys: Vec<PublicKey> = self.public_keys.iter().copied().collect();
                     return Command::perform(
-                        async move {
-                            client
-                                .save_policy(name, description, descriptor, public_keys)
-                                .await
-                        },
+                        async move { client.save_vault(name, description, descriptor).await },
                         |res| match res {
                             Ok(_) => Message::View(Stage::Vaults),
                             Err(e) => AddVaultMessage::ErrorChanged(Some(e.to_string())).into(),

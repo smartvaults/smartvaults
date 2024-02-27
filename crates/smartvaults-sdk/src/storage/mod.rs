@@ -456,10 +456,14 @@ impl SmartVaultsStorage {
         proposals.remove(proposal_id).is_some()
     }
 
-    /// Get proposals
+    /// Get **pending** proposals
     pub async fn proposals(&self) -> HashMap<ProposalIdentifier, Proposal> {
         let proposals = self.proposals.read().await;
-        proposals.clone()
+        proposals
+            .iter()
+            .filter(|(_, p)| !p.is_finalized())
+            .map(|(k, v)| (*k, v.clone()))
+            .collect()
     }
 
     pub async fn proposal(&self, proposal_id: &ProposalIdentifier) -> Result<Proposal, Error> {

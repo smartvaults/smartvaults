@@ -24,6 +24,8 @@ use crate::manager::TransactionDetails;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetVault {
+    // Needed to avoid to compute it later (ex. in UI)
+    pub vault_id: VaultIdentifier,
     pub vault: Vault,
     pub metadata: VaultMetadata,
     pub balance: Balance,
