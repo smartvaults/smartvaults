@@ -343,6 +343,9 @@ impl Policy {
         Ok(&policy.item)
     }
 
+    /// Get list of [SelectableCondition]
+    ///
+    /// Return `None` if the [Policy] not contains a timelock
     pub fn selectable_conditions(&self) -> Result<Option<Vec<SelectableCondition>>, Error> {
         if self.has_timelock() {
             fn selectable_conditions(
@@ -374,6 +377,7 @@ impl Policy {
         }
     }
 
+    /// Get [SatisfiableItem] by policy path
     fn satisfiable_item_by_path<S>(&self, path: S) -> Result<Option<SatisfiableItem>, Error>
     where
         S: Into<String>,
@@ -384,7 +388,7 @@ impl Policy {
             path: &String,
         ) -> Option<SatisfiableItem> {
             match item {
-                SatisfiableItem::SchnorrSignature(..) => {
+                SatisfiableItem::SchnorrSignature(..) | SatisfiableItem::EcdsaSignature(..) => {
                     if &item.id() == path {
                         return prev_item;
                     }
@@ -433,28 +437,48 @@ impl Policy {
         Ok(list)
     }
 
+    /// Search and map the selectable conditions for the passed [Signer]
+    fn map_selectable_conditions_for_signer(
+        &self,
+        selectable_conditions: &[SelectableCondition],
+        signer: &Signer,
+    ) -> Result<BTreeMap<String, (usize, Vec<usize>)>, Error> {
+        let mut map = BTreeMap::new();
+        for SelectableCondition {
+            path,
+            thresh,
+            sub_paths,
+        } in selectable_conditions.iter()
+        {
+            // Iterate all the sub-paths of the selectable condition
+            for (index, sub_path) in sub_paths.iter().enumerate() {
+                // Try to get the `SatisfiableItem` for the sub-path
+                if let Some(item) = self.satisfiable_item_by_path(sub_path)? {
+                    // Check if the `SatisfiableItem` contains the signer `fingerprint`
+                    if satisfiable_item_contains_fingerprint(&item, &signer.fingerprint()) {
+                        map.insert(path.clone(), (*thresh, vec![index]));
+                    }
+                }
+            }
+        }
+        Ok(map)
+    }
+
+    /// Automatically select the `policy path` to use for the passed [Signer].
     pub fn get_policy_path_from_signer(
         &self,
         signer: &Signer,
     ) -> Result<Option<PolicyPathSelector>, Error> {
-        match self.selectable_conditions()? {
-            Some(selectable_conditions) => {
-                let mut map = BTreeMap::new();
-                for SelectableCondition {
-                    path,
-                    thresh,
-                    sub_paths,
-                } in selectable_conditions.iter()
-                {
-                    for (index, sub_path) in sub_paths.iter().enumerate() {
-                        if let Some(item) = self.satisfiable_item_by_path(sub_path)? {
-                            if satisfiable_item_contains_fingerprint(&item, &signer.fingerprint()) {
-                                map.insert(path.clone(), (*thresh, vec![index]));
-                            }
-                        }
-                    }
-                }
+        // Get selectable conditions
+        let selectable_conditions = self.selectable_conditions()?;
 
+        match selectable_conditions {
+            Some(selectable_conditions) => {
+                // Map the selectable conditions
+                let map =
+                    self.map_selectable_conditions_for_signer(&selectable_conditions, signer)?;
+
+                // Check status of the map
                 if map.is_empty() {
                     Ok(None)
                 } else if selectable_conditions.len() == map.len() {
@@ -513,18 +537,34 @@ impl Policy {
                             path: selected_path,
                         }))
                     } else {
+                        let missing_to_select = selectable_conditions
+                            .into_iter()
+                            .filter_map(
+                                |SelectableCondition {
+                                     path,
+                                     thresh,
+                                     mut sub_paths,
+                                 }| {
+                                    // Check if path already exists in selected_path
+                                    if let Some(idxs) = selected_path.get(&path) {
+                                        // Check it thresh satisfied with the already selected path
+                                        if idxs.len() < thresh {
+                                            // If not, remove the already selected sub paths
+                                            for idx in idxs.iter() {
+                                                sub_paths.remove(*idx);
+                                            }
+                                        } else {
+                                            // Thresh satisfied, skip selectable condition
+                                            return None;
+                                        }
+                                    }
+
+                                    Some((path, sub_paths))
+                                },
+                            )
+                            .collect();
                         Ok(Some(PolicyPathSelector::Partial {
-                            missing_to_select: selectable_conditions
-                                .into_iter()
-                                .filter(|SelectableCondition { path, .. }| {
-                                    !selected_path.contains_key(path)
-                                })
-                                .map(
-                                    |SelectableCondition {
-                                         path, sub_paths, ..
-                                     }| (path, sub_paths),
-                                )
-                                .collect(),
+                            missing_to_select,
                             selected_path,
                         }))
                     }
@@ -539,6 +579,7 @@ impl Policy {
         I: Iterator<Item = Signer>,
     {
         let used_signers: Vec<Signer> = self.search_used_signers(my_signers)?;
+
         #[allow(clippy::mutable_key_type)]
         let mut map = HashMap::with_capacity(used_signers.len());
         for signer in used_signers.into_iter() {
@@ -850,6 +891,7 @@ impl Policy {
     }
 }
 
+/// Check if [SatisfiableItem] contains [Fingerprint]
 fn satisfiable_item_contains_fingerprint(
     item: &SatisfiableItem,
     fingerprint: &Fingerprint,
@@ -908,6 +950,9 @@ mod tests {
 
     const NETWORK: Network = Network::Testnet;
 
+    const COMPLEX_DESCRIPTOR: &str = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
+    const COMPLEX_DESCRIPTOR_WITH_TIMELOCK: &str = "tr(af2486c537bbb20285bb29e0dd7c05a875b684aee7d4a2501c5c1aea63eaff1c,thresh(2,or_b(pk([bc2776d1/86'/1'/0']tpubDC4TeTzs8NdabBTsyKfm2agwwmeq1LmdPhqv7Zt52VjvVNPDz7Mex8F5hsZxctzY5QQAr2jRH7Fq4xfijcngzKxmB73DapuTvjbcwH6Mm8K/0/*),s:pk([165200fa/86'/1'/0']tpubDDMDcGB9jV7K5vj64NhwWwDC6rrjTF9H1qtzbgK9Daw8S9aF7ueoqtGhwmWoG8ugdkufaiux21EmZU7ymim1cTZWvuy8gPNbxCVDCR7ponD/0/*)),s:pk([d9cf55da/86'/1'/784923']tpubDDezFokYJHuh5HSidMM728ntSNzNYFGCn2Ei9dNyF2jDbeoGFL2vdu9tCKcULD9bY9aJrfzLX4f5D3BBqKFt6LZW24PacakDUV7zPB4MBwS/0/*),ajc:and_v(v:after(1709133311),and_v(v:pk([bfa46e8e/86'/1'/784923']tpubDCLfFtgA8wiEj9c5zLrmGzD7qghbpo9uEvPH4vqAogsS43oaHbqoTHbjuUqsvnwVouzUmdsuMSRPCQu36eRfvq7mda6zob76QCcwPZeFCEQ/0/*),pk_k([bd5efadb/86'/1'/784923']tpubDDFdQjA7WGJaD5DcuZL2rKzcYNpA6p3E8TpoV2isBSfvrUBf2XhBxm7qxxAURFK5tBA5i4YEJG1gLZiaXt9P96vVRdYGgGjvHyk5BfCG9cV/0/*)))))#qh92myc8";
+
     #[test]
     fn test_policy() {
         let policy = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
@@ -940,8 +985,7 @@ mod tests {
 
     #[test]
     fn selectable_conditions() {
-        let desc: &str = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
-        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+        let policy = Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR, NETWORK).unwrap();
         let conditions = policy.selectable_conditions().unwrap();
         let mut c = Vec::new();
         c.push(SelectableCondition {
@@ -957,16 +1001,40 @@ mod tests {
         assert_eq!(conditions, Some(c));
 
         let policy: &str = "thresh(2,pk([87131a00/86'/1'/784923']tpubDDEaK5JwGiGDTRkML9YKh8AF4rHPhkpnXzVjVMDBtzayJpnsWKeiFPxtiyYeGHQj8pnjsei7N98winwZ3ivGoVVKArZVMsEYGig73XVqbSX/0/*),pk([e157a520/86'/1'/784923']tpubDCCYFYCyDkxo1xAzDpoFNdtGcjD5BPLZbEJswjJmwqp67Weqd2C7fg6Jy1SBjgn3wYnKyUtoYKXG4VdQczjqb6FJnqHe3NmFdgy8vNBSty4/0/*))";
-        let policy = Policy::from_policy("", "", policy, Network::Testnet).unwrap();
+        let policy = Policy::from_policy("", "", policy, NETWORK).unwrap();
         let conditions = policy.selectable_conditions().unwrap();
-        assert!(conditions.is_none())
+        assert!(conditions.is_none());
+
+        let policy =
+            Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
+        let conditions = policy.selectable_conditions().unwrap();
+        let mut c = Vec::new();
+        c.push(SelectableCondition {
+            path: String::from("lahrrd60"),
+            thresh: 1,
+            sub_paths: vec![String::from("qu0ehqvt"), String::from("w3x74z9c")],
+        });
+        c.push(SelectableCondition {
+            path: String::from("w3x74z9c"),
+            thresh: 2,
+            sub_paths: vec![
+                String::from("fnd3dju4"),
+                String::from("7lkk2qnw"),
+                String::from("8exk8zzy"),
+            ],
+        });
+        c.push(SelectableCondition {
+            path: String::from("fnd3dju4"),
+            thresh: 1,
+            sub_paths: vec![String::from("289a0cgn"), String::from("urk6p6zp")],
+        });
+        assert_eq!(conditions, Some(c));
     }
 
     #[test]
     fn test_get_policy_path_from_signer() {
         // Common policy
-        let desc = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
-        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+        let policy = Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR, NETWORK).unwrap();
 
         // Internal key path
         let mnemonic = Mnemonic::from_str(
@@ -974,7 +1042,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+        let signer = smartvaults_signer(seed, NETWORK).unwrap();
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
         let mut path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -987,7 +1055,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+        let signer = smartvaults_signer(seed, NETWORK).unwrap();
 
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
@@ -1004,7 +1072,7 @@ mod tests {
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+        let signer = smartvaults_signer(seed, NETWORK).unwrap();
 
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
@@ -1027,13 +1095,13 @@ mod tests {
 
         // Decaying 2 of 4 (absolute)
         let desc = "tr(56f05264c005e2a2f6e261996ed2cd904dfafbc6d75cc07a5a76d46df56e6ff9,thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),s:pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),s:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),snl:after(1698947462)))#2263dhaf";
-        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+        let policy = Policy::from_descriptor("", "", desc, NETWORK).unwrap();
         let mnemonic = Mnemonic::from_str(
             "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
         )
         .unwrap();
         let seed = Seed::from_mnemonic(mnemonic);
-        let signer = smartvaults_signer(seed, Network::Testnet).unwrap();
+        let signer = smartvaults_signer(seed, NETWORK).unwrap();
         let policy_path: Option<PolicyPathSelector> =
             policy.get_policy_path_from_signer(&signer).unwrap();
         let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
@@ -1058,9 +1126,75 @@ mod tests {
     }
 
     #[test]
+    fn test_get_policy_path_from_signers() {
+        // Signer 1
+        let fing1 = Fingerprint::from_str("165200fa").unwrap();
+        let desc1 = Descriptor::from_str("tr([165200fa/86'/1'/0']tpubDDMDcGB9jV7K5vj64NhwWwDC6rrjTF9H1qtzbgK9Daw8S9aF7ueoqtGhwmWoG8ugdkufaiux21EmZU7ymim1cTZWvuy8gPNbxCVDCR7ponD/0/*)").unwrap();
+        let signer1 = Signer::airgap("", None, fing1, desc1, NETWORK).unwrap();
+
+        // Signer 2
+        let fing2 = Fingerprint::from_str("bd5efadb").unwrap();
+        let desc2 = Descriptor::from_str("tr([bd5efadb/86'/1'/784923']tpubDDFdQjA7WGJaD5DcuZL2rKzcYNpA6p3E8TpoV2isBSfvrUBf2XhBxm7qxxAURFK5tBA5i4YEJG1gLZiaXt9P96vVRdYGgGjvHyk5BfCG9cV/0/*)").unwrap();
+        let signer2 = Signer::airgap("", None, fing2, desc2, NETWORK).unwrap();
+
+        // Policy
+        let policy =
+            Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR_WITH_TIMELOCK, NETWORK).unwrap();
+
+        // Path
+        let path = policy
+            .get_policy_paths_from_signers([signer1.clone(), signer2.clone()].into_iter())
+            .unwrap();
+
+        if let PolicyPath::Multiple(map) = path {
+            let pp1 = map.get(&signer1).cloned().unwrap();
+            let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+            selected_path.insert(String::from("fnd3dju4"), vec![1]);
+            selected_path.insert(String::from("lahrrd60"), vec![1]);
+            selected_path.insert(String::from("w3x74z9c"), vec![0]);
+            let mut missing_to_select: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            missing_to_select.insert(
+                String::from("w3x74z9c"),
+                vec![String::from("7lkk2qnw"), String::from("8exk8zzy")],
+            );
+            assert_eq!(
+                pp1,
+                Some(PolicyPathSelector::Partial {
+                    selected_path,
+                    missing_to_select
+                })
+            );
+
+            // --------------------
+
+            let pp2 = map.get(&signer2).cloned().unwrap();
+            let mut selected_path: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+            selected_path.insert(String::from("lahrrd60"), vec![1]);
+            selected_path.insert(String::from("w3x74z9c"), vec![2]);
+            let mut missing_to_select: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            missing_to_select.insert(
+                String::from("fnd3dju4"),
+                vec![String::from("289a0cgn"), String::from("urk6p6zp")],
+            );
+            missing_to_select.insert(
+                String::from("w3x74z9c"),
+                vec![String::from("fnd3dju4"), String::from("7lkk2qnw")],
+            );
+            assert_eq!(
+                pp2,
+                Some(PolicyPathSelector::Partial {
+                    selected_path,
+                    missing_to_select
+                })
+            );
+        } else {
+            panic!("Unexpected policy path");
+        }
+    }
+
+    #[test]
     fn test_is_fingerprint_involved() {
-        let desc = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
-        let policy = Policy::from_descriptor("", "", desc, Network::Testnet).unwrap();
+        let policy = Policy::from_descriptor("", "", COMPLEX_DESCRIPTOR, NETWORK).unwrap();
 
         let fingerprint = Fingerprint::from_str("7356e457").unwrap();
         assert!(policy.is_fingerprint_involved(&fingerprint).unwrap());
@@ -1168,11 +1302,13 @@ mod benches {
 
     use super::*;
 
+    const NETWORK: Network = Network::Testnet;
+
     #[bench]
     pub fn bench_policy_from_descriptor(bh: &mut Bencher) {
         let desc = "tr(56f05264c005e2a2f6e261996ed2cd904dfafbc6d75cc07a5a76d46df56e6ff9,thresh(2,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),s:pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),s:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),snl:after(1698947462)))#2263dhaf";
         bh.iter(|| {
-            black_box(Policy::from_descriptor("", "", desc, Network::Testnet)).unwrap();
+            black_box(Policy::from_descriptor("", "", desc, NETWORK)).unwrap();
         });
     }
 
@@ -1180,14 +1316,14 @@ mod benches {
     pub fn bench_policy_from_miniscript(bh: &mut Bencher) {
         let desc = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),after(840000),after(940000))";
         bh.iter(|| {
-            black_box(Policy::from_policy("", "", desc, Network::Testnet)).unwrap();
+            black_box(Policy::from_policy("", "", desc, NETWORK)).unwrap();
         });
     }
 
     #[bench]
     pub fn bench_decaying_template_match(bh: &mut Bencher) {
         let desc = "thresh(3,pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),after(840000),after(940000))";
-        let policy = Policy::from_policy("", "", desc, Network::Testnet).unwrap();
+        let policy = Policy::from_policy("", "", desc, NETWORK).unwrap();
         bh.iter(|| {
             black_box(policy.template_match()).unwrap();
         });
@@ -1196,7 +1332,7 @@ mod benches {
     #[bench]
     pub fn bench_social_recovery_template_match(bh: &mut Bencher) {
         let desc = "or(1@pk([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*),1@and(thresh(2,pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*),pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*)),older(6)))";
-        let policy = Policy::from_policy("", "", desc, Network::Testnet).unwrap();
+        let policy = Policy::from_policy("", "", desc, NETWORK).unwrap();
         bh.iter(|| {
             black_box(policy.template_match()).unwrap();
         });
