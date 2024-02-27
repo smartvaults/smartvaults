@@ -12,7 +12,7 @@ use bdk_electrum::electrum_client::{
     Client as ElectrumClient, Config as ElectrumConfig, Socks5Config,
 };
 use bdk_electrum::{ElectrumExt, ElectrumUpdate};
-use nostr_sdk::{EventId, Timestamp};
+use nostr_sdk::Timestamp;
 use smartvaults_core::bdk::chain::keychain::KeychainTxOutIndex;
 use smartvaults_core::bdk::chain::local_chain::{CannotConnectError, CheckPoint, LocalChain};
 use smartvaults_core::bdk::chain::{
@@ -22,10 +22,11 @@ use smartvaults_core::bdk::wallet::error::CreateTxError;
 use smartvaults_core::bdk::wallet::{AddressIndex, AddressInfo, Balance, Update};
 use smartvaults_core::bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
-use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
+use smartvaults_core::bitcoin::psbt::{self, PartiallySignedTransaction};
 use smartvaults_core::bitcoin::{Address, OutPoint, Script, ScriptBuf, Transaction, Txid};
 use smartvaults_core::reserves::ProofOfReserves;
-use smartvaults_core::{Amount, Policy, Proposal};
+use smartvaults_core::{Destination, Policy, ProofOfReserveProposal, SpendingProposal};
+use smartvaults_protocol::v2::VaultIdentifier;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -54,6 +55,8 @@ pub enum Error {
     BdkCreateTx(#[from] CreateTxError<StorageError>),
     #[error(transparent)]
     Storage(#[from] StorageError),
+    #[error(transparent)]
+    PSBT(#[from] psbt::Error),
     #[error("impossible to read wallet")]
     ImpossibleToReadWallet,
     #[error("not found")]
@@ -133,7 +136,7 @@ impl TransactionDetails {
 
 #[derive(Debug, Clone)]
 pub struct SmartVaultsWallet {
-    id: EventId,
+    id: VaultIdentifier,
     policy: Policy,
     wallet: Arc<RwLock<Wallet<SmartVaultsWalletStorage>>>,
     syncing: Arc<AtomicBool>,
@@ -142,12 +145,12 @@ pub struct SmartVaultsWallet {
 
 impl SmartVaultsWallet {
     pub fn new(
-        policy_id: EventId,
+        vault_id: VaultIdentifier,
         policy: Policy,
         wallet: Wallet<SmartVaultsWalletStorage>,
     ) -> Self {
         Self {
-            id: policy_id,
+            id: vault_id,
             policy,
             wallet: Arc::new(RwLock::new(wallet)),
             syncing: Arc::new(AtomicBool::new(false)),
@@ -509,59 +512,31 @@ impl SmartVaultsWallet {
         Ok(())
     }
 
-    pub async fn estimate_tx_vsize(
+    pub async fn spend(
         &self,
-        address: Address<NetworkUnchecked>,
-        amount: Amount,
-        utxos: Option<Vec<OutPoint>>,
-        frozen_utxos: Option<Vec<OutPoint>>,
-        policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Option<usize> {
-        let mut wallet = self.wallet.write().await;
-        self.policy.estimate_tx_vsize(
-            &mut wallet,
-            address,
-            amount,
-            utxos,
-            frozen_utxos,
-            policy_path,
-        )
-    }
-
-    pub async fn spend<S>(
-        &self,
-        address: Address<NetworkUnchecked>,
-        amount: Amount,
-        description: S,
+        destination: &Destination,
         fee_rate: FeeRate,
         utxos: Option<Vec<OutPoint>>,
         frozen_utxos: Option<Vec<OutPoint>>,
         policy_path: Option<BTreeMap<String, Vec<usize>>>,
-    ) -> Result<Proposal, Error>
-    where
-        S: Into<String>,
-    {
+    ) -> Result<SpendingProposal, Error> {
         let mut wallet = self.wallet.write().await;
-        let proposal = self.policy.spend(
+        Ok(self.policy.spend(
             &mut wallet,
-            address,
-            amount,
-            description,
+            destination,
             fee_rate,
             utxos,
             frozen_utxos,
             policy_path,
-        )?;
-        Ok(proposal)
+        )?)
     }
 
-    pub async fn proof_of_reserve<S>(&self, message: S) -> Result<Proposal, Error>
+    pub async fn proof_of_reserve<S>(&self, message: S) -> Result<ProofOfReserveProposal, Error>
     where
         S: Into<String>,
     {
         let mut wallet = self.wallet.write().await;
-        let proposal = self.policy.proof_of_reserve(&mut wallet, message)?;
-        Ok(proposal)
+        Ok(self.policy.proof_of_reserve(&mut wallet, message)?)
     }
 
     pub async fn verify_proof<S>(

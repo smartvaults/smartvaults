@@ -25,7 +25,7 @@ use uniffi::Object;
 use crate::error::Result;
 use crate::{
     AbortHandle, AddressIndex, Amount, Balance, CompletedProposal, Config, GetAddress, GetApproval,
-    GetCompletedProposal, GetPolicy, GetProposal, GetSharedSigner, GetSigner, GetTransaction,
+    GetCompletedProposal, GetProposal, GetSharedSigner, GetSigner, GetTransaction, GetVault,
     KeyAgent, Message, Network, NostrConnectRequest, NostrConnectSession, OutPoint, Period,
     PolicyTemplate, Seed, Signer, SignerOffering, Utxo, WordCount,
 };
@@ -285,10 +285,10 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.remove_contact(**public_key).await?) })
     }
 
-    pub fn get_policy_by_id(&self, policy_id: Arc<EventId>) -> Result<Arc<GetPolicy>> {
+    pub fn get_vault_by_id(&self, policy_id: Arc<EventId>) -> Result<Arc<GetVault>> {
         block_on(async move {
             Ok(Arc::new(
-                self.inner.get_policy_by_id(**policy_id).await?.into(),
+                self.inner.get_vault_by_id(**policy_id).await?.into(),
             ))
         })
     }
@@ -347,26 +347,24 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.delete_signer_by_id(**signer_id).await?) })
     }
 
-    pub fn get_policies(&self) -> Result<Vec<Arc<GetPolicy>>> {
+    /// Get own vaults
+    pub fn vaults(&self) -> Result<Vec<Arc<GetVault>>> {
         block_on(async move {
-            let policies = self.inner.get_policies().await?;
+            let policies = self.inner.vaults().await?;
             Ok(policies.into_iter().map(|p| Arc::new(p.into())).collect())
         })
     }
 
-    pub fn get_proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
+    pub fn proposals(&self) -> Result<Vec<Arc<GetProposal>>> {
         block_on(async move {
-            let proposals = self.inner.get_proposals().await?;
+            let proposals = self.inner.proposals().await?;
             Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
         })
     }
 
-    pub fn get_proposals_by_policy_id(
-        &self,
-        policy_id: Arc<EventId>,
-    ) -> Result<Vec<Arc<GetProposal>>> {
+    pub fn proposals_by_policy_id(&self, policy_id: Arc<EventId>) -> Result<Vec<Arc<GetProposal>>> {
         block_on(async move {
-            let proposals = self.inner.get_proposals_by_policy_id(**policy_id).await?;
+            let proposals = self.inner.proposals_by_policy_id(**policy_id).await?;
             Ok(proposals.into_iter().map(|p| Arc::new(p.into())).collect())
         })
     }
@@ -579,12 +577,10 @@ impl SmartVaults {
         block_on(async move { Ok(Arc::new(self.inner.save_smartvaults_signer().await?.into())) })
     }
 
-    // TODO: add get_all_signers
-
-    pub fn get_signers(&self) -> Vec<Arc<GetSigner>> {
+    pub fn signers(&self) -> Vec<Arc<GetSigner>> {
         block_on(async move {
             self.inner
-                .get_signers()
+                .signers()
                 .await
                 .into_iter()
                 .map(|s| Arc::new(s.into()))
@@ -596,11 +592,12 @@ impl SmartVaults {
         &self,
         signer_id: Arc<EventId>,
         public_key: Arc<PublicKey>,
+        message: String,
     ) -> Result<Arc<EventId>> {
         block_on(async move {
             Ok(Arc::new(
                 self.inner
-                    .share_signer(**signer_id, **public_key)
+                    .share_signer(**signer_id, **public_key, message)
                     .await?
                     .into(),
             ))
@@ -629,11 +626,11 @@ impl SmartVaults {
         block_on(async move { Ok(self.inner.revoke_shared_signer(**shared_signer_id).await?) })
     }
 
-    pub fn get_shared_signers(&self) -> Result<Vec<Arc<GetSharedSigner>>> {
+    pub fn shared_signers(&self) -> Result<Vec<Arc<GetSharedSigner>>> {
         block_on(async move {
             Ok(self
                 .inner
-                .get_shared_signers()
+                .shared_signers()
                 .await?
                 .into_iter()
                 .map(|s| Arc::new(s.into()))

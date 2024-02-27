@@ -1,12 +1,15 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::BTreeSet;
+
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::miniscript::DescriptorPublicKey;
 use smartvaults_sdk::core::PolicyTemplate;
 use smartvaults_sdk::nostr::{Profile, PublicKey};
-use smartvaults_sdk::types::{GetAllSigners, GetSharedSigner, GetSigner};
+use smartvaults_sdk::protocol::v2::Signer;
+use smartvaults_sdk::types::GetSharedSigner;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -21,11 +24,17 @@ pub enum PolicyBuilderMessage {
     DescriptionChanged(String),
     IncreaseThreshold,
     DecreaseThreshold,
-    Load((GetAllSigners, Profile)),
+    Load {
+        signers: BTreeSet<Signer>,
+        shared_signers: Vec<GetSharedSigner>,
+        profile: Profile,
+    },
     AddSigner,
     EditSigner(usize, Box<Profile>, Box<DescriptorPublicKey>),
     RemoveSigner(usize),
-    SelectingSigner { index: Option<usize> },
+    SelectingSigner {
+        index: Option<usize>,
+    },
     ErrorChanged(Option<String>),
     SavePolicy,
 }
@@ -34,7 +43,8 @@ pub enum PolicyBuilderMessage {
 pub struct PolicyBuilderState {
     name: String,
     description: String,
-    signers: GetAllSigners,
+    signers: BTreeSet<Signer>,
+    shared_signers: Vec<GetSharedSigner>,
     threshold: usize,
     policy: Vec<Option<(Profile, DescriptorPublicKey)>>,
     profile: Option<Profile>,
@@ -84,11 +94,19 @@ impl State for PolicyBuilderState {
         let client = ctx.client.clone();
         Command::perform(
             async move {
-                let signers = client.get_all_signers().await.unwrap();
+                let signers = client.signers().await;
+                let shared_signers = client.shared_signers().await.unwrap();
                 let profile = client.get_profile().await.unwrap();
-                (signers, profile)
+                (signers, shared_signers, profile)
             },
-            |(s, p)| PolicyBuilderMessage::Load((s, p)).into(),
+            |(signers, shared_signers, profile)| {
+                PolicyBuilderMessage::Load {
+                    signers,
+                    shared_signers,
+                    profile,
+                }
+                .into()
+            },
         )
     }
 
@@ -113,7 +131,11 @@ impl State for PolicyBuilderState {
                     }
                 }
                 PolicyBuilderMessage::ErrorChanged(error) => self.error = error,
-                PolicyBuilderMessage::Load((signers, profile)) => {
+                PolicyBuilderMessage::Load {
+                    signers,
+                    shared_signers,
+                    profile,
+                } => {
                     self.signers = signers;
                     self.profile = Some(profile);
                     self.loading = false;
@@ -154,20 +176,12 @@ impl State for PolicyBuilderState {
                         .flatten()
                         .map(|(_, desc)| desc.clone())
                         .collect();
-                    let public_keys: Vec<PublicKey> = self
-                        .policy
-                        .iter()
-                        .flatten()
-                        .map(|(user, ..)| user.public_key())
-                        .collect();
                     return Command::perform(
                         async move {
                             let template: PolicyTemplate =
                                 PolicyTemplate::multisig(threshold, descriptors);
                             let policy: String = template.build()?.to_string();
-                            client
-                                .save_policy(name, description, policy, public_keys)
-                                .await?;
+                            client.save_vault(name, description, policy).await?;
                             Ok::<(), Box<dyn std::error::Error>>(())
                         },
                         |res| match res {
@@ -391,11 +405,12 @@ fn view_signer_selector<'a>(state: &PolicyBuilderState, index: usize) -> Column<
         .push(rule::horizontal_bold());
 
     if let Some(user) = &state.profile {
-        for GetSigner { signer_id, signer } in state.signers.my.iter() {
+        for signer in state.signers.iter() {
+            let signer_id = signer.compute_id();
             if let Ok(descriptor) = signer.descriptor_public_key() {
                 let row = Row::new()
                     .push(
-                        Text::new(util::cut_event_id(*signer_id))
+                        Text::new(util::cut_event_id(signer_id))
                             .width(Length::Fixed(115.0))
                             .view(),
                     )

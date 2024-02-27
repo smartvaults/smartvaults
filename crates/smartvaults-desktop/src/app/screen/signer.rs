@@ -5,8 +5,8 @@ use std::collections::BTreeMap;
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::nostr::{EventId, Profile};
+use smartvaults_sdk::protocol::v1::Signer;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;

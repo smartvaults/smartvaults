@@ -4,7 +4,9 @@
 use core::ops::Deref;
 
 use smartvaults_core::bitcoin::absolute;
-use smartvaults_core::{DecayingTime, Locktime, PolicyTemplate, RecoveryTemplate, Sequence};
+use smartvaults_core::{
+    DecayingTime, Locktime, PolicyTemplate, PolicyTemplateType, RecoveryTemplate, Sequence,
+};
 use wasm_bindgen::prelude::*;
 
 use crate::descriptor::JsDescriptorPublicKey;
@@ -97,6 +99,18 @@ pub enum JsPolicyTemplateType {
     Recovery,
     Hold,
     Decaying,
+}
+
+impl From<PolicyTemplateType> for JsPolicyTemplateType {
+    fn from(value: PolicyTemplateType) -> Self {
+        match value {
+            PolicyTemplateType::Singlesig => Self::Singlesig,
+            PolicyTemplateType::Multisig => Self::Multisig,
+            PolicyTemplateType::Recovery => Self::Recovery,
+            PolicyTemplateType::Hold => Self::Hold,
+            PolicyTemplateType::Decaying => Self::Decaying,
+        }
+    }
 }
 
 #[wasm_bindgen(js_name = RecoveryTemplate)]

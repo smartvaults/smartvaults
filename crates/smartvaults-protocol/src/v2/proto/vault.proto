@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package vault;
+
+message VaultIdentifier {
+  bytes id = 1;
+}
+
+message Vault {
+  oneof object {
+    VaultV1 v1 = 1;
+  }
+}
+
+message VaultV1 {
+  string descriptor = 1;
+  bytes network = 2;
+  bytes shared_key = 3;
+}
+
+message VaultMetadata {
+  // Fields needed to identify the vault
+  VaultIdentifier vault_id = 1;
+
+  // Metadata
+  string name = 2;
+  string description = 3;
+}
+
+message VaultInvite {
+  vault.Vault vault = 1;
+  optional string sender = 2;
+  string message = 3;
+  fixed64 timestamp = 4;
+}

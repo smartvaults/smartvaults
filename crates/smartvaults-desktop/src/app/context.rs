@@ -6,12 +6,12 @@ use std::fmt;
 
 use smartvaults_sdk::core::bdk::FeeRate;
 use smartvaults_sdk::core::bitcoin::Txid;
-use smartvaults_sdk::core::policy::Policy;
-use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::Priority;
 use smartvaults_sdk::nostr::{EventId, Url};
-use smartvaults_sdk::protocol::v1::SignerOffering;
-use smartvaults_sdk::types::{GetPolicy, GetSigner};
+use smartvaults_sdk::protocol::v2::{
+    ProposalIdentifier, Signer, SignerOffering, Vault, VaultIdentifier,
+};
+use smartvaults_sdk::types::GetVault;
 use smartvaults_sdk::{util, SmartVaults};
 
 pub const AVAILABLE_MODES: [Mode; 2] = [Mode::User, Mode::KeyAgent];
@@ -23,18 +23,18 @@ pub enum Stage {
     AddVault,
     VaultBuilder,
     RestoreVault,
-    Vault(EventId),
-    PolicyTree(EventId),
-    Spend(Option<GetPolicy>),
-    Receive(Option<GetPolicy>),
-    SelfTransfer,
-    NewProof(Option<GetPolicy>),
+    Vault(VaultIdentifier),
+    PolicyTree(VaultIdentifier),
+    Spend(Option<GetVault>),
+    Receive(Option<GetVault>),
+    NewProof(Option<GetVault>),
     Activity,
-    Proposal(EventId),
-    Transaction { policy_id: EventId, txid: Txid },
-    History,
-    CompletedProposal(EventId),
-    Addresses(Option<(EventId, Policy)>),
+    Proposal(ProposalIdentifier),
+    Transaction {
+        vault_id: VaultIdentifier,
+        txid: Txid,
+    },
+    Addresses(Option<(EventId, Vault)>),
     Signers,
     RevokeAllSigners,
     Signer(EventId, Signer),
@@ -43,7 +43,7 @@ pub enum Stage {
     AddAirGapSigner,
     AddColdcardSigner,
     ShareSigner(EventId),
-    EditSignerOffering(Option<(GetSigner, Option<SignerOffering>)>),
+    EditSignerOffering(Option<(Signer, Option<SignerOffering>)>),
     KeyAgents,
     Contacts,
     AddContact,
@@ -73,13 +73,10 @@ impl fmt::Display for Stage {
             Self::Vault(id) => write!(f, "Vault #{}", util::cut_event_id(*id)),
             Self::Spend(_) => write!(f, "Spend"),
             Self::Receive(_) => write!(f, "Receive"),
-            Self::SelfTransfer => write!(f, "Self transfer"),
             Self::NewProof(_) => write!(f, "New Proof"),
             Self::Activity => write!(f, "Activity"),
             Self::Proposal(id) => write!(f, "Proposal #{}", util::cut_event_id(*id)),
             Self::Transaction { txid, .. } => write!(f, "Tx #{}", util::cut_txid(*txid)),
-            Self::History => write!(f, "History"),
-            Self::CompletedProposal(..) => write!(f, "Completed proposal"),
             Self::Addresses(..) => write!(f, "Addresses"),
             Self::Signers => write!(f, "Signers"),
             Self::RevokeAllSigners => write!(f, "Revoke all"),

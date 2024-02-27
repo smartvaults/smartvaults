@@ -10,12 +10,12 @@ use smartvaults_core::{
 
 fn main() {
     // Descriptors
-    let desc1 = DescriptorPublicKey::from_str("[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*").unwrap();
-    let desc2 = DescriptorPublicKey::from_str("[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*").unwrap();
+    let desc1 = DescriptorPublicKey::from_str("[7356e457/48'/1'/0'/3']tpubDFjrNfaRKF1vvzELxYgrSvtHZPeyXBJZpHQkWsuVqe9WK7ndRESHZpSsAzPJdd2Bsyer9wcjoCbKQxHTfDcR23ZUjCezaGjRjCjMVfTshrZ/0/*").unwrap();
+    let desc2 = DescriptorPublicKey::from_str("[4eb5d5a1/48'/1'/0'/3']tpubDEq8TpwmaKaKF5hTZPhpxiEEXcAvnLi6ksd81XYGFFyVfCtv5m9svkZAZ41PhHuMuajkrg1yKKtUzVtqALP87M9df2FYGYWf2coYAnHc1AP/0/*").unwrap();
     let desc3 = DescriptorPublicKey::from_str("[f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*").unwrap();
 
     // Multisig template (2 of 2)
-    let template = PolicyTemplate::multisig(1, vec![desc1.clone(), desc2.clone()]);
+    let template = PolicyTemplate::multisig(2, vec![desc1.clone(), desc2.clone()]);
     println!(
         "Multisig (2of2): {}\n",
         template.build().unwrap().to_string()

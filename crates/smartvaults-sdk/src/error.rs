@@ -23,6 +23,8 @@ pub enum Error {
     #[error(transparent)]
     Dir(#[from] util::dir::Error),
     #[error(transparent)]
+    ProtocolV2(#[from] smartvaults_protocol::v2::Error),
+    #[error(transparent)]
     JSON(#[from] serde_json::Error),
     #[error(transparent)]
     Electrum(#[from] bdk_electrum::electrum_client::Error),
@@ -42,6 +44,8 @@ pub enum Error {
     EventId(#[from] nostr_sdk::event::id::Error),
     #[error(transparent)]
     EventBuilder(#[from] nostr_sdk::event::builder::Error),
+    #[error(transparent)]
+    NostrSigner(#[from] nostr_sdk::signer::Error),
     #[error(transparent)]
     SmartVaultsEventBuilder(#[from] SmartVaultsEventBuilderError),
     #[error(transparent)]
@@ -96,10 +100,10 @@ pub enum Error {
     SignerNotFound,
     #[error("signer ID not found")]
     SignerIdNotFound,
+    #[error("shared signer ID not found")]
+    SharedSignerIdNotFound,
     #[error("public key not found")]
     PublicKeyNotFound,
-    #[error("signer already shared")]
-    SignerAlreadyShared,
     #[error("signer descriptor already exists")]
     SignerDescriptorAlreadyExists,
     #[error("nostr connect request already approved")]

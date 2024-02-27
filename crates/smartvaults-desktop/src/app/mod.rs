@@ -13,17 +13,7 @@ mod sync;
 
 pub use self::context::{Context, Stage};
 pub use self::message::Message;
-// use self::screen::AddHWSignerState;
-use self::screen::{
-    ActivityState, AddAirGapSignerState, AddColdcardSignerState, AddContactState,
-    AddNostrConnectSessionState, AddRelayState, AddSignerState, AddVaultState, AddressesState,
-    ChangePasswordState, CompletedProposalState, ConfigState, ConnectState, ContactsState,
-    DashboardState, EditProfileState, EditSignerOfferingState, HistoryState, KeyAgentsState,
-    NewProofState, PoliciesState, PolicyBuilderState, PolicyTreeState, ProfileState, ProposalState,
-    ReceiveState, RecoveryKeysState, RelayState, RelaysState, RestoreVaultState,
-    RevokeAllSignersState, SelfTransferState, SettingsState, ShareSignerState, SignerState,
-    SignersState, SpendState, TransactionState, VaultState, WipeKeysState,
-};
+use self::screen::*;
 use self::sync::SmartVaultsSync;
 use crate::theme::Theme;
 
@@ -54,15 +44,10 @@ pub fn new_state(ctx: &Context) -> Box<dyn State> {
         Stage::PolicyTree(policy_id) => PolicyTreeState::new(*policy_id).into(),
         Stage::Spend(policy) => SpendState::new(policy.clone()).into(),
         Stage::Receive(policy) => ReceiveState::new(policy.clone()).into(),
-        Stage::SelfTransfer => SelfTransferState::new().into(),
         Stage::NewProof(policy) => NewProofState::new(policy.clone()).into(),
         Stage::Activity => ActivityState::new().into(),
         Stage::Proposal(proposal_id) => ProposalState::new(*proposal_id).into(),
-        Stage::Transaction { policy_id, txid } => TransactionState::new(*policy_id, *txid).into(),
-        Stage::History => HistoryState::new().into(),
-        Stage::CompletedProposal(completed_proposal_id) => {
-            CompletedProposalState::new(*completed_proposal_id).into()
-        }
+        Stage::Transaction { vault_id, txid } => TransactionState::new(*vault_id, *txid).into(),
         Stage::Addresses(policy) => AddressesState::new(policy.clone()).into(),
         Stage::Signers => SignersState::new().into(),
         Stage::RevokeAllSigners => RevokeAllSignersState::new().into(),

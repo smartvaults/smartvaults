@@ -8,9 +8,9 @@ use iced::alignment::Horizontal;
 use iced::widget::{Column, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bitcoin::ScriptBuf;
-use smartvaults_sdk::core::policy::Policy;
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::types::{GetAddress, GetPolicy};
+use smartvaults_sdk::protocol::v1::Vault;
+use smartvaults_sdk::types::{GetAddress, GetVault};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -57,7 +57,7 @@ pub struct AddressesState {
 }
 
 impl AddressesState {
-    pub fn new(policy: Option<(EventId, Policy)>) -> Self {
+    pub fn new(policy: Option<(EventId, Vault)>) -> Self {
         Self {
             policy: policy.map(|(policy_id, policy)| PolicyPickList {
                 policy_id,
@@ -84,16 +84,16 @@ impl State for AddressesState {
         Command::perform(
             async move {
                 client
-                    .get_policies()
+                    .vaults()
                     .await
                     .unwrap()
                     .into_iter()
                     .map(
-                        |GetPolicy {
-                             policy_id, policy, ..
+                        |GetVault {
+                             policy_id, vault, ..
                          }| PolicyPickList {
                             policy_id,
-                            name: policy.name(),
+                            name: vault.name,
                         },
                     )
                     .collect()

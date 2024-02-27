@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package wrapper;
+
+import "signer.proto";
+import "vault.proto";
+
+message Wrapper {
+  oneof object {
+    vault.VaultInvite vault_invite = 1;
+    signer.SharedSignerInvite shared_signer_invite = 2;
+  }
+}

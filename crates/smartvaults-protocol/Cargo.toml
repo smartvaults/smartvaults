@@ -10,10 +10,20 @@ license.workspace = true
 readme = "README.md"
 keywords.workspace = true
 
+[features]
+default = []
+hwi = ["smartvaults-core/hwi"]
+
 [dependencies]
+async-trait.workspace = true
 smartvaults-core = { path = "../smartvaults-core", default-features = false }
-nostr = { workspace = true, features = ["std", "nip04"] }
+nostr = { workspace = true, features = ["std", "nip04", "nip44"] }
+nostr-signer = { workspace = true, features = ["nip07", "nip44", "nip46"] }
 once_cell.workspace = true
+prost = "0.12"
 serde = { workspace = true, features = ["derive"] }
-serde_json = "1.0"
+serde_json.workspace = true
 thiserror.workspace = true
+
+[build-dependencies]
+prost-build = "0.12"

@@ -9,9 +9,9 @@ use std::str::FromStr;
 use iced::widget::{Column, PickList, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::protocol::v1::key_agent::signer::Currency;
-use smartvaults_sdk::protocol::v1::{BasisPoints, DeviceType, Price, SignerOffering, Temperature};
-use smartvaults_sdk::types::GetSigner;
+use smartvaults_sdk::protocol::v2::{
+    BasisPoints, Currency, DeviceType, Price, Signer, SignerOffering, Temperature,
+};
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
@@ -20,7 +20,7 @@ use crate::theme::color::DARK_RED;
 
 #[derive(Debug, Clone, Eq)]
 pub struct SignerPickLisk {
-    signer: GetSigner,
+    signer: Signer,
     offering: Option<SignerOffering>,
 }
 
@@ -42,15 +42,15 @@ impl fmt::Display for SignerPickLisk {
 }
 
 impl Deref for SignerPickLisk {
-    type Target = GetSigner;
+    type Target = Signer;
 
     fn deref(&self) -> &Self::Target {
         &self.signer
     }
 }
 
-impl From<(GetSigner, Option<SignerOffering>)> for SignerPickLisk {
-    fn from(value: (GetSigner, Option<SignerOffering>)) -> Self {
+impl From<(Signer, Option<SignerOffering>)> for SignerPickLisk {
+    fn from(value: (Signer, Option<SignerOffering>)) -> Self {
         Self {
             signer: value.0,
             offering: value.1,
@@ -94,7 +94,7 @@ pub struct EditSignerOfferingState {
 }
 
 impl EditSignerOfferingState {
-    pub fn new(signer: Option<(GetSigner, Option<SignerOffering>)>) -> Self {
+    pub fn new(signer: Option<(Signer, Option<SignerOffering>)>) -> Self {
         Self {
             signer: signer.map(|p| p.into()),
             signers: Vec::new(),
@@ -136,7 +136,7 @@ impl State for EditSignerOfferingState {
                     .map(|s| (s.signer.signer_id, s.offering))
                     .collect();
                 client
-                    .get_signers()
+                    .signers()
                     .await
                     .into_iter()
                     .map(|p| {

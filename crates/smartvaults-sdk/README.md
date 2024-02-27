@@ -11,7 +11,7 @@ tokio = { version = "1", features = ["full"] }
 ```rust,no_run
 use std::str::FromStr;
 
-use smartvaults_sdk::core::{Amount, FeeRate};
+use smartvaults_sdk::core::FeeRate;
 use smartvaults_sdk::prelude::*;
 
 const NETWORK: Network = Network::Testnet;
@@ -24,31 +24,34 @@ async fn main() {
         .unwrap();
 
     // Edit relays
-    client
-        .add_relay("wss://you.relay.com", None)
-        .await
-        .unwrap();
+    client.add_relay("wss://you.relay.com", None).await.unwrap();
 
     // Edit configs
     let config = client.config();
     config
         .set_electrum_endpoint(Some("tcp://127.0.0.1:50001"))
-        .await;
+        .await
+        .unwrap();
     config
         .set_block_explorer(Some(Url::parse("http://myblockexplorer.local").unwrap()))
         .await;
     config.save().await.unwrap();
 
+    // Get first vault
+    let vaults = client.vaults().await.unwrap();
+    let vault = vaults.first().unwrap();
+
     // Create a new proposal
-    let policies = client.get_policies().await.unwrap();
     let proposal = client
         .spend(
-            policies.first().unwrap().policy_id,
-            Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap(),
-            Amount::Custom(10_934), // Or, `Amount::Max` to send all
+            &vault.compute_id(),
+            Destination::Single(Recipient {
+                address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap().assume_checked(),
+                amount: Amount::from_sat(10_934),
+            }),
             "Back to the faucet",
             FeeRate::Priority(Priority::Medium), // Or, FeeRate::Rate(1.0) to specify the sat/vByte
-            None, // Specify the UTXOs to use (optional)
+            None,                                // Specify the UTXOs to use (optional)
             None, // Specify the policy path to use (needed only if exists a timelock in the policy descriptor)
             false, // Allow usage of UTXOs frozen by others proposals
         )
@@ -56,12 +59,18 @@ async fn main() {
         .unwrap();
     println!("New proposal: {proposal:#?}");
 
+    // Get proposals
+    let proposals = client.proposals().await.unwrap();
+    for proposal in proposals.into_iter() {
+        println!("{proposal:?}");
+    }
+
     // Approve a proposal
-    client.approve("password", proposal.proposal_id).await.unwrap();
+    client.approve(&proposal.compute_id(), "password").await.unwrap();
     // other approvals ...
 
     // Finalize the proposal
-    client.finalize(proposal.proposal_id).await.unwrap();
+    client.finalize(&proposal.compute_id()).await.unwrap();
 
     // Shutdown the client (for logout)
     client.shutdown().await.unwrap();

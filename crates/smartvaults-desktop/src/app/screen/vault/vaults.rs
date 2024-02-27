@@ -7,7 +7,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
 use smartvaults_sdk::nostr::{EventId, Timestamp};
-use smartvaults_sdk::types::GetPolicy;
+use smartvaults_sdk::types::GetVault;
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -17,7 +17,7 @@ use crate::theme::icon::{FULLSCREEN, PLUS, RELOAD, SAVE};
 
 #[derive(Debug, Clone)]
 pub enum PoliciesMessage {
-    LoadPolicies(Vec<GetPolicy>),
+    LoadPolicies(Vec<GetVault>),
     SavePolicyBackup(EventId),
     Reload,
 }
@@ -26,7 +26,7 @@ pub enum PoliciesMessage {
 pub struct PoliciesState {
     loading: bool,
     loaded: bool,
-    policies: Vec<GetPolicy>,
+    policies: Vec<GetVault>,
 }
 
 impl PoliciesState {
@@ -43,7 +43,7 @@ impl State for PoliciesState {
     fn load(&mut self, ctx: &Context) -> Command<Message> {
         self.loading = true;
         let client = ctx.client.clone();
-        Command::perform(async move { client.get_policies().await.unwrap() }, |p| {
+        Command::perform(async move { client.vaults().await.unwrap() }, |p| {
             PoliciesMessage::LoadPolicies(p).into()
         })
     }
@@ -144,9 +144,9 @@ impl State for PoliciesState {
                     )
                     .push(rule::horizontal_bold());
 
-                for GetPolicy {
+                for GetVault {
                     policy_id,
-                    policy,
+                    vault,
                     balance,
                     last_sync,
                 } in self.policies.iter()
@@ -172,7 +172,7 @@ impl State for PoliciesState {
                                 .width(Length::Fixed(115.0))
                                 .view(),
                         )
-                        .push(Text::new(&policy.name()).width(Length::Fill).view())
+                        .push(Text::new(&vault.name).width(Length::Fill).view())
                         .push(balance)
                         .push(
                             Button::new()

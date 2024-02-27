@@ -3,16 +3,17 @@
 
 use nostr::{key, util, Keys};
 use smartvaults_core::bdk::wallet::ChangeSet;
-use smartvaults_core::bitcoin::secp256k1::SecretKey;
+use smartvaults_core::bitcoin::secp256k1::{self, SecretKey};
 use smartvaults_core::crypto::aes;
 use smartvaults_core::util::serde::deserialize;
-use smartvaults_core::{
-    secp256k1, ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
-};
+use thiserror::Error;
 
 use super::serde::Serde;
+use crate::v1::proposal::{ApprovedProposal, CompletedProposal, Proposal};
+use crate::v1::signer::{SharedSigner, Signer};
+use crate::v1::vault::Vault;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
     Aes(#[from] aes::Error),
@@ -60,8 +61,8 @@ impl Encryption for SecretKey {}
 
 impl Serde for ChangeSet {}
 
-impl Serde for Policy {}
-impl Encryption for Policy {}
+impl Serde for Vault {}
+impl Encryption for Vault {}
 
 impl Serde for Proposal {}
 impl Encryption for Proposal {}

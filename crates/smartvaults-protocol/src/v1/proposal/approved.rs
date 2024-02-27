@@ -1,11 +1,11 @@
-// Copyright (c) 2022-2024 Smart Vaults
+// Copyright (c) 2022-2023 Smart Vaults
 // Distributed under the MIT software license
 
-use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use serde::{Deserialize, Serialize};
+use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
 
 use super::ProposalType;
-use crate::util::{deserialize_psbt, serialize_psbt};
+use crate::v1::psbt::{deserialize_psbt, serialize_psbt};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ApprovedProposal {

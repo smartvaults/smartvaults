@@ -35,7 +35,7 @@ Before using `smartvaults-desktop` or `smartvaults-cli`, take a look at [usage](
 ### Ubuntu & Debian
 
 ```
-sudo apt install build-essential libusb-1.0-0-dev libudev-dev python3-dev
+sudo apt install build-essential libusb-1.0-0-dev libudev-dev python3-dev protobuf-compiler
 ```
 
 GUI dependencies:

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package signer;
+
+enum SignerType {
+  SEED = 0;
+  HARDWARE = 1;
+  AIRGAP = 2;
+  UNKNOWN = 3;
+}
+
+enum Purpose {
+  BIP44 = 0;
+  BIP49 = 1;
+  BIP84 = 2;
+  BIP86 = 3;
+  BIP48_1 = 4;
+  BIP48_2 = 5;
+  BIP48_3 = 6;
+}
+
+message DescriptorKeyValue {
+  Purpose purpose = 1;
+  string descriptor = 2;
+}
+
+// TODO: create CoreSigner
+
+message Signer {
+  string fingerprint = 1;
+  repeated DescriptorKeyValue descriptors = 2;
+  bytes network = 3;
+  SignerType type = 4;
+  string name = 5;
+  string description = 6;
+}
+
+message SharedSigner {
+  string fingerprint = 1;
+  repeated DescriptorKeyValue descriptors = 2;
+  bytes network = 3;
+  string owner = 4;
+  string receiver = 5;
+  fixed64 timestamp = 6;
+}
+
+message SharedSignerInvite {
+  signer.SharedSigner shared_signer = 1;
+  optional string sender = 2;
+  string message = 3;
+  fixed64 timestamp = 4;
+}

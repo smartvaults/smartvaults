@@ -1,106 +1,78 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeSet, HashSet};
 
-use nostr_sdk::database::NostrDatabaseExt;
-use nostr_sdk::nips::nip04;
-use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Keys, Kind, Profile, PublicKey, RelaySendOptions,
-    Tag,
-};
+use nostr_sdk::prelude::*;
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::signer::{SharedSigner, Signer};
-use smartvaults_protocol::v1::constants::{SHARED_SIGNERS_KIND, SIGNERS_KIND};
-use smartvaults_protocol::v1::util::{Encryption, Serde};
+use smartvaults_protocol::v2::constants::{SHARED_SIGNER_KIND_V2, SIGNER_KIND_V2};
+use smartvaults_protocol::v2::{
+    self, NostrPublicIdentifier, SharedSigner, SharedSignerInvite, Signer, SignerIdentifier,
+};
 
 use super::{Error, SmartVaults};
-use crate::storage::InternalSharedSigner;
-use crate::types::{GetAllSigners, GetSharedSigner, GetSigner};
+use crate::types::GetSharedSigner;
 
 impl SmartVaults {
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signer_by_id(&self, signer_id: EventId) -> Result<Signer, Error> {
-        self.storage.signer(&signer_id).await
+    pub async fn get_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<Signer, Error> {
+        self.storage.signer(signer_id).await
     }
 
-    pub async fn delete_signer_by_id(&self, signer_id: EventId) -> Result<(), Error> {
-        let my_shared_signers = self
-            .storage
-            .get_my_shared_signers_by_signer_id(&signer_id)
-            .await;
-        let mut tags: Vec<Tag> = Vec::new();
+    pub async fn delete_signer_by_id(&self, signer_id: &SignerIdentifier) -> Result<(), Error> {
+        let public_key: PublicKey = self.nostr_public_key().await?;
 
-        tags.push(Tag::event(signer_id));
+        let signer: Signer = self.storage.signer(signer_id).await?;
 
-        for (shared_signer_id, public_key) in my_shared_signers.into_iter() {
-            tags.push(Tag::public_key(public_key));
-            tags.push(Tag::event(shared_signer_id));
-        }
+        let nostr_public_identifier: NostrPublicIdentifier = signer.nostr_public_identifier();
 
-        let event = EventBuilder::new(Kind::EventDeletion, "", tags);
+        let filter: Filter = Filter::new()
+            .kind(SIGNER_KIND_V2)
+            .author(public_key)
+            .identifier(nostr_public_identifier.to_string())
+            .limit(1);
+        let res: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![filter], Order::Desc)
+            .await?;
+        let signer_event: &Event = res.first().ok_or(Error::NotFound)?;
+
+        let event = EventBuilder::new(Kind::EventDeletion, "", [Tag::event(signer_event.id)]);
         self.client.send_event_builder(event).await?;
 
-        self.storage.delete_signer(&signer_id).await;
+        self.storage.delete_signer(signer_id).await;
 
         Ok(())
     }
 
-    pub async fn save_signer(&self, signer: Signer) -> Result<EventId, Error> {
-        let keys: &Keys = self.keys();
+    pub async fn save_signer(&self, signer: Signer) -> Result<SignerIdentifier, Error> {
+        let nostr_signer = self.client.signer().await?;
 
-        if self
-            .storage
-            .signer_descriptor_exists(signer.descriptor())
-            .await
-        {
-            return Err(Error::SignerDescriptorAlreadyExists);
-        }
+        // Compose and publish event
+        let event: Event = v2::signer::build_event(&nostr_signer, &signer).await?;
+        self.client.send_event(event).await?;
 
-        // Compose the event
-        let content: String = signer.encrypt_with_keys(keys)?;
+        // Index signer
+        let id: SignerIdentifier = signer.compute_id();
+        self.storage.save_signer(id, signer).await;
 
-        // Compose signer event
-        let event = EventBuilder::new(SIGNERS_KIND, content, []).to_event(keys)?;
-
-        // Publish the event
-        let signer_id = self.client.send_event(event).await?;
-
-        // Save signer in db
-        self.storage.save_signer(signer_id, signer).await;
-
-        Ok(signer_id)
+        Ok(id)
     }
 
     pub async fn smartvaults_signer_exists(&self) -> bool {
         self.storage
-            .signer_descriptor_exists(self.default_signer.descriptor())
+            .signer_exists(&self.default_signer.compute_id())
             .await
     }
 
-    pub async fn save_smartvaults_signer(&self) -> Result<EventId, Error> {
+    pub async fn save_smartvaults_signer(&self) -> Result<SignerIdentifier, Error> {
         self.save_signer(self.default_signer.clone()).await
     }
 
-    /// Get all own signers and contacts shared signers
-    pub async fn get_all_signers(&self) -> Result<GetAllSigners, Error> {
-        Ok(GetAllSigners {
-            my: self.get_signers().await,
-            contacts: self.get_shared_signers().await?,
-        })
-    }
-
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_signers(&self) -> Vec<GetSigner> {
-        let mut list: Vec<GetSigner> = self
-            .storage
-            .signers()
-            .await
-            .into_iter()
-            .map(GetSigner::from)
-            .collect();
-        list.sort();
-        list
+    pub async fn signers(&self) -> BTreeSet<Signer> {
+        self.storage.signers().await.into_values().collect()
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -110,151 +82,191 @@ impl SmartVaults {
     ) -> Result<Signer, Error> {
         let descriptor: String = descriptor.to_string();
         for signer in self.storage.signers().await.into_values() {
-            let signer_descriptor: String = signer.descriptor_public_key()?.to_string();
-            if descriptor.contains(&signer_descriptor) {
-                return Ok(signer);
+            for desc in signer.descriptors().values() {
+                let signer_descriptor: String = desc.to_string();
+                if descriptor.contains(&signer_descriptor) {
+                    return Ok(signer);
+                }
             }
         }
         Err(Error::SignerNotFound)
     }
 
-    pub async fn share_signer(
+    /// Edit [Signer] metadata
+    ///
+    /// Args set to `None` aren't updated.
+    pub async fn edit_signer_metadata(
         &self,
-        signer_id: EventId,
-        public_key: PublicKey,
-    ) -> Result<EventId, Error> {
-        if !self
-            .storage
-            .my_shared_signer_already_shared(signer_id, public_key)
-            .await
-        {
-            let keys: &Keys = self.keys();
-            let signer: Signer = self.get_signer_by_id(signer_id).await?;
-            let shared_signer: SharedSigner = signer.to_shared_signer();
-            let content: String =
-                nip04::encrypt(keys.secret_key()?, &public_key, shared_signer.as_json())?;
-            let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
-            let event: Event =
-                EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
-            let event_id = self.client.send_event(event).await?;
-            self.storage
-                .save_my_shared_signer(signer_id, event_id, public_key)
-                .await;
-            Ok(event_id)
-        } else {
-            Err(Error::SignerAlreadyShared)
+        signer_id: &SignerIdentifier,
+        name: Option<String>,
+        description: Option<String>,
+    ) -> Result<(), Error> {
+        let nostr_signer = self.client.signer().await?;
+
+        // Get signer
+        let mut signer: Signer = self.storage.signer(signer_id).await?;
+
+        if let Some(name) = name {
+            signer.change_name(name);
         }
+
+        if let Some(description) = description {
+            signer.change_description(description);
+        }
+
+        // Compose and publish event
+        let event: Event = v2::signer::build_event(&nostr_signer, &signer).await?;
+        self.client.send_event(event).await?;
+
+        // Re-save signer with updated metadata
+        self.storage.save_signer(*signer_id, signer).await;
+
+        Ok(())
+    }
+
+    /// Create shared signer and **send invite** to receiver
+    pub async fn share_signer<S>(
+        &self,
+        signer_id: &SignerIdentifier,
+        receiver: PublicKey,
+        message: S,
+    ) -> Result<(), Error>
+    where
+        S: Into<String>,
+    {
+        let public_key: PublicKey = self.nostr_public_key().await?;
+
+        // Get signer
+        let signer: Signer = self.get_signer_by_id(signer_id).await?;
+
+        // Build shared signer
+        let shared_signer: SharedSigner = signer.to_shared(public_key, receiver);
+
+        // Compose invite
+        let invite: SharedSignerInvite = shared_signer.to_invite(message);
+
+        // Compose and publish event
+        let event: Event = v2::signer::shared::invite::build_event(invite, receiver)?;
+        self.client.send_event(event).await?;
+
+        Ok(())
+    }
+
+    /// Get shared signer invites
+    pub async fn shared_signer_invites(&self) -> Result<Vec<SharedSignerInvite>, Error> {
+        let invites = self.storage.shared_signer_invites().await;
+        let mut invites: Vec<SharedSignerInvite> = invites.into_values().collect();
+        invites.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        Ok(invites)
+    }
+
+    /// Accept a shared signer invite
+    pub async fn accept_shared_signer_invite(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> Result<(), Error> {
+        let nostr_signer = self.client.signer().await?;
+
+        // Get invite
+        let invite: SharedSignerInvite =
+            self.storage.shared_signer_invite(shared_signer_id).await?;
+
+        // Compose and publish event
+        let event: Event =
+            v2::signer::shared::build_event(&nostr_signer, invite.shared_signer()).await?;
+        self.client.send_event(event).await?;
+
+        // Delete invite
+        self.storage
+            .delete_shared_signer_invite(shared_signer_id)
+            .await;
+        Ok(())
+    }
+
+    /// Delete a vault invite
+    pub async fn delete_shared_signer_invite(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> bool {
+        self.storage
+            .delete_shared_signer_invite(shared_signer_id)
+            .await
+    }
+
+    pub async fn delete_shared_signer(
+        &self,
+        shared_signer_id: &NostrPublicIdentifier,
+    ) -> Result<(), Error> {
+        let public_key: PublicKey = self.nostr_public_key().await?;
+
+        let filter: Filter = Filter::new()
+            .kind(SHARED_SIGNER_KIND_V2)
+            .author(public_key)
+            .identifier(shared_signer_id.to_string())
+            .limit(1);
+        let res: Vec<Event> = self
+            .client
+            .database()
+            .query(vec![filter], Order::Desc)
+            .await?;
+        let shared_signer_event: &Event = res.first().ok_or(Error::NotFound)?;
+
+        let event = EventBuilder::new(
+            Kind::EventDeletion,
+            "",
+            [Tag::event(shared_signer_event.id)],
+        );
+        self.client.send_event_builder(event).await?;
+
+        self.storage.delete_shared_signer(shared_signer_id).await;
+
+        Ok(())
     }
 
     pub async fn share_signer_to_multiple_public_keys(
         &self,
-        signer_id: EventId,
-        public_keys: Vec<PublicKey>,
+        signer_id: &SignerIdentifier,
+        receivers: Vec<PublicKey>,
     ) -> Result<(), Error> {
-        if public_keys.is_empty() {
+        if receivers.is_empty() {
             return Err(Error::NotEnoughPublicKeys);
         }
 
-        let keys: &Keys = self.keys();
+        let public_key: PublicKey = self.nostr_public_key().await?;
         let signer: Signer = self.get_signer_by_id(signer_id).await?;
-        let shared_signer: SharedSigner = signer.to_shared_signer();
 
-        for public_key in public_keys.into_iter() {
-            if self
-                .storage
-                .my_shared_signer_already_shared(signer_id, public_key)
-                .await
-            {
-                tracing::warn!("Signer {signer_id} already shared with {public_key}");
-            } else {
-                let content: String =
-                    nip04::encrypt(keys.secret_key()?, &public_key, shared_signer.as_json())?;
-                let tags = [Tag::event(signer_id), Tag::public_key(public_key)];
-                let event: Event =
-                    EventBuilder::new(SHARED_SIGNERS_KIND, content, tags).to_event(keys)?;
-                let event_id: EventId = event.id;
+        for receiver in receivers.into_iter() {
+            let _shared_signer: SharedSigner = signer.as_shared(public_key, receiver);
 
-                // TODO: use send_batch_event method from nostr-sdk
-                self.client
-                    .pool()
-                    .send_msg(
-                        ClientMessage::event(event),
-                        RelaySendOptions::new().skip_send_confirmation(true),
-                    )
-                    .await?;
+            todo!();
 
-                self.storage
-                    .save_my_shared_signer(signer_id, event_id, public_key)
-                    .await;
-            }
+            // TODO: use send_batch_event method from nostr-sdk
+            // self.client
+            // .pool()
+            // .send_msg(
+            //      ClientMessage::event(event),
+            //      RelaySendOptions::new().skip_send_confirmation(true),
+            //  )
+            // .await?;
+            //
+            // self.storage
+            // .save_my_shared_signer(signer_id, event_id, public_key)
+            // .await;
         }
 
         Ok(())
     }
 
-    pub async fn revoke_all_shared_signers(&self) -> Result<(), Error> {
-        for (shared_signer_id, public_key) in self.storage.my_shared_signers().await.into_iter() {
-            let tags = [Tag::public_key(public_key), Tag::event(shared_signer_id)];
-            let event = EventBuilder::new(Kind::EventDeletion, "", tags);
-            self.client.send_event_builder(event).await?;
-            self.storage.delete_shared_signer(&shared_signer_id).await;
-        }
-        Ok(())
-    }
-
-    pub async fn revoke_shared_signer(&self, shared_signer_id: EventId) -> Result<(), Error> {
-        let public_key: PublicKey = self
-            .storage
-            .get_public_key_for_my_shared_signer(shared_signer_id)
-            .await?;
-        let tags = [Tag::public_key(public_key), Tag::event(shared_signer_id)];
-        let event = EventBuilder::new(Kind::EventDeletion, "", tags);
-        self.client.send_event_builder(event).await?;
-        self.storage.delete_shared_signer(&shared_signer_id).await;
-        Ok(())
-    }
-
     #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn my_shared_signer_already_shared(
-        &self,
-        signer_id: EventId,
-        public_key: PublicKey,
-    ) -> Result<bool, Error> {
-        Ok(self
-            .storage
-            .my_shared_signer_already_shared(signer_id, public_key)
-            .await)
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_my_shared_signers_by_signer_id(
-        &self,
-        signer_id: EventId,
-    ) -> Result<BTreeMap<EventId, Profile>, Error> {
-        let mut map = BTreeMap::new();
-        let ssbs = self
-            .storage
-            .get_my_shared_signers_by_signer_id(&signer_id)
-            .await;
-        for (key, pk) in ssbs.into_iter() {
-            let profile: Profile = self.client.database().profile(pk).await?;
-            map.insert(key, profile);
-        }
-        Ok(map)
-    }
-
-    #[tracing::instrument(skip_all, level = "trace")]
-    pub async fn get_shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
-        let mut list = Vec::new();
-        for (
-            shared_signer_id,
-            InternalSharedSigner {
-                owner_public_key,
-                shared_signer,
-            },
-        ) in self.storage.shared_signers().await.into_iter()
-        {
-            let profile: Profile = self.client.database().profile(owner_public_key).await?;
+    pub async fn shared_signers(&self) -> Result<Vec<GetSharedSigner>, Error> {
+        let shared_signers = self.storage.shared_signers().await;
+        let mut list = Vec::with_capacity(shared_signers.len());
+        for (shared_signer_id, shared_signer) in shared_signers.into_iter() {
+            let profile: Profile = self
+                .client
+                .database()
+                .profile(*shared_signer.owner())
+                .await?;
             list.push(GetSharedSigner {
                 shared_signer_id,
                 owner: profile,
@@ -273,11 +285,11 @@ impl SmartVaults {
         if include_contacts {
             Ok(public_keys.into_iter().collect())
         } else {
-            let keys = self.keys();
+            let public_key: PublicKey = self.nostr_public_key().await?;
             let contacts: Vec<PublicKey> = self
                 .client
                 .database()
-                .contacts_public_keys(keys.public_key())
+                .contacts_public_keys(public_key)
                 .await?;
             let contacts: HashSet<PublicKey> = contacts.into_iter().collect();
             Ok(public_keys.difference(&contacts).copied().collect())

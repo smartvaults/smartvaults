@@ -5,15 +5,17 @@ use core::ops::Deref;
 use core::str::FromStr;
 
 use smartvaults_core::bitcoin::bip32::Fingerprint;
-use smartvaults_core::policy::Policy;
-use smartvaults_core::SelectableCondition;
+use smartvaults_core::policy::{Policy, PolicyPath, PolicyPathSelector};
+use smartvaults_core::{CoreSigner, SelectableCondition};
 use wasm_bindgen::prelude::*;
 
 pub mod template;
 
-use self::template::JsPolicyTemplate;
+use self::template::{JsPolicyTemplate, JsPolicyTemplateType};
+use crate::descriptor::JsDescriptor;
 use crate::error::{into_err, Result};
 use crate::network::JsNetwork;
+use crate::signer::JsCoreSigner;
 
 #[wasm_bindgen(js_name = SelectableCondition)]
 pub struct JsSelectableCondition {
@@ -41,6 +43,152 @@ impl JsSelectableCondition {
     #[wasm_bindgen(getter, js_name = subPaths)]
     pub fn sub_paths(&self) -> Vec<String> {
         self.inner.sub_paths.clone()
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPathSelectedItem)]
+pub struct JsPolicyPathSelectedItem {
+    #[wasm_bindgen(getter_with_clone)]
+    pub path: String,
+    /// Sub paths indexes
+    #[wasm_bindgen(getter_with_clone)]
+    pub indexes: Vec<usize>,
+}
+
+impl From<(String, Vec<usize>)> for JsPolicyPathSelectedItem {
+    fn from((path, indexes): (String, Vec<usize>)) -> Self {
+        Self { path, indexes }
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPathMissingToSelectedItem)]
+pub struct JsPolicyPathMissingToSelectedItem {
+    #[wasm_bindgen(getter_with_clone)]
+    pub path: String,
+    #[wasm_bindgen(getter_with_clone)]
+    pub sub_paths: Vec<String>,
+}
+
+impl From<(String, Vec<String>)> for JsPolicyPathMissingToSelectedItem {
+    fn from((path, sub_paths): (String, Vec<String>)) -> Self {
+        Self { path, sub_paths }
+    }
+}
+
+#[derive(Clone)]
+#[wasm_bindgen(js_name = PolicyPathSelector)]
+pub struct JsPolicyPathSelector {
+    inner: PolicyPathSelector,
+}
+
+impl From<PolicyPathSelector> for JsPolicyPathSelector {
+    fn from(inner: PolicyPathSelector) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = PolicyPathSelector)]
+impl JsPolicyPathSelector {
+    #[wasm_bindgen(js_name = isComplete)]
+    pub fn is_complete(&self) -> bool {
+        self.inner.is_complete()
+    }
+
+    #[wasm_bindgen(js_name = isPartial)]
+    pub fn is_partial(&self) -> bool {
+        self.inner.is_partial()
+    }
+
+    /// Selected path
+    #[wasm_bindgen(js_name = selectedPath)]
+    pub fn selected_path(&self) -> Vec<JsPolicyPathSelectedItem> {
+        self.inner
+            .selected_path()
+            .clone()
+            .into_iter()
+            .map(|i| i.into())
+            .collect()
+    }
+
+    /// Missing paths to select
+    #[wasm_bindgen(js_name = missingToSelect)]
+    pub fn missing_to_select(&self) -> Vec<JsPolicyPathMissingToSelectedItem> {
+        self.inner
+            .missing_to_select()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|i| i.into())
+            .collect()
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPathMultipleItem)]
+pub struct JsPolicyPathMultipleItem {
+    #[wasm_bindgen(getter_with_clone)]
+    pub signer: JsCoreSigner,
+    #[wasm_bindgen(getter_with_clone)]
+    pub pps: Option<JsPolicyPathSelector>,
+}
+
+impl From<(CoreSigner, Option<PolicyPathSelector>)> for JsPolicyPathMultipleItem {
+    fn from((signer, pps): (CoreSigner, Option<PolicyPathSelector>)) -> Self {
+        Self {
+            signer: signer.into(),
+            pps: pps.map(|pps| pps.into()),
+        }
+    }
+}
+
+#[wasm_bindgen(js_name = PolicyPath)]
+pub struct JsPolicyPath {
+    inner: PolicyPath,
+}
+
+impl From<PolicyPath> for JsPolicyPath {
+    fn from(inner: PolicyPath) -> Self {
+        Self { inner }
+    }
+}
+
+#[wasm_bindgen(js_class = PolicyPath)]
+impl JsPolicyPath {
+    #[wasm_bindgen(js_name = isSingle)]
+    pub fn is_single(&self) -> bool {
+        matches!(self.inner, PolicyPath::Single(..))
+    }
+
+    #[wasm_bindgen(js_name = isMultiple)]
+    pub fn is_multiple(&self) -> bool {
+        matches!(self.inner, PolicyPath::Multiple(..))
+    }
+
+    #[wasm_bindgen(js_name = isNone)]
+    pub fn is_none(&self) -> bool {
+        matches!(self.inner, PolicyPath::None)
+    }
+
+    #[wasm_bindgen(js_name = asSingle)]
+    pub fn as_single(&self) -> Option<JsPolicyPathSelector> {
+        if let PolicyPath::Single(pps) = &self.inner {
+            Some(pps.clone().into())
+        } else {
+            None
+        }
+    }
+
+    #[wasm_bindgen(js_name = asMultiple)]
+    pub fn as_multiple(&self) -> Option<Vec<JsPolicyPathMultipleItem>> {
+        if let PolicyPath::Multiple(map) = &self.inner {
+            Some(
+                map.clone()
+                    .into_iter()
+                    .map(JsPolicyPathMultipleItem::from)
+                    .collect(),
+            )
+        } else {
+            None
+        }
     }
 }
 
@@ -73,33 +221,21 @@ impl From<JsPolicy> for Policy {
 impl JsPolicy {
     /// Construct `Policy` from descriptor string
     ///
-    /// The descriptor must be typed, for example: `tr(...)`
+    /// The descriptor must be typed, for example: `tr(...)` or `wsh(...)`
     #[wasm_bindgen(js_name = fromDescriptor)]
-    pub fn from_descriptor(
-        name: &str,
-        description: &str,
-        descriptor: &str,
-        network: JsNetwork,
-    ) -> Result<JsPolicy> {
+    pub fn from_descriptor(descriptor: &str, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_descriptor(name, description, descriptor, network.into())
-                .map_err(into_err)?,
+            inner: Policy::from_descriptor(descriptor, network.into()).map_err(into_err)?,
         })
     }
 
-    /// Construct `Policy` from miniscript
+    /// Construct `Policy` from miniscripto policy
     ///
     /// <https://bitcoin.sipa.be/miniscript/>
     #[wasm_bindgen(js_name = fromMiniscript)]
-    pub fn from_miniscript(
-        name: &str,
-        description: &str,
-        policy: &str,
-        network: JsNetwork,
-    ) -> Result<JsPolicy> {
+    pub fn from_miniscript(policy: &str, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_policy(name, description, policy, network.into())
-                .map_err(into_err)?,
+            inner: Policy::from_miniscript(policy, network.into()).map_err(into_err)?,
         })
     }
 
@@ -108,43 +244,26 @@ impl JsPolicy {
     /// Internally try before to construct the `Policy` from a descriptor string. If fail, try from miniscript policy.
     #[wasm_bindgen(js_name = fromDescOrMiniscript)]
     pub fn from_desc_or_miniscript(
-        name: &str,
-        description: &str,
         desc_or_miniscript: &str,
         network: JsNetwork,
     ) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_desc_or_policy(
-                name,
-                description,
-                desc_or_miniscript,
-                network.into(),
-            )
-            .map_err(into_err)?,
+            inner: Policy::from_desc_or_miniscript(desc_or_miniscript, network.into())
+                .map_err(into_err)?,
         })
     }
 
     /// Construct `Policy` from `PolicyTemplate`
     #[wasm_bindgen(js_name = fromTemplate)]
-    pub fn from_template(
-        name: &str,
-        description: &str,
-        template: &JsPolicyTemplate,
-        network: JsNetwork,
-    ) -> Result<JsPolicy> {
+    pub fn from_template(template: &JsPolicyTemplate, network: JsNetwork) -> Result<JsPolicy> {
         Ok(Self {
-            inner: Policy::from_template(
-                name,
-                description,
-                template.deref().clone(),
-                network.into(),
-            )
-            .map_err(into_err)?,
+            inner: Policy::from_template(template.deref().clone(), network.into())
+                .map_err(into_err)?,
         })
     }
 
-    pub fn descriptor(&self) -> String {
-        self.inner.descriptor().to_string()
+    pub fn descriptor(&self) -> JsDescriptor {
+        self.inner.descriptor().into()
     }
 
     /// Get network
@@ -198,5 +317,50 @@ impl JsPolicy {
             .map_err(into_err)
     }
 
-    // TODO: add search_used_signers
+    /// Search used signers in this `Policy`
+    #[wasm_bindgen(js_name = searchUsedSigners)]
+    pub fn search_used_signers(&self, signers: Vec<JsCoreSigner>) -> Vec<JsCoreSigner> {
+        self.inner
+            .search_used_signers(signers.into_iter().map(|s| s.into()))
+            .into_iter()
+            .map(|s| s.into())
+            .collect()
+    }
+
+    /// Get policy path for a specific signer
+    #[wasm_bindgen(js_name = getPolicyPathFromSigner)]
+    pub fn get_policy_path_from_signer(
+        &self,
+        signer: &JsCoreSigner,
+    ) -> Result<Option<JsPolicyPathSelector>> {
+        Ok(self
+            .inner
+            .get_policy_path_from_signer(signer.deref())
+            .map_err(into_err)?
+            .map(|s| s.into()))
+    }
+
+    #[wasm_bindgen(js_name = getPolicyPathsFromSigners)]
+    pub fn get_policy_paths_from_signers(
+        &self,
+        signers: Vec<JsCoreSigner>,
+    ) -> Result<JsPolicyPath> {
+        Ok(self
+            .inner
+            .get_policy_paths_from_signers(signers.into_iter().map(|s| s.deref().clone()))
+            .map_err(into_err)?
+            .into())
+    }
+
+    /// Check if `Policy` match match any template
+    #[wasm_bindgen(js_name = templateMatch)]
+    pub fn template_match(&self) -> Result<Option<JsPolicyTemplateType>> {
+        Ok(self
+            .inner
+            .template_match()
+            .map_err(into_err)?
+            .map(|t| t.into()))
+    }
+
+    // TODO: add spend
 }

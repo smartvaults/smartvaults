@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use smartvaults_core::bips::bip48::ScriptType;
 use smartvaults_sdk::prelude::*;
 
 const NETWORK: Network = Network::Testnet;
@@ -23,21 +24,20 @@ async fn main() {
     // Save default Smart Vaults signer (only the first time)
     let signer_id = client.save_smartvaults_signer().await.unwrap();
 
-    // Get signer by id (or use client.get_signers to get all your signers)
-    let signer = client.get_signer_by_id(signer_id).await.unwrap();
+    // Get signer by id (or use client.signers to get all your signers)
+    let signer = client.get_signer_by_id(&signer_id).await.unwrap();
     let template = PolicyTemplate::hold(
-        signer.descriptor_public_key().unwrap(),
+        signer
+            .descriptor(Purpose::BIP48 {
+                script: ScriptType::P2TR,
+            })
+            .unwrap(),
         Locktime::Older(Sequence::from_height(10_000)),
     );
 
     // Save a new policy from a template
     client
-        .save_policy_from_template(
-            "My Hold Policy",
-            "Policy to keep safe my SATs",
-            template,
-            vec![client.keys().public_key()],
-        )
+        .save_vault_from_template("My Hold Policy", "Policy to keep safe my SATs", template)
         .await
         .unwrap();
 

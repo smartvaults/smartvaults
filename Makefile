@@ -11,11 +11,18 @@ cli:
 release:
 	cd contrib/release && just release
 
+dev-cli: fmt
+	cargo build -p smartvaults-cli
+
 dev-gui: fmt
 	cargo run -p smartvaults-desktop -- --testnet
 
+udev:
+	@cd contrib/udev && make install
+
 bench:
 	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-core
+	RUSTFLAGS='--cfg=bench' cargo +nightly bench -p smartvaults-protocol
 
 init-dev:
 	rustup install nightly-2024-01-11

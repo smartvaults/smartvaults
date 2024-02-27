@@ -4,13 +4,12 @@
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::core::ColdcardGenericJson;
 use smartvaults_sdk::prelude::bips::bip48::ScriptType;
 use smartvaults_sdk::prelude::Purpose;
 
 use crate::app::component::Dashboard;
-use crate::app::{Context, Message, Stage, State};
+use crate::app::{Context, Message, State};
 use crate::component::{Button, ButtonStyle, Text, TextInput};
 use crate::theme::color::DARK_RED;
 
@@ -47,7 +46,7 @@ impl State for AddColdcardSignerState {
         String::from("Add signer")
     }
 
-    fn update(&mut self, ctx: &mut Context, message: Message) -> Command<Message> {
+    fn update(&mut self, _ctx: &mut Context, message: Message) -> Command<Message> {
         if let Message::AddColdcardSigner(msg) = message {
             match msg {
                 AddColdcardSignerMessage::NameChanged(name) => self.name = name,
@@ -79,26 +78,28 @@ impl State for AddColdcardSignerState {
                     self.loading = false;
                 }
                 AddColdcardSignerMessage::SaveSigner => match &self.generic_json {
-                    Some(generic_json) => {
-                        self.loading = true;
-                        let client = ctx.client.clone();
-                        let name = self.name.clone();
-                        let coldcard = generic_json.clone();
-                        return Command::perform(
-                            async move {
-                                let signer =
-                                    Signer::from_coldcard(name, coldcard, client.network())?;
-                                client.save_signer(signer).await?;
-                                Ok::<(), Box<dyn std::error::Error>>(())
-                            },
-                            |res| match res {
-                                Ok(_) => Message::View(Stage::Signers),
-                                Err(e) => {
-                                    AddColdcardSignerMessage::ErrorChanged(Some(e.to_string()))
-                                        .into()
-                                }
-                            },
-                        );
+                    Some(_generic_json) => {
+                        todo!();
+
+                        // self.loading = true;
+                        // let client = ctx.client.clone();
+                        // let name = self.name.clone();
+                        // let coldcard = generic_json.clone();
+                        // return Command::perform(
+                        // async move {
+                        // let signer =
+                        // Signer::from_coldcard(name, coldcard, client.network())?;
+                        // client.save_signer(signer).await?;
+                        // Ok::<(), Box<dyn std::error::Error>>(())
+                        // },
+                        // |res| match res {
+                        // Ok(_) => Message::View(Stage::Signers),
+                        // Err(e) => {
+                        // AddColdcardSignerMessage::ErrorChanged(Some(e.to_string()))
+                        // .into()
+                        // }
+                        // },
+                        // );
                     }
                     None => {
                         self.error = Some(String::from("No Coldcard generic JSON selected."));

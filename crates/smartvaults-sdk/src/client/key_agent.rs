@@ -5,26 +5,28 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use nostr_sdk::database::{NostrDatabaseExt, Order};
 use nostr_sdk::nips::nip01::Coordinate;
-use nostr_sdk::{Event, EventBuilder, EventId, Filter, Keys, Profile, PublicKey};
-use smartvaults_core::bitcoin::address::NetworkUnchecked;
-use smartvaults_core::bitcoin::{Address, OutPoint};
+use nostr_sdk::{Event, EventBuilder, EventId, Filter, Profile, PublicKey};
+use smartvaults_core::bitcoin::address::NetworkChecked;
+use smartvaults_core::bitcoin::{Address, Amount, OutPoint};
 use smartvaults_core::miniscript::Descriptor;
-use smartvaults_core::proposal::Period;
-use smartvaults_core::{Amount, FeeRate, Proposal, Signer};
+use smartvaults_core::{Destination, FeeRate, Recipient, SpendingProposal};
 use smartvaults_protocol::v1::constants::{KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND};
-use smartvaults_protocol::v1::{Serde, SignerOffering, SmartVaultsEventBuilder, VerifiedKeyAgents};
+use smartvaults_protocol::v1::{Serde, SignerOffering, VerifiedKeyAgents};
+use smartvaults_protocol::v2::{self, PendingProposal, Period, Proposal, Signer, VaultIdentifier};
 
 use super::{Error, SmartVaults};
-use crate::types::{GetProposal, GetSigner, GetSignerOffering, KeyAgent};
+use crate::storage::InternalVault;
+use crate::types::{GetProposal, GetSignerOffering, KeyAgent};
 
 impl SmartVaults {
     /// Announce as Key Agent
     pub async fn announce_key_agent(&self) -> Result<EventId, Error> {
-        // Get keys
-        let keys: &Keys = self.keys();
+        // Get signer
+        let signer = self.client.signer().await?;
 
         // Compose event
-        let event: Event = EventBuilder::key_agent_signaling(keys, self.network)?;
+        let event: Event =
+            v2::key_agent::build_key_agent_signaling_event(&signer, self.network).await?;
 
         // Publish event
         Ok(self.client.send_event(event).await?)
@@ -32,12 +34,12 @@ impl SmartVaults {
 
     /// De-announce Key Agent (delete Key Agent signaling event)
     pub async fn deannounce_key_agent(&self) -> Result<(), Error> {
-        let keys: &Keys = self.keys();
-        let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNALING, keys.public_key())
+        let public_key: PublicKey = self.nostr_public_key().await?;
+        let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNALING, public_key)
             .identifier(self.network.magic().to_string());
         let event: EventBuilder = EventBuilder::delete([coordinate]);
         self.client.send_event_builder(event).await?;
-        tracing::info!("Deleted Key Agent signaling for {}", keys.public_key());
+        tracing::info!("Deleted Key Agent signaling for {public_key}");
         Ok(())
     }
 
@@ -47,14 +49,14 @@ impl SmartVaults {
         signer: &Signer,
         offering: SignerOffering,
     ) -> Result<EventId, Error> {
-        // Get keys
-        let keys: &Keys = self.keys();
+        let nostr_signer = self.client.signer().await?;
+        let public_key = nostr_signer.public_key().await?;
 
         // Check if exists key agent signaling event
         let filter = Filter::new()
             .identifier(self.network.magic().to_string())
             .kind(KEY_AGENT_SIGNALING)
-            .author(keys.public_key())
+            .author(public_key)
             .limit(1);
         let res = self
             .client
@@ -68,29 +70,25 @@ impl SmartVaults {
             tracing::debug!("Key agent already announced");
         }
 
-        // Compose event
-        let event: Event = EventBuilder::signer_offering(keys, signer, &offering, self.network)?;
-
-        // Publish event
+        // Compose and publish event
+        let event: Event = v2::key_agent::build_event(&nostr_signer, signer, &offering).await?;
         Ok(self.client.send_event(event).await?)
     }
 
     /// Delete signer offering for [`Signer`]
     pub async fn delete_signer_offering(&self, signer: &Signer) -> Result<(), Error> {
-        // Get keys
-        let keys: &Keys = self.keys();
+        let public_key: PublicKey = self.nostr_public_key().await?;
 
         // Delete signer offering
-        let coordinate: Coordinate =
-            Coordinate::new(KEY_AGENT_SIGNER_OFFERING_KIND, keys.public_key())
-                .identifier(signer.generate_identifier(self.network));
+        let coordinate: Coordinate = Coordinate::new(KEY_AGENT_SIGNER_OFFERING_KIND, public_key)
+            .identifier(signer.nostr_public_identifier().to_string());
         let event: EventBuilder = EventBuilder::delete([coordinate]);
         self.client.send_event_builder(event).await?;
 
         // Check if I have other signer offerings. If not, delete key agent signaling
         let filter = Filter::new()
             .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
-            .author(keys.public_key())
+            .author(public_key)
             .limit(1);
         let count: usize = self.client.database().count(vec![filter]).await?;
 
@@ -107,24 +105,20 @@ impl SmartVaults {
 
     /// Get my signer offerings
     pub async fn my_signer_offerings(&self) -> Result<Vec<GetSignerOffering>, Error> {
-        // Get keys
-        let keys = self.keys();
+        let public_key: PublicKey = self.nostr_public_key().await?;
 
         // Get signers
-        let signers: HashMap<String, GetSigner> = self
-            .get_signers()
+        let signers: HashMap<String, Signer> = self
+            .signers()
             .await
             .into_iter()
-            .map(|signer| {
-                let identifier: String = signer.generate_identifier(self.network);
-                (identifier, signer)
-            })
+            .map(|signer| (signer.nostr_public_identifier().to_string(), signer))
             .collect();
 
         // Get signer offering events by author
         let filter = Filter::new()
             .kind(KEY_AGENT_SIGNER_OFFERING_KIND)
-            .author(keys.public_key());
+            .author(public_key);
         Ok(self
             .client
             .database()
@@ -133,7 +127,7 @@ impl SmartVaults {
             .into_iter()
             .filter_map(|event| {
                 let identifier: &str = event.identifier()?;
-                let signer: GetSigner = signers.get(identifier)?.clone();
+                let signer: Signer = signers.get(identifier)?.clone();
                 let offering: SignerOffering = SignerOffering::from_json(event.content()).ok()?;
                 if offering.network == self.network {
                     Some(GetSignerOffering {
@@ -151,11 +145,11 @@ impl SmartVaults {
     /// Get Key Agents
     pub async fn key_agents(&self) -> Result<Vec<KeyAgent>, Error> {
         // Get contacts to check if key agent it's already added
-        let keys = self.keys();
+        let public_key: PublicKey = self.nostr_public_key().await?;
         let contacts = self
             .client
             .database()
-            .contacts_public_keys(keys.public_key())
+            .contacts_public_keys(public_key)
             .await?;
 
         // Get verified key agents
@@ -220,8 +214,8 @@ impl SmartVaults {
 
     pub async fn key_agent_payment<S>(
         &self,
-        policy_id: EventId,
-        address: Address<NetworkUnchecked>,
+        vault_id: &VaultIdentifier,
+        address: Address<NetworkChecked>,
         amount: Amount,
         description: S,
         signer_descriptor: Descriptor<String>,
@@ -234,37 +228,45 @@ impl SmartVaults {
     where
         S: Into<String>,
     {
-        let mut prop: GetProposal = self
-            .spend(
-                policy_id,
-                address,
-                amount,
-                description,
+        // Create spending proposal
+        let recipient = Recipient { address, amount };
+        let spending_proposal: SpendingProposal = self
+            .internal_spend(
+                vault_id,
+                &Destination::Single(recipient.clone()),
                 fee_rate,
                 utxos,
                 policy_path,
                 skip_frozen_utxos,
             )
             .await?;
-        if let Proposal::Spending {
-            descriptor,
-            amount,
-            description,
-            psbt,
-            ..
-        } = prop.proposal
-        {
-            prop.proposal = Proposal::KeyAgentPayment {
-                descriptor,
-                signer_descriptor,
-                amount,
-                description,
-                period,
-                psbt,
-            };
-            Ok(prop)
-        } else {
-            Err(Error::UnexpectedProposal)
-        }
+
+        // Compose pending proposal
+        let pending = PendingProposal::KeyAgentPayment {
+            descriptor: spending_proposal.descriptor,
+            signer_descriptor,
+            recipient,
+            period,
+            psbt: spending_proposal.psbt,
+        };
+        let mut proposal = Proposal::pending(*vault_id, pending, self.network);
+        proposal.change_description(description);
+
+        // Get vault
+        let InternalVault { vault, .. } = self.storage.vault(vault_id).await?;
+
+        // Compose the event
+        let event: Event = v2::proposal::build_event(&vault, &proposal)?;
+        self.client.send_event(event).await?;
+
+        // Index proposal
+        self.storage
+            .save_proposal(proposal.compute_id(), proposal.clone())
+            .await;
+
+        Ok(GetProposal {
+            proposal,
+            signed: false,
+        })
     }
 }

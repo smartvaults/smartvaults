@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use nostr_ffi::{EventId, Timestamp};
 use smartvaults_sdk::core::{policy, SelectableCondition};
+use smartvaults_sdk::protocol::v1;
 use smartvaults_sdk::protocol::v1::util::SerdeSer;
 use smartvaults_sdk::types;
 use uniffi::{Enum, Object, Record};
@@ -21,26 +22,26 @@ use crate::error::Result;
 use crate::{Balance, Signer};
 
 #[derive(Clone, Object)]
-pub struct Policy {
-    inner: policy::Policy,
+pub struct Vault {
+    inner: v1::Vault,
 }
 
-impl Deref for Policy {
-    type Target = policy::Policy;
+impl Deref for Vault {
+    type Target = v1::Vault;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl From<policy::Policy> for Policy {
-    fn from(inner: policy::Policy) -> Self {
+impl From<v1::Vault> for Vault {
+    fn from(inner: v1::Vault) -> Self {
         Self { inner }
     }
 }
 
 #[uniffi::export]
-impl Policy {
+impl Vault {
     pub fn name(&self) -> String {
         self.inner.name()
     }
@@ -105,24 +106,24 @@ impl Policy {
 }
 
 #[derive(Clone, Object)]
-pub struct GetPolicy {
-    inner: types::GetPolicy,
+pub struct GetVault {
+    inner: types::GetVault,
 }
 
-impl From<types::GetPolicy> for GetPolicy {
-    fn from(inner: types::GetPolicy) -> Self {
+impl From<types::GetVault> for GetVault {
+    fn from(inner: types::GetVault) -> Self {
         Self { inner }
     }
 }
 
 #[uniffi::export]
-impl GetPolicy {
+impl GetVault {
     pub fn policy_id(&self) -> Arc<EventId> {
         Arc::new(self.inner.policy_id.into())
     }
 
-    pub fn policy(&self) -> Arc<Policy> {
-        Arc::new(self.inner.policy.clone().into())
+    pub fn vault(&self) -> Arc<Vault> {
+        Arc::new(self.inner.vault.clone().into())
     }
 
     pub fn balance(&self) -> Arc<Balance> {

@@ -6,9 +6,9 @@ use std::collections::BTreeSet;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use rfd::FileDialog;
-use smartvaults_sdk::core::signer::Signer;
 use smartvaults_sdk::nostr::EventId;
-use smartvaults_sdk::types::{GetPolicy, GetProposal, GetTransaction};
+use smartvaults_sdk::protocol::v1::Signer;
+use smartvaults_sdk::types::{GetProposal, GetTransaction, GetVault};
 use smartvaults_sdk::util;
 
 pub mod add;
@@ -31,7 +31,7 @@ pub enum VaultMessage {
     SavePolicyBackup,
     Delete,
     LoadPolicy(
-        GetPolicy,
+        GetVault,
         Vec<GetProposal>,
         Option<Signer>,
         BTreeSet<GetTransaction>,
@@ -46,7 +46,7 @@ pub struct VaultState {
     loading: bool,
     loaded: bool,
     policy_id: EventId,
-    policy: Option<GetPolicy>,
+    policy: Option<GetVault>,
     proposals: Vec<GetProposal>,
     signer: Option<Signer>,
     transactions: BTreeSet<GetTransaction>,
@@ -83,11 +83,11 @@ impl State for VaultState {
         self.loading = true;
         Command::perform(
             async move {
-                let policy = client.get_policy_by_id(policy_id).await.ok()?;
+                let policy = client.get_vault_by_id(policy_id).await.ok()?;
                 let list = client.get_txs(policy_id).await.ok()?;
-                let proposals = client.get_proposals_by_policy_id(policy_id).await.ok()?;
+                let proposals = client.proposals_by_policy_id(policy_id).await.ok()?;
                 let signer = client
-                    .search_signer_by_descriptor(policy.policy.descriptor())
+                    .search_signer_by_descriptor(policy.vault.descriptor())
                     .await
                     .ok();
                 Some((policy, proposals, signer, list))
@@ -223,13 +223,11 @@ impl State for VaultState {
                         Row::new()
                             .push(
                                 Column::new()
-                                    .push(
-                                        Text::new(format!("Name: {}", policy.policy.name())).view(),
-                                    )
+                                    .push(Text::new(format!("Name: {}", policy.vault.name)).view())
                                     .push(
                                         Text::new(format!(
                                             "Description: {}",
-                                            policy.policy.description()
+                                            policy.vault.description
                                         ))
                                         .view(),
                                     )

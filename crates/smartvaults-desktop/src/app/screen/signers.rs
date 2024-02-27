@@ -3,8 +3,8 @@
 
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
-use smartvaults_sdk::core::Signer;
-use smartvaults_sdk::types::{GetSharedSigner, GetSigner, GetSignerOffering};
+use smartvaults_sdk::protocol::v2::Signer;
+use smartvaults_sdk::types::{GetSharedSigner, GetSignerOffering};
 use smartvaults_sdk::util;
 
 use crate::app::component::Dashboard;
@@ -16,7 +16,7 @@ use crate::theme::icon::{CLIPBOARD, FULLSCREEN, PENCIL, PLUS, RELOAD, SHARE, TRA
 #[derive(Debug, Clone)]
 pub enum SignersMessage {
     Load {
-        signers: Vec<GetSigner>,
+        signers: Vec<Signer>,
         shared_signers: Vec<GetSharedSigner>,
         signer_offerings: Vec<GetSignerOffering>,
     },
@@ -28,7 +28,7 @@ pub enum SignersMessage {
 pub struct SignersState {
     loading: bool,
     loaded: bool,
-    signers: Vec<GetSigner>,
+    signers: Vec<Signer>,
     shared_signers: Vec<GetSharedSigner>,
     signer_offerings: Vec<GetSignerOffering>,
 }
@@ -50,9 +50,9 @@ impl State for SignersState {
         let mode = ctx.mode;
         Command::perform(
             async move {
-                let signers = client.get_signers().await;
+                let signers = client.signers().await;
                 let shared_signers = match mode {
-                    Mode::User => client.get_shared_signers().await.unwrap(),
+                    Mode::User => client.shared_signers().await.unwrap(),
                     Mode::KeyAgent => Vec::new(),
                 };
                 let signer_offerings = match mode {
@@ -198,13 +198,11 @@ impl State for SignersState {
                     )
                     .push(rule::horizontal_bold());
 
-                for GetSigner { signer_id, signer } in self.signers.iter() {
+                for signer in self.signers.iter() {
+                    let signer_id = signer.compute_id();
+
                     let row = Row::new()
-                        .push(
-                            Text::new(util::cut_event_id(*signer_id))
-                                .width(Length::Fixed(115.0))
-                                .view(),
-                        )
+                        .push(Text::new(signer_id).width(Length::Fixed(115.0)).view())
                         .push(Text::new(signer.name()).width(Length::Fill).view())
                         .push(
                             Text::new(signer.fingerprint().to_string())

@@ -6,10 +6,10 @@ use std::collections::BTreeSet;
 use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Length};
 use smartvaults_sdk::core::bdk::chain::ConfirmationTime;
-use smartvaults_sdk::core::proposal::Proposal;
+use smartvaults_sdk::core::Destination;
 use smartvaults_sdk::nostr::Timestamp;
-use smartvaults_sdk::types::{GetCompletedProposal, GetProposal, GetTransaction};
-use smartvaults_sdk::util;
+use smartvaults_sdk::protocol::v2::{PendingProposal, ProposalStatus};
+use smartvaults_sdk::types::{GetProposal, GetTransaction};
 
 use crate::app::{Context, Message, Stage};
 use crate::component::{
@@ -87,141 +87,145 @@ impl Activity {
             activities = activities.push(Text::new("No activity").extra_light().view());
         } else {
             // Proposals
-            for GetProposal {
-                proposal_id,
-                policy_id,
-                proposal,
-                signed,
-                timestamp,
-            } in self.proposals.into_iter()
-            {
-                let row = match proposal {
-                    Proposal::Spending {
-                        amount,
-                        description,
-                        ..
-                    }
-                    | Proposal::KeyAgentPayment {
-                        amount,
-                        description,
-                        ..
-                    } => Row::new()
-                        .push(Space::with_width(Length::Fixed(70.0)))
-                        .push(if self.hide_policy_id {
-                            Text::new("").view()
-                        } else {
-                            Text::new(util::cut_event_id(policy_id))
-                                .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Vault(policy_id)))
-                                .view()
-                        })
-                        .push(
-                            Text::new(if ctx.hide_balances {
-                                String::from("*****")
+            for GetProposal { proposal, signed } in self.proposals.into_iter() {
+                let proposal_id = proposal.compute_id();
+                let vault_id = proposal.vault_id();
+                let description = proposal.description();
+
+                if let ProposalStatus::Pending(pending) = proposal.status() {
+                    let row = match pending {
+                        PendingProposal::Spending { destination, .. } => Row::new()
+                            .push(Space::with_width(Length::Fixed(70.0)))
+                            .push(if self.hide_policy_id {
+                                Text::new("").view()
                             } else {
-                                timestamp.to_human_datetime()
+                                Text::new(vault_id.to_string())
+                                    .width(Length::Fixed(115.0))
+                                    .on_press(Message::View(Stage::Vault(vault_id)))
+                                    .view()
                             })
-                            .width(Length::Fixed(225.0))
-                            .view(),
-                        )
-                        .push(
-                            Row::new()
-                                .push(
-                                    Badge::new(
-                                        Text::new(if signed {
-                                            "To broadcast"
-                                        } else {
-                                            "To approve"
-                                        })
-                                        .small()
-                                        .extra_light()
-                                        .view(),
-                                    )
-                                    .style(if signed {
-                                        BadgeStyle::Warning
-                                    } else {
-                                        BadgeStyle::Info
-                                    })
-                                    .width(Length::Fixed(125.0)),
-                                )
-                                .width(Length::Fixed(170.0)),
-                        )
-                        .push(
-                            Amount::new(amount)
-                                .sign(AmountSign::Negative)
-                                .big()
-                                .bold()
-                                .hidden(ctx.hide_balances)
-                                .view()
-                                .width(Length::Fill),
-                        )
-                        .push(Text::new(description).width(Length::FillPortion(2)).view())
-                        .push(Space::with_width(Length::Fixed(40.0)))
-                        .push(Space::with_width(Length::Fixed(40.0)))
-                        .push(
-                            Button::new()
-                                .icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Proposal(proposal_id)))
-                                .width(Length::Fixed(40.0))
+                            .push(
+                                Text::new(if ctx.hide_balances {
+                                    String::from("*****")
+                                } else {
+                                    proposal.timestamp().to_human_datetime()
+                                })
+                                .width(Length::Fixed(225.0))
                                 .view(),
-                        )
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill),
-                    Proposal::ProofOfReserve { message, .. } => Row::new()
-                        .push(Space::with_width(Length::Fixed(70.0)))
-                        .push(if self.hide_policy_id {
-                            Text::new("").view()
-                        } else {
-                            Text::new(util::cut_event_id(policy_id))
-                                .width(Length::Fixed(115.0))
-                                .on_press(Message::View(Stage::Vault(policy_id)))
-                                .view()
-                        })
-                        .push(Text::new("-").width(Length::Fixed(125.0)).view())
-                        .push(
-                            Row::new()
-                                .push(
-                                    Badge::new(
-                                        Text::new(if signed {
-                                            "To broadcast"
+                            )
+                            .push(
+                                Row::new()
+                                    .push(
+                                        Badge::new(
+                                            Text::new(if signed {
+                                                "To broadcast"
+                                            } else {
+                                                "To approve"
+                                            })
+                                            .small()
+                                            .extra_light()
+                                            .view(),
+                                        )
+                                        .style(if signed {
+                                            BadgeStyle::Warning
                                         } else {
-                                            "To approve"
+                                            BadgeStyle::Info
                                         })
-                                        .small()
-                                        .extra_light()
-                                        .view(),
+                                        .width(Length::Fixed(125.0)),
                                     )
-                                    .style(if signed {
-                                        BadgeStyle::Warning
-                                    } else {
-                                        BadgeStyle::Info
-                                    })
-                                    .width(Length::Fixed(125.0)),
-                                )
-                                .width(Length::Fixed(140.0)),
-                        )
-                        .push(Text::new("-").width(Length::Fill).view())
-                        .push(Text::new(message).width(Length::FillPortion(2)).view())
-                        .push(Space::with_width(Length::Fixed(40.0)))
-                        .push(Space::with_width(Length::Fixed(40.0)))
-                        .push(
-                            Button::new()
-                                .icon(FULLSCREEN)
-                                .on_press(Message::View(Stage::Proposal(proposal_id)))
-                                .width(Length::Fixed(40.0))
-                                .view(),
-                        )
-                        .spacing(10)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill),
-                };
-                activities = activities.push(row).push(rule::horizontal());
+                                    .width(Length::Fixed(170.0)),
+                            )
+                            .push({
+                                let amount = match destination {
+                                    Destination::Drain(..) => 0,
+                                    Destination::Single(r) => r.amount.to_sat(),
+                                    Destination::Multiple(r) => {
+                                        r.iter().map(|r| r.amount.to_sat()).sum()
+                                    }
+                                };
+                                Amount::new(amount)
+                                    .sign(AmountSign::Negative)
+                                    .big()
+                                    .bold()
+                                    .hidden(ctx.hide_balances)
+                                    .view()
+                                    .width(Length::Fill)
+                            })
+                            .push(
+                                Text::new(description.unwrap_or_default())
+                                    .width(Length::FillPortion(2))
+                                    .view(),
+                            )
+                            .push(Space::with_width(Length::Fixed(40.0)))
+                            .push(Space::with_width(Length::Fixed(40.0)))
+                            .push(
+                                Button::new()
+                                    .icon(FULLSCREEN)
+                                    .on_press(Message::View(Stage::Proposal(proposal_id)))
+                                    .width(Length::Fixed(40.0))
+                                    .view(),
+                            )
+                            .spacing(10)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fill),
+                        PendingProposal::KeyAgentPayment { recipient, .. } => {
+                            todo!()
+                        }
+                        PendingProposal::ProofOfReserve { message, .. } => Row::new()
+                            .push(Space::with_width(Length::Fixed(70.0)))
+                            .push(if self.hide_policy_id {
+                                Text::new("").view()
+                            } else {
+                                Text::new(vault_id.to_string())
+                                    .width(Length::Fixed(115.0))
+                                    .on_press(Message::View(Stage::Vault(vault_id)))
+                                    .view()
+                            })
+                            .push(Text::new("-").width(Length::Fixed(125.0)).view())
+                            .push(
+                                Row::new()
+                                    .push(
+                                        Badge::new(
+                                            Text::new(if signed {
+                                                "To broadcast"
+                                            } else {
+                                                "To approve"
+                                            })
+                                            .small()
+                                            .extra_light()
+                                            .view(),
+                                        )
+                                        .style(if signed {
+                                            BadgeStyle::Warning
+                                        } else {
+                                            BadgeStyle::Info
+                                        })
+                                        .width(Length::Fixed(125.0)),
+                                    )
+                                    .width(Length::Fixed(140.0)),
+                            )
+                            .push(Text::new("-").width(Length::Fill).view())
+                            .push(Text::new(message).width(Length::FillPortion(2)).view())
+                            .push(Space::with_width(Length::Fixed(40.0)))
+                            .push(Space::with_width(Length::Fixed(40.0)))
+                            .push(
+                                Button::new()
+                                    .icon(FULLSCREEN)
+                                    .on_press(Message::View(Stage::Proposal(proposal_id)))
+                                    .width(Length::Fixed(40.0))
+                                    .view(),
+                            )
+                            .spacing(10)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fill),
+                    };
+                    activities = activities.push(row).push(rule::horizontal());
+                }
             }
 
             // Transactions
             for GetTransaction {
-                policy_id,
+                vault_id,
                 tx,
                 label,
                 block_explorer,
@@ -240,9 +244,9 @@ impl Activity {
                     .push(if self.hide_policy_id {
                         Text::new("").view()
                     } else {
-                        Text::new(util::cut_event_id(policy_id))
+                        Text::new(vault_id.to_string())
                             .width(Length::Fixed(115.0))
-                            .on_press(Message::View(Stage::Vault(policy_id)))
+                            .on_press(Message::View(Stage::Vault(vault_id)))
                             .view()
                     })
                     .push(
@@ -310,7 +314,7 @@ impl Activity {
                         Button::new()
                             .icon(FULLSCREEN)
                             .on_press(Message::View(Stage::Transaction {
-                                policy_id,
+                                vault_id,
                                 txid: tx.txid(),
                             }))
                             .width(Length::Fixed(40.0))
@@ -324,83 +328,5 @@ impl Activity {
         }
 
         activities
-    }
-}
-
-pub struct CompletedProposalsList {
-    map: Vec<GetCompletedProposal>,
-}
-
-impl CompletedProposalsList {
-    pub fn new(map: Vec<GetCompletedProposal>) -> Self {
-        Self { map }
-    }
-
-    pub fn view(self) -> Column<'static, Message> {
-        let mut proposals = Column::new()
-            .push(
-                Row::new()
-                    .push(Text::new("ID").bold().width(Length::Fixed(115.0)).view())
-                    .push(
-                        Text::new("Vault ID")
-                            .bold()
-                            .width(Length::Fixed(115.0))
-                            .view(),
-                    )
-                    .push(Text::new("Type").bold().width(Length::Fixed(125.0)).view())
-                    .push(Text::new("Description").bold().width(Length::Fill).view())
-                    .spacing(10)
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill),
-            )
-            .push(rule::horizontal_bold())
-            .width(Length::Fill)
-            .spacing(10);
-
-        if self.map.is_empty() {
-            proposals = proposals.push(Text::new("No proposals").extra_light().view());
-        } else {
-            for GetCompletedProposal {
-                policy_id,
-                completed_proposal_id,
-                proposal,
-                ..
-            } in self.map.iter()
-            {
-                let row = Row::new()
-                    .push(
-                        Text::new(util::cut_event_id(*completed_proposal_id))
-                            .width(Length::Fixed(115.0))
-                            .view(),
-                    )
-                    .push(
-                        Text::new(util::cut_event_id(*policy_id))
-                            .width(Length::Fixed(115.0))
-                            .on_press(Message::View(Stage::Vault(*policy_id)))
-                            .view(),
-                    )
-                    .push(
-                        Text::new(proposal.get_type().to_string())
-                            .width(Length::Fixed(125.0))
-                            .view(),
-                    )
-                    .push(Text::new(proposal.desc()).width(Length::Fill).view())
-                    .push(
-                        Button::new()
-                            .icon(FULLSCREEN)
-                            .on_press(Message::View(Stage::CompletedProposal(
-                                *completed_proposal_id,
-                            )))
-                            .width(Length::Fixed(40.0))
-                            .view(),
-                    )
-                    .spacing(10)
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill);
-                proposals = proposals.push(row).push(rule::horizontal());
-            }
-        }
-
-        proposals
     }
 }

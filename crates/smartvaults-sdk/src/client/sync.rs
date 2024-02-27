@@ -10,37 +10,39 @@ use async_utility::thread;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::database::NostrDatabaseExt;
 use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
-use nostr_sdk::nips::{nip04, nip65};
-use nostr_sdk::{
-    ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
-    NegentropyOptions, PublicKey, RelayMessage, RelayPoolNotification, RelaySendOptions, Result,
-    Timestamp, Url,
-};
+use nostr_sdk::prelude::*;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
 use smartvaults_core::bitcoin::Network;
-use smartvaults_core::{CompletedProposal, Priority};
+use smartvaults_core::Priority;
 use smartvaults_protocol::v1::constants::{
-    APPROVED_PROPOSAL_KIND, COMPLETED_PROPOSAL_KIND, KEY_AGENT_SIGNALING,
-    KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED, LABELS_KIND, POLICY_KIND, PROPOSAL_KIND,
-    SHARED_KEY_KIND, SHARED_SIGNERS_KIND, SIGNERS_KIND, SMARTVAULTS_MAINNET_PUBLIC_KEY,
-    SMARTVAULTS_TESTNET_PUBLIC_KEY,
+    KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND, KEY_AGENT_VERIFIED,
+    SMARTVAULTS_MAINNET_PUBLIC_KEY, SMARTVAULTS_TESTNET_PUBLIC_KEY,
+};
+use smartvaults_protocol::v2::{
+    NostrPublicIdentifier, ProposalIdentifier, ProposalType, VaultIdentifier,
 };
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
-use crate::storage::{InternalCompletedProposal, InternalPolicy};
+use crate::constants::WALLET_SYNC_INTERVAL;
+use crate::storage::InternalVault;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EventHandled {
     SharedKey(EventId),
-    Policy(EventId),
-    Proposal(EventId),
-    Approval { proposal_id: EventId },
+    Vault(VaultIdentifier),
+    VaultMetadata(VaultIdentifier),
+    VaultInvite(VaultIdentifier),
+    Proposal(ProposalIdentifier),
+    Approval {
+        vault_id: VaultIdentifier,
+        proposal_id: ProposalIdentifier,
+    },
     CompletedProposal(EventId),
     Signer(EventId),
-    MySharedSigner(EventId),
     SharedSigner(EventId),
+    SharedSignerInvite(NostrPublicIdentifier),
     Contacts,
     Metadata(PublicKey),
     NostrConnectRequest(EventId),
@@ -54,7 +56,7 @@ pub enum EventHandled {
 #[derive(Debug, Clone)]
 pub enum Message {
     EventHandled(EventHandled),
-    WalletSyncCompleted(EventId),
+    WalletSyncCompleted(VaultIdentifier),
     BlockHeightUpdated,
     MempoolFeesUpdated(BTreeMap<Priority, FeeRate>),
 }
@@ -123,62 +125,88 @@ impl SmartVaults {
                     Err(e) => tracing::error!("Impossible to sync wallets: {e}"),
                 }
 
+                thread::sleep(WALLET_SYNC_INTERVAL).await;
+            }
+        })?)
+    }
+
+    fn vaults_authored_filter_resubscribe(&self) -> Result<AbortHandle, Error> {
+        let this = self.clone();
+        Ok(thread::abortable(async move {
+            loop {
+                if this.resubscribe_vaults.load(Ordering::SeqCst) {
+                    this.set_resubscribe_vaults(false);
+
+                    // Resubscribe to vaults authored filter
+                    for (relay_url, relay) in this.client.relays().await {
+                        /* let last_sync: Timestamp =
+                        match this.db.get_last_relay_sync(relay_url.clone()).await {
+                            Ok(ts) => ts,
+                            Err(e) => {
+                                tracing::error!("Impossible to get last relay sync: {e}");
+                                Timestamp::from(0)
+                            }
+                        }; */
+                        let last_sync: Timestamp = Timestamp::from(0); // TODO
+
+                        let filters: Vec<Filter> = this.sync_vaults_filter(last_sync).await;
+                        if let Err(e) = relay
+                            .subscribe_with_internal_id(
+                                InternalSubscriptionId::from("smartvaults-vaults-authored"),
+                                filters,
+                                RelaySendOptions::new(),
+                            )
+                            .await
+                        {
+                            tracing::error!(
+                                "Impossible to subscribe to {relay_url} [vaults-authored]: {e}"
+                            );
+                        }
+                    }
+                }
+
                 thread::sleep(Duration::from_secs(10)).await;
             }
         })?)
     }
 
-    fn handle_pending_events(&self) -> Result<AbortHandle, Error> {
-        let this = self.clone();
-        Ok(thread::abortable(async move {
-            loop {
-                for event in this.storage.pending_events().await.into_iter() {
-                    let event_id = event.id;
-                    if let Err(e) = this.handle_event(event).await {
-                        tracing::error!("Impossible to handle pending event {event_id}: {e}");
-                    }
-                }
-                thread::sleep(Duration::from_secs(30)).await;
-            }
-        })?)
+    /// Update vault-authored subscription filters
+    pub(crate) fn set_resubscribe_vaults(&self, value: bool) {
+        let _ = self
+            .resubscribe_vaults
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(value));
     }
 
     pub fn sync_notifications(&self) -> Receiver<Message> {
         self.sync_channel.subscribe()
     }
 
-    pub(crate) async fn sync_filters(&self, since: Timestamp) -> Vec<Filter> {
-        let base_filter = Filter::new().kinds([
-            POLICY_KIND,
-            PROPOSAL_KIND,
-            APPROVED_PROPOSAL_KIND,
-            COMPLETED_PROPOSAL_KIND,
-            SHARED_KEY_KIND,
-            SIGNERS_KIND,
-            SHARED_SIGNERS_KIND,
-            LABELS_KIND,
-            Kind::EventDeletion,
-        ]);
+    /// Get [Filter] for everything authored or `p` tagged by/with vaults shared key
+    pub(crate) async fn sync_vaults_filter(&self, since: Timestamp) -> Vec<Filter> {
+        let vaults = self.storage.vaults().await;
+        let public_keys: HashSet<PublicKey> = vaults
+            .into_values()
+            .map(|i| {
+                let secret_key = i.shared_key();
+                let keys = Keys::new(secret_key.clone());
+                keys.public_key()
+            })
+            .collect();
+        vec![
+            Filter::new().authors(public_keys.clone()).since(since),
+            Filter::new().pubkeys(public_keys).since(since),
+        ]
+    }
 
-        let keys: &Keys = self.keys();
-        let public_key: PublicKey = keys.public_key();
-        let contacts: Vec<PublicKey> = self
-            .client
-            .database()
-            .contacts_public_keys(public_key)
-            .await
-            .unwrap_or_default();
+    pub(crate) async fn sync_filters(&self, since: Timestamp) -> Result<Vec<Filter>, Error> {
+        let public_key: PublicKey = self.nostr_public_key().await?;
 
-        let author_filter: Filter = base_filter.clone().author(public_key).since(since);
-        let pubkey_filter: Filter = base_filter.pubkey(public_key).since(since);
-        let nostr_connect_filter = Filter::new()
-            .pubkey(public_key)
-            .kind(Kind::NostrConnect)
-            .since(since);
-        let other_filters: Filter = Filter::new()
-            .author(public_key)
-            .kinds([Kind::Metadata, Kind::ContactList, Kind::RelayList])
-            .since(since);
+        // Author filter include vaults, metadata, contacts, relay list, ...
+        let author_filter: Filter = Filter::new().author(public_key).since(since);
+
+        // Pubkey filter include invites, nostr connect, ...
+        let pubkey_filter: Filter = Filter::new().pubkey(public_key).since(since);
+
         let key_agents: Filter = Filter::new()
             .kinds([KEY_AGENT_SIGNALING, KEY_AGENT_SIGNER_OFFERING_KIND])
             .since(since);
@@ -189,20 +217,19 @@ impl SmartVaults {
             })
             .kind(KEY_AGENT_VERIFIED);
 
-        let mut filters = vec![
-            author_filter,
-            pubkey_filter,
-            nostr_connect_filter,
-            other_filters,
-            key_agents,
-            smartvaults,
-        ];
+        let mut filters: Vec<Filter> = vec![author_filter, pubkey_filter, key_agents, smartvaults];
 
+        let contacts: Vec<PublicKey> = self
+            .client
+            .database()
+            .contacts_public_keys(public_key)
+            .await
+            .unwrap_or_default();
         if !contacts.is_empty() {
             filters.push(Filter::new().authors(contacts).since(since));
         }
 
-        filters
+        Ok(filters)
     }
 
     pub(crate) fn sync(&self) -> Result<(), Error> {
@@ -218,9 +245,8 @@ impl SmartVaults {
                 let block_height_syncer: AbortHandle = this.block_height_syncer()?;
                 let mempool_fees_syncer: AbortHandle = this.mempool_fees_syncer()?;
                 let policies_syncer: AbortHandle = this.policies_syncer()?;
-
-                // Pending events handler
-                let pending_event_handler = this.handle_pending_events()?;
+                let vaults_authored_filter: AbortHandle =
+                    this.vaults_authored_filter_resubscribe()?;
 
                 for (relay_url, relay) in this.client.relays().await {
                     let last_sync: Timestamp =
@@ -231,9 +257,33 @@ impl SmartVaults {
                                 Timestamp::from(0)
                             }
                         };
-                    let filters: Vec<Filter> = this.sync_filters(last_sync).await;
-                    if let Err(e) = relay.subscribe(filters, RelaySendOptions::new()).await {
-                        tracing::error!("Impossible to subscribe to {relay_url}: {e}");
+
+                    // Subscribe to default filters
+                    let filters: Vec<Filter> = this.sync_filters(last_sync).await?;
+                    if let Err(e) = relay
+                        .subscribe_with_internal_id(
+                            InternalSubscriptionId::from("smartvaults-default"),
+                            filters,
+                            RelaySendOptions::new(),
+                        )
+                        .await
+                    {
+                        tracing::error!("Impossible to subscribe to {relay_url} [default]: {e}");
+                    }
+
+                    // Subscribe to vaults authored filters
+                    let filters: Vec<Filter> = this.sync_vaults_filter(last_sync).await;
+                    if let Err(e) = relay
+                        .subscribe_with_internal_id(
+                            InternalSubscriptionId::from("smartvaults-vaults-authored"),
+                            filters,
+                            RelaySendOptions::new(),
+                        )
+                        .await
+                    {
+                        tracing::error!(
+                            "Impossible to subscribe to {relay_url} [vaults-authored]: {e}"
+                        );
                     }
                 }
 
@@ -273,7 +323,7 @@ impl SmartVaults {
                                 block_height_syncer.abort();
                                 mempool_fees_syncer.abort();
                                 policies_syncer.abort();
-                                pending_event_handler.abort();
+                                vaults_authored_filter.abort();
                                 let _ = this.syncing.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| Some(false));
                             }
                         }
@@ -290,7 +340,12 @@ impl SmartVaults {
             let this = self.clone();
             thread::spawn(async move {
                 let opts = NegentropyOptions::new().direction(NegentropyDirection::Both);
-                for filter in this.sync_filters(Timestamp::from(0)).await.into_iter() {
+                for filter in this
+                    .sync_filters(Timestamp::from(0))
+                    .await
+                    .unwrap()
+                    .into_iter()
+                {
                     this.client.reconcile(filter, opts).await.unwrap();
                 }
             })?;
@@ -314,7 +369,8 @@ impl SmartVaults {
                     event.author(),
                 )))?;
         } else if event.kind == Kind::RelayList {
-            if event.author() == self.keys().public_key() {
+            let public_key: PublicKey = self.nostr_public_key().await?;
+            if event.author() == public_key {
                 tracing::debug!("Received relay list: {:?}", event.tags);
                 let current_relays: HashSet<Url> = self
                     .db
@@ -348,47 +404,26 @@ impl SmartVaults {
         } else if event.kind == Kind::NostrConnect
             && self.db.nostr_connect_session_exists(event.author()).await?
         {
-            let keys: &Keys = self.keys();
-            let content = nip04::decrypt(keys.secret_key()?, event.author_ref(), event.content())?;
-            let msg = NIP46Message::from_json(content)?;
-            if let Ok(request) = msg.to_request() {
-                match request {
-                    NIP46Request::Disconnect => {
-                        self._disconnect_nostr_connect_session(event.author(), false)
-                            .await?;
-                    }
-                    NIP46Request::GetPublicKey => {
-                        let uri = self.db.get_nostr_connect_session(event.author()).await?;
-                        let msg = msg
-                            .generate_response(keys)?
-                            .ok_or(Error::CantGenerateNostrConnectResponse)?;
-                        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?
-                            .to_event(keys)?;
-                        // TODO: use send_event?
-                        self.client
-                            .pool()
-                            .send_msg_to(
-                                [uri.relay_url],
-                                ClientMessage::event(nip46_event),
-                                RelaySendOptions::new().skip_send_confirmation(true),
-                            )
-                            .await?;
-                    }
-                    _ => {
-                        if self
-                            .db
-                            .is_nostr_connect_session_pre_authorized(event.author())
-                            .await
-                        {
+            let signer = self.client.signer().await?;
+            if let NostrSigner::Keys(keys) = &signer {
+                let content =
+                    nip04::decrypt(keys.secret_key()?, event.author_ref(), event.content())?;
+                let msg = NIP46Message::from_json(content)?;
+                if let Ok(request) = msg.to_request() {
+                    match request {
+                        NIP46Request::Disconnect => {
+                            self._disconnect_nostr_connect_session(event.author(), false)
+                                .await?;
+                        }
+                        NIP46Request::GetPublicKey => {
                             let uri = self.db.get_nostr_connect_session(event.author()).await?;
-                            let keys: &Keys = self.keys();
-                            let req_message = msg.clone();
                             let msg = msg
                                 .generate_response(keys)?
                                 .ok_or(Error::CantGenerateNostrConnectResponse)?;
                             let nip46_event =
                                 EventBuilder::nostr_connect(keys, uri.public_key, msg)?
                                     .to_event(keys)?;
+                            // TODO: use send_event?
                             self.client
                                 .pool()
                                 .send_msg_to(
@@ -397,60 +432,84 @@ impl SmartVaults {
                                     RelaySendOptions::new().skip_send_confirmation(true),
                                 )
                                 .await?;
-                            self.db
-                                .save_nostr_connect_request(
-                                    event.id,
-                                    event.author(),
-                                    req_message,
-                                    event.created_at,
-                                    true,
-                                )
-                                .await?;
-                            tracing::info!(
-                                "Auto approved nostr connect request {} for app {}",
-                                event.id,
-                                event.author()
-                            )
-                        } else {
-                            self.db
-                                .save_nostr_connect_request(
-                                    event.id,
-                                    event.author(),
-                                    msg,
-                                    event.created_at,
-                                    false,
-                                )
-                                .await?;
                         }
-                    }
-                };
-                self.sync_channel.send(Message::EventHandled(
-                    EventHandled::NostrConnectRequest(event.id),
-                ))?;
+                        _ => {
+                            if self
+                                .db
+                                .is_nostr_connect_session_pre_authorized(event.author())
+                                .await
+                            {
+                                let uri = self.db.get_nostr_connect_session(event.author()).await?;
+                                let req_message = msg.clone();
+                                let msg = msg
+                                    .generate_response(keys)?
+                                    .ok_or(Error::CantGenerateNostrConnectResponse)?;
+                                let nip46_event =
+                                    EventBuilder::nostr_connect(keys, uri.public_key, msg)?
+                                        .to_event(keys)?;
+                                self.client
+                                    .pool()
+                                    .send_msg_to(
+                                        [uri.relay_url],
+                                        ClientMessage::event(nip46_event),
+                                        RelaySendOptions::new().skip_send_confirmation(true),
+                                    )
+                                    .await?;
+                                self.db
+                                    .save_nostr_connect_request(
+                                        event.id,
+                                        event.author(),
+                                        req_message,
+                                        event.created_at,
+                                        true,
+                                    )
+                                    .await?;
+                                tracing::info!(
+                                    "Auto approved nostr connect request {} for app {}",
+                                    event.id,
+                                    event.author()
+                                )
+                            } else {
+                                self.db
+                                    .save_nostr_connect_request(
+                                        event.id,
+                                        event.author(),
+                                        msg,
+                                        event.created_at,
+                                        false,
+                                    )
+                                    .await?;
+                            }
+                        }
+                    };
+                    self.sync_channel.send(Message::EventHandled(
+                        EventHandled::NostrConnectRequest(event.id),
+                    ))?;
+                }
             }
         } else if let Some(h) = self.storage.handle_event(&event).await? {
             match h {
-                EventHandled::Policy(vault_id) => {
-                    let InternalPolicy { policy, .. } = self.storage.vault(&vault_id).await?;
-                    self.manager.load_policy(event.id, policy).await?;
+                EventHandled::Vault(vault_id) => {
+                    let InternalVault { vault, .. } = self.storage.vault(&vault_id).await?;
+                    self.manager.load_policy(vault_id, vault.policy()).await?;
+
+                    // Resubscribe to vaults authored filter
+                    self.set_resubscribe_vaults(true);
                 }
-                EventHandled::CompletedProposal(completed_proposal_id) => {
-                    let InternalCompletedProposal {
-                        policy_id,
-                        proposal,
-                        ..
-                    } = self
-                        .storage
-                        .completed_proposal(&completed_proposal_id)
-                        .await?;
+                EventHandled::Proposal(proposal_id) => {
+                    let proposal = self.storage.proposal(&proposal_id).await?;
                     // Insert TX from completed proposal if the event was created in the last 60 secs
-                    if event.created_at.add(Duration::from_secs(60)) >= Timestamp::now() {
-                        if let CompletedProposal::Spending { tx, .. } = proposal {
+                    if proposal.is_finalized()
+                        && event.created_at.add(Duration::from_secs(60)) >= Timestamp::now()
+                    {
+                        if let ProposalType::Spending | ProposalType::KeyAgentPayment =
+                            proposal.r#type()
+                        {
                             match self
                                 .manager
                                 .insert_tx(
-                                    policy_id,
-                                    tx,
+                                    &proposal.vault_id(),
+                                    proposal.tx().clone(),
                                     ConfirmationTime::Unconfirmed {
                                         last_seen: event.created_at.as_u64(),
                                     },
@@ -480,7 +539,7 @@ impl SmartVaults {
                 }
                 _ => (),
             };
-            self.sync_channel.send(Message::EventHandled(h))?;
+            let _ = self.sync_channel.send(Message::EventHandled(h));
         }
 
         Ok(())

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package approval;
+
+import "proposal.proto";
+import "vault.proto";
+
+enum ApprovalType {
+  Spending = 0;
+  ProofOfReserve = 1;
+  KeyAgentPayment = 2;
+}
+
+message ApprovalV1 {
+  vault.VaultIdentifier vault_id = 1;
+  proposal.ProposalIdentifier proposal_id = 2;
+  string psbt = 3;
+  bytes network = 4;
+  ApprovalType type = 5;
+}
+
+message Approval {
+  oneof object {
+    ApprovalV1 v1 = 1;
+  }
+}

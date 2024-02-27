@@ -21,4 +21,4 @@ smartvaults-core = { path = "../../crates/smartvaults-core", default-features = 
 wasm-bindgen = { workspace = true, features = ["std"] }
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz"]
+wasm-opt = true

@@ -8,10 +8,9 @@ use chacha20poly1305::{AeadCore, XChaCha20Poly1305};
 use smartvaults_core::bdk::wallet::ChangeSet;
 use smartvaults_core::secp256k1::SecretKey;
 use smartvaults_core::util::serde::deserialize;
-use smartvaults_core::{
-    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
+use smartvaults_protocol::v1::{
+    ApprovedProposal, CompletedProposal, Label, Proposal, Serde, SharedSigner, Signer, Vault,
 };
-use smartvaults_protocol::v1::{Label, Serde};
 
 /// Error
 #[derive(Debug, PartialEq, Eq)]
@@ -86,7 +85,7 @@ pub trait StoreEncryption: Serde {
 
 impl StoreEncryption for SecretKey {}
 impl StoreEncryption for ChangeSet {}
-impl StoreEncryption for Policy {}
+impl StoreEncryption for Vault {}
 impl StoreEncryption for Proposal {}
 impl StoreEncryption for ApprovedProposal {}
 impl StoreEncryption for CompletedProposal {}

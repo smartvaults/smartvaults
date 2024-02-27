@@ -1,0 +1,192 @@
+// Copyright (c) 2022-2023 Smart Vaults
+// Distributed under the MIT software license
+
+//! Vault v2
+
+use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
+use core::ops::Deref;
+
+use nostr::{Event, EventBuilder, SecretKey};
+use nostr_signer::NostrSigner;
+use prost::Message;
+use smartvaults_core::bitcoin::Network;
+use smartvaults_core::policy::Policy;
+use smartvaults_core::PolicyTemplate;
+
+pub mod id;
+pub mod invite;
+pub mod metadata;
+mod proto;
+
+pub use self::id::VaultIdentifier;
+pub use self::invite::VaultInvite;
+pub use self::metadata::VaultMetadata;
+use super::constants::VAULT_KIND_V2;
+use super::message::{MessageVersion, ProtocolEncoding, ProtocolEncryption};
+use super::proto::vault::ProtoVault;
+use super::Error;
+
+/// Vault version
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Version {
+    /// V1
+    #[default]
+    V1 = 0x01,
+}
+
+/// Vault
+///
+/// **Note: `eq`, `ord` and `hash` are implemented by checking only the [`Policy`].**
+#[derive(Debug, Clone)]
+pub struct Vault {
+    version: Version,
+    policy: Policy,
+    shared_key: SecretKey,
+}
+
+impl PartialEq for Vault {
+    fn eq(&self, other: &Self) -> bool {
+        self.policy == other.policy
+    }
+}
+
+impl Eq for Vault {}
+
+impl PartialOrd for Vault {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Vault {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.policy.cmp(&self.policy)
+    }
+}
+
+impl Hash for Vault {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.policy.hash(state);
+    }
+}
+
+impl Deref for Vault {
+    type Target = Policy;
+
+    fn deref(&self) -> &Self::Target {
+        &self.policy
+    }
+}
+
+impl Vault {
+    /// Construct from descriptor or uncompiled policy
+    pub fn new<S>(descriptor: S, network: Network, shared_key: SecretKey) -> Result<Self, Error>
+    where
+        S: AsRef<str>,
+    {
+        Ok(Self {
+            version: Version::default(),
+            policy: Policy::from_desc_or_miniscript(descriptor, network)?,
+            shared_key,
+        })
+    }
+
+    /// Construct from [`PolicyTemplate`]
+    pub fn from_template(
+        template: PolicyTemplate,
+        network: Network,
+        shared_key: SecretKey,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            version: Version::default(),
+            policy: Policy::from_template(template, network)?,
+            shared_key,
+        })
+    }
+
+    /// Compute unique deterministic identifier
+    pub fn compute_id(&self) -> VaultIdentifier {
+        VaultIdentifier::from(self.policy.as_descriptor())
+    }
+
+    /// Get [`Version`]
+    pub fn version(&self) -> Version {
+        self.version
+    }
+
+    /// Get [`Policy`]
+    pub fn policy(&self) -> Policy {
+        self.policy.clone()
+    }
+
+    /// Get [`SecretKey`]
+    pub fn shared_key(&self) -> &SecretKey {
+        &self.shared_key
+    }
+}
+
+impl ProtocolEncoding for Vault {
+    type Err = Error;
+
+    fn pre_encoding(&self) -> (MessageVersion, Vec<u8>) {
+        let vault: ProtoVault = self.into();
+        (MessageVersion::ProtoBuf, vault.encode_to_vec())
+    }
+
+    fn decode_protobuf(data: &[u8]) -> Result<Self, Self::Err> {
+        let vault: ProtoVault = ProtoVault::decode(data)?;
+        Self::try_from(vault)
+    }
+}
+
+impl ProtocolEncryption for Vault {
+    type Err = Error;
+}
+
+/// Build [`Vault`] event
+pub async fn build_event(signer: &NostrSigner, vault: &Vault) -> Result<Event, Error> {
+    // Encrypt
+    let encrypted_content: String = vault.encrypt_with_signer(signer).await?;
+
+    // Compose and build event
+    let builder = EventBuilder::new(VAULT_KIND_V2, encrypted_content, []);
+
+    Ok(signer.sign_event_builder(builder).await?)
+}
+
+#[cfg(bench)]
+mod benches {
+    use test::{black_box, Bencher};
+
+    use super::*;
+
+    const NETWORK: Network = Network::Testnet;
+    const SECRET_KEY: &str = "6b911fd37cdf5c81d4c0adb1ab7fa822ed253ab0ad9aa18d77257c88b29b718e";
+
+    #[bench]
+    pub fn encrypt_vault(bh: &mut Bencher) {
+        let desc = "tr(c0e6675756101c53287237945c4ed0fbb780b20c5ca6e36b4178ac89075f629c,multi_a(2,[7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*))#ccsgt5j5";
+        let shared_key = Keys::generate();
+        let vault = Vault::new(desc, NETWORK, shared_key.secret_key().unwrap()).unwrap();
+
+        let secret_key = SecretKey::from_str(SECRET_KEY).unwrap();
+        let keys = Keys::new(secret_key);
+
+        bh.iter(|| {
+            black_box(vault.encrypt_with_keys(&keys)).unwrap();
+        });
+    }
+
+    #[bench]
+    pub fn decrypt_vault(bh: &mut Bencher) {
+        let encrypted_vault = "AfJFkHTpOdA7RR6qfam/Pj6p37hqz0h0FtIZqV96LvkMsHeZUFIG7d154QDyQUdelV/C6n4kupJwElqTiJD9JXiLZixlrGHJrswwxAYRjTBqtT5pQAay3f2jwNO6/MeYYA7q0mDh2FpXc/7II9CI0wKoVZWg3aZz+D3F6RkCPwMChlSjq616BlyBxHVQPo2X4PgCQPuGwBUyr+ED999wFQl5i6389BW1n5A+DIimbLPegW4dAeZPqASZWc/mbOgZwif8MN0NQjoy3ExTuGY9cxDRq47eKrJnrvxe/xIgePiWI8FsAVnxf43p9jaRthXpS/bLDyjcXTGTd+Jv8f2/xmANsCIHS0hEy9QZFUml1vsMUyo3hKPxhgubMsmMm0f/HYOdO8H/QYHYvKv9bBnGK8F7fn5oQcIiEA4A5sDc9e9ZJM4BjA+rxypF0boE8PGR68MSkFSMuTwgd3lNnfNeKv6IdtA9RaRKloP1c2f+nREclpXEh4HL31hM+VngWou9zoWSaDpOnwT9r+bnz1zi7/rLsn60CswfK5OSnOvSa+ssr16QSAPyV8zfotV7HR9yvHH8qXtykjqkkM+ImYasT6JUWTyPYrf4EG0=";
+
+        let secret_key = SecretKey::from_str(SECRET_KEY).unwrap();
+        let keys = Keys::new(secret_key);
+
+        bh.iter(|| {
+            black_box(Vault::decrypt_with_keys(&keys, encrypted_vault)).unwrap();
+        });
+    }
+}

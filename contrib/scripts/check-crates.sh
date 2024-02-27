@@ -5,11 +5,14 @@ set -e
 
 buildargs=(
     "-p smartvaults-core"
+    "-p smartvaults-core --features hwi"
     "-p smartvaults-core --features reserves"
     "-p smartvaults-core --target wasm32-unknown-unknown"
     "-p smartvaults-protocol"
+    "-p smartvaults-protocol --features hwi"
     "-p smartvaults-protocol --target wasm32-unknown-unknown"
     "-p smartvaults-sdk"
+    "-p smartvaults-sdk --features hwi"
     "-p smartvaults-cli"
     "-p smartvaults-desktop"
 )

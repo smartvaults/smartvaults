@@ -2,22 +2,30 @@
 // Distributed under the MIT software license
 
 use core::fmt;
+use core::hash::{Hash, Hasher};
+use std::collections::BTreeMap;
 
-use bdk::descriptor::IntoWalletDescriptor;
-use bdk::miniscript::descriptor::Tr;
-use keechain_core::bips::bip32::{self, Bip32, Fingerprint};
+use keechain_core::bips::bip32::{self, Bip32, ChildNumber, DerivationPath, Fingerprint};
 use keechain_core::bips::bip48::ScriptType;
 use keechain_core::bitcoin::Network;
-use keechain_core::crypto::hash;
 use keechain_core::descriptors::{self, ToDescriptor};
-use keechain_core::miniscript::descriptor::{DescriptorKeyParseError, DescriptorType};
-use keechain_core::miniscript::{Descriptor, DescriptorPublicKey};
+use keechain_core::miniscript::DescriptorPublicKey;
 use keechain_core::{ColdcardGenericJson, Purpose, Seed};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::constants::SMARTVAULTS_ACCOUNT_INDEX;
+#[cfg(feature = "hwi")]
+use crate::hwi::BoxedHWI;
 use crate::SECP256K1;
+
+const PURPOSES: [Purpose; 2] = [
+    Purpose::BIP48 {
+        script: ScriptType::P2WSH,
+    },
+    Purpose::BIP48 {
+        script: ScriptType::P2TR,
+    },
+];
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -26,22 +34,38 @@ pub enum Error {
     #[error(transparent)]
     Descriptor(#[from] descriptors::Error),
     #[error(transparent)]
-    Miniscript(#[from] bdk::miniscript::Error),
-    #[error(transparent)]
-    DescriptorKeyParse(#[from] DescriptorKeyParseError),
-    #[error(transparent)]
-    BdkDescriptor(#[from] bdk::descriptor::DescriptorError),
-    #[error(transparent)]
     Coldcard(#[from] keechain_core::export::coldcard::Error),
-    #[error("must be a taproot descriptor")]
-    NotTaprootDescriptor,
+    /// HWI error
+    #[cfg(feature = "hwi")]
+    #[error(transparent)]
+    HWI(#[from] async_hwi::Error),
+    #[error("derivation path not found")]
+    DerivationPathNotFound,
+    #[error("fingerprint not match")]
+    FingerprintNotMatch,
+    #[error("network not found")]
+    NetworkNotFound,
+    #[error("network not match")]
+    NetworkNotMatch,
+    #[error("purpose not found")]
+    PurposeNotFound,
+    #[error("purpose not match")]
+    PurposeNotMatch,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// Signer Type
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SignerType {
+    /// Seed
     Seed,
+    /// Signing Device (aka Hardware Wallet) that can be used
+    /// with USB, Bluetooth or other that provides a direct connection with the wallet.
     Hardware,
+    /// Signing Device that can be used without ever being connected
+    /// to online devices, via microSD or camera.
     AirGap,
+    /// Unknown signer type
+    Unknown,
 }
 
 impl fmt::Display for SignerType {
@@ -50,211 +74,217 @@ impl fmt::Display for SignerType {
             SignerType::Seed => write!(f, "Seed"),
             SignerType::Hardware => write!(f, "Hardware"),
             SignerType::AirGap => write!(f, "AirGap"),
+            SignerType::Unknown => write!(f, "Unknown"),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Signer {
-    name: String,
-    description: Option<String>,
+// TODO: custom impl PartialEq, Eq, PartialOrd, Ord, Hash? Checking only fingerprint and network?
+#[derive(Debug, Clone, PartialOrd, Ord)]
+pub struct CoreSigner {
     fingerprint: Fingerprint,
-    descriptor: Descriptor<DescriptorPublicKey>,
-    t: SignerType,
+    descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+    r#type: SignerType,
+    network: Network,
 }
 
-impl fmt::Display for Signer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}({})", self.t, self.fingerprint)
+impl PartialEq for CoreSigner {
+    fn eq(&self, other: &Self) -> bool {
+        self.fingerprint == other.fingerprint
+            && self.descriptors == other.descriptors
+            && self.network == other.network
     }
 }
 
-impl Signer {
-    fn new<S>(
-        name: S,
-        description: Option<S>,
+impl Eq for CoreSigner {}
+
+impl Hash for CoreSigner {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.fingerprint.hash(state);
+        self.descriptors.hash(state);
+        self.network.hash(state);
+    }
+}
+
+impl CoreSigner {
+    pub fn new(
         fingerprint: Fingerprint,
-        descriptor: Descriptor<DescriptorPublicKey>,
-        t: SignerType,
+        descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+        r#type: SignerType,
         network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
-        if let DescriptorType::Tr = descriptor.desc_type() {
-            // Check network
-            descriptor
-                .clone()
-                .into_wallet_descriptor(&SECP256K1, network)?;
+    ) -> Result<Self, Error> {
+        // Compose signer
+        let mut signer = Self {
+            fingerprint,
+            descriptors: BTreeMap::new(),
+            r#type,
+            network,
+        };
 
-            // Compose signer
-            Ok(Self {
-                name: name.into(),
-                description: description.map(|d| d.into()),
-                fingerprint,
-                descriptor,
-                t,
-            })
-        } else {
-            Err(Error::NotTaprootDescriptor)
-        }
+        // Add descriptors
+        signer.add_descriptors(descriptors)?;
+
+        Ok(signer)
     }
 
-    pub fn from_seed<S>(
-        name: S,
-        description: Option<S>,
-        seed: Seed,
-        account: Option<u32>,
-        network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
-        let descriptor =
-            seed.to_typed_descriptor(Purpose::BIP86, account, false, network, &SECP256K1)?;
+    /// Compose [CoreSigner] from [Seed]
+    pub fn from_seed(seed: &Seed, account: Option<u32>, network: Network) -> Result<Self, Error> {
+        let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
+
+        let mut purposes: Vec<Purpose> = PURPOSES.to_vec();
+
+        // Check if the account index match the `SMARTVAULTS_ACCOUNT_INDEX` const,
+        // to include the BIP86 descriptor to avoid issues with old vaults
+        if Some(SMARTVAULTS_ACCOUNT_INDEX) == account {
+            purposes.push(Purpose::BIP86);
+        }
+
+        // Derive descriptors
+        for purpose in purposes.into_iter() {
+            let descriptor = seed.to_descriptor(purpose, account, false, network, &SECP256K1)?;
+            descriptors.insert(purpose, descriptor);
+        }
+
         Self::new(
-            name,
-            description,
             seed.fingerprint(network, &SECP256K1)?,
-            descriptor,
+            descriptors,
             SignerType::Seed,
             network,
         )
     }
 
-    // pub fn from_hwi<S>(
-    // name: S,
-    // description: Option<S>,
-    // device: HWIDevice,
-    // account: Option<u32>,
-    // network: Network,
-    // ) -> Result<Self, Error>
-    // where
-    // S: Into<String>,
-    // {
-    // let client = HWIClient::get_client(&device, false, network)?;
-    // let path = bip32::account_extended_path(86, network, account)?;
-    // let xpub = client.get_xpub(&path, false)?;
-    // let descriptor =
-    // descriptors::typed_descriptor(device.fingerprint, xpub.xpub, &path, false)?;
-    // Self::new(
-    // name,
-    // description,
-    // device.fingerprint,
-    // descriptor,
-    // SignerType::Hardware,
-    // )
-    // }
-
-    pub fn airgap<S>(
-        name: S,
-        description: Option<S>,
+    /// Compose [CoreSigner] from custom airgap device
+    pub fn airgap(
         fingerprint: Fingerprint,
-        descriptor: Descriptor<DescriptorPublicKey>,
+        descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
         network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
-        Self::new(
-            name,
-            description,
-            fingerprint,
-            descriptor,
-            SignerType::AirGap,
-            network,
-        )
+    ) -> Result<Self, Error> {
+        Self::new(fingerprint, descriptors, SignerType::AirGap, network)
     }
 
-    /// Build [`Signer`] from Coldcard generic JSON
-    pub fn from_coldcard<S>(
-        name: S,
-        coldcard: ColdcardGenericJson,
-        network: Network,
-    ) -> Result<Self, Error>
-    where
-        S: Into<String>,
-    {
-        let descriptor = coldcard.descriptor(Purpose::BIP48 {
-            script: ScriptType::P2TR,
-        })?;
-        let descriptor = Descriptor::Tr(Tr::new(descriptor, None)?);
-        Self::airgap(name, None, coldcard.fingerprint(), descriptor, network)
+    /// Compose [CoreSigner] from Coldcard generic JSON (`coldcard-export.json`)
+    pub fn from_coldcard(coldcard: &ColdcardGenericJson, network: Network) -> Result<Self, Error> {
+        let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
+
+        if coldcard.network() != network {
+            return Err(Error::NetworkNotMatch);
+        }
+
+        // Derive descriptors
+        for purpose in PURPOSES.into_iter() {
+            let descriptor = coldcard.descriptor(purpose)?;
+            descriptors.insert(purpose, descriptor);
+        }
+
+        Self::airgap(coldcard.fingerprint(), descriptors, network)
     }
 
-    pub fn name(&self) -> String {
-        self.name.clone()
+    #[cfg(feature = "hwi")]
+    pub async fn from_hwi(device: BoxedHWI, network: Network) -> Result<Self, Error> {
+        let root_fingerprint: Fingerprint = device.get_master_fingerprint().await?;
+
+        let mut descriptors: BTreeMap<Purpose, DescriptorPublicKey> = BTreeMap::new();
+        for purpose in PURPOSES.into_iter() {
+            let path: DerivationPath = purpose.to_account_extended_path(network, None)?;
+            let pubkey = device.get_extended_pubkey(&path).await?;
+            let (_, descriptor): (_, DescriptorPublicKey) =
+                descriptors::descriptor(root_fingerprint, pubkey, &path, false)?;
+            descriptors.insert(purpose, descriptor);
+        }
+
+        Self::new(root_fingerprint, descriptors, SignerType::Hardware, network)
+    }
+
+    /// Compose [CoreSigner] with unknown type
+    pub fn unknown(
+        fingerprint: Fingerprint,
+        descriptors: BTreeMap<Purpose, DescriptorPublicKey>,
+        network: Network,
+    ) -> Result<Self, Error> {
+        Self::new(fingerprint, descriptors, SignerType::Unknown, network)
     }
 
     pub fn fingerprint(&self) -> Fingerprint {
         self.fingerprint
     }
 
-    pub fn descriptor(&self) -> Descriptor<DescriptorPublicKey> {
-        self.descriptor.clone()
+    /// Get [CoreSigner] type
+    pub fn r#type(&self) -> SignerType {
+        self.r#type
     }
 
-    pub fn descriptor_public_key(&self) -> Result<DescriptorPublicKey, Error> {
-        match &self.descriptor {
-            Descriptor::Tr(tr) => Ok(tr.internal_key().clone()),
-            _ => Err(Error::NotTaprootDescriptor),
+    pub fn network(&self) -> Network {
+        self.network
+    }
+
+    pub fn descriptors(&self) -> &BTreeMap<Purpose, DescriptorPublicKey> {
+        &self.descriptors
+    }
+
+    pub fn descriptor(&self, purpose: Purpose) -> Option<DescriptorPublicKey> {
+        self.descriptors.get(&purpose).cloned()
+    }
+
+    /// Add descriptor
+    pub fn add_descriptor(
+        &mut self,
+        purpose: Purpose,
+        descriptor: DescriptorPublicKey,
+    ) -> Result<(), Error> {
+        // Check if fingerprint match
+        if self.fingerprint != descriptor.master_fingerprint() {
+            return Err(Error::FingerprintNotMatch);
         }
-    }
 
-    pub fn signer_type(&self) -> SignerType {
-        self.t
-    }
+        // Get derivation path
+        let path: DerivationPath = descriptor
+            .full_derivation_path()
+            .ok_or(Error::DerivationPathNotFound)?;
+        let mut path_iter = path.into_iter();
 
-    /// Generate deterministic identifier
-    pub fn generate_identifier(&self, network: Network) -> String {
-        let unhashed: String = format!("{}:{}", network.magic(), self.fingerprint);
-        let hash: String = hash::sha256(unhashed.as_bytes()).to_string();
-        hash[..32].to_string()
-    }
+        // Check purpose
+        let purp = path_iter.next().ok_or(Error::PurposeNotFound)?;
+        match purp {
+            ChildNumber::Hardened { index } => {
+                if *index != purpose.as_u32() {
+                    return Err(Error::PurposeNotMatch);
+                }
+            }
+            _ => return Err(Error::PurposeNotMatch),
+        };
 
-    pub fn to_shared_signer(&self) -> SharedSigner {
-        SharedSigner::from(self.clone())
-    }
-}
+        // Check network
+        let coin: &ChildNumber = path_iter.next().ok_or(Error::NetworkNotFound)?;
+        let res: bool = match coin {
+            ChildNumber::Hardened { index } => match self.network {
+                Network::Bitcoin => *index == 0, // Mainnet
+                _ => *index == 1,                // Testnet, Signer or Regtest
+            },
+            _ => false,
+        };
 
-pub fn smartvaults_signer(seed: Seed, network: Network) -> Result<Signer, Error> {
-    Signer::from_seed(
-        "SmartVaults",
-        None,
-        seed,
-        Some(SMARTVAULTS_ACCOUNT_INDEX),
-        network,
-    )
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct SharedSigner {
-    fingerprint: Fingerprint,
-    descriptor: Descriptor<DescriptorPublicKey>,
-}
-
-impl From<Signer> for SharedSigner {
-    fn from(value: Signer) -> Self {
-        Self {
-            fingerprint: value.fingerprint,
-            descriptor: value.descriptor,
+        if !res {
+            return Err(Error::NetworkNotMatch);
         }
-    }
-}
 
-impl SharedSigner {
-    pub fn fingerprint(&self) -> Fingerprint {
-        self.fingerprint
-    }
+        // Insert descriptor
+        self.descriptors.insert(purpose, descriptor);
 
-    pub fn descriptor(&self) -> Descriptor<DescriptorPublicKey> {
-        self.descriptor.clone()
+        Ok(())
     }
 
-    pub fn descriptor_public_key(&self) -> Result<DescriptorPublicKey, Error> {
-        match &self.descriptor {
-            Descriptor::Tr(tr) => Ok(tr.internal_key().clone()),
-            _ => Err(Error::NotTaprootDescriptor),
+    pub fn add_descriptors<I>(&mut self, descriptors: I) -> Result<(), Error>
+    where
+        I: IntoIterator<Item = (Purpose, DescriptorPublicKey)>,
+    {
+        for (purpose, descriptor) in descriptors.into_iter() {
+            self.add_descriptor(purpose, descriptor)?;
         }
+        Ok(())
+    }
+
+    /// Check if signer contains [`DescriptorPublicKey`]
+    pub fn contains_descriptor(&self, descriptor: &DescriptorPublicKey) -> bool {
+        self.descriptors.values().any(|d| d == descriptor)
     }
 }

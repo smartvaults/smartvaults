@@ -96,6 +96,7 @@ impl RecoveryTemplate {
     }
 }
 
+/// Policy template
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Hash)]
 pub enum PolicyTemplate {
     Singlesig {

@@ -11,7 +11,7 @@ use crate::app::context::{Mode, AVAILABLE_MODES};
 use crate::app::{Context, Message, Stage};
 use crate::component::{rule, Text};
 use crate::constants::{APP_LOGO, APP_NAME};
-use crate::theme::icon::{CONTACTS, HISTORY, HOME, KEY, LINK, LIST, LOCK, PEOPLE, SETTING, VAULT};
+use crate::theme::icon::{CONTACTS, HOME, KEY, LINK, LIST, LOCK, PEOPLE, SETTING, VAULT};
 
 const MAX_WIDTH: f32 = 240.0;
 
@@ -44,8 +44,8 @@ impl Sidebar {
             SidebarButton::new("Dashboard", HOME).view(ctx, Message::View(Stage::Dashboard));
         let vaults_button =
             SidebarButton::new("Vaults", VAULT).view(ctx, Message::View(Stage::Vaults));
-        let history_button =
-            SidebarButton::new("History", HISTORY).view(ctx, Message::View(Stage::History));
+        /* let history_button =
+        SidebarButton::new("History", HISTORY).view(ctx, Message::View(Stage::History)); */
         let addresses_button =
             SidebarButton::new("Addresses", LIST).view(ctx, Message::View(Stage::Addresses(None)));
         let signers_button =
@@ -63,7 +63,7 @@ impl Sidebar {
             Mode::User => vec![
                 home_button,
                 vaults_button,
-                history_button,
+                //history_button,
                 addresses_button,
                 signers_button,
                 key_agents_button,

@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package proposal;
+
+import "vault.proto";
+
+message ProposalIdentifier {
+  bytes id = 1;
+}
+
+message Recipient {
+  string address = 1;
+  fixed64 amount = 2; // Amount in SAT
+}
+
+message Destination {
+  message MultipleRecipients {
+    repeated Recipient recipients = 3;
+  }
+
+  oneof destination {
+    string drain = 1;
+    Recipient single = 2;
+    MultipleRecipients multiple = 3;
+  }
+}
+
+message Period {
+  fixed64 from = 1;
+  fixed64 to = 2;
+}
+
+message Proposal {
+  vault.VaultIdentifier vault_id = 1;
+  ProposalStatus status = 2;
+  bytes network = 3;
+  fixed64 timestamp = 4;
+  optional string description = 5;
+}
+
+message ProposalStatus {
+  message PendingProposal {
+    message Spending {
+      string descriptor = 1;
+      Destination destination = 2;
+      string psbt = 4;
+    }
+
+    message ProofOfReserve {
+      string descriptor = 1;
+      string message = 2;
+      string psbt = 3;
+    }
+
+    message KeyAgentPayment {
+      string descriptor = 1;
+      string signer_descriptor = 2;
+      Recipient recipient = 3;
+      Period period = 4;
+      string psbt = 6;
+    }
+
+    oneof proposal {
+      Spending spending = 1;
+      ProofOfReserve proof_of_reserve = 2;
+      KeyAgentPayment key_agent_payment = 3;
+    }
+  }
+
+  message CompletedProposal {
+    message Spending {
+      bytes tx = 1;
+    }
+
+    message ProofOfReserve {
+      string descriptor = 1; // TODO: remove?
+      string message = 2;
+      string psbt = 3;
+    }
+
+    message KeyAgentPayment {
+      bytes tx = 1;
+    }
+
+    oneof proposal {
+      Spending spending = 1;
+      ProofOfReserve proof_of_reserve = 2;
+      KeyAgentPayment key_agent_payment = 3;
+    }
+  }
+
+  oneof proposal {
+    PendingProposal pending = 1;
+    CompletedProposal completed = 2;
+  }
+}

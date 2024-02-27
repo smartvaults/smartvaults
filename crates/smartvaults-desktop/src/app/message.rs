@@ -4,18 +4,7 @@
 use smartvaults_sdk::Message as SdkMessage;
 
 use super::context::Mode;
-// use super::screen::AddHWSignerMessage;
-use super::screen::{
-    ActivityMessage, AddAirGapSignerMessage, AddColdcardSignerMessage, AddContactMessage,
-    AddNostrConnectSessionMessage, AddRelayMessage, AddSignerMessage, AddVaultMessage,
-    AddressesMessage, ChangePasswordMessage, CompletedProposalMessage, ConfigMessage,
-    ConnectMessage, ContactsMessage, DashboardMessage, EditProfileMessage,
-    EditSignerOfferingMessage, HistoryMessage, KeyAgentsMessage, NewProofMessage, PoliciesMessage,
-    PolicyBuilderMessage, PolicyTreeMessage, ProfileMessage, ProposalMessage, ReceiveMessage,
-    RecoveryKeysMessage, RelayMessage, RelaysMessage, RestoreVaultMessage, RevokeAllSignersMessage,
-    SelfTransferMessage, SettingsMessage, ShareSignerMessage, SignerMessage, SignersMessage,
-    SpendMessage, TransactionMessage, VaultMessage, WipeKeysMessage,
-};
+use super::screen::*;
 use super::Stage;
 
 #[derive(Debug, Clone)]
@@ -30,13 +19,10 @@ pub enum Message {
     PolicyTree(PolicyTreeMessage),
     Spend(SpendMessage),
     Receive(ReceiveMessage),
-    SelfTransfer(SelfTransferMessage),
     NewProof(NewProofMessage),
     Activity(ActivityMessage),
     Proposal(ProposalMessage),
     Transaction(TransactionMessage),
-    History(HistoryMessage),
-    CompletedProposal(CompletedProposalMessage),
     Addresses(AddressesMessage),
     Signers(SignersMessage),
     RevokeAllSigners(RevokeAllSignersMessage),

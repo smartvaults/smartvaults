@@ -3,7 +3,7 @@
 
 use std::str::FromStr;
 
-use smartvaults_sdk::core::{Amount, FeeRate};
+use smartvaults_sdk::core::FeeRate;
 use smartvaults_sdk::prelude::*;
 
 const NETWORK: Network = Network::Testnet;
@@ -29,18 +29,20 @@ async fn main() {
         .await;
     config.save().await.unwrap();
 
-    // Get policies
-    let policies = client.get_policies().await.unwrap();
-    for policy in policies.iter() {
-        println!("{policy:?}");
-    }
+    // Get first vault
+    let vaults = client.vaults().await.unwrap();
+    let vault = vaults.first().unwrap();
 
     // Create a new proposal
     let proposal = client
         .spend(
-            policies.first().unwrap().policy_id,
-            Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap(),
-            Amount::Custom(10_934), // Or, `Amount::Max` to send all
+            &vault.compute_id(),
+            Destination::Single(Recipient {
+                address: Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")
+                    .unwrap()
+                    .assume_checked(),
+                amount: Amount::from_sat(10_934),
+            }),
             "Back to the faucet",
             FeeRate::Priority(Priority::Medium), // Or, FeeRate::Rate(1.0) to specify the sat/vByte
             None,                                // Specify the UTXOs to use (optional)
@@ -52,20 +54,20 @@ async fn main() {
     println!("New proposal: {proposal:#?}");
 
     // Get proposals
-    let proposals = client.get_proposals().await.unwrap();
+    let proposals = client.proposals().await.unwrap();
     for proposal in proposals.into_iter() {
         println!("{proposal:?}");
     }
 
     // Approve a proposal
     client
-        .approve("password", proposal.proposal_id)
+        .approve(&proposal.compute_id(), "password")
         .await
         .unwrap();
     // other approvals ...
 
     // Finalize the proposal
-    client.finalize(proposal.proposal_id).await.unwrap();
+    client.finalize(&proposal.compute_id()).await.unwrap();
 
     // Shutdown the client (for logout)
     client.shutdown().await.unwrap();

@@ -10,29 +10,24 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use clap::Parser;
-use cli::{AddCommand, ConfigCommand, ConnectCommand, KeyAgentCommand, SetCommand};
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 use smartvaults_sdk::config::Config;
 use smartvaults_sdk::core::bips::bip39::Mnemonic;
-use smartvaults_sdk::core::bitcoin::Network;
-use smartvaults_sdk::core::signer::Signer;
+use smartvaults_sdk::core::bitcoin::{Address, Amount, Network};
 use smartvaults_sdk::core::types::Priority;
-use smartvaults_sdk::core::{Amount, CompletedProposal, FeeRate, Keychain, Result};
+use smartvaults_sdk::core::{ColdcardGenericJson, Destination, FeeRate, Keychain, Result};
 use smartvaults_sdk::nostr::{EventId, Metadata};
 use smartvaults_sdk::protocol::v1::{Label, SignerOffering};
-use smartvaults_sdk::types::{GetPolicy, GetProposal};
-use smartvaults_sdk::util::format;
+use smartvaults_sdk::protocol::v2::{CompletedProposal, ProposalStatus, Signer};
+use smartvaults_sdk::types::GetVault;
 use smartvaults_sdk::{logger, SmartVaults};
 
 mod cli;
 mod util;
 
 use crate::cli::batch::BatchCommand;
-use crate::cli::{
-    io, Cli, CliCommand, Command, DeleteCommand, GetCommand, ProofCommand, SettingCommand,
-    ShareCommand,
-};
+use crate::cli::*;
 
 fn base_path() -> Result<PathBuf> {
     let home_path = dirs::home_dir().expect("Imposible to get the HOME dir");
@@ -266,17 +261,17 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
             util::print_secrets(keychain, client.network())
         }
         Command::Spend {
-            policy_id,
-            to_address,
+            vault_id,
+            address,
             amount,
             description,
             target_blocks,
         } => {
-            let GetProposal { proposal_id, .. } = client
+            let address: Address = address.require_network(client.network())?;
+            let proposal = client
                 .spend(
-                    policy_id,
-                    to_address,
-                    Amount::Custom(amount),
+                    &vault_id,
+                    Destination::single(address, Amount::from_sat(amount)),
                     description,
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
@@ -284,20 +279,20 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     false,
                 )
                 .await?;
-            println!("Spending proposal {proposal_id} sent");
+            println!("Spending proposal {} sent", proposal.compute_id());
             Ok(())
         }
         Command::SpendAll {
-            policy_id,
-            to_address,
+            vault_id,
+            address,
             description,
             target_blocks,
         } => {
-            let GetProposal { proposal_id, .. } = client
+            let address: Address = address.require_network(client.network())?;
+            let proposal = client
                 .spend(
-                    policy_id,
-                    to_address,
-                    Amount::Max,
+                    &vault_id,
+                    Destination::drain(address),
                     description,
                     FeeRate::Priority(Priority::Custom(target_blocks)),
                     None,
@@ -305,70 +300,240 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                     false,
                 )
                 .await?;
-            println!("Spending proposal {proposal_id} sent");
+            println!("Spending proposal {} sent", proposal.compute_id());
             Ok(())
         }
         Command::Approve { proposal_id } => {
             let password: String = io::get_password()?;
-            let (event_id, _) = client.approve(password, proposal_id).await?;
-            println!("Proposal {proposal_id} approved: {event_id}");
+            client.approve(&proposal_id, password).await?;
+            println!("Proposal {proposal_id} approved");
             Ok(())
         }
         Command::Finalize { proposal_id } => {
-            let completed_proposal: CompletedProposal = client.finalize(proposal_id).await?;
+            let proposal = client.finalize(&proposal_id).await?;
 
-            match completed_proposal {
-                CompletedProposal::Spending { tx, .. } => {
-                    let txid = tx.txid();
+            if let ProposalStatus::Completed(status) = proposal.status() {
+                match status {
+                    CompletedProposal::Spending { tx, .. } => {
+                        let txid = tx.txid();
 
-                    println!("Transaction {txid} broadcasted");
+                        println!("Transaction {txid} broadcasted");
 
-                    match client.network() {
-                        Network::Bitcoin => {
-                            println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
-                        }
-                        Network::Testnet => {
-                            println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
-                        }
-                        _ => (),
-                    };
+                        match client.network() {
+                            Network::Bitcoin => {
+                                println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                            }
+                            Network::Testnet => {
+                                println!(
+                                    "\nExplorer: https://blockstream.info/testnet/tx/{txid} \n"
+                                )
+                            }
+                            _ => (),
+                        };
+                    }
+                    CompletedProposal::KeyAgentPayment { tx, .. } => {
+                        let txid = tx.txid();
+
+                        println!("Key agent payment broadcasted: {txid}");
+
+                        match client.network() {
+                            Network::Bitcoin => {
+                                println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
+                            }
+                            Network::Testnet => {
+                                println!(
+                                    "\nExplorer: https://blockstream.info/testnet/tx/{txid} \n"
+                                )
+                            }
+                            _ => (),
+                        };
+                    }
+                    CompletedProposal::ProofOfReserve { .. } => {
+                        println!("Proof of Reserve finalized")
+                    }
                 }
-                CompletedProposal::KeyAgentPayment { tx, .. } => {
-                    let txid = tx.txid();
-
-                    println!("Key agent payment broadcasted: {txid}");
-
-                    match client.network() {
-                        Network::Bitcoin => {
-                            println!("\nExplorer: https://blockstream.info/tx/{txid} \n")
-                        }
-                        Network::Testnet => {
-                            println!("\nExplorer: https://blockstream.info/testnet/tx/{txid} \n")
-                        }
-                        _ => (),
-                    };
-                }
-                CompletedProposal::ProofOfReserve { .. } => println!("Proof of Reserve finalized"),
-            };
+            } else {
+                eprintln!("Proposal not finalized");
+            }
 
             Ok(())
         }
-        Command::Rebroadcast => {
-            client.rebroadcast_all_events().await?;
-            Ok(())
-        }
-        Command::Proof { command } => match command {
-            ProofCommand::New { policy_id, message } => {
-                let (proposal_id, ..) = client.new_proof_proposal(policy_id, message).await?;
-                println!("Proof of Reserve proposal {proposal_id} sent");
+        Command::Vault { command } => match command {
+            VaultCommand::Add {
+                name,
+                description,
+                descriptor,
+            } => {
+                let vault_id = client.save_vault(name, description, descriptor).await?;
+                println!("Vault saved: {vault_id}");
                 Ok(())
             }
-            ProofCommand::Verify { proposal_id } => {
-                let spendable = client.verify_proof_by_id(proposal_id).await?;
+            VaultCommand::Invite {
+                vault_id,
+                public_key,
+                message,
+            } => {
+                client
+                    .invite_to_vault(&vault_id, public_key, message.unwrap_or_default())
+                    .await?;
+                println!("Invite sent!");
+                Ok(())
+            }
+            VaultCommand::Invites => {
+                let invites = client.vault_invites().await?;
+                util::print_vaults_invites(invites);
+                Ok(())
+            }
+            VaultCommand::AcceptInvite { vault_id } => {
+                client.accept_vault_invite(&vault_id).await?;
+                println!("Vault invite accepted!");
+                Ok(())
+            }
+            VaultCommand::Metadata {
+                vault_id,
+                name,
+                description,
+            } => {
+                client
+                    .edit_vault_metadata(&vault_id, name, description)
+                    .await?;
+                Ok(())
+            }
+            VaultCommand::Get { vault_id, export } => {
+                // Get vault
+                let vault: GetVault = client.get_vault_by_id(&vault_id).await?;
+
+                // Print result
+                if export {
+                    println!("\n{}\n", vault.as_descriptor());
+                    Ok(())
+                } else {
+                    let item = vault.satisfiable_item()?.clone();
+                    let address = client.get_last_unused_address(&vault_id).await?;
+                    let txs = client.get_txs(&vault_id).await.unwrap_or_default();
+                    let utxos = client.get_utxos(&vault_id).await.unwrap_or_default();
+                    util::print_vault(vault, item, address, txs, utxos);
+                    Ok(())
+                }
+            }
+            VaultCommand::List => {
+                let vaults = client.vaults().await?;
+                util::print_vaults(vaults);
+                Ok(())
+            }
+            VaultCommand::Delete { vault_id } => Ok(client.delete_vault_by_id(&vault_id).await?),
+            VaultCommand::Members { vault_id } => {
+                let members = client.get_members_of_vault(&vault_id).await?;
+                util::print_profiles(members);
+                Ok(())
+            }
+        },
+        Command::Signer { command } => match command {
+            SignerCommand::Add { command } => match command {
+                AddSignerCommand::Default => {
+                    client.save_smartvaults_signer().await?;
+                    Ok(())
+                }
+                AddSignerCommand::Coldcard { name, path } => {
+                    let coldcard = ColdcardGenericJson::from_file(path)?;
+                    let mut signer = Signer::from_coldcard(&coldcard, client.network())?;
+                    signer.change_name(name);
+                    let signer_id = client.save_signer(signer).await?;
+                    println!("Saved coldcard signer: {signer_id}");
+                    Ok(())
+                }
+            },
+            SignerCommand::Metadata {
+                signer_id,
+                name,
+                description,
+            } => {
+                client
+                    .edit_signer_metadata(&signer_id, name, description)
+                    .await?;
+                Ok(())
+            }
+            SignerCommand::Get { signer_id } => {
+                let signer = client.get_signer_by_id(&signer_id).await?;
+                util::print_signer(signer);
+                Ok(())
+            }
+            SignerCommand::List => {
+                let signers = client.signers().await;
+                util::print_signers(signers);
+                Ok(())
+            }
+            SignerCommand::ListShared => {
+                let signers = client.shared_signers().await?;
+                util::print_shared_signers(signers);
+                Ok(())
+            }
+            SignerCommand::Delete { signer_id } => {
+                Ok(client.delete_signer_by_id(&signer_id).await?)
+            }
+            SignerCommand::Share {
+                signer_id,
+                public_key,
+                message,
+            } => {
+                client
+                    .share_signer(&signer_id, public_key, message.unwrap_or_default())
+                    .await?;
                 println!(
-                    "Valid Proof - Spendable amount: {} sat",
-                    format::number(spendable)
+                    "Shared signerigner invite sent to {}",
+                    smartvaults_sdk::util::cut_public_key(public_key)
                 );
+                Ok(())
+            }
+            SignerCommand::Invites => {
+                let invites = client.shared_signer_invites().await?;
+                util::print_shared_signer_invites(invites);
+                Ok(())
+            }
+            SignerCommand::AcceptInvite { shared_signer_id } => {
+                client
+                    .accept_shared_signer_invite(&shared_signer_id)
+                    .await?;
+                println!("Signer invite accepted!");
+                Ok(())
+            }
+        },
+        Command::Proposal { command } => match command {
+            ProposalCommand::Get { proposal_id } => {
+                let proposal = client.get_proposal_by_id(&proposal_id).await?;
+                util::print_proposal(proposal);
+                Ok(())
+            }
+            ProposalCommand::List => {
+                let proposals = client.proposals().await?;
+                util::print_proposals(proposals);
+                Ok(())
+            }
+            ProposalCommand::Metadata {
+                proposal_id,
+                description,
+            } => {
+                client
+                    .edit_proposal_description(&proposal_id, description)
+                    .await?;
+                Ok(())
+            }
+            ProposalCommand::Delete { proposal_id } => {
+                Ok(client.delete_proposal_by_id(&proposal_id).await?)
+            }
+        },
+        Command::Proof { command } => match command {
+            ProofCommand::New { .. } => {
+                // let (proposal_id, ..) = client.new_proof_proposal(policy_id, message).await?;
+                // println!("Proof of Reserve proposal {proposal_id} sent");
+                Ok(())
+            }
+            ProofCommand::Verify { .. } => {
+                // let spendable = client.verify_proof_by_id(proposal_id).await?;
+                // println!(
+                // "Valid Proof - Spendable amount: {} sat",
+                // format::number(spendable)
+                // );
                 Ok(())
             }
         },
@@ -431,7 +596,7 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 yearly_cost_basis_points,
                 yearly_cost,
             } => {
-                let signer: Signer = client.get_signer_by_id(signer_id).await?;
+                let signer: Signer = client.get_signer_by_id(&signer_id).await?;
 
                 let offering: SignerOffering = SignerOffering {
                     temperature,
@@ -463,91 +628,11 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client.add_contact(public_key).await?;
                 Ok(())
             }
-            AddCommand::Policy {
-                name,
-                description,
-                descriptor,
-                nostr_pubkeys,
-            } => {
-                let policy_id = client
-                    .save_policy(name, description, descriptor, nostr_pubkeys)
-                    .await?;
-                println!("Policy saved: {policy_id}");
-                Ok(())
-            }
-            AddCommand::SmartVaultsSigner {
-                share_with_contacts,
-            } => {
-                let signer_id = client.save_smartvaults_signer().await?;
-                if share_with_contacts {
-                    for user in client.get_contacts().await? {
-                        client.share_signer(signer_id, user.public_key()).await?;
-                    }
-                }
-                Ok(())
-            }
-            AddCommand::Signer {
-                name,
-                fingerprint,
-                descriptor,
-                share_with_contacts,
-            } => {
-                let signer = Signer::airgap(name, None, fingerprint, descriptor, client.network())?;
-                let signer_id = client.save_signer(signer).await?;
-                if share_with_contacts {
-                    for user in client.get_contacts().await? {
-                        client.share_signer(signer_id, user.public_key()).await?;
-                    }
-                }
-                Ok(())
-            }
         },
         Command::Get { command } => match command {
             GetCommand::Contacts => {
                 let contacts = client.get_contacts().await?;
-                util::print_contacts(contacts);
-                Ok(())
-            }
-            GetCommand::Policies => {
-                let policies = client.get_policies().await?;
-                util::print_policies(policies);
-                Ok(())
-            }
-            GetCommand::Policy { policy_id, export } => {
-                // Get policy
-                let policy: GetPolicy = client.get_policy_by_id(policy_id).await?;
-
-                // Print result
-                if export {
-                    println!("\n{}\n", policy.as_descriptor());
-                    Ok(())
-                } else {
-                    let item = policy.satisfiable_item()?.clone();
-                    let address = client.get_last_unused_address(policy_id).await?;
-                    let txs = client.get_txs(policy_id).await.unwrap_or_default();
-                    let utxos = client.get_utxos(policy_id).await.unwrap_or_default();
-                    util::print_policy(policy, policy_id, item, address, txs, utxos);
-                    Ok(())
-                }
-            }
-            GetCommand::Proposals { completed } => {
-                if completed {
-                    let proposals = client.get_completed_proposals().await?;
-                    util::print_completed_proposals(proposals);
-                } else {
-                    let proposals = client.get_proposals().await?;
-                    util::print_proposals(proposals);
-                }
-                Ok(())
-            }
-            GetCommand::Proposal { proposal_id } => {
-                let proposal = client.get_proposal_by_id(proposal_id).await?;
-                util::print_proposal(proposal);
-                Ok(())
-            }
-            GetCommand::Signers => {
-                let signers = client.get_signers().await;
-                util::print_signers(signers);
+                util::print_profiles(contacts);
                 Ok(())
             }
             GetCommand::Relays => {
@@ -555,9 +640,9 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 util::print_relays(relays).await;
                 Ok(())
             }
-            GetCommand::Addresses { policy_id } => {
-                let addresses = client.get_addresses(policy_id).await?;
-                let balances = client.get_addresses_balances(policy_id).await?;
+            GetCommand::Addresses { vault_id } => {
+                let addresses = client.get_addresses(&vault_id).await?;
+                let balances = client.get_addresses_balances(&vault_id).await?;
                 util::print_addresses(addresses, balances);
                 Ok(())
             }
@@ -583,28 +668,13 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 Ok(())
             }
             SetCommand::Label {
-                policy_id,
+                vault_id,
                 data,
                 text,
             } => {
                 let label = Label::new(data, text);
-                let event_id = client.save_label(policy_id, label).await?;
+                let event_id = client.save_label(&vault_id, label).await?;
                 println!("Label saved at event {event_id}");
-                Ok(())
-            }
-        },
-        Command::Share { command } => match command {
-            ShareCommand::Signer {
-                signer_id,
-                public_key,
-            } => {
-                let shared_signer_id = client.share_signer(signer_id, public_key).await?;
-                println!(
-                    "Signer {} shared with {}",
-                    smartvaults_sdk::util::cut_event_id(signer_id),
-                    smartvaults_sdk::util::cut_public_key(public_key)
-                );
-                println!("Shared Signer ID: {shared_signer_id}");
                 Ok(())
             }
         },
@@ -613,31 +683,12 @@ async fn handle_command(command: Command, client: &SmartVaults) -> Result<()> {
                 client.remove_relay(url).await?;
                 Ok(())
             }
-            DeleteCommand::Policy { policy_id } => {
-                Ok(client.delete_policy_by_id(policy_id).await?)
-            }
-            DeleteCommand::Proposal {
-                proposal_id,
-                completed,
-            } => {
-                if completed {
-                    Ok(client.delete_completed_proposal_by_id(proposal_id).await?)
-                } else {
-                    Ok(client.delete_proposal_by_id(proposal_id).await?)
-                }
-            }
-            DeleteCommand::Approval { approval_id } => {
-                client.revoke_approval(approval_id).await?;
-                Ok(())
-            }
-            DeleteCommand::Signer { signer_id } => {
-                Ok(client.delete_signer_by_id(signer_id).await?)
-            }
-            DeleteCommand::SharedSigner { shared_signer_id } => {
-                Ok(client.revoke_shared_signer(shared_signer_id).await?)
-            }
             DeleteCommand::Cache => Ok(client.clear_cache().await?),
         },
+        Command::Rebroadcast => {
+            client.rebroadcast_all_events().await?;
+            Ok(())
+        }
         Command::Setting { command } => match command {
             SettingCommand::Rename { new_name } => Ok(client.rename(new_name)?),
             SettingCommand::ChangePassword => Ok(client.change_password(

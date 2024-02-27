@@ -10,10 +10,11 @@ use smartvaults_core::bdk::wallet::Balance;
 use smartvaults_core::bdk::LocalOutput;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::Address;
-use smartvaults_core::{
-    ApprovedProposal, CompletedProposal, Policy, Proposal, SharedSigner, Signer,
-};
 use smartvaults_protocol::v1::SignerOffering;
+use smartvaults_protocol::v2::vault::VaultMetadata;
+use smartvaults_protocol::v2::{
+    Approval, NostrPublicIdentifier, Proposal, SharedSigner, Signer, Vault, VaultIdentifier,
+};
 pub use smartvaults_sdk_sqlite::model::*;
 
 pub mod backup;
@@ -22,40 +23,39 @@ pub use self::backup::PolicyBackup;
 use crate::manager::TransactionDetails;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetPolicy {
-    pub policy_id: EventId,
-    pub policy: Policy,
+pub struct GetVault {
+    // Needed to avoid to compute it later (ex. in UI)
+    pub vault_id: VaultIdentifier,
+    pub vault: Vault,
+    pub metadata: VaultMetadata,
     pub balance: Balance,
     pub last_sync: Timestamp,
 }
 
-impl PartialOrd for GetPolicy {
+impl PartialOrd for GetVault {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for GetPolicy {
+impl Ord for GetVault {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.policy.cmp(&other.policy)
+        self.vault.cmp(&other.vault)
     }
 }
 
-impl Deref for GetPolicy {
-    type Target = Policy;
+impl Deref for GetVault {
+    type Target = Vault;
 
     fn deref(&self) -> &Self::Target {
-        &self.policy
+        &self.vault
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetProposal {
-    pub proposal_id: EventId,
-    pub policy_id: EventId,
     pub proposal: Proposal,
     pub signed: bool,
-    pub timestamp: Timestamp,
 }
 
 impl PartialOrd for GetProposal {
@@ -66,11 +66,15 @@ impl PartialOrd for GetProposal {
 
 impl Ord for GetProposal {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.timestamp != other.timestamp {
-            self.timestamp.cmp(&other.timestamp).reverse()
-        } else {
-            self.policy_id.cmp(&other.policy_id)
-        }
+        self.proposal.cmp(&other.proposal).reverse()
+    }
+}
+
+impl Deref for GetProposal {
+    type Target = Proposal;
+
+    fn deref(&self) -> &Self::Target {
+        &self.proposal
     }
 }
 
@@ -78,7 +82,7 @@ impl Ord for GetProposal {
 pub struct GetApproval {
     pub approval_id: EventId,
     pub user: Profile,
-    pub approved_proposal: ApprovedProposal,
+    pub approval: Approval,
     pub timestamp: Timestamp,
 }
 
@@ -99,70 +103,13 @@ impl Ord for GetApproval {
 }
 
 pub struct GetApprovedProposals {
-    pub policy_id: EventId,
     pub proposal: Proposal,
-    pub approved_proposals: Vec<ApprovedProposal>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetCompletedProposal {
-    pub policy_id: EventId,
-    pub completed_proposal_id: EventId,
-    pub proposal: CompletedProposal,
-    pub timestamp: Timestamp,
-}
-
-impl PartialOrd for GetCompletedProposal {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for GetCompletedProposal {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.timestamp != other.timestamp {
-            self.timestamp.cmp(&other.timestamp).reverse()
-        } else {
-            self.policy_id.cmp(&other.policy_id)
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GetSigner {
-    pub signer_id: EventId,
-    pub signer: Signer,
-}
-
-impl PartialOrd for GetSigner {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for GetSigner {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.signer.cmp(&other.signer)
-    }
-}
-
-impl From<(EventId, Signer)> for GetSigner {
-    fn from((signer_id, signer): (EventId, Signer)) -> Self {
-        Self { signer_id, signer }
-    }
-}
-
-impl Deref for GetSigner {
-    type Target = Signer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.signer
-    }
+    pub approvals: Vec<Approval>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetSharedSigner {
-    pub shared_signer_id: EventId,
+    pub shared_signer_id: NostrPublicIdentifier,
     pub owner: Profile,
     pub shared_signer: SharedSigner,
 }
@@ -196,7 +143,7 @@ impl Deref for GetUtxo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GetTransaction {
-    pub policy_id: EventId,
+    pub vault_id: VaultIdentifier,
     pub tx: TransactionDetails,
     pub label: Option<String>,
     pub block_explorer: Option<String>,
@@ -236,12 +183,6 @@ impl Deref for GetAddress {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct GetAllSigners {
-    pub my: Vec<GetSigner>,
-    pub contacts: Vec<GetSharedSigner>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyAgent {
     pub user: Profile,
@@ -273,6 +214,6 @@ impl Deref for KeyAgent {
 #[derive(Debug, Clone)]
 pub struct GetSignerOffering {
     pub id: EventId, // TODO: remove?
-    pub signer: GetSigner,
+    pub signer: Signer,
     pub offering: SignerOffering,
 }

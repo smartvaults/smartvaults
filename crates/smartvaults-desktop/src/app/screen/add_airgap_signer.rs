@@ -7,7 +7,7 @@ use iced::widget::{Column, Row, Space};
 use iced::{Alignment, Command, Element, Length};
 use smartvaults_sdk::core::bips::bip32::Fingerprint;
 use smartvaults_sdk::core::miniscript::Descriptor;
-use smartvaults_sdk::core::signer::Signer;
+use smartvaults_sdk::protocol::v1::Signer;
 
 use crate::app::component::Dashboard;
 use crate::app::{Context, Message, Stage, State};
