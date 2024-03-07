@@ -76,8 +76,7 @@ impl Policy {
     pub fn search_used_signers(&self, signers: Vec<Arc<Signer>>) -> Result<Vec<Arc<Signer>>> {
         Ok(self
             .inner
-            .search_used_signers(signers.into_iter().map(|s| s.as_ref().deref().clone()))?
-            .into_iter()
+            .search_used_signers(signers.into_iter().map(|s| s.as_ref().deref().clone()))
             .map(|s| Arc::new(s.into()))
             .collect())
     }

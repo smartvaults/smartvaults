@@ -422,19 +422,19 @@ impl Policy {
     }
 
     /// Search used signers in this [`Policy`]
-    pub fn search_used_signers<I>(&self, my_signers: I) -> Result<Vec<Signer>, Error>
+    pub fn search_used_signers<I>(&self, my_signers: I) -> impl Iterator<Item = Signer>
     where
         I: Iterator<Item = Signer>,
     {
         let descriptor: String = self.descriptor.to_string();
-        let mut list: Vec<Signer> = Vec::new();
-        for signer in my_signers.into_iter() {
-            let signer_descriptor: String = signer.descriptor_public_key()?.to_string();
-            if descriptor.contains(&signer_descriptor) && !list.contains(&signer) {
-                list.push(signer);
+        my_signers.into_iter().filter_map(move |signer| {
+            let signer_descriptor: String = signer.descriptor_public_key().ok()?.to_string();
+            if descriptor.contains(&signer_descriptor) {
+                Some(signer)
+            } else {
+                None
             }
-        }
-        Ok(list)
+        })
     }
 
     /// Search and map the selectable conditions for the passed [Signer]
@@ -578,14 +578,15 @@ impl Policy {
     where
         I: Iterator<Item = Signer>,
     {
-        let used_signers: Vec<Signer> = self.search_used_signers(my_signers)?;
-
         #[allow(clippy::mutable_key_type)]
-        let mut map = HashMap::with_capacity(used_signers.len());
-        for signer in used_signers.into_iter() {
-            let pp: Option<PolicyPathSelector> = self.get_policy_path_from_signer(&signer)?;
-            map.insert(signer, pp);
-        }
+        let map: HashMap<Signer, Option<PolicyPathSelector>> = self
+            .search_used_signers(my_signers)
+            .filter_map(|signer| {
+                let pp: Option<PolicyPathSelector> =
+                    self.get_policy_path_from_signer(&signer).ok()?;
+                Some((signer, pp))
+            })
+            .collect();
 
         if map.is_empty() {
             Ok(PolicyPath::None)
