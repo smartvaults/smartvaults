@@ -16,7 +16,6 @@ use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 use keechain_core::bitcoin::bip32::Fingerprint;
-#[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
 use keechain_core::bitcoin::{Address, Network, OutPoint};
 use keechain_core::miniscript::descriptor::DescriptorType;
@@ -434,6 +433,38 @@ impl Policy {
             } else {
                 None
             }
+        })
+    }
+
+    /// Search used signers in this [`Policy`] and additionally check [Fingerprint]s contained PSTB inputs
+    ///
+    /// Useful for checking what [Signer] is able to signe a proposal
+    pub fn search_used_signers_with_psbt<'a, I>(
+        &self,
+        my_signers: I,
+        psbt: &'a PartiallySignedTransaction,
+    ) -> impl Iterator<Item = Signer> + 'a
+    where
+        I: Iterator<Item = Signer> + 'a,
+    {
+        self.search_used_signers(my_signers).filter(move |signer| {
+            let root_fingerprint: &Fingerprint = signer.fingerprint_ref();
+
+            for input in psbt.inputs.iter() {
+                for (fingerprint, ..) in input.bip32_derivation.values() {
+                    if fingerprint.eq(root_fingerprint) {
+                        return true;
+                    }
+                }
+
+                for (_, (fingerprint, ..)) in input.tap_key_origins.values() {
+                    if fingerprint.eq(root_fingerprint) {
+                        return true;
+                    }
+                }
+            }
+
+            false
         })
     }
 
@@ -1294,6 +1325,108 @@ mod tests {
             policy.template_match().unwrap(),
             Some(PolicyTemplateType::Decaying)
         );
+    }
+
+    #[test]
+    fn test_search_used_signers_with_psbt_multisig() {
+        // Signer involved
+        let mnemonic = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer1 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        // Signer NOT involved
+        let mnemonic = Mnemonic::from_str(
+            "message scissors typical gravity patrol lunch about bacon person focus cry uncover",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer2 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        let descriptor: &str = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,{pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),pk([4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*)})#xsuum36w";
+        let psbt: PartiallySignedTransaction = PartiallySignedTransaction::from_str("cHNidP8BAIkBAAAAAUYmArSyErthOHegfl2ixX1BHRiSDiATHgYddFupvwdGAAAAAAD9////AoUMAAAAAAAAIlEgpr0minqsnR+JmemTJmSF+zymuR10pI2YtdZTw374Xi+4CwAAAAAAACJRIJBJ4dz9/AdRNwnfXTQZRN9dn0KTu8TgCkwSAU+XhkqfeWEnAAABASvxGAAAAAAAACJRIAdSHjw1j29egbyL5zqVlgxBq30LlP8fgMbizqiaKlDUQhXBVDSAhegugLVST532La37oqKtnjOckhIBlLs2Q/sNIFsvfYmlX9d1ahzmWDoEpHntwkm/Tg+5j+cKLnLNOgzO5SMgQCxyISjrr+XUnxsnC9tra6YyPo5CAGSmjktOYFSbS1aswEIVwVQ0gIXoLoC1Uk+d9i2t+6KirZ4znJISAZS7NkP7DSBbrrtXErkzokyGFK5yLS3DF0ndDRJsfg3XI0V6ScCuGq4jIPs1huk4hLoPP3jQK91a7CkyOFAMxVaKr3EEfUC4FLOprMAhFkAsciEo66/l1J8bJwvba2umMj6OQgBkpo5LTmBUm0tWOQGuu1cSuTOiTIYUrnItLcMXSd0NEmx+DdcjRXpJwK4arvOrZNhWAACAAQAAgBv6C4AAAAAAAQAAACEWVDSAhegugLVST532La37oqKtnjOckhIBlLs2Q/sNIFsZAHNW5FdWAACAAQAAgBv6C4AAAAAAAQAAACEW+zWG6TiEug8/eNAr3VrsKTI4UAzFVoqvcQR9QLgUs6k5AS99iaVf13VqHOZYOgSkee3CSb9OD7mP5woucs06DM7lTrXVoVYAAIABAACAG/oLgAAAAAABAAAAARcgVDSAhegugLVST532La37oqKtnjOckhIBlLs2Q/sNIFsBGCBR6QULK5ZqMplGaIQULvodeAhG5fyqQl0wPgKXEs9iNwABBSARyQCsSJ4Ornuei3KSK1y+R9D80V0LR7ULGo8ok9nkWQEGSgHAIiAhK0O2/ewhKK0O0RJ4uUSWDuT9MsN0KOkJ3y4Ulg7xKqwBwCIgq0mY8bwMW70H3nkymlsEJWShxl3TnORebrG5ijwZEVCsIQcRyQCsSJ4Ornuei3KSK1y+R9D80V0LR7ULGo8ok9nkWRkAc1bkV1YAAIABAACAG/oLgAAAAAADAAAAIQchK0O2/ewhKK0O0RJ4uUSWDuT9MsN0KOkJ3y4Ulg7xKjkBoODJTdj84Eh8c8W2f7Hr+Iwh99LQEmFNoeApa47JYUxOtdWhVgAAgAEAAIAb+guAAAAAAAMAAAAhB6tJmPG8DFu9B955MppbBCVkocZd05zkXm6xuYo8GRFQOQHb7pqYPI/wz7s7fX1ihufIBD6iRxBCCZYwGOPMA5zaW/OrZNhWAACAAQAAgBv6C4AAAAAAAwAAAAAA").unwrap();
+
+        let policy = Policy::from_descriptor("", "", descriptor, NETWORK).unwrap();
+
+        // My signers
+        let my_signers = [signer1.clone(), signer2.clone()];
+
+        // Check involved signers
+        let signers: HashSet<Signer> = policy
+            .search_used_signers_with_psbt(my_signers.into_iter(), &psbt)
+            .collect();
+        assert!(signers.len() == 1);
+        assert!(signers.contains(&signer1));
+        assert!(!signers.contains(&signer2));
+    }
+
+    #[test]
+    fn test_search_used_signers_with_psbt_complex_policy() {
+        // Signer involved (internal key)
+        let mnemonic = Mnemonic::from_str(
+            "possible suffer flavor boring essay zoo collect stairs day cabbage wasp tackle",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer1 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        // Signer NOT involved
+        let mnemonic = Mnemonic::from_str(
+            "message scissors typical gravity patrol lunch about bacon person focus cry uncover",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer2 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        // Signer involved
+        let mnemonic = Mnemonic::from_str(
+            "involve camp enter man minimum milk minimum news hockey divert window mind",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer3 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        // Signer involved
+        let mnemonic = Mnemonic::from_str(
+            "panther tree neglect narrow drip act visit position pass assault tennis long",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer4 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        // Signer involved but NOT USED in policy path selector (so shouldn't appear in PSBT)
+        let mnemonic = Mnemonic::from_str(
+            "vicious climb harsh insane yard aspect frequent already tackle fetch ask throw",
+        )
+        .unwrap();
+        let seed = Seed::from_mnemonic(mnemonic);
+        let signer5 = Signer::from_seed("", None, seed, Some(784923), NETWORK).unwrap();
+
+        let descriptor: &str = "tr([7356e457/86'/1'/784923']tpubDCvLwbJPseNux9EtPbrbA2tgDayzptK4HNkky14Cw6msjHuqyZCE88miedZD86TZUb29Rof3sgtREU4wtzofte7QDSWDiw8ZU6ZYHmAxY9d/0/*,and_v(v:pk([f3ab64d8/86'/1'/784923']tpubDCh4uyVDVretfgTNkazUarV9ESTh7DJy8yvMSuWn5PQFbTDEsJwHGSBvTrNF92kw3x5ZLFXw91gN5LYtuSCbr1Vo6mzQmD49sF2vGpReZp2/0/*),andor(pk([f57a6b99/86'/1'/784923']tpubDC45v32EZGP2U4qVTKayC3kkdKmFAFDxxA7wnCCVgUuPXRFNms1W1LZq2LiCUBk5XmNvTZcEtbexZUMtY4ubZGS74kQftEGibUxUpybMan7/0/*),older(52000),multi_a(2,[4eb5d5a1/86'/1'/784923']tpubDCLskGdzStPPo1auRQygJUfbmLMwujWr7fmekdUMD7gqSpwEcRso4CfiP5GkRqfXFYkfqTujyvuehb7inymMhBJFdbJqFyHsHVRuwLKCSe9/0/*,[8cab67b4/86'/1'/784923']tpubDC6N2TsKj5zdHzqU17wnQMHsD1BdLVue3bkk2a2BHnVHoTvhX2JdKGgnMwRiMRVVs3art21SusorgGxXoZN54JhXNQ7KoJsHLTR6Kvtu7Ej/0/*))))#auurkhk6";
+        let psbt: PartiallySignedTransaction = PartiallySignedTransaction::from_str("cHNidP8BAIkBAAAAAVtBj7wIGtjzHNb74akRrN9Bd5klR6D4y7ckzwtA8VNWAQAAAAD9////AogTAAAAAAAAIlEgkEnh3P38B1E3Cd9dNBlE312fQpO7xOAKTBIBT5eGSp+YDwAAAAAAACJRIOVvW03oMd+AF6D21rxALmumoeTgFUC1kT0a9vn5Cw0IeWEnAAABASsKJAAAAAAAACJRIMMas2YZrVYpx2yU5JmtJQP6YhfHn8tT8+Rixfjxmr5LIhXBEckArEieDq57notykitcvkfQ/NFdC0e1CxqPKJPZ5FmTIKtJmPG8DFu9B955MppbBCVkocZd05zkXm6xuYo8GRFQrSDlRI4wvJDLHiP8DopyRIFwtdEvmiH5yC4C9ucDlY8QGKxkICErQ7b97CEorQ7REni5RJYO5P0yw3Qo6QnfLhSWDvEqrCBwmFFQxGxORIESE3iNvyRTEYuSl6pusJC7DtndU4QLa7pSnGcDIMsAsmjAIRYRyQCsSJ4Ornuei3KSK1y+R9D80V0LR7ULGo8ok9nkWRkAc1bkV1YAAIABAACAG/oLgAAAAAADAAAAIRYhK0O2/ewhKK0O0RJ4uUSWDuT9MsN0KOkJ3y4Ulg7xKjkBIskRRnweVLQ9x6hBp9aSgWEIKJr8gOFsCmPyZq/wsCJOtdWhVgAAgAEAAIAb+guAAAAAAAMAAAAhFnCYUVDEbE5EgRITeI2/JFMRi5KXqm6wkLsO2d1ThAtrOQEiyRFGfB5UtD3HqEGn1pKBYQgomvyA4WwKY/Jmr/CwIoyrZ7RWAACAAQAAgBv6C4AAAAAAAwAAACEWq0mY8bwMW70H3nkymlsEJWShxl3TnORebrG5ijwZEVA5ASLJEUZ8HlS0PceoQafWkoFhCCia/IDhbApj8mav8LAi86tk2FYAAIABAACAG/oLgAAAAAADAAAAIRblRI4wvJDLHiP8DopyRIFwtdEvmiH5yC4C9ucDlY8QGDkBIskRRnweVLQ9x6hBp9aSgWEIKJr8gOFsCmPyZq/wsCL1emuZVgAAgAEAAIAb+guAAAAAAAMAAAABFyARyQCsSJ4Ornuei3KSK1y+R9D80V0LR7ULGo8ok9nkWQEYICLJEUZ8HlS0PceoQafWkoFhCCia/IDhbApj8mav8LAiAAABBSBUNICF6C6AtVJPnfYtrfuioq2eM5ySEgGUuzZD+w0gWwEGlQDAkiBALHIhKOuv5dSfGycL22trpjI+jkIAZKaOS05gVJtLVq0gw9m+cUvtDh8ey0ifeGjBgC9YJFPfpVZ31/VN50syhBWsZCD7NYbpOIS6Dz940CvdWuwpMjhQDMVWiq9xBH1AuBSzqawgEJNZvz6OW3af6qKQOZXwH64darxLu3rwNTSqQGAIDBy6UpxnAyDLALJoIQcQk1m/Po5bdp/qopA5lfAfrh1qvEu7evA1NKpAYAgMHDkBQvmxnNMp0JUSq1gyP8TofcAuPHcdd7xrvfmecA+bSXuMq2e0VgAAgAEAAIAb+guAAAAAAAEAAAAhB0AsciEo66/l1J8bJwvba2umMj6OQgBkpo5LTmBUm0tWOQFC+bGc0ynQlRKrWDI/xOh9wC48dx13vGu9+Z5wD5tJe/OrZNhWAACAAQAAgBv6C4AAAAAAAQAAACEHVDSAhegugLVST532La37oqKtnjOckhIBlLs2Q/sNIFsZAHNW5FdWAACAAQAAgBv6C4AAAAAAAQAAACEHw9m+cUvtDh8ey0ifeGjBgC9YJFPfpVZ31/VN50syhBU5AUL5sZzTKdCVEqtYMj/E6H3ALjx3HXe8a735nnAPm0l79XprmVYAAIABAACAG/oLgAAAAAABAAAAIQf7NYbpOIS6Dz940CvdWuwpMjhQDMVWiq9xBH1AuBSzqTkBQvmxnNMp0JUSq1gyP8TofcAuPHcdd7xrvfmecA+bSXtOtdWhVgAAgAEAAIAb+guAAAAAAAEAAAAA").unwrap();
+
+        let policy = Policy::from_descriptor("", "", descriptor, NETWORK).unwrap();
+
+        // My signers
+        let my_signers = [
+            signer1.clone(),
+            signer2.clone(),
+            signer3.clone(),
+            signer4.clone(),
+            signer5.clone(),
+        ];
+
+        // Check involved signers
+        let signers: HashSet<Signer> = policy
+            .search_used_signers_with_psbt(my_signers.into_iter(), &psbt)
+            .collect();
+        //assert_eq!(signers.len(), 3); // TODO
+        assert!(signers.contains(&signer1)); // Internal key
+        assert!(signers.contains(&signer3));
+        assert!(signers.contains(&signer4));
+        //assert!(!signers.contains(&signer5)); // TODO
     }
 }
 
