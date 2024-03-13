@@ -1,6 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use nostr_ffi::{EventId, Timestamp};
@@ -37,6 +38,7 @@ pub enum Proposal {
         amount: u64,
         description: String,
         psbt: String,
+        policy_path: Option<HashMap<String, Vec<u64>>>,
     },
     KeyAgentPayment {
         descriptor: String,
@@ -45,6 +47,7 @@ pub enum Proposal {
         description: String,
         period: Period,
         psbt: String,
+        policy_path: Option<HashMap<String, Vec<u64>>>,
     },
     ProofOfReserve {
         descriptor: String,
@@ -62,12 +65,18 @@ impl From<proposal::Proposal> for Proposal {
                 amount,
                 description,
                 psbt,
+                policy_path,
             } => Self::Spending {
                 descriptor: descriptor.to_string(),
                 to_address: to_address.assume_checked().to_string(),
                 amount,
                 description,
                 psbt: psbt.to_string(),
+                policy_path: policy_path.map(|path| {
+                    path.into_iter()
+                        .map(|(k, v)| (k.to_string(), v.into_iter().map(|x| x as u64).collect()))
+                        .collect()
+                }),
             },
             proposal::Proposal::KeyAgentPayment {
                 descriptor,
@@ -76,6 +85,7 @@ impl From<proposal::Proposal> for Proposal {
                 description,
                 period,
                 psbt,
+                policy_path,
             } => Self::KeyAgentPayment {
                 descriptor: descriptor.to_string(),
                 signer_descriptor: signer_descriptor.to_string(),
@@ -86,6 +96,11 @@ impl From<proposal::Proposal> for Proposal {
                     to: Arc::new(Timestamp::from_secs(period.to)),
                 },
                 psbt: psbt.to_string(),
+                policy_path: policy_path.map(|path| {
+                    path.into_iter()
+                        .map(|(k, v)| (k.to_string(), v.into_iter().map(|x| x as u64).collect()))
+                        .collect()
+                }),
             },
             proposal::Proposal::ProofOfReserve {
                 descriptor,

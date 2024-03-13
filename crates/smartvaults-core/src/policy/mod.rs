@@ -793,7 +793,7 @@ impl Policy {
                 builder.add_utxos(&utxos)?;
             }
 
-            if let Some(path) = policy_path {
+            if let Some(path) = policy_path.clone() {
                 builder.policy_path(path, KeychainKind::External);
             }
 
@@ -860,6 +860,7 @@ impl Policy {
             amount,
             description,
             psbt,
+            policy_path,
         ))
     }
 
