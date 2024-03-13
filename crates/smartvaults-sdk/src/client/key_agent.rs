@@ -242,7 +242,7 @@ impl SmartVaults {
                 description,
                 fee_rate,
                 utxos,
-                policy_path,
+                policy_path.clone(),
                 skip_frozen_utxos,
             )
             .await?;
@@ -261,6 +261,7 @@ impl SmartVaults {
                 description,
                 period,
                 psbt,
+                policy_path,
             };
             Ok(prop)
         } else {

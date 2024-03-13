@@ -2,6 +2,7 @@
 // Distributed under the MIT software license
 
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::fmt;
 
 use keechain_core::bdk::signer::{SignerError, SignerWrapper};
@@ -86,6 +87,7 @@ pub enum Proposal {
             deserialize_with = "deserialize_psbt"
         )]
         psbt: PartiallySignedTransaction,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     },
     ProofOfReserve {
         descriptor: Descriptor<String>,
@@ -108,6 +110,7 @@ pub enum Proposal {
             deserialize_with = "deserialize_psbt"
         )]
         psbt: PartiallySignedTransaction,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     },
 }
 
@@ -130,6 +133,7 @@ impl Proposal {
         amount: u64,
         description: S,
         psbt: PartiallySignedTransaction,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Self
     where
         S: Into<String>,
@@ -140,6 +144,7 @@ impl Proposal {
             amount,
             description: description.into(),
             psbt,
+            policy_path,
         }
     }
 
@@ -165,6 +170,7 @@ impl Proposal {
         description: S,
         period: Period,
         psbt: PartiallySignedTransaction,
+        policy_path: Option<BTreeMap<String, Vec<usize>>>,
     ) -> Self
     where
         S: Into<String>,
@@ -176,6 +182,7 @@ impl Proposal {
             description: description.into(),
             period,
             psbt,
+            policy_path,
         }
     }
 
