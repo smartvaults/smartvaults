@@ -6,11 +6,13 @@ use std::time::Duration;
 
 use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI, Request as NIP46Request};
 use nostr_sdk::{
-    ClientMessage, EventBuilder, EventId, Keys, PublicKey, RelaySendOptions, Timestamp, Url,
+    ClientMessage, EventBuilder, EventId, Keys, PublicKey, RelaySendOptions, SubscribeOptions,
+    SubscriptionId, Timestamp, Url,
 };
 use smartvaults_sdk_sqlite::model::NostrConnectRequest;
 
 use super::{Error, SmartVaults};
+use crate::constants::NOSTR_CONNECT_SUBSCRIPTION_ID;
 
 impl SmartVaults {
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
@@ -29,7 +31,13 @@ impl SmartVaults {
                 }
             };
             let filters = self.sync_filters(last_sync).await;
-            relay.subscribe(filters, RelaySendOptions::new()).await?;
+            relay
+                .subscribe_with_id(
+                    SubscriptionId::new(NOSTR_CONNECT_SUBSCRIPTION_ID),
+                    filters,
+                    SubscribeOptions::default(),
+                )
+                .await?;
         }
 
         // Send connect ACK

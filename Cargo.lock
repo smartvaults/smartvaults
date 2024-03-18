@@ -332,6 +332,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-destructor"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4653a42bf04120a1d4e92452e006b4e3af4ab4afff8fb4af0f1bbb98418adf3e"
+dependencies = [
+ "tracing",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1648,19 +1657,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "generator"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cc16584ff22b460a382b7feec54b23d2908d858152e5739a120b949293bd74e"
-dependencies = [
- "cc",
- "libc",
- "log",
- "rustversion",
- "windows 0.48.0",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1822,9 +1818,9 @@ dependencies = [
 
 [[package]]
 name = "goblin"
-version = "0.6.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d6b4de4a8eb6c46a8c77e1d3be942cb9a8bf073c22374578e5ba4b08ed0ff68"
+checksum = "bb07a4ffed2093b118a525b1d8f5204ae274faed5604537caf7135d0f18d9887"
 dependencies = [
  "log",
  "plain",
@@ -1861,7 +1857,7 @@ dependencies = [
  "presser",
  "thiserror",
  "winapi",
- "windows 0.51.1",
+ "windows",
 ]
 
 [[package]]
@@ -2544,20 +2540,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
-name = "loom"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff50ecb28bb86013e935fb6683ab1f6d3a20016f123c76fd4c27470076ac30f5"
-dependencies = [
- "cfg-if",
- "generator",
- "pin-utils",
- "scoped-tls",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "lru"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2634,15 +2616,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "matchers"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
-dependencies = [
- "regex-automata 0.1.10",
 ]
 
 [[package]]
@@ -2889,8 +2862,8 @@ dependencies = [
 
 [[package]]
 name = "nostr"
-version = "0.28.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "aes",
  "base64 0.21.7",
@@ -2918,8 +2891,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-database"
-version = "0.28.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-trait",
  "flatbuffers",
@@ -2933,7 +2906,7 @@ dependencies = [
 [[package]]
 name = "nostr-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "nostr",
  "uniffi",
@@ -2941,11 +2914,12 @@ dependencies = [
 
 [[package]]
 name = "nostr-relay-pool"
-version = "0.28.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-utility",
  "async-wsocket",
+ "atomic-destructor",
  "nostr",
  "nostr-database",
  "thiserror",
@@ -2955,8 +2929,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-sdk"
-version = "0.28.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-utility",
  "lnurl-pay",
@@ -2976,11 +2950,12 @@ dependencies = [
 [[package]]
 name = "nostr-sdk-ffi"
 version = "0.1.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-utility",
  "nostr-ffi",
  "nostr-sdk",
+ "paranoid-android",
  "tracing",
  "tracing-subscriber",
  "uniffi",
@@ -2988,8 +2963,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-signer"
-version = "0.28.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-utility",
  "nostr",
@@ -3000,8 +2975,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-sqlite"
-version = "0.28.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-trait",
  "deadpool-sqlite",
@@ -3015,8 +2990,8 @@ dependencies = [
 
 [[package]]
 name = "nostr-zapper"
-version = "0.28.0"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-trait",
  "nostr",
@@ -3106,8 +3081,8 @@ dependencies = [
 
 [[package]]
 name = "nwc"
-version = "0.28.1"
-source = "git+https://github.com/rust-nostr/nostr?rev=5cbfd8a4947f8980516bfc40f5327edbe57ca99d#5cbfd8a4947f8980516bfc40f5327edbe57ca99d"
+version = "0.29.0"
+source = "git+https://github.com/rust-nostr/nostr?rev=73e8afa65200ab519b085dc02fb37a5d4828f6c0#73e8afa65200ab519b085dc02fb37a5d4828f6c0"
 dependencies = [
  "async-utility",
  "nostr",
@@ -3198,13 +3173,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
-name = "oneshot"
+name = "oneshot-uniffi"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f6640c6bda7731b1fdbab747981a0f896dd1fedaf9f4a53fa237a04a84431f4"
-dependencies = [
- "loom",
-]
+checksum = "6c548d5c78976f6955d72d0ced18c48ca07030f7a1d4024529fedd7c1c01b29c"
 
 [[package]]
 name = "opaque-debug"
@@ -3759,17 +3731,8 @@ checksum = "b62dbe01f0b06f9d8dc7d49e05a0785f153b00b2c227856282f671e0318c9b15"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.4",
- "regex-syntax 0.8.2",
-]
-
-[[package]]
-name = "regex-automata"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
-dependencies = [
- "regex-syntax 0.6.29",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -3780,14 +3743,8 @@ checksum = "3b7fa1134405e2ec9353fd416b17f8dacd46c473d7d3fd1cf202706a14eb792a"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.2",
+ "regex-syntax",
 ]
-
-[[package]]
-name = "regex-syntax"
-version = "0.6.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
@@ -4122,18 +4079,18 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scroll"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04c565b551bafbef4157586fa379538366e4385d42082f255bfd96e4fe8519da"
+checksum = "6ab8598aa408498679922eff7fa985c25d58a90771bd6be794434c5277eab1a6"
 dependencies = [
  "scroll_derive",
 ]
 
 [[package]]
 name = "scroll_derive"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1db149f81d46d2deba7cd3c50772474707729550221e69588478ebf9ada425ae"
+checksum = "7f81c2fde025af7e69b1d1420531c8a8811ca898919db177141a85313b1cb932"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5123,14 +5080,10 @@ version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad0f048c97dbd9faa9b7df56362b8ebcaa52adb06b498c050d2f4e32f90a7a8b"
 dependencies = [
- "matchers",
  "nu-ansi-term",
- "once_cell",
- "regex",
  "sharded-slab",
  "smallvec",
  "thread_local",
- "tracing",
  "tracing-core",
  "tracing-log",
 ]
@@ -5266,8 +5219,8 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "uniffi"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "anyhow",
  "camino",
@@ -5286,8 +5239,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_bindgen"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "anyhow",
  "askama",
@@ -5309,19 +5262,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "uniffi_build"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
-dependencies = [
- "anyhow",
- "camino",
- "uniffi_bindgen",
-]
-
-[[package]]
 name = "uniffi_checksum_derive"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "quote",
  "syn 2.0.48",
@@ -5329,23 +5272,23 @@ dependencies = [
 
 [[package]]
 name = "uniffi_core"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "anyhow",
  "bytes",
  "camino",
  "log",
  "once_cell",
- "oneshot",
+ "oneshot-uniffi",
  "paste",
  "static_assertions",
 ]
 
 [[package]]
 name = "uniffi_macros"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "bincode",
  "camino",
@@ -5356,14 +5299,13 @@ dependencies = [
  "serde",
  "syn 2.0.48",
  "toml 0.5.11",
- "uniffi_build",
  "uniffi_meta",
 ]
 
 [[package]]
 name = "uniffi_meta"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "anyhow",
  "bytes",
@@ -5373,8 +5315,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_testing"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "anyhow",
  "camino",
@@ -5385,8 +5327,8 @@ dependencies = [
 
 [[package]]
 name = "uniffi_udl"
-version = "0.25.2"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "0.26.1"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "anyhow",
  "textwrap",
@@ -5912,8 +5854,8 @@ dependencies = [
 
 [[package]]
 name = "weedle2"
-version = "4.0.0"
-source = "git+https://github.com/mozilla/uniffi-rs?rev=59c1e3ef15b1ea5143402e25264e933dbf8d1a1f#59c1e3ef15b1ea5143402e25264e933dbf8d1a1f"
+version = "5.0.0"
+source = "git+https://github.com/mozilla/uniffi-rs?rev=442f2e4e8764a249beacd28fe849fd1936d5eb8b#442f2e4e8764a249beacd28fe849fd1936d5eb8b"
 dependencies = [
  "nom",
 ]
@@ -6084,15 +6026,6 @@ dependencies = [
  "clipboard_x11",
  "raw-window-handle",
  "thiserror",
-]
-
-[[package]]
-name = "windows"
-version = "0.48.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e686886bc078bc1b0b600cac0147aadb815089b6e4da64016cbd754b6342700f"
-dependencies = [
- "windows-targets 0.48.5",
 ]
 
 [[package]]

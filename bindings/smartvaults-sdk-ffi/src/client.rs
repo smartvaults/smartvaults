@@ -536,16 +536,11 @@ impl SmartVaults {
         })
     }
 
-    pub fn revoke_approval(&self, approval_id: Arc<EventId>) -> Result<()> {
-        block_on(async move {
-            Ok(self
-                .inner
-                .revoke_approval(approval_id.as_ref().into())
-                .await?)
-        })
+    pub fn revoke_approval(&self, approval_id: &EventId) -> Result<()> {
+        block_on(async move { Ok(self.inner.revoke_approval(**approval_id).await?) })
     }
 
-    pub fn finalize(&self, proposal_id: Arc<EventId>) -> Result<CompletedProposal> {
+    pub fn finalize(&self, proposal_id: &EventId) -> Result<CompletedProposal> {
         block_on(async move { Ok(self.inner.finalize(**proposal_id).await?.into()) })
     }
 

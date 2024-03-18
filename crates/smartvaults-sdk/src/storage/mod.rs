@@ -369,7 +369,7 @@ impl SmartVaultsStorage {
             for coordinate in event.coordinates() {
                 if let Ok(true) = self
                     .database
-                    .has_coordinate_been_deleted(&coordinate, event.created_at)
+                    .has_coordinate_been_deleted(coordinate, event.created_at)
                     .await
                 {
                     let filter: Filter = coordinate.into();

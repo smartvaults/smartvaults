@@ -19,8 +19,8 @@ use nostr_sdk::pool::pool;
 use nostr_sdk::{
     nips, Client, ClientBuilder, ClientMessage, Contact, Event, EventBuilder, EventId, Filter,
     JsonUtil, Keys, Kind, Metadata, Options, Profile, PublicKey, Relay, RelayOptions,
-    RelayPoolNotification, RelaySendOptions, Result, SQLiteDatabase, Tag, Timestamp, TryIntoUrl,
-    UncheckedUrl, Url,
+    RelayPoolNotification, RelaySendOptions, Result, SQLiteDatabase, SubscribeAutoCloseOptions,
+    SubscribeOptions, Tag, Timestamp, TryIntoUrl, UncheckedUrl, Url,
 };
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
@@ -446,7 +446,8 @@ impl SmartVaults {
             relay
                 .subscribe(
                     filters,
-                    RelaySendOptions::new().skip_send_confirmation(true),
+                    SubscribeOptions::default()
+                        .send_opts(RelaySendOptions::new().skip_send_confirmation(true)),
                 )
                 .await?;
             relay.connect(None).await;
@@ -623,12 +624,14 @@ impl SmartVaults {
         let metadata: Metadata = profile.metadata();
         if metadata == Metadata::default() {
             self.client
-                .req_events_of(
+                .subscribe(
                     vec![Filter::new()
                         .author(public_key)
                         .kind(Kind::Metadata)
                         .limit(1)],
-                    Some(Duration::from_secs(60)),
+                    Some(
+                        SubscribeAutoCloseOptions::default().timeout(Some(Duration::from_secs(10))),
+                    ),
                 )
                 .await;
         }
@@ -659,12 +662,14 @@ impl SmartVaults {
 
             // Request contact metadata
             self.client
-                .req_events_of(
+                .subscribe(
                     vec![Filter::new()
                         .author(public_key)
                         .kind(Kind::Metadata)
                         .limit(1)],
-                    Some(Duration::from_secs(60)),
+                    Some(
+                        SubscribeAutoCloseOptions::default().timeout(Some(Duration::from_secs(10))),
+                    ),
                 )
                 .await;
         }

@@ -14,7 +14,7 @@ use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
     NegentropyOptions, PublicKey, RelayMessage, RelayPoolNotification, RelaySendOptions, Result,
-    Timestamp, Url,
+    SubscribeAutoCloseOptions, SubscribeOptions, SubscriptionId, Timestamp, Url,
 };
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::FeeRate;
@@ -29,6 +29,7 @@ use smartvaults_protocol::v1::constants::{
 use tokio::sync::broadcast::Receiver;
 
 use super::{Error, SmartVaults};
+use crate::constants::DEFAULT_SUBSCRIPTION_ID;
 use crate::storage::{InternalCompletedProposal, InternalPolicy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -232,7 +233,14 @@ impl SmartVaults {
                             }
                         };
                     let filters: Vec<Filter> = this.sync_filters(last_sync).await;
-                    if let Err(e) = relay.subscribe(filters, RelaySendOptions::new()).await {
+                    if let Err(e) = relay
+                        .subscribe_with_id(
+                            SubscriptionId::new(DEFAULT_SUBSCRIPTION_ID),
+                            filters,
+                            SubscribeOptions::default(),
+                        )
+                        .await
+                    {
                         tracing::error!("Impossible to subscribe to {relay_url}: {e}");
                     }
                 }
@@ -245,26 +253,21 @@ impl SmartVaults {
                                 let event_id = event.id;
                                 if event.is_expired() {
                                     tracing::warn!("Event {event_id} expired");
-                                } else if let Err(e) = this.handle_event(event).await {
+                                } else if let Err(e) = this.handle_event(*event).await {
                                     tracing::error!("Impossible to handle event {event_id}: {e}");
                                 }
                             }
                             RelayPoolNotification::Message { relay_url, message } => {
                                 if let RelayMessage::EndOfStoredEvents(subscription_id) = message {
                                     tracing::debug!("Received new EOSE for {relay_url} with subid {subscription_id}");
-                                    if let Ok(relay) = this.client.relay(&relay_url).await {
-                                        for (_, subscription) in relay.subscriptions().await.into_iter() {
-                                            if subscription.id() == subscription_id {
-                                                if let Err(e) = this
-                                                    .db
-                                                    .save_last_relay_sync(relay_url, Timestamp::now()).await
-                                                {
-                                                    tracing::error!("Impossible to save last relay sync: {e}");
-                                                }
-                                                break;
+                                        if subscription_id == SubscriptionId::new(DEFAULT_SUBSCRIPTION_ID) {
+                                            if let Err(e) = this
+                                                .db
+                                                .save_last_relay_sync(relay_url, Timestamp::now()).await
+                                            {
+                                                tracing::error!("Impossible to save last relay sync: {e}");
                                             }
                                         }
-                                    }
                                 }
                             }
                             RelayPoolNotification::RelayStatus { .. } => (),
@@ -304,7 +307,12 @@ impl SmartVaults {
             let pubkeys = event.public_keys().copied();
             let filter: Filter = Filter::new().authors(pubkeys).kind(Kind::Metadata);
             self.client
-                .req_events_of(vec![filter], Some(Duration::from_secs(60)))
+                .subscribe(
+                    vec![filter],
+                    Some(
+                        SubscribeAutoCloseOptions::default().timeout(Some(Duration::from_secs(10))),
+                    ),
+                )
                 .await;
             self.sync_channel
                 .send(Message::EventHandled(EventHandled::Contacts))?;

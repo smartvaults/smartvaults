@@ -15,3 +15,6 @@ pub const METADATA_SYNC_INTERVAL: Duration = Duration::from_secs(3600);
 
 // Timeout
 pub(crate) const SEND_TIMEOUT: Duration = Duration::from_secs(20);
+
+pub(crate) const DEFAULT_SUBSCRIPTION_ID: &str = "smartvaults";
+pub(crate) const NOSTR_CONNECT_SUBSCRIPTION_ID: &str = "ncs";
