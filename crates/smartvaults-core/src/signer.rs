@@ -190,6 +190,10 @@ impl Signer {
         self.fingerprint
     }
 
+    pub fn fingerprint_ref(&self) -> &Fingerprint {
+        &self.fingerprint
+    }
+
     pub fn descriptor(&self) -> Descriptor<DescriptorPublicKey> {
         self.descriptor.clone()
     }
