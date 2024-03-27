@@ -2,3 +2,5 @@
 /output
 .DS_Store
 /release
+.idea/
+.vscode/
