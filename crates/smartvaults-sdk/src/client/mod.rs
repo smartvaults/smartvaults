@@ -25,12 +25,11 @@ use nostr_sdk::{
 use parking_lot::RwLock as ParkingLotRwLock;
 use smartvaults_core::bdk::chain::ConfirmationTime;
 use smartvaults_core::bdk::wallet::{AddressIndex, Balance};
-use smartvaults_core::bdk::FeeRate as BdkFeeRate;
 use smartvaults_core::bips::bip39::Mnemonic;
 use smartvaults_core::bitcoin::address::NetworkUnchecked;
 use smartvaults_core::bitcoin::bip32::Fingerprint;
 use smartvaults_core::bitcoin::psbt::PartiallySignedTransaction;
-use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid};
+use smartvaults_core::bitcoin::{Address, Network, OutPoint, ScriptBuf, Txid, FeeRate as BitcoinFeeRate};
 use smartvaults_core::miniscript::Descriptor;
 use smartvaults_core::signer::smartvaults_signer;
 use smartvaults_core::types::{KeeChain, Keychain, Seed, WordCount};
@@ -488,7 +487,7 @@ impl SmartVaults {
     }
 
     async fn load_nostr_connect_relays(&self) -> Result<(), Error> {
-        let relays: Vec<Url> = self.db.get_nostr_connect_sessions_relays().await?;
+        let relays: HashSet<Url> = self.db.get_nostr_connect_sessions_relays().await?;
         self.client.add_relays(relays).await?;
         Ok(())
     }
@@ -1131,14 +1130,14 @@ impl SmartVaults {
             return Err(Error::InvalidFeeRate);
         }
 
-        let fee_rate: BdkFeeRate = match fee_rate {
+        let fee_rate: BitcoinFeeRate = match fee_rate {
             FeeRate::Priority(priority) => {
                 let blockchain = self.blockchain().await?;
                 let btc_per_kvb: f32 =
                     blockchain.estimate_fee(priority.target_blocks() as usize)? as f32;
-                BdkFeeRate::from_btc_per_kvb(btc_per_kvb)
+                BitcoinFeeRate::from_sat_per_vb(btc_per_kvb)
             }
-            FeeRate::Rate(rate) => BdkFeeRate::from_sat_per_vb(rate),
+            FeeRate::Rate(rate) => BitcoinFeeRate::from_sat_per_vb(rate),
         };
 
         let mut frozen_utxos: Option<Vec<OutPoint>> = None;

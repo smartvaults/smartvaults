@@ -112,6 +112,8 @@ pub enum Error {
     TryingToDeleteNotOwnedEvent,
     #[error("not found")]
     NotFound,
+    #[error("unexpected nostr connect URI")]
+    UnexpectedNostrConnectUri,
     #[error("{0}")]
     Generic(String),
 }

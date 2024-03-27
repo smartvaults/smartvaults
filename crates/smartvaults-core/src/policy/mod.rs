@@ -12,13 +12,13 @@ use bdk::descriptor::{ExtractPolicy, IntoWalletDescriptor, Policy as SpendingPol
 use bdk::signer::SignersContainer;
 use bdk::wallet::tx_builder::AddUtxoError;
 use bdk::wallet::ChangeSet;
-use bdk::{FeeRate, KeychainKind, LocalOutput, Wallet};
+use bdk::{KeychainKind, LocalOutput, Wallet};
 use keechain_core::bitcoin::absolute::{self, Height, Time};
 use keechain_core::bitcoin::address::NetworkUnchecked;
 use keechain_core::bitcoin::bip32::Fingerprint;
 #[cfg(feature = "reserves")]
 use keechain_core::bitcoin::psbt::PartiallySignedTransaction;
-use keechain_core::bitcoin::{Address, Network, OutPoint};
+use keechain_core::bitcoin::{Address, FeeRate, Network, OutPoint};
 use keechain_core::miniscript::descriptor::DescriptorType;
 use keechain_core::miniscript::policy::Concrete;
 use keechain_core::miniscript::Descriptor;
@@ -720,7 +720,7 @@ impl Policy {
                 address,
                 amount,
                 "",
-                FeeRate::default_min_relay_fee(),
+                FeeRate::BROADCAST_MIN,
                 utxos,
                 frozen_utxos,
                 policy_path,

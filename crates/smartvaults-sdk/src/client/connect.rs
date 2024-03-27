@@ -6,8 +6,7 @@ use std::time::Duration;
 
 use nostr_sdk::nips::nip46::{Message as NIP46Message, NostrConnectURI, Request as NIP46Request};
 use nostr_sdk::{
-    ClientMessage, EventBuilder, EventId, Keys, PublicKey, RelaySendOptions, SubscribeOptions,
-    SubscriptionId, Timestamp, Url,
+    ClientMessage, EventBuilder, EventId, Filter, Keys, Kind, PublicKey, RelaySendOptions, SubscribeOptions, SubscriptionId, Timestamp, Url
 };
 use smartvaults_sdk_sqlite::model::NostrConnectRequest;
 
@@ -16,39 +15,40 @@ use crate::constants::NOSTR_CONNECT_SUBSCRIPTION_ID;
 
 impl SmartVaults {
     pub async fn new_nostr_connect_session(&self, uri: NostrConnectURI) -> Result<(), Error> {
-        let relay_url: Url = uri.relay_url.clone();
+        if let NostrConnectURI::Client { public_key, relays, .. } = &uri {
+            let keys: &Keys = self.keys();
 
-        // Try to add relay and check if it's already added
-        if self.client.add_relay(&relay_url).await? {
-            let relay = self.client.relay(&relay_url).await?;
-            relay.connect(Some(Duration::from_secs(30))).await;
+            // Add relays
+            self.client.add_relays(relays).await?;
+            self.client.connect().await;
 
-            let last_sync: Timestamp = match self.db.get_last_relay_sync(relay_url.clone()).await {
-                Ok(ts) => ts,
-                Err(e) => {
-                    tracing::error!("Impossible to get last relay sync: {e}");
-                    Timestamp::from(0)
-                }
-            };
-            let filters = self.sync_filters(last_sync).await;
-            relay
+            // Subscribe
+            let filters = vec![Filter::new()
+            .pubkey(keys.public_key())
+            .kind(Kind::NostrConnect)
+            .since(Timestamp::now())];
+            for url in relays.iter() {
+                let relay = self.client.relay(url).await?;
+                relay
                 .subscribe_with_id(
                     SubscriptionId::new(NOSTR_CONNECT_SUBSCRIPTION_ID),
-                    filters,
+                    filters.clone(),
                     SubscribeOptions::default(),
                 )
                 .await?;
+            }
+
+            // Send connect ACK
+            let msg = NIP46Message::request(NIP46Request::Connect{public_key: keys.public_key(), secret: None});
+            let nip46_event = EventBuilder::nostr_connect(keys, *public_key, msg)?.to_event(keys)?;
+            self.client.send_event_to(relays, nip46_event).await?;
+
+            self.db.save_nostr_connect_uri(uri).await?;
+
+            Ok(())
+        } else {
+            Err(Error::UnexpectedNostrConnectUri)
         }
-
-        // Send connect ACK
-        let keys: &Keys = self.keys();
-        let msg = NIP46Message::request(NIP46Request::Connect(keys.public_key()));
-        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
-        self.client.send_event_to([relay_url], nip46_event).await?;
-
-        self.db.save_nostr_connect_uri(uri).await?;
-
-        Ok(())
     }
 
     #[tracing::instrument(skip_all, level = "trace")]
@@ -65,7 +65,7 @@ impl SmartVaults {
     ) -> Result<(), Error> {
         let uri = self.db.get_nostr_connect_session(app_public_key).await?;
         let keys: &Keys = self.keys();
-        let msg = NIP46Message::request(NIP46Request::Disconnect);
+        let msg = NIP46Message::request(NIP46Request::);
         let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?.to_event(keys)?;
         if wait {
             self.client

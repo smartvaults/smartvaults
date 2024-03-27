@@ -14,19 +14,19 @@ keywords = ["bitcoin", "nostr"]
 
 [workspace.dependencies]
 async-utility = "0.2"
-bdk = { git = "https://github.com/bitcoindevkit/bdk", rev = "50c549b5aca3c58bcffce359f4937a8c3eb57a35", default-features = false }
-bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "50c549b5aca3c58bcffce359f4937a8c3eb57a35" }
-nostr = { git = "https://github.com/rust-nostr/nostr", rev = "73e8afa65200ab519b085dc02fb37a5d4828f6c0", default-features = false }
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "73e8afa65200ab519b085dc02fb37a5d4828f6c0", default-features = false }
-nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "73e8afa65200ab519b085dc02fb37a5d4828f6c0" }
-nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "73e8afa65200ab519b085dc02fb37a5d4828f6c0" }
+bdk = { git = "https://github.com/bitcoindevkit/bdk", rev = "e5aa4fe9e6dc9448b565b6549225558d42dbae8f", default-features = false }
+bdk_electrum = { git = "https://github.com/bitcoindevkit/bdk", rev = "e5aa4fe9e6dc9448b565b6549225558d42dbae8f" }
+nostr = { git = "https://github.com/rust-nostr/nostr", rev = "1b550b22c03c1224704e17743f515ae4f92e9791", default-features = false }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr", rev = "1b550b22c03c1224704e17743f515ae4f92e9791", default-features = false }
+nostr-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "1b550b22c03c1224704e17743f515ae4f92e9791" }
+nostr-sdk-ffi = { git = "https://github.com/rust-nostr/nostr", rev = "1b550b22c03c1224704e17743f515ae4f92e9791" }
 once_cell = "1.19"
 serde = "1.0"
 serde_json = "1.0"
 thiserror = "1.0"
 tracing = "0.1"
 tokio = { version = "1", default-features = false }
-uniffi = { git = "https://github.com/mozilla/uniffi-rs", rev = "442f2e4e8764a249beacd28fe849fd1936d5eb8b" }
+uniffi = "0.27"
 wasm-bindgen = { version = "0.2", default-features = false }
 
 [patch.crates-io]

@@ -1,7 +1,7 @@
 // Copyright (c) 2022-2024 Smart Vaults
 // Distributed under the MIT software license
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 
 use smartvaults_protocol::nostr::nips::nip46::{Message as NIP46Message, NostrConnectURI};
@@ -13,14 +13,17 @@ use crate::Error;
 
 impl Store {
     pub async fn save_nostr_connect_uri(&self, uri: NostrConnectURI) -> Result<(), Error> {
-        let conn = self.acquire().await?;
-        conn.interact(move |conn| {
-            conn.execute(
-                "INSERT OR IGNORE INTO nostr_connect_sessions (app_public_key, uri, timestamp) VALUES (?, ?, ?);",
-                (uri.public_key.to_string(), uri.to_string(), Timestamp::now().as_u64()),
-            )?;
-            Ok(())
-        }).await?
+        if let NostrConnectURI::Client { public_key, .. } = &uri {
+            let public_key = *public_key;
+            let conn = self.acquire().await?;
+            conn.interact(move |conn| {
+                conn.execute(
+                    "INSERT OR IGNORE INTO nostr_connect_sessions (app_public_key, uri, timestamp) VALUES (?, ?, ?);",
+                    (public_key.to_string(), uri.to_string(), Timestamp::now().as_u64()),
+                )
+            }).await??;
+        }
+        Ok(())
     }
 
     pub async fn nostr_connect_session_exists(
@@ -80,18 +83,16 @@ impl Store {
         .await?
     }
 
-    pub async fn get_nostr_connect_sessions_relays(&self) -> Result<Vec<Url>, Error> {
+    pub async fn get_nostr_connect_sessions_relays(&self) -> Result<HashSet<Url>, Error> {
         let conn = self.acquire().await?;
         conn.interact(move |conn| {
             let mut stmt = conn.prepare_cached("SELECT uri FROM nostr_connect_sessions;")?;
             let mut rows = stmt.query([])?;
-            let mut urls = Vec::new();
+            let mut urls = HashSet::new();
             while let Ok(Some(row)) = rows.next() {
                 let uri: String = row.get(0)?;
                 let uri: NostrConnectURI = NostrConnectURI::from_str(&uri)?;
-                if !urls.contains(&uri.relay_url) {
-                    urls.push(uri.relay_url);
-                }
+                urls.extend(uri.relays());
             }
             Ok(urls)
         })
