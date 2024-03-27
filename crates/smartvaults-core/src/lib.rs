@@ -42,11 +42,13 @@ mod tests {
 
     use keechain_core::bdk::chain::{BlockId, ConfirmationTime};
     use keechain_core::bdk::wallet::AddressIndex;
-    use keechain_core::bdk::{FeeRate, Wallet};
+    use keechain_core::bdk::Wallet;
     use keechain_core::bips::bip39::Mnemonic;
     use keechain_core::bitcoin::absolute::Height;
     use keechain_core::bitcoin::hashes::Hash;
-    use keechain_core::bitcoin::{absolute, Address, BlockHash, Network, Transaction, TxOut};
+    use keechain_core::bitcoin::{
+        absolute, Address, BlockHash, FeeRate, Network, Transaction, TxOut,
+    };
     use keechain_core::descriptors::ToDescriptor;
     use keechain_core::miniscript::DescriptorPublicKey;
     use keechain_core::{Purpose, Result, Seed};
@@ -163,7 +165,7 @@ mod tests {
             Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
             Amount::Custom(1120),
             "Testing",
-            FeeRate::from_sat_per_vb(1.0),
+            FeeRate::from_sat_per_vb(1).unwrap(),
             None,
             None,
             None,
@@ -254,7 +256,7 @@ mod tests {
             Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78")?,
             Amount::Custom(1120),
             "Testing",
-            FeeRate::from_sat_per_vb(1.0),
+            FeeRate::from_sat_per_vb(1).unwrap(),
             None,
             None,
             None,
@@ -289,7 +291,7 @@ mod tests {
                 Address::from_str("mohjSavDdQYHRYXcS3uS6ttaHP8amyvX78").unwrap(),
                 Amount::Custom(2000),
                 "Testing",
-                FeeRate::from_sat_per_vb(1.0),
+                FeeRate::from_sat_per_vb(1).unwrap(),
                 None,
                 None,
                 None,

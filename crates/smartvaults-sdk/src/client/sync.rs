@@ -9,7 +9,7 @@ use std::time::Duration;
 use async_utility::thread;
 use futures_util::stream::AbortHandle;
 use nostr_sdk::database::NostrDatabaseExt;
-use nostr_sdk::nips::nip46::{Message as NIP46Message, Request as NIP46Request};
+use nostr_sdk::nips::nip46::{self, Message as NIP46Message, NostrConnectURI, Request as NIP46Request};
 use nostr_sdk::nips::{nip04, nip65};
 use nostr_sdk::{
     ClientMessage, Event, EventBuilder, EventId, Filter, JsonUtil, Keys, Kind, NegentropyDirection,
@@ -361,26 +361,22 @@ impl SmartVaults {
             let msg = NIP46Message::from_json(content)?;
             if let Ok(request) = msg.to_request() {
                 match request {
-                    NIP46Request::Disconnect => {
-                        self._disconnect_nostr_connect_session(event.author(), false)
-                            .await?;
-                    }
                     NIP46Request::GetPublicKey => {
                         let uri = self.db.get_nostr_connect_session(event.author()).await?;
-                        let msg = msg
-                            .generate_response(keys)?
-                            .ok_or(Error::CantGenerateNostrConnectResponse)?;
-                        let nip46_event = EventBuilder::nostr_connect(keys, uri.public_key, msg)?
-                            .to_event(keys)?;
-                        // TODO: use send_event?
-                        self.client
-                            .pool()
-                            .send_msg_to(
-                                [uri.relay_url],
-                                ClientMessage::event(nip46_event),
-                                RelaySendOptions::new().skip_send_confirmation(true),
-                            )
-                            .await?;
+                        if let NostrConnectURI::Client { public_key, relays, .. } = uri {
+                            let msg = nip46::Message::response(msg.id(), Some(nip46::ResponseResult::GetPublicKey(keys.public_key())), None);
+                            let nip46_event = EventBuilder::nostr_connect(keys, public_key, msg)?
+                                .to_event(keys)?;
+                            // TODO: use send_event?
+                            self.client
+                                .pool()
+                                .send_msg_to(
+                                    relays,
+                                    ClientMessage::event(nip46_event),
+                                    RelaySendOptions::new().skip_send_confirmation(true),
+                                )
+                                .await?;   
+                        }
                     }
                     _ => {
                         if self
@@ -389,6 +385,9 @@ impl SmartVaults {
                             .await
                         {
                             let uri = self.db.get_nostr_connect_session(event.author()).await?;
+
+                            
+
                             let keys: &Keys = self.keys();
                             let req_message = msg.clone();
                             let msg = msg
