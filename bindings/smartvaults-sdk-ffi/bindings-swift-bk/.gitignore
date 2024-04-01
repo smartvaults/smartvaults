@@ -1,0 +1,6 @@
+.swiftpm/
+.build/
+*.xcodeproj
+Sources/
+**/Headers/*.h
+**/smartvaults_sdkFFI.a
