@@ -465,9 +465,27 @@ impl SmartVaultsStorage {
         proposals.insert(proposal_id, internal);
     }
 
+    /// Delete proposal and unfreeze UTXOs
     pub async fn delete_proposal(&self, proposal_id: &EventId) -> bool {
         let mut proposals = self.proposals.write().await;
-        proposals.remove(proposal_id).is_some()
+        match proposals.remove(proposal_id) {
+            Some(p) => {
+                // Unfreeze UTXOs
+                self.unfreeze_utxos(
+                    p.policy_id,
+                    p.proposal
+                        .psbt()
+                        .unsigned_tx
+                        .input
+                        .iter()
+                        .map(|txin| txin.previous_output),
+                )
+                .await;
+
+                true
+            }
+            None => false,
+        }
     }
 
     /// Get proposals
@@ -813,6 +831,18 @@ impl SmartVaultsStorage {
             })
             .or_default()
             .extend(utxos);
+    }
+
+    pub async fn unfreeze_utxos<I>(&self, policy_id: EventId, utxos: I)
+    where
+        I: IntoIterator<Item = OutPoint> + Clone,
+    {
+        let mut frozed_utxos = self.frozed_utxos.write().await;
+        frozed_utxos.entry(policy_id).and_modify(|set| {
+            for utxo in utxos.into_iter() {
+                set.remove(&utxo);
+            }
+        });
     }
 
     pub async fn get_frozen_utxos(&self, policy_id: &EventId) -> HashSet<OutPoint> {
